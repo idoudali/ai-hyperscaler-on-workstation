@@ -1,0 +1,51 @@
+# Pre-commit hooks for Hyperscaler on Workstation project
+# See https://pre-commit.com for more information
+repos:
+  # General file formatting and quality checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'  # Allow trailing spaces in markdown (for line breaks)
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--allow-multiple-documents']
+      - id: check-json
+      - id: check-toml
+      - id: check-xml
+      - id: check-added-large-files
+        args: ['--maxkb=10240']  # 10MB limit
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Markdown linting with relaxed rules
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        args:
+          - '--config=.markdownlint.yaml'
+          - '--fix'
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['-e', 'SC1091']  # Disable "not following" sourced files
+
+
+# Global excludes
+exclude: |
+  (?x)^(
+    \.terraform/.*|
+    terraform\.tfstate.*|
+    \.vagrant/.*|
+    output-.*/.*|
+    \.secrets\.baseline|
+    packer_cache/.*
+  )$

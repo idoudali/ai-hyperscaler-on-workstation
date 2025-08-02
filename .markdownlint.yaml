@@ -1,0 +1,56 @@
+# Markdownlint configuration for infrastructure documentation
+# Relaxed rules for technical documentation
+
+# Header style consistency
+MD003:
+  style: "atx"
+
+# Unordered list style
+MD004:
+  style: "dash"
+
+# List indentation
+MD007:
+  indent: 2
+
+# Trailing spaces (allow 2 for line breaks)
+MD009:
+  br_spaces: 2
+
+# Line length settings (keeping reasonable limits)
+MD013:
+  line_length: 120
+  heading_line_length: 120
+  code_block_line_length: 120
+  tables: false
+  headings: false
+
+# Allow duplicate headings in different sections (MD024)
+MD024:
+  siblings_only: true
+
+# Allow trailing punctuation in headers (MD026)
+MD026: false
+
+# Relax ordered list item prefix requirements (MD029)
+MD029:
+  style: "ordered"
+
+# Allow multiple spaces after list markers (MD030)
+MD030: false
+
+# Allow inline HTML (MD033) - needed for complex tables and formatting
+MD033: false
+
+# Allow bare URLs (MD034) - common in technical docs
+MD034: false
+
+# Allow emphasis used instead of a header (MD036)
+MD036: false
+
+# Allow first line in file to not be a top level header (MD041)
+MD041: false
+
+# Code block style
+MD046:
+  style: "fenced"
