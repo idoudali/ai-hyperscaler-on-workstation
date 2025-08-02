@@ -1,0 +1,63 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_type = "semver"
+version_provider = "scm"
+update_changelog_on_bump = true
+major_version_zero = true
+
+[tool.commitizen.customize]
+message_template = "{{change_type}}{{scope}}: {{message}}"
+example = "feat(ansible): add GPU node provisioning playbook"
+schema = "<type>(<scope>): <subject>"
+schema_pattern = "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\([a-z0-9\\-]+\\))?: .{1,50}"
+
+[[tool.commitizen.customize.questions]]
+type = "list"
+name = "change_type"
+choices = [
+    {value = "feat", name = "feat: A new feature"},
+    {value = "fix", name = "fix: A bug fix"},
+    {value = "docs", name = "docs: Documentation only changes"},
+    {value = "style", name = "style: Changes that do not affect the meaning of the code"},
+    {value = "refactor", name = "refactor: A code change that neither fixes a bug nor adds a feature"},
+    {value = "perf", name = "perf: A code change that improves performance"},
+    {value = "test", name = "test: Adding missing tests or correcting existing tests"},
+    {value = "build", name = "build: Changes that affect the build system or external dependencies"},
+    {value = "ci", name = "ci: Changes to our CI configuration files and scripts"},
+    {value = "chore", name = "chore: Other changes that don't modify src or test files"},
+    {value = "revert", name = "revert: Reverts a previous commit"}
+]
+message = "Select the type of change that you're committing:"
+
+[[tool.commitizen.customize.questions]]
+type = "list"
+name = "scope"
+choices = [
+    {value = "ansible", name = "ansible: Ansible playbooks and roles"},
+    {value = "terraform", name = "terraform: Terraform infrastructure code"},
+    {value = "packer", name = "packer: Packer image building"},
+    {value = "slurm", name = "slurm: SLURM workload manager configuration"},
+    {value = "k8s", name = "k8s: Kubernetes manifests and configuration"},
+    {value = "gpu", name = "gpu: GPU-related configuration (MIG, drivers, etc.)"},
+    {value = "docs", name = "docs: Documentation updates"},
+    {value = "ci", name = "ci: CI/CD pipeline changes"},
+    {value = "scripts", name = "scripts: Shell scripts and utilities"},
+    {value = "", name = "none: No specific scope"}
+]
+message = "What is the scope of this change (press enter to skip):"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "message"
+message = "Write a short, imperative tense description of the change:"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "body"
+message = "Provide a longer description of the change (press enter to skip):"
+
+[[tool.commitizen.customize.questions]]
+type = "input"
+name = "footer"
+message = "List any BREAKING CHANGES or issues closed by this change (press enter to skip):"

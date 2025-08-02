@@ -1,0 +1,95 @@
+---
+description: "Generate conventional commit messages that follow the project's commitizen configuration and Conventional Commits specification."
+alwaysApply: true
+---
+
+# Conventional Commit Message Guidelines
+
+When creating commit messages, you MUST follow the Conventional Commits specification as configured in `.cz.toml`.
+
+## Format
+```
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+## Required Elements
+
+### Type (REQUIRED)
+Use one of these standardized types:
+- **feat**: A new feature
+- **fix**: A bug fix
+- **docs**: Documentation only changes
+- **style**: Changes that do not affect the meaning of the code (white-space, formatting, etc.)
+- **refactor**: A code change that neither fixes a bug nor adds a feature
+- **perf**: A code change that improves performance
+- **test**: Adding missing tests or correcting existing tests
+- **build**: Changes that affect the build system or external dependencies
+- **ci**: Changes to CI configuration files and scripts
+- **chore**: Other changes that don't modify src or test files
+- **revert**: Reverts a previous commit
+
+### Subject (REQUIRED)
+- Use imperative mood ("add" not "added" or "adds")
+- Keep it under 50 characters
+- Don't capitalize the first letter
+- No period at the end
+- Be descriptive but concise
+
+### Scope (OPTIONAL but RECOMMENDED)
+Use project-specific scopes when applicable:
+- **ansible**: Ansible playbooks and roles
+- **terraform**: Terraform infrastructure code
+- **packer**: Packer image building configurations
+- **slurm**: SLURM workload manager configuration
+- **k8s**: Kubernetes manifests and configuration
+- **gpu**: GPU-related configuration (MIG, drivers, etc.)
+- **docs**: Documentation updates
+- **ci**: CI/CD pipeline changes
+- **scripts**: Shell scripts and utilities
+
+## Examples
+
+### Good Examples
+```
+feat(ansible): add GPU node provisioning playbook
+fix(terraform): resolve VPC subnet configuration issue
+docs(slurm): update MIG GPU configuration guide
+ci: add pre-commit hooks for conventional commits
+refactor(scripts): simplify node health check logic
+```
+
+### Bad Examples
+```
+❌ Added new features
+❌ Fix bug
+❌ Update documentation
+❌ WIP: working on ansible stuff
+❌ feat: did some work on the thing
+```
+
+## Body and Footer Guidelines
+
+### Body (OPTIONAL)
+- Separate from subject with a blank line
+- Use to explain the "what" and "why", not the "how"
+- Wrap at 72 characters per line
+
+### Footer (OPTIONAL)
+- Use for breaking changes: `BREAKING CHANGE: <description>`
+- Reference issues: `Closes #123`, `Fixes #456`
+- Co-authored commits: `Co-authored-by: Name <email@example.com>`
+
+## Breaking Changes
+For breaking changes, use either:
+1. `!` after the type/scope: `feat(api)!: remove deprecated endpoints`
+2. Footer: `BREAKING CHANGE: removed support for Node.js 14`
+
+## Automation
+- The repository uses `pre-commit` with `conventional-pre-commit` hook
+- Commit messages are validated automatically
+- Use `cz commit` for interactive commit message creation
+- Run `pre-commit install --hook-type commit-msg` to enable validation

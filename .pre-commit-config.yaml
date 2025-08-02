@@ -38,6 +38,15 @@ repos:
       - id: shellcheck
         args: ['-e', 'SC1091']  # Disable "not following" sourced files
 
+  # Commit message validation (Conventional Commits)
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.2.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [
+          '--scopes', 'ansible,terraform,packer,slurm,k8s,gpu,docs,ci,scripts'
+        ]
 
 # Global excludes
 exclude: |
