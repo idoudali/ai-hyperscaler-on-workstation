@@ -1,0 +1,42 @@
+---
+globs:
+  - "**/*.yml"
+  - "**/*.yaml"
+description: "How to correctly request MIG GPU resources in Kubernetes."
+---
+
+When defining a Kubernetes manifest (like a Pod, Deployment, or KServe InferenceService) that needs a GPU slice, you MUST specify the resource limit using the `nvidia.com/mig-1g.5gb: 1` format.
+
+This syntax is required by the NVIDIA GPU Operator's device plugin to correctly schedule pods on the MIG-partitioned A100 GPU, as detailed in Section 5.5 and 7.4 of the `hyperscaler-on-workstation.md` design document.
+
+### Example: Correct Pod Definition
+
+```yaml:valid
+# GOOD: Correctly requests a specific MIG partition.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mig-device-test
+spec:
+  containers:
+  - name: cuda-container
+    image: "nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda11.7.1-ubuntu20.04"
+    resources:
+      limits:
+        nvidia.com/mig-1g.5gb: 1
+```
+
+```yaml:invalid
+# BAD: Uses generic or incorrect GPU resource requests.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mig-device-test-bad
+spec:
+  containers:
+  - name: cuda-container
+    image: "nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda11.7.1-ubuntu20.04"
+    resources:
+      limits:
+        nvidia.com/gpu: 1 # This is incorrect for this project's MIG setup.
+```

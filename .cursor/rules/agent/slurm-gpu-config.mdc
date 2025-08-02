@@ -1,0 +1,4 @@
+---
+description: "When configuring SLURM for GPUs, remember that gres.conf and cgroup.conf are the critical files for defining and isolating the MIG GPU resources for compute nodes, as specified in the project design document."
+alwaysApply: false
+---

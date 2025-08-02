@@ -1,0 +1,38 @@
+---
+globs:
+  - "ansible/**/*.yml"
+  - "ansible/**/*.yaml"
+description: "Best practices for writing Ansible playbooks and roles."
+---
+
+When creating or modifying Ansible files, adhere to these project standards.
+
+### Structure and Idempotency
+
+- **Use Roles:** Separate concerns by using roles (e.g., `hpc_controller`, `k8s_worker`). Don't put all logic into a single large playbook.
+- **Ensure Idempotency:** All tasks should be idempotent. Running a playbook multiple times should not cause errors or unintended changes. Use `state: present` or `state: absent` with package and service modules.
+- **Templates for Configuration:** Use the `template` module for configuration files like `slurm.conf`, `gres.conf`, and `cgroup.conf`. This allows for dynamic, variable-driven configurations.
+
+### Variable Management
+
+- **Use Inventory:** Define host-specific variables and group mappings in the `ansible/inventory/` directory.
+- **Use Group Vars:** For variables that apply to an entire group (like `hpc_cluster`), use `group_vars/` files.
+
+### Example: Correct Task for Configuration
+
+```yaml:valid
+# GOOD: Uses the template module to manage a configuration file.
+- name: Template slurm.conf
+  template:
+    src: templates/slurm.conf.j2
+    dest: /etc/slurm-llnl/slurm.conf
+    owner: root
+    group: root
+    mode: '0644'
+```
+
+```yaml:invalid
+# BAD: Uses shell to echo a configuration file, which is not idempotent.
+- name: Configure Slurm
+  shell: echo "ControlMachine=hpc-controller" > /etc/slurm-llnl/slurm.conf
+```

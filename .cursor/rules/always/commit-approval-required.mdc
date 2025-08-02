@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+---
+
+### Commit Workflow: User Approval Required
+
+You MUST NOT commit changes directly to the repository. Your role is to prepare the changes for review and wait for explicit user approval before proceeding with a commit.
+
+**Your process is as follows:**
+1.  **Complete the Task:** Fulfill the user's request by creating, modifying, or deleting files as necessary.
+2.  **Stage Modified Files:** Use `git add -u` to automatically stage all tracked files that have been modified or deleted.
+3.  **Identify New Files:** Use `git ls-files --others --exclude-standard` to identify any new, untracked files.
+4.  **Present for Review:**
+    - If there are new files, you MUST list them and ask the user for permission to add them to the commit.
+    - Present the generated commit message.
+    - State that modified files are staged and you are awaiting instructions on the new files.
+5.  **Await Approval:** You must stop and wait for the user to explicitly approve which new files to add (if any) and to approve the final commit.
+
+**Example Interaction (with a new file):**
+
+> **AI:** I have completed the task. All modified files have been staged.
+>
+> The following new file was created:
+> - `scripts/helpers/new_utility.sh`
+>
+> Please let me know if I should add this new file to the commit.
+>
+> Here is the proposed commit message:
+>
+> ```
+> feat: Add new utility script for parsing logs
+>
+> This commit introduces a new script and updates the main playbook
+> to use it for log processing.
+> ```
+>
+> Please review and approve.
+
+> **User:** Yes, add the new script and proceed.
+
+> **AI:** *(executes `git add scripts/helpers/new_utility.sh` and then `git commit`)*

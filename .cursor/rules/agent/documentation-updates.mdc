@@ -1,0 +1,4 @@
+---
+description: "After modifying infrastructure code (Terraform, Ansible, Packer), check if the design documents or README in the /docs folder need to be updated to reflect the changes."
+alwaysApply: false
+---

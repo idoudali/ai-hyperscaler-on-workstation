@@ -1,0 +1,46 @@
+---
+globs:
+  - "terraform/**/*.tf"
+description: "Best practices for writing Terraform code in this project."
+---
+
+When working with Terraform files (`.tf`), you MUST adhere to the following critical principles derived from the project's design documents.
+
+### State File Management (CRITICAL)
+
+- **NEVER delete the `terraform.tfstate` file.** This file is Terraform's memory of the infrastructure it manages.
+- As detailed in `docs/design-docs/hyperscaler-on-workstation.md`, losing this file requires a tedious and error-prone manual recovery process using `terraform import`.
+- **Always run `terraform plan` before `terraform apply`** to preview changes and prevent unintended destruction or modification of resources.
+
+### Code Style and Structure
+
+- **Use Variables:** Do not hardcode values like VM counts, memory sizes, or CPU counts. Define them in `variables.tf` to promote reusability and easy configuration.
+- **Use Cloned Disks:** All VMs should be provisioned from the Packer-built golden image using `libvirt_volume`'s `base_volume_id` attribute to create space-efficient, copy-on-write clones.
+- **Resource Naming:** Use consistent and descriptive names for all resources (e.g., `libvirt_domain.hpc_controller`, `libvirt_volume.k8s_worker_gpu_01_disk`).
+
+### Example: Correct Volume and VM Definition
+
+```terraform:valid
+# GOOD: Defines a base volume and creates a clone from it.
+resource "libvirt_volume" "base_image" {
+  name   = "debian12-base.qcow2"
+  pool   = "default"
+  source = "/path/to/output-debian-base/debian12-base.qcow2"
+}
+
+resource "libvirt_volume" "hpc_controller_disk" {
+  name           = "hpc-controller.qcow2"
+  pool           = "default"
+  base_volume_id = libvirt_volume.base_image.id
+}
+```
+
+```terraform:invalid
+# BAD: Does not use the base image, creating a full-size disk.
+resource "libvirt_volume" "hpc_controller_disk" {
+  name   = "hpc-controller.qcow2"
+  pool   = "default"
+  source = "/path/to/some.iso" # Incorrect source
+  size   = 10737418240
+}
+```
