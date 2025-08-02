@@ -7,20 +7,28 @@ FROM debian:12
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system packages, development tools, and Python
+# hadolint ignore=DL3008
 RUN apt-get update && \
-    apt-get install -y \
-    git \
-    build-essential \
-    python3-pip \
-    python3-venv \
+    apt-get install -y --no-install-recommends \
+    ansible=7.7.0+dfsg-3+deb12u1 \
+    build-essential=12.9 \
+    cmake=3.25.1-1 \
     curl \
+    git \
     gnupg \
+    libvirt-clients=9.0.0-4+deb12u2 \
     lsb-release \
+    ninja-build=1.11.1-2~deb12u1 \
+    python3-pip=23.0.1+dfsg-1 \
+    python3-venv=3.11.2-1+b1 \
+    qemu-system-x86=1:7.2+dfsg-7+deb12u13 \
+    screen=4.9.0-4 \
     software-properties-common \
-    ansible \
-    cmake \
-    ninja-build && \
+    tmux=3.3a-3 && \
     rm -rf /var/lib/apt/lists/*
+
+# Set shell to fail on pipe errors for all subsequent RUN commands
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install HashiCorp tools (Terraform and Packer)
 # Add HashiCorp GPG key
@@ -31,20 +39,24 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/h
 
 # Install Terraform and Packer
 RUN apt-get update && \
-    apt-get install -y terraform packer
+    apt-get install -y --no-install-recommends \
+    packer=1.14.0-1 \
+    terraform=1.9.2-1 && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user for security
-RUN useradd -m -s /bin/bash developer
-USER developer
-WORKDIR /home/developer
+# Unset the custom shell to avoid affecting other commands if not needed
+SHELL ["/bin/sh", "-c"]
 
-# Set up a virtual environment for Python
-RUN python3 -m venv /home/developer/venv
-ENV PATH="/home/developer/venv/bin:$PATH"
+# Set up a virtual environment for Python in a common location
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Set a temporary working directory to copy and install requirements
+WORKDIR /tmp
 
 # Copy Python requirements and install them
-COPY --chown=developer:developer requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Set the working directory for the project
+# Set the final working directory for the project
 WORKDIR /workspace

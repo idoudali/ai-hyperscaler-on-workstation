@@ -1,0 +1,26 @@
+name: Lint and Static Analysis
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Lint Shell Scripts
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: ./scripts
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/Dockerfile
+
+      # Add other linting steps here as needed (e.g., yamllint, etc.)

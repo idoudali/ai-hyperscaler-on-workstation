@@ -1,0 +1,21 @@
+# Dockerfile Package Sorting
+
+When adding packages to `apt-get install` commands in a `Dockerfile`, you MUST keep the package list sorted alphabetically. This improves readability and makes it easier to manage dependencies.
+
+## Example
+
+### Bad
+```dockerfile
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential
+```
+
+### Good
+```dockerfile
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git
+```

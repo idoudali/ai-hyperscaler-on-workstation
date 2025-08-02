@@ -1,4 +1,4 @@
-# Makefile for managing the development environment
+# Makefile for managing the development environment and build process
 
 # Set default shell to bash
 SHELL := /bin/bash
@@ -57,17 +57,66 @@ clean-docker:
 # Lint the Dockerfile
 lint-docker:
 	@echo "Linting Dockerfile..."
-	# Add your Dockerfile linter command here, e.g., hadolint docker/Dockerfile
+	@echo "--> No linter configured. Please add one (e.g., hadolint)."
 
-# Display help message
+#==============================================================================
+# Project Build System (CMake)
+#==============================================================================
+.PHONY: config build-project deploy test clean-build cleanup build-image
+
+# Configure the project with CMake
+config:
+	@echo "Configuring the project with CMake and Ninja..."
+	@cmake -G Ninja -S . -B $(BUILD_DIR)
+
+# Build all targets (alias for deploy)
+build-project: deploy
+
+# Deploy the infrastructure
+deploy: config
+	@echo "Deploying the infrastructure..."
+	@cmake --build $(BUILD_DIR) --target deploy
+
+# Run integration tests
+test: config
+	@echo "Running integration tests..."
+	@cmake --build $(BUILD_DIR) --target test
+
+# Build the golden image artifact
+build-image: config
+	@echo "Building the golden image..."
+	@cmake --build $(BUILD_DIR) --target build-image
+
+# Clean the CMake build directory
+clean-build:
+	@echo "Cleaning the build directory..."
+	@rm -rf $(BUILD_DIR)
+
+# Destroy all provisioned infrastructure
+cleanup: config
+	@echo "Destroying all provisioned infrastructure..."
+	@cmake --build $(BUILD_DIR) --target cleanup
+
+#==============================================================================
+# Help
+#==============================================================================
 .PHONY: help
 help:
-	@echo "Development Environment Makefile"
-	@echo "--------------------------------"
-	@echo "Available commands:"
+	@echo "Development Environment & Build System Makefile"
+	@echo "-----------------------------------------------"
+	@echo ""
+	@echo "Docker Environment Commands:"
 	@echo "  make build-docker   - Build the development Docker image."
 	@echo "  make shell-docker   - Start an interactive shell in the container."
-	@echo "  make push-docker    - Build and push the image to a registry (needs configuration)."
 	@echo "  make clean-docker   - Remove the Docker image and old containers."
-	@echo "  make lint-docker    - Lint the Dockerfile."
+	@echo "  make push-docker    - (Optional) Push image to a registry."
+	@echo ""
+	@echo "Project Build Commands:"
+	@echo "  make config         - Configure the CMake project."
+	@echo "  make deploy         - Deploy the full infrastructure."
+	@echo "  make test           - Run integration tests on deployed infrastructure."
+	@echo "  make build-image    - Build the golden VM image."
+	@echo "  make clean-build    - Remove the CMake build directory."
+	@echo "  make cleanup        - Destroy all deployed infrastructure."
+	@echo ""
 	@echo "  make help           - Display this help message."
