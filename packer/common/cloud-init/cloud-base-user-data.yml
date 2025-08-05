@@ -1,0 +1,21 @@
+#cloud-config
+users:
+  - name: debian
+    gecos: Debian User
+    groups: sudo,adm,systemd-journal
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - REPLACE_SSH_KEY
+    shell: /bin/bash
+
+ssh_pwauth: false
+
+growpart:
+  mode: auto
+  devices: ['/']
+  ignore_growroot_disabled: false
+
+# Disable cloud-init after first boot
+runcmd:
+  - touch /etc/cloud/cloud-init.disabled

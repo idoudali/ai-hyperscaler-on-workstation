@@ -1,0 +1,61 @@
+#cloud-config
+# Cloud-init configuration for HPC Base Image
+# This configures the admin user with SSH access and minimal system setup
+
+# User configuration
+users:
+  - name: admin
+    groups: [sudo]
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - REPLACE_SSH_KEY
+
+# System configuration
+hostname: hpc-base
+fqdn: hpc-base.local
+
+# SSH configuration
+ssh_pwauth: false
+disable_root: true
+
+# System updates
+package_update: true
+package_upgrade: false
+
+# Basic packages (minimal set only)
+packages:
+  - curl
+  - wget
+  - vim
+  - htop
+
+# Timezone
+timezone: UTC
+
+# Runcmd for post-boot setup
+runcmd:
+  # Enable SSH service
+  - systemctl enable ssh
+  - systemctl start ssh
+
+  # Set hostname properly
+  - hostnamectl set-hostname hpc-base
+
+  # Update /etc/hosts
+  - echo "127.0.0.1 localhost" > /etc/hosts
+  - echo "127.0.1.1 hpc-base hpc-base.local" >> /etc/hosts
+
+  # Configure basic limits for HPC workloads
+  - echo "* soft nofile 65536" >> /etc/security/limits.conf
+  - echo "* hard nofile 65536" >> /etc/security/limits.conf
+  - echo "* soft nproc 32768" >> /etc/security/limits.conf
+  - echo "* hard nproc 32768" >> /etc/security/limits.conf
+
+  # Create placeholder directories for future HPC configuration
+  - mkdir -p /opt/hpc
+  - chown admin:admin /opt/hpc
+
+# Final message
+final_message: "HPC base cloud image setup complete. The system is ready for HPC workload configuration."

@@ -22,10 +22,13 @@ RUN apt-get update && \
     python3-pip=23.0.1+dfsg-1 \
     python3-venv=3.11.2-1+b1 \
     qemu-system-x86=1:7.2+dfsg-7+deb12u13 \
+    qemu-utils=1:7.2+dfsg-7+deb12u13 \
     screen=4.9.0-4 \
     software-properties-common \
-    tmux=3.3a-3 && \
-    rm -rf /var/lib/apt/lists/*
+    sudo=1.9.13p3-1+deb12u1 \
+    tmux=3.3a-3 \
+    xorriso \
+  && rm -rf /var/lib/apt/lists/*
 
 # Set shell to fail on pipe errors for all subsequent RUN commands
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

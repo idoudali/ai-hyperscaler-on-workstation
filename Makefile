@@ -12,6 +12,18 @@ FULL_IMAGE_NAME := $(IMAGE_NAME):$(IMAGE_TAG)
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
 
+# Get KVM and libvirt group IDs to pass to Docker for hardware acceleration.
+# The user running this Makefile must be in the 'kvm' and 'libvirt' groups on the host.
+KVM_GID := $(shell getent group kvm | cut -d: -f3)
+LIBVIRT_GID := $(shell getent group libvirt | cut -d: -f3)
+DOCKER_EXTRA_ARGS :=
+ifneq ($(KVM_GID),)
+	DOCKER_EXTRA_ARGS += --device /dev/kvm --group-add $(KVM_GID)
+endif
+ifneq ($(LIBVIRT_GID),)
+	DOCKER_EXTRA_ARGS += --group-add $(LIBVIRT_GID)
+endif
+
 # Build system variables
 BUILD_DIR := build
 
@@ -36,8 +48,14 @@ shell-docker:
 		-v /etc/passwd:/etc/passwd:ro \
 		-v /etc/group:/etc/group:ro \
 		-v /etc/shadow:/etc/shadow:ro \
+		-v /etc/sudoers:/etc/sudoers:ro \
+		-v /etc/sudoers.d:/etc/sudoers.d:ro \
 		-v "$(PWD)":/workspace \
+		-v "$(HOME)":"$(HOME)" \
+		-e HOME="$(HOME)" \
+		-w /workspace \
 		-u $(USER_ID):$(GROUP_ID) \
+		$(DOCKER_EXTRA_ARGS) \
 		$(FULL_IMAGE_NAME) /bin/bash
 
 # Push the Docker image to a registry (uncomment and configure)
@@ -62,7 +80,7 @@ lint-docker:
 #==============================================================================
 # Project Build System (CMake)
 #==============================================================================
-.PHONY: config build-project deploy test clean-build cleanup build-image
+.PHONY: config build-project deploy test clean-build cleanup build-image init-packer validate-packer clean-packer
 
 # Configure the project with CMake
 config:
@@ -82,8 +100,24 @@ test: config
 	@echo "Running integration tests..."
 	@cmake --build $(BUILD_DIR) --target test
 
+# Initialize Packer plugins
+init-packer: config
+	@echo "Initializing Packer plugins..."
+	@cmake --build $(BUILD_DIR) --target init-packer
+
+# Validate Packer templates
+validate-packer: init-packer
+	@echo "Validating Packer templates..."
+	@rm -rf $(BUILD_DIR)/images/* || true
+	@cmake --build $(BUILD_DIR) --target validate-packer
+
+# Clean Packer output directories
+clean-packer: config
+	@echo "Cleaning Packer output directories..."
+	@cmake --build $(BUILD_DIR) --target clean-images
+
 # Build the golden image artifact
-build-image: config
+build-image: validate-packer
 	@echo "Building the golden image..."
 	@cmake --build $(BUILD_DIR) --target build-image
 
@@ -113,9 +147,12 @@ help:
 	@echo ""
 	@echo "Project Build Commands:"
 	@echo "  make config         - Configure the CMake project."
+	@echo "  make init-packer    - Initialize Packer plugins."
+	@echo "  make validate-packer - Validate Packer templates."
+	@echo "  make build-image    - Build the golden VM image."
+	@echo "  make clean-packer   - Clean Packer output directories."
 	@echo "  make deploy         - Deploy the full infrastructure."
 	@echo "  make test           - Run integration tests on deployed infrastructure."
-	@echo "  make build-image    - Build the golden VM image."
 	@echo "  make clean-build    - Remove the CMake build directory."
 	@echo "  make cleanup        - Destroy all deployed infrastructure."
 	@echo ""
