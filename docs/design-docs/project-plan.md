@@ -4,51 +4,58 @@
 design document. This plan outlines the concrete steps for an AI agent to execute, transforming the architectural
 blueprint into a robust, production-ready, emulated environment with comprehensive error handling, security, and monitoring.
 
-**Project Status:** Phase 0 Foundation - In Progress (80% Complete)
+**Project Status:** Phase 0 Foundation - In Progress (30% Complete)
 **Last Updated:** 2025-01-02
 
 ## Current Status Summary
 
 ### ✅ Completed Components
 
-- **Development Environment**: Docker-based development environment with all required tools (Terraform, Packer,
-Ansible, CMake, Ninja)
-- **Build System Core**: CMake-based build system with Ninja generator support and custom targets
-- **Development Workflow**: Makefile automation, pre-commit hooks, conventional commits, and basic CI/CD
-- **Documentation**: Comprehensive design documents and implementation plans
+- **Development Environment**: Docker-based development environment with pinned versions of tools (Terraform, Packer,
+  Ansible, CMake, Ninja)
+- **Build System Core**: CMake-based build system with Ninja generator support and custom targets for building
+  minimal base images.
+- **Development Workflow**: Makefile automation, pre-commit hooks, conventional commits, and basic CI/CD.
+- **Documentation**: Comprehensive design documents and implementation plans.
 
-### 🚧 In Progress Components  
+### 🚧 In Progress Components
 
-- **Build System Enhancement**: Version compatibility checks and automated testing targets (placeholders implemented)
-- **CI/CD Pipeline**: Basic linting workflow implemented, quality gates and multi-stage pipeline pending
+- **Build System Enhancement**: Foundational Packer templates for `hpc-base` and `cloud-base` are implemented but
+  lack specific software packages (HPC tools, container runtimes). Automated testing targets are placeholders.
+- **CI/CD Pipeline**: Basic linting workflow implemented; multi-stage quality gates and deployment automation
+  are pending.
 
 ### 📋 Next Milestones
 
-- Complete Phase 0.2 build system enhancements
-- Implement Phase 0.5 cluster configuration management framework
-- Begin Phase 0.3 risk assessment and mitigation planning
-- Implement Phase 1 host preparation and validation scripts
+- Complete Phase 0.2 build system enhancements (add software to images, implement tests).
+- Implement Phase 0.5 cluster configuration management framework (`cluster.yaml`).
+- Begin Phase 1.1 host preparation and validation scripts (`check_prereqs.sh`).
+- Enhance CI/CD pipeline with build and deployment stages.
 
 ### 🎯 Immediate Action Items (Priority Order)
 
-1. **Complete Build System Enhancement** (Phase 0.2 remaining items):
-   - Implement version compatibility checks for all tools in CMakeLists.txt
-   - Replace placeholder test commands with actual integration tests
-   - Enhance CI/CD pipeline with multi-stage quality gates
+1.  **Implement Cluster Configuration Management** (Phase 0.5):
+    - Design and create comprehensive `config/cluster.yaml` structure.
+    - Implement JSON schema validation for cluster configuration.
+    - Create default configuration templates for development and production.
+    - Build configuration validator script with detailed error reporting.
 
-2. **Implement Cluster Configuration Management** (Phase 0.5 - New Priority):
-   - Design and create comprehensive `config/cluster.yaml` structure
-   - Implement JSON schema validation for cluster configuration
-   - Create default configuration templates for development and production
-   - Build configuration validator script with detailed error reporting
+2.  **Enhance Golden Images** (Phase 2.2):
+    - Add HPC-specific packages (Slurm, Munge) to the `hpc-base` image.
+    - Add container runtime and Kubernetes packages to the `cloud-base` image.
+    - Implement security hardening and monitoring tools in both images.
 
-3. **Finalize Development Environment** (Phase 0.1 remaining items):
-   - Configure container registry push workflow
-   - Add security scanning for Docker images
+3.  **Implement Host Preparation** (Phase 1.1):
+    - Create comprehensive system checker script (`check_prereqs.sh`).
+    - Implement prerequisite validation for CPU virtualization, IOMMU, and GPU drivers.
 
-4. **Begin Host Preparation** (Phase 1.1):
-   - Create comprehensive system checker script (`check_prereqs.sh`)
-   - Implement prerequisite validation for CPU virtualization, IOMMU, and GPU drivers
+4.  **Enhance Build System** (Phase 0.2 remaining items):
+    - Replace placeholder test commands with actual integration tests.
+    - Enhance CI/CD pipeline with multi-stage quality gates.
+
+5.  **Finalize Development Environment** (Phase 0.1 remaining items):
+    - Configure container registry push workflow.
+    - Add security scanning for Docker images.
 
 ---
 
@@ -67,11 +74,11 @@ based on project requirements and constraints.
   - [ ] Push the image to a container registry (e.g., GitHub Docker Registry) for CI usage.
   - [ ] Add security scanning for the container image.
 
-- [x] **0.2. Implement Enhanced Build System:**
+- [ ] **0.2. Implement Enhanced Build System:**
   - [x] Create a root `CMakeLists.txt` file with dependency validation.
   - [x] Configure the project to use the Ninja generator.
   - [x] Add custom CMake targets with error handling and rollback capabilities.
-  - [ ] Implement version compatibility checks for all tools.
+  - [x] Implement version compatibility checks for all tools.
   - [ ] Add automated testing targets for each build artifact.
   - [ ] Create multi-stage CI/CD pipeline with quality gates.
 
@@ -299,15 +306,15 @@ This phase uses Packer to build standardized, secure Debian 12 base images for t
 comprehensive testing and validation. Images are built with security hardening and monitoring tools.
 
 - [ ] **2.1. Enhanced Packer Configurations:**
-  - [ ] Write a Packer template (`hpc-base.pkr.hcl`) for the HPC cluster base image.
+  - [x] Write a Packer template (`hpc-base.pkr.hcl`) for the HPC cluster base image.
     - [ ] Include security hardening configurations.
     - [ ] Add monitoring and logging tools.
     - [ ] Implement image validation tests.
-  - [ ] Write a Packer template (`cloud-base.pkr.hcl`) for the cloud cluster base image.
+  - [x] Write a Packer template (`cloud-base.pkr.hcl`) for the cloud cluster base image.
     - [ ] Include container runtime optimizations.
     - [ ] Add Kubernetes-specific security configurations.
     - [ ] Implement cloud-native monitoring tools.
-  - [ ] Configure both templates with error handling and retry logic.
+  - [x] Configure both templates with error handling and retry logic.
   - [ ] Add image scanning for security vulnerabilities.
 
 - [ ] **2.2. Secure Unattended Install Configuration:**
@@ -323,7 +330,7 @@ comprehensive testing and validation. Images are built with security hardening a
   - [ ] Add automated testing hooks for image validation.
 
 - [ ] **2.3. Build and Validation Pipeline:**
-  - [ ] Execute CMake targets with comprehensive error handling.
+  - [x] Execute CMake targets with comprehensive error handling.
   - [ ] Implement automated image testing:
     - [ ] Boot validation tests.
     - [ ] Security compliance checks.
