@@ -30,6 +30,10 @@ repos:
         args:
           - '--config=.markdownlint.yaml'
           - '--fix'
+        exclude: |
+          (?x)^(
+            docs/design-docs/open-source-solutions\.md|
+            docs/design-docs/hyperscaler-on-workstation\.md)$
 
   # Shell script linting
   - repo: https://github.com/shellcheck-py/shellcheck-py
@@ -37,6 +41,13 @@ repos:
     hooks:
       - id: shellcheck
         args: ['-e', 'SC1091']  # Disable "not following" sourced files
+
+  # CMake formatting
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+    - id: cmake-format
+      args: ['--config=.cmake-format.py']
 
 
   # Commit message validation (Conventional Commits)
@@ -49,6 +60,7 @@ repos:
           '--verbose',
           '--scopes', 'ansible,terraform,packer,slurm,k8s,gpu,docs,ci,scripts'
         ]
+
 
   # Dockerfile linting with hadolint
   - repo: https://github.com/hadolint/hadolint
