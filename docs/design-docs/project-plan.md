@@ -40,20 +40,27 @@ blueprint into a robust, production-ready, emulated environment with comprehensi
     - Create default configuration templates for development and production.
     - Build configuration validator script with detailed error reporting.
 
-2.  **Enhance Golden Images** (Phase 2.2):
+2.  **Design Multi-GPU Support (MIG and non-MIG)** (Phase 0.5, 1.1, 3.1):
+    - Extend configuration model to describe multiple GPUs with per-device capabilities (MIG-capable or not),
+      PCI bus IDs, and allowable profiles.
+    - Implement host GPU discovery to enumerate devices, detect MIG capability, and record inventory.
+    - Add allocation logic and validation for mixed environments (some GPUs sliced with MIG, others whole-GPU).
+    - Define placement strategies and constraints for both HPC and Cloud clusters.
+
+3.  **Enhance Golden Images** (Phase 2.2):
     - Add HPC-specific packages (Slurm, Munge) to the `hpc-base` image.
     - Add container runtime and Kubernetes packages to the `cloud-base` image.
     - Implement security hardening and monitoring tools in both images.
 
-3.  **Implement Host Preparation** (Phase 1.1):
+4.  **Implement Host Preparation** (Phase 1.1):
     - Create comprehensive system checker script (`check_prereqs.sh`).
     - Implement prerequisite validation for CPU virtualization, IOMMU, and GPU drivers.
 
-4.  **Enhance Build System** (Phase 0.2 remaining items):
+5.  **Enhance Build System** (Phase 0.2 remaining items):
     - Replace placeholder test commands with actual integration tests.
     - Enhance CI/CD pipeline with multi-stage quality gates.
 
-5.  **Finalize Development Environment** (Phase 0.1 remaining items):
+6.  **Finalize Development Environment** (Phase 0.1 remaining items):
     - Configure container registry push workflow.
     - Add security scanning for Docker images.
 
@@ -154,10 +161,24 @@ global:
       bridge: "virbr200"
   
   gpu_allocation:
-    total_a100_devices: 1
-    mig_strategy: "1g.5gb"
-    hpc_gpu_instances: 4
-    cloud_gpu_instances: 3
+    # Multi-GPU inventory and allocation strategy
+    devices:
+      - id: "GPU-0"
+        pci_address: "0000:65:00.0"
+        model: "NVIDIA A100 80GB"
+        mig_capable: true
+        allowed_mig_profiles: ["1g.5gb", "2g.10gb", "3g.20gb", "7g.80gb"]
+      - id: "GPU-1"
+        pci_address: "0000:ca:00.0"
+        model: "NVIDIA RTX 6000"
+        mig_capable: false
+    strategy: "hybrid"  # one of: mig | whole | hybrid
+    mig_slices:
+      hpc: 4
+      cloud: 3
+    whole_gpus:
+      hpc: 0
+      cloud: 1
 
 clusters:
   hpc:
@@ -215,7 +236,11 @@ The `schemas/cluster.schema.json` will validate:
 
 - **Resource Constraints**: Ensure CPU, memory, and disk allocations are within reasonable bounds
 - **Network Validation**: Verify IP ranges don't overlap and are properly formatted
-- **GPU Allocation**: Confirm GPU instance allocation doesn't exceed available hardware
+- **GPU Allocation (Multi-GPU)**:
+  - Validate per-device constraints (MIG profiles only on MIG-capable devices)
+  - Prevent oversubscription across devices and slices (sum of slices and whole-GPUs within capacity)
+  - Enforce uniqueness and validity of GPU `pci_address` and `id`
+  - Validate placement rules for HPC/Cloud pools under `strategy` (mig | whole | hybrid)
 - **Cross-Dependencies**: Validate that GPU-enabled nodes have corresponding GPU instances allocated
 - **Configuration Consistency**: Ensure cluster sizing is feasible for the target hardware
 
