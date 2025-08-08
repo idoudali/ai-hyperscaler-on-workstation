@@ -31,6 +31,7 @@ blueprint into a robust, production-ready, emulated environment with comprehensi
 - Implement Phase 0.5 cluster configuration management framework (`cluster.yaml`).
 - Begin Phase 1.1 host preparation and validation scripts (`check_prereqs.sh`).
 - Enhance CI/CD pipeline with build and deployment stages.
+- Introduce Phase 0.7 Python CLI orchestrator for cluster management (skeleton + validation wiring).
 
 ### 🎯 Immediate Action Items (Priority Order)
 
@@ -63,6 +64,14 @@ blueprint into a robust, production-ready, emulated environment with comprehensi
 6.  **Finalize Development Environment** (Phase 0.1 remaining items):
     - Configure container registry push workflow.
     - Add security scanning for Docker images.
+
+7.  **Develop Python CLI Orchestrator** (Phase 0.7):
+    - Scaffold CLI (Typer/Click) with commands stubbed to return clear "Not implemented" errors.
+    - Wire `validate` command to JSON Schema + semantic validation flow for `config/cluster.yaml`.
+    - Add `hpc` lifecycle commands to start/stop/status/destroy HPC cluster first.
+    - Add `cloud` lifecycle commands after HPC is stable.
+    - Implement independent start/stop for HPC and Cloud clusters.
+    - Add resource guardrails to prevent starting both clusters when host capacity is insufficient.
 
 ---
 
@@ -134,6 +143,55 @@ based on project requirements and constraints.
   - [ ] Set up performance benchmarking infrastructure.
   - [ ] Create test data generators for MLOps workflows.
   - [ ] Add load testing capabilities for GPU resource allocation.
+
+---
+
+## 0.7. Python CLI Orchestrator for Cluster Management
+
+This phase introduces a Python-based CLI that acts as the orchestration layer across configuration, provisioning,
+GPU resource management, and cluster lifecycle. It prioritizes HPC first, then extends to the cloud cluster,
+and enforces resource guardrails to handle limited host capacity.
+
+- [ ] **0.7.1. Configuration Schema and Validation Flow:**
+  - [ ] Author `schemas/cluster.schema.json` for structural validation of `config/cluster.yaml`.
+  - [ ] Implement `scripts/validate_config.py` using `jsonschema` for structural validation.
+  - [ ] Add semantic validators (Python) for cross-field checks:
+    - [ ] GPU feasibility (MIG profiles on MIG-capable devices, no oversubscription).
+    - [ ] Network IP range overlaps and subnet correctness.
+    - [ ] Cross-dependencies (GPU-enabled nodes require GPU allocation).
+  - [ ] Integrate validation into CLI `validate` command with readable error reporting.
+
+- [ ] **0.7.2. CLI Skeleton and Command Contracts:**
+  - [ ] Create `scripts/cli.py` (Typer/Click) with subcommands:
+    - [ ] `validate` (wired to schema + semantic checks).
+    - [ ] `hpc [start|stop|status|destroy]` (stubs initially; raise explicit "Not implemented" until populated).
+    - [ ] `cloud [start|stop|status|destroy]` (stubs initially; raise explicit "Not implemented" until populated).
+    - [ ] `plan` (produce summarized actions/drift; initially a stub).
+    - [ ] `inventory gpu` (host GPU discovery and inventory; initially a stub).
+  - [ ] Add standardized exit codes and structured stderr for unimplemented features.
+  - [ ] Provide `--config` flag to point to `config/cluster.yaml` and `--state` for `output/state.json`.
+
+- [ ] **0.7.3. HPC-First Implementation:**
+  - [ ] Implement `hpc start` to provision HPC VMs per `cluster.yaml` (libvirt XML templates, qcow2 disks).
+  - [ ] Implement `hpc stop` to gracefully shutdown HPC VMs.
+  - [ ] Implement `hpc status` to report VM and service health.
+  - [ ] Implement `hpc destroy` with safe teardown and rollback checks.
+  - [ ] Generate Ansible inventory for HPC and invoke `playbook-hpc.yml`.
+
+- [ ] **0.7.4. Cloud Cluster Enablement:**
+  - [ ] Implement `cloud start` to provision control plane and worker nodes per `cluster.yaml`.
+  - [ ] Implement `cloud stop`, `cloud status`, and `cloud destroy` with parity to HPC behavior.
+  - [ ] Generate Ansible inventory for K8s and invoke `playbook-k8s.yml`.
+
+- [ ] **0.7.5. Independent Lifecycle Control:**
+  - [ ] Ensure HPC and Cloud subcommands operate independently (separate inventories, domains, and state entries).
+  - [ ] Implement locks and idempotence to avoid cross-cluster interference.
+
+- [ ] **0.7.6. Limited Resource Guardrails:**
+  - [ ] Add capacity checks during `start` to evaluate CPU/RAM/GPU constraints.
+  - [ ] Block concurrent start of both clusters when capacity is insufficient; print actionable guidance.
+  - [ ] Provide `--force` override flag with explicit warnings and confirmation prompt (non-interactive mode fails).
+  - [ ] Record decisions and capacity snapshots in `output/state.json` for drift analysis.
 
 ---
 
