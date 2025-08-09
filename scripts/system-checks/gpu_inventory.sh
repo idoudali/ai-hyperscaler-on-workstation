@@ -13,7 +13,8 @@ IFS=$'\n\t'
 # - Also writes YAML to ./output/gpu_inventory.yaml
 #
 # Requirements:
-# - nvidia-smi (from NVIDIA driver)
+# - nvidia-smi (from NVIDIA driver), version 450.80.02 or newer (for MIG support and reliable output)
+#   - NVIDIA driver version 450.80.02 or newer
 # - bash, coreutils, awk, sed, grep
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
