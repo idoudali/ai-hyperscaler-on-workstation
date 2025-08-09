@@ -62,12 +62,27 @@ repos:
         ]
 
 
-  # Dockerfile linting with hadolint
-  - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.0
+  # Dockerfile linting is covered in CI via GitHub Actions hadolint. Removed from local pre-commit to avoid requiring hadolint binary locally.
+
+  # Python formatting and linting
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
     hooks:
-      - id: hadolint
-        args: ['--ignore', 'DL3008', '--ignore', 'DL3009']
+      - id: black
+        language_version: python3
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^python/ai_how/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: ^python/ai_how/
 
 # Global excludes
 exclude: |

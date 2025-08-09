@@ -325,4 +325,3 @@ main() {
 
 # Run the main function with all provided arguments
 main "$@"
-

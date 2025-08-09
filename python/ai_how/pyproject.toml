@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-how"
+version = "0.1.0"
+description = "AI-HOW: Python CLI orchestrator for managing the Hyperscaler on Workstation clusters"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "../LICENSE" }
+authors = [
+  { name = "Pharos.ai", email = "devnull@example.com" }
+]
+dependencies = [
+  "typer[all]>=0.12.0",
+  "rich>=13.7.0",
+  "jsonschema>=4.21.0"
+]
+
+[project.scripts]
+ai-how = "ai_how.cli:app"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+strict_optional = true
+no_implicit_optional = true
+pretty = true
+show_error_context = true
+explicit_package_bases = true
+packages = ["ai_how"]

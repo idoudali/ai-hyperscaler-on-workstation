@@ -100,3 +100,23 @@ cz commit  # Interactive commit message builder
 
 For more details, please refer to the [Conventional Commits specification](https://www.conventionalcommits.org/)
 and [commitizen documentation](https://commitizen-tools.github.io/commitizen/).
+
+## Python CLI (ai-how)
+
+Install locally in a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -e ./python
+
+# usage
+ai-how --help
+```
+
+Run via module if needed:
+
+```bash
+python -m ai_how.cli --help
+```
