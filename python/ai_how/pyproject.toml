@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "ai-how"
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "AI-HOW: Python CLI orchestrator for managing the Hyperscaler on Workstation clusters"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "../LICENSE" }
+license = { file = "LICENSE" }
 authors = [
   { name = "Pharos.ai", email = "devnull@example.com" }
 ]
@@ -21,16 +21,51 @@ dependencies = [
 [project.scripts]
 ai-how = "ai_how.cli:app"
 
-[tool.black]
-line-length = 100
-target-version = ["py310", "py311"]
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0.0",
+  "pytest-cov>=4.0.0",
+  "nox>=2023.4.22",
+  "pre-commit>=3.0.0",
+  "mypy>=1.0.0",
+  "ruff>=0.1.0",
+  "black>=23.0.0",
+]
+docs = [
+  "mkdocs>=1.5.0",
+  "mkdocs-material>=9.0.0",
+  "mkdocstrings[python]>=0.20.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_how"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/tests",
+  "/docs",
+  "/README.md",
+  "/pyproject.toml",
+  "/LICENSE",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B"]
+select = ["E", "F", "I", "B", "W", "C4", "UP", "ARG", "SIM", "TCH", "TID", "Q"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -42,4 +77,17 @@ no_implicit_optional = true
 pretty = true
 show_error_context = true
 explicit_package_bases = true
-packages = ["ai_how"]
+packages = ["src/ai_how"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+  "--cov=src/ai_how",
+  "--cov-report=term-missing",
+  "--cov-report=html",
+]

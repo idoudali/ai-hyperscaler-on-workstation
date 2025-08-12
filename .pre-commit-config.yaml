@@ -77,12 +77,16 @@ repos:
       - id: ruff
         args: ["--fix"]
         files: ^python/ai_how/
+      - id: ruff-format
+        files: ^python/ai_how/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: v1.17.1
     hooks:
       - id: mypy
         files: ^python/ai_how/
+        additional_dependencies:
+          - tokenize-rt==3.2.0
 
 # Global excludes
 exclude: |

@@ -26,7 +26,10 @@ def main(
     config: Annotated[
         Path,
         typer.Option(
-            exists=False, dir_okay=False, readable=True, help="Path to cluster.yaml"
+            exists=False,
+            dir_okay=False,
+            readable=True,
+            help="Path to cluster.yaml",
         ),
     ] = DEFAULT_CONFIG,
     state: Annotated[
@@ -38,9 +41,9 @@ def main(
 
 
 @app.command()
-def validate(ctx: typer.Context) -> None:
-    """Validate config/cluster.yaml against schema and semantic rules."""
-    abort_not_implemented("validate config against JSON Schema and semantic rules")
+def validate(ctx: typer.Context) -> None:  # noqa: ARG001
+    """Validate cluster.yaml against schema and semantic rules."""
+    abort_not_implemented("validate config against schema and rules")
 
 
 hpc = typer.Typer(help="HPC cluster lifecycle")
@@ -50,42 +53,42 @@ app.add_typer(cloud, name="cloud")
 
 
 @hpc.command()
-def hpc_start(ctx: typer.Context) -> None:
+def hpc_start(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("hpc start")
 
 
 @hpc.command()
-def hpc_stop(ctx: typer.Context) -> None:
+def hpc_stop(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("hpc stop")
 
 
 @hpc.command()
-def hpc_status(ctx: typer.Context) -> None:
+def hpc_status(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("hpc status")
 
 
 @hpc.command()
-def hpc_destroy(ctx: typer.Context) -> None:
+def hpc_destroy(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("hpc destroy")
 
 
 @cloud.command()
-def cloud_start(ctx: typer.Context) -> None:
+def cloud_start(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("cloud start")
 
 
 @cloud.command()
-def cloud_stop(ctx: typer.Context) -> None:
+def cloud_stop(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("cloud stop")
 
 
 @cloud.command()
-def cloud_status(ctx: typer.Context) -> None:
+def cloud_status(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("cloud status")
 
 
 @cloud.command()
-def cloud_destroy(ctx: typer.Context) -> None:
+def cloud_destroy(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("cloud destroy")
 
 
@@ -94,7 +97,7 @@ app.add_typer(plan_app, name="plan")
 
 
 @plan_app.command("show")
-def plan_show(ctx: typer.Context) -> None:
+def plan_show(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("plan show")
 
 
@@ -103,7 +106,7 @@ app.add_typer(inventory, name="inventory")
 
 
 @inventory.command("gpu")
-def inventory_gpu(ctx: typer.Context) -> None:
+def inventory_gpu(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("inventory gpu")
 
 

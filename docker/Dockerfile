@@ -50,6 +50,10 @@ RUN apt-get update && \
 # Unset the custom shell to avoid affecting other commands if not needed
 SHELL ["/bin/sh", "-c"]
 
+# Install uv - the new package manager and virtual environment tool
+# hadolint ignore=DL4006
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Set up a virtual environment for Python in a common location
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

@@ -34,7 +34,8 @@ The `Makefile` in the root of the project provides several commands to manage th
 ## Development Workflow
 
 1.  **Start the environment**: Run `make shell-docker`.
-2.  **Work in the container**: All tools (`terraform`, `ansible`, `packer`, etc.) are available inside the container's shell.
+2.  **Work in the container**: All tools (`uv`, `nox`, `terraform`, `ansible`, `packer`,
+etc.) are available inside the container's shell.
     Your project files are available in the `/workspace` directory.
 3.  **Exit the container**: Simply type `exit` in the container's shell. The container will be automatically removed.
 4.  **Clean up**: Run `make clean-docker` to remove the Docker image.
