@@ -27,6 +27,11 @@ endif
 # Build system variables
 BUILD_DIR := build
 
+# Python virtual environment settings
+PYTHON_DIR := python
+VENV_NAME := .venv
+VENV_PATH := $(PYTHON_DIR)/$(VENV_NAME)
+
 # Default target
 .PHONY: all
 all: help
@@ -132,6 +137,102 @@ cleanup: config
 	@cmake --build $(BUILD_DIR) --target cleanup
 
 #==============================================================================
+# Python Virtual Environment Management (uv)
+#==============================================================================
+.PHONY: venv-create venv-install venv-activate venv-update venv-clean venv-lint venv-test
+
+# Create a new Python virtual environment using uv
+venv-create:
+	@echo "Creating Python virtual environment using uv..."
+	@cd $(PYTHON_DIR) && uv venv --clear $(VENV_NAME)
+	@echo "Virtual environment created at $(VENV_PATH)"
+
+# Force recreation of the virtual environment
+venv-recreate:
+	@echo "Force recreating Python virtual environment using uv..."
+	@cd $(PYTHON_DIR) && rm -rf $(VENV_NAME) && uv venv $(VENV_NAME)
+	@echo "Virtual environment recreated at $(VENV_PATH)"
+
+# Quick reset: clean and reinstall everything
+venv-reset: venv-clean venv-install
+	@echo "Virtual environment reset complete"
+
+# Install all workspace packages from pyproject.toml in editable mode
+venv-install: venv-create
+	@echo "Installing workspace packages in editable mode..."
+	@cd $(PYTHON_DIR) && uv pip install --reinstall -e ai_how
+	@echo "Workspace packages installed successfully"
+
+# Activate the virtual environment (prints activation command)
+venv-activate:
+	@echo "To activate the virtual environment, run:"
+	@echo "  cd $(PYTHON_DIR) && source $(VENV_NAME)/bin/activate"
+	@echo "Or use uv directly:"
+	@echo "  cd $(PYTHON_DIR) && uv run python"
+
+# Update all workspace packages
+venv-update:
+	@echo "Updating all workspace packages..."
+	@cd $(PYTHON_DIR) && uv pip install --upgrade -e ai_how
+
+# Clean the virtual environment
+venv-clean:
+	@echo "Removing Python virtual environment..."
+	@rm -rf $(VENV_PATH)
+	@echo "Virtual environment removed"
+
+# Run linting tools on Python code
+venv-lint:
+	@echo "Running linting tools on Python code..."
+	@cd $(PYTHON_DIR) && uv run pre-commit run --all-files
+
+# Run pre-commit hooks using nox-based configuration
+venv-pre-commit:
+	@echo "Running pre-commit hooks with nox-based configuration..."
+	@cd $(PYTHON_DIR) && uv run pre-commit run --all-files
+
+# Install pre-commit hooks
+venv-install-hooks:
+	@echo "Installing pre-commit hooks..."
+	@cd $(PYTHON_DIR) && uv run pre-commit install
+
+# Run tests in the virtual environment
+venv-test:
+	@echo "Running tests in virtual environment..."
+	@cd $(PYTHON_DIR) && uv run pytest
+
+#==============================================================================
+# AI-HOW Python Package Management (Nox)
+#==============================================================================
+.PHONY: test-ai-how lint-ai-how format-ai-how docs-ai-how clean-ai-how
+
+# Run tests for the ai-how package using Nox
+test-ai-how: venv-install
+	@echo "Running tests for ai-how package..."
+	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s test
+
+# Run linting for the ai-how package using Nox
+lint-ai-how: venv-install
+	@echo "Running linting for ai-how package..."
+	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s lint
+
+# Format the code for the ai-how package using Nox
+format-ai-how: venv-install
+	@echo "Formatting code for ai-how package..."
+	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s format
+
+# Build the documentation for the ai-how package using Nox
+docs-ai-how: venv-install
+	@echo "Building documentation for ai-how package..."
+	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s docs
+
+# Clean the ai-how package build artifacts using Nox
+clean-ai-how: venv-install
+	@echo "Cleaning ai-how package build artifacts..."
+	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s clean
+
+
+#==============================================================================
 # Help
 #==============================================================================
 .PHONY: help
@@ -155,5 +256,25 @@ help:
 	@echo "  make test           - Run integration tests on deployed infrastructure."
 	@echo "  make clean-build    - Remove the CMake build directory."
 	@echo "  make cleanup        - Destroy all deployed infrastructure."
+	@echo ""
+	@echo "Python Virtual Environment Commands (uv):"
+	@echo "  make venv-create    - Create a new Python virtual environment."
+	@echo "  make venv-recreate  - Force recreate the Python virtual environment."
+	@echo "  make venv-reset     - Clean and reinstall the virtual environment."
+	@echo "  make venv-install   - Install all workspace packages in editable mode."
+	@echo "  make venv-activate  - Show how to activate the virtual environment."
+	@echo "  make venv-update    - Update all packages in the virtual environment."
+	@echo "  make venv-clean     - Remove the virtual environment."
+	@echo "  make venv-lint      - Run linting tools on Python code."
+	@echo "  make venv-pre-commit - Run pre-commit hooks with nox-based configuration."
+	@echo "  make venv-install-hooks - Install pre-commit hooks."
+	@echo "  make venv-test      - Run tests in the virtual environment."
+	@echo ""
+	@echo "AI-HOW Python Package Commands (Nox):"
+	@echo "  make test-ai-how    - Run tests for the ai-how package."
+	@echo "  make lint-ai-how    - Run linting for the ai-how package."
+	@echo "  make format-ai-how  - Format the code for the ai-how package."
+	@echo "  make docs-ai-how    - Build the documentation for the ai-how package."
+	@echo "  make clean-ai-how   - Clean the ai-how package build artifacts."
 	@echo ""
 	@echo "  make help           - Display this help message."

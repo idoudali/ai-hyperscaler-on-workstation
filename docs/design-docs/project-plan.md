@@ -1,93 +1,111 @@
 # Project Plan: Hyperscaler on a Workstation
 
-**Objective:** To implement the automated, dual-stack AI infrastructure as described in the `hyperscaler-on-workstation.md`
-design document. This plan outlines the concrete steps for an AI agent to execute, transforming the architectural
-blueprint into a robust, production-ready, emulated environment with comprehensive error handling, security, and monitoring.
+**Objective:** To implement the automated, dual-stack AI infrastructure as
+described in the `hyperscaler-on-workstation.md` design document. This plan
+outlines the concrete steps for an AI agent to execute, transforming the
+architectural blueprint into a robust, production-ready, emulated environment
+with comprehensive error handling, security, and monitoring.
 
-**Project Status:** Phase 0 Foundation - In Progress (30% Complete)
-**Last Updated:** 2025-01-02
+**Project Status:** Phase 0 Foundation - Near Complete (60% Complete) **Last
+Updated:** 2025-01-02
 
 ## Current Status Summary
 
 ### ✅ Completed Components
 
-- **Development Environment**: Docker-based development environment with pinned versions of tools (Terraform, Packer,
-  Ansible, CMake, Ninja)
-- **Build System Core**: CMake-based build system with Ninja generator support and custom targets for building
-  minimal base images.
-- **Development Workflow**: Makefile automation, pre-commit hooks, conventional commits, and basic CI/CD.
+- **Development Environment**: Docker-based development environment with pinned
+  versions of tools (Terraform, Packer, Ansible, CMake, Ninja)
+- **Build System Core**: CMake-based build system with Ninja generator support
+  and custom targets for building minimal base images.
+- **Development Workflow**: Makefile automation, pre-commit hooks, conventional
+  commits, and basic CI/CD.
 - **Documentation**: Comprehensive design documents and implementation plans.
+- **Python CLI Orchestrator**: Complete CLI framework with Typer, configuration
+  validation, and command structure for HPC and Cloud cluster management
+  (`ai_how` package, provides `ai-how` command).
+- **Cluster Configuration Management**: Comprehensive `cluster.yaml` schema
+  design, JSON schema validation, and configuration validator implementation.
+- **Host Preparation and Validation**: Complete system prerequisite checker
+  (`check_prereqs.sh`) with detailed validation for CPU virtualization, IOMMU,
+  KVM, GPU drivers, and system resources.
+- **GPU Inventory System**: GPU discovery and inventory script
+  (`gpu_inventory.sh`) for host GPU enumeration.
 
 ### 🚧 In Progress Components
 
-- **Build System Enhancement**: Foundational Packer templates for `hpc-base` and `cloud-base` are implemented but
-  lack specific software packages (HPC tools, container runtimes). Automated testing targets are placeholders.
-- **CI/CD Pipeline**: Basic linting workflow implemented; multi-stage quality gates and deployment automation
-  are pending.
+- **Build System Enhancement**: Foundational Packer templates for `hpc-base` and
+  `cloud-base` are implemented but lack specific software packages (HPC tools,
+  container runtimes). Automated testing targets are placeholders.
+- **CI/CD Pipeline**: Basic linting workflow implemented; multi-stage quality
+  gates and deployment automation are pending.
+- **CLI Implementation**: Command scaffolding complete with stubbed
+  implementations; actual provisioning logic for HPC and Cloud clusters needs
+  implementation.
 
 ### 📋 Next Milestones
 
-- Complete Phase 0.2 build system enhancements (add software to images, implement tests).
-- Implement Phase 0.5 cluster configuration management framework (`cluster.yaml`).
-- Begin Phase 1.1 host preparation and validation scripts (`check_prereqs.sh`).
-- Enhance CI/CD pipeline with build and deployment stages.
-- Introduce Phase 0.7 Python CLI orchestrator for cluster management (skeleton + validation wiring).
+- **Implement CLI Provisioning Logic** (Phase 0.7 continuation):
+  - Add VM provisioning capabilities to `hpc start` and `cloud start` commands
+  - Implement libvirt XML generation and qcow2 disk management
+  - Add Ansible inventory generation and playbook execution
+  - Complete state management and tracking functionality
+- **Complete Phase 0.2 build system enhancements** (add software to images,
+  implement tests).
+- **Enhance Golden Images** (Phase 2.2): Add HPC-specific packages and container
+  runtimes to base images.
+- **Implement GPU Resource Management** (Phase 3.1): MIG management and vGPU
+  provisioning scripts.
+- **Enhance CI/CD pipeline** with build and deployment stages.
 
 ### 🎯 Immediate Action Items (Priority Order)
 
-1.  **Implement Cluster Configuration Management** (Phase 0.5):
-    - Design and create comprehensive `config/cluster.yaml` structure.
-    - Implement JSON schema validation for cluster configuration.
-    - Create default configuration templates for development and production.
-    - Build configuration validator script with detailed error reporting.
+1.  **Complete CLI Provisioning Implementation** (Phase 0.7 continuation):
+    - Implement VM provisioning logic in `hpc start` and `cloud start` commands
+    - Add libvirt XML template generation from `cluster.yaml` specifications
+    - Implement qcow2 disk creation and management with copy-on-write
+    - Add Ansible inventory generation and playbook execution integration
+    - Complete state management with `output/state.json` tracking
 
-2.  **Design Multi-GPU Support (MIG and non-MIG)** (Phase 0.5, 1.1, 3.1):
-    - Extend configuration model to describe multiple GPUs with per-device capabilities (MIG-capable or not),
-      PCI bus IDs, and allowable profiles.
-    - Implement host GPU discovery to enumerate devices, detect MIG capability, and record inventory.
-    - Add allocation logic and validation for mixed environments (some GPUs sliced with MIG, others whole-GPU).
-    - Define placement strategies and constraints for both HPC and Cloud clusters.
+2.  **Implement GPU Resource Management** (Phase 3.1):
+    - Create MIG management script (`manage_mig.py`) for dynamic GPU
+      partitioning
+    - Implement smart vGPU provisioner (`create_vgpus.py`) with `cluster.yaml`
+      integration
+    - Add GPU resource validation and conflict detection
+    - Create resource cleanup manager for safe GPU resource destruction
 
 3.  **Enhance Golden Images** (Phase 2.2):
-    - Add HPC-specific packages (Slurm, Munge) to the `hpc-base` image.
-    - Add container runtime and Kubernetes packages to the `cloud-base` image.
-    - Implement security hardening and monitoring tools in both images.
+    - Add HPC-specific packages (Slurm, Munge) to the `hpc-base` image
+    - Add container runtime and Kubernetes packages to the `cloud-base` image
+    - Implement security hardening and monitoring tools in both images
 
-4.  **Implement Host Preparation** (Phase 1.1):
-    - Create comprehensive system checker script (`check_prereqs.sh`).
-    - Implement prerequisite validation for CPU virtualization, IOMMU, and GPU drivers.
+4.  **Complete Build System Enhancement** (Phase 0.2 remaining items):
+    - Replace placeholder test commands with actual integration tests
+    - Enhance CI/CD pipeline with multi-stage quality gates
 
-5.  **Enhance Build System** (Phase 0.2 remaining items):
-    - Replace placeholder test commands with actual integration tests.
-    - Enhance CI/CD pipeline with multi-stage quality gates.
-
-6.  **Finalize Development Environment** (Phase 0.1 remaining items):
-    - Configure container registry push workflow.
-    - Add security scanning for Docker images.
-
-7.  **Develop Python CLI Orchestrator** (Phase 0.7):
-    - Scaffold CLI (Typer/Click) with commands stubbed to return clear "Not implemented" errors.
-    - Wire `validate` command to JSON Schema + semantic validation flow for `config/cluster.yaml`.
-    - Add `hpc` lifecycle commands to start/stop/status/destroy HPC cluster first.
-    - Add `cloud` lifecycle commands after HPC is stable.
-    - Implement independent start/stop for HPC and Cloud clusters.
-    - Add resource guardrails to prevent starting both clusters when host capacity is insufficient.
+5.  **Finalize Development Environment** (Phase 0.1 remaining items):
+    - Configure container registry push workflow
+    - Add security scanning for Docker images
 
 ---
 
 ## Phase 0: Foundation - Development Environment, Risk Assessment, and Architecture Selection
 
-This foundational phase establishes the development environment, assesses risks, and allows for architectural decisions
-based on project requirements and constraints.
+This foundational phase establishes the development environment, assesses risks,
+and allows for architectural decisions based on project requirements and
+constraints.
 
 - [x] **0.1. Create Development Docker Image:**
   - [x] Write a `Dockerfile` for the development environment.
   - [x] The image should be based on Debian 12 to match the host and guest OS.
-  - [x] Install all necessary tools with pinned versions: `packer`, `terraform`, `ansible`, `cmake`,
-    `ninja-build`, `git`, `python3`, `jsonschema`, `jinja2`, etc.
-  - [x] Create comprehensive dependency manifest (`requirements.txt`, `Pipfile`, etc.) with exact versions.
+  - [x] Install all necessary tools with pinned versions: `packer`, `terraform`,
+    `ansible`, `cmake`, `ninja-build`, `git`, `python3`, `jsonschema`, `jinja2`,
+    etc.
+  - [x] Create comprehensive dependency manifest (`requirements.txt`, `Pipfile`,
+    etc.) with exact versions.
   - [x] Build the Docker image and tag it (e.g., `hyperscaler-dev:latest`).
-  - [ ] Push the image to a container registry (e.g., GitHub Docker Registry) for CI usage.
+  - [ ] Push the image to a container registry (e.g., GitHub Docker Registry)
+    for CI usage.
   - [ ] Add security scanning for the container image.
 
 - [ ] **0.2. Implement Enhanced Build System:**
@@ -120,26 +138,29 @@ based on project requirements and constraints.
   - [ ] Create migration paths between different architectural approaches.
   - [ ] Document trade-offs and selection criteria.
 
-- [ ] **0.5. Cluster Configuration Management:**
-  - [ ] **Cluster Definition Framework:**
-    - [ ] Create comprehensive cluster configuration YAML schema design.
-    - [ ] Design HPC cluster specification structure (nodes, resources, SLURM config).
-    - [ ] Design Cloud cluster specification structure (K8s nodes, resources, networking).
-    - [ ] Define global infrastructure settings (networks, GPU allocation, security).
-  - [ ] **Configuration Validation System:**
-    - [ ] Implement JSON Schema for `config/cluster.yaml` validation.
-    - [ ] Create configuration validator script with detailed error reporting.
-    - [ ] Add resource constraint and feasibility validation.
-    - [ ] Implement cross-cluster dependency validation.
-  - [ ] **Default Configuration Templates:**
-    - [ ] Create minimal development cluster template.
+- [x] **0.5. Cluster Configuration Management:**
+  - [x] **Cluster Definition Framework:**
+    - [x] Create comprehensive cluster configuration YAML schema design.
+    - [x] Design HPC cluster specification structure (nodes, resources, SLURM
+      config).
+    - [x] Design Cloud cluster specification structure (K8s nodes, resources,
+      networking).
+    - [x] Define global infrastructure settings (networks, GPU allocation,
+      security).
+  - [x] **Configuration Validation System:**
+    - [x] Implement JSON Schema for `config/cluster.yaml` validation.
+    - [x] Create configuration validator script with detailed error reporting.
+    - [x] Add resource constraint and feasibility validation.
+    - [x] Implement cross-cluster dependency validation.
+  - [x] **Default Configuration Templates:**
+    - [x] Create minimal development cluster template.
     - [ ] Create production-like cluster template.
     - [ ] Create example configurations for different use cases.
-    - [ ] Add configuration documentation and usage guides.
+    - [x] Add configuration documentation and usage guides.
 
 - [ ] **0.6. Test Infrastructure Setup:**
   - [x] Create automated test suites for each component.
-  - [ ] Implement integration test framework.
+  - [x] Implement comprehensive test framework with nox and pytest.
   - [ ] Set up performance benchmarking infrastructure.
   - [ ] Create test data generators for MLOps workflows.
   - [ ] Add load testing capabilities for GPU resource allocation.
@@ -148,57 +169,73 @@ based on project requirements and constraints.
 
 ## 0.7. Python CLI Orchestrator for Cluster Management
 
-This phase introduces a Python-based CLI that acts as the orchestration layer across configuration, provisioning,
-GPU resource management, and cluster lifecycle. It prioritizes HPC first, then extends to the cloud cluster,
-and enforces resource guardrails to handle limited host capacity.
+This phase introduces a Python-based CLI that acts as the orchestration layer
+across configuration, provisioning, GPU resource management, and cluster
+lifecycle. It prioritizes HPC first, then extends to the cloud cluster, and
+enforces resource guardrails to handle limited host capacity.
 
-- [ ] **0.7.1. Configuration Schema and Validation Flow:**
-  - [ ] Author `schemas/cluster.schema.json` for structural validation of `config/cluster.yaml`.
-  - [ ] Implement `scripts/validate_config.py` using `jsonschema` for structural validation.
-  - [ ] Add semantic validators (Python) for cross-field checks:
-    - [ ] GPU feasibility (MIG profiles on MIG-capable devices, no oversubscription).
-    - [ ] Network IP range overlaps and subnet correctness.
-    - [ ] Cross-dependencies (GPU-enabled nodes require GPU allocation).
-  - [ ] Integrate validation into CLI `validate` command with readable error reporting.
+- [x] **0.7.1. Configuration Schema and Validation Flow:**
+  - [x] Author `schemas/cluster.schema.json` for structural validation of
+    `config/cluster.yaml`.
+  - [x] Implement validation module using `jsonschema` for structural
+    validation.
+  - [x] Add semantic validators (Python) for cross-field checks:
+    - [x] GPU feasibility (MIG profiles on MIG-capable devices, no
+      oversubscription).
+    - [x] Network IP range overlaps and subnet correctness.
+    - [x] Cross-dependencies (GPU-enabled nodes require GPU allocation).
+  - [x] Integrate validation into CLI `validate` command with readable error
+    reporting.
 
-- [ ] **0.7.2. CLI Skeleton and Command Contracts:**
-  - [ ] Create `scripts/cli.py` (Typer/Click) with subcommands:
-    - [ ] `validate` (wired to schema + semantic checks).
-    - [ ] `hpc [start|stop|status|destroy]` (stubs initially; raise explicit "Not implemented" until populated).
-    - [ ] `cloud [start|stop|status|destroy]` (stubs initially; raise explicit "Not implemented" until populated).
-    - [ ] `plan` (produce summarized actions/drift; initially a stub).
-    - [ ] `inventory gpu` (host GPU discovery and inventory; initially a stub).
-  - [ ] Add standardized exit codes and structured stderr for unimplemented features.
-  - [ ] Provide `--config` flag to point to `config/cluster.yaml` and `--state` for `output/state.json`.
+- [x] **0.7.2. CLI Skeleton and Command Contracts:**
+  - [x] Create CLI (`ai_how/cli.py`) with Typer framework and subcommands:
+    - [x] `validate` (wired to schema + semantic checks).
+    - [x] `hpc [start|stop|status|destroy]` (stubs with explicit "Not
+    implemented" errors). - [x] `cloud [start|stop|status|destroy]` (stubs with
+    explicit "Not implemented" errors).
+    - [x] `plan show` (produce summarized actions/drift; initially a stub).
+    - [x] `inventory gpu` (host GPU discovery and inventory; initially a stub).
+  - [x] Add standardized exit codes and structured stderr for unimplemented
+    features.
+  - [x] Provide `--config` flag to point to `config/cluster.yaml` and `--state`
+    for `output/state.json`.
 
 - [ ] **0.7.3. HPC-First Implementation:**
-  - [ ] Implement `hpc start` to provision HPC VMs per `cluster.yaml` (libvirt XML templates, qcow2 disks).
+  - [ ] Implement `hpc start` to provision HPC VMs per `cluster.yaml` (libvirt
+    XML templates, qcow2 disks).
   - [ ] Implement `hpc stop` to gracefully shutdown HPC VMs.
   - [ ] Implement `hpc status` to report VM and service health.
   - [ ] Implement `hpc destroy` with safe teardown and rollback checks.
   - [ ] Generate Ansible inventory for HPC and invoke `playbook-hpc.yml`.
 
 - [ ] **0.7.4. Cloud Cluster Enablement:**
-  - [ ] Implement `cloud start` to provision control plane and worker nodes per `cluster.yaml`.
-  - [ ] Implement `cloud stop`, `cloud status`, and `cloud destroy` with parity to HPC behavior.
+  - [ ] Implement `cloud start` to provision control plane and worker nodes per
+    `cluster.yaml`.
+  - [ ] Implement `cloud stop`, `cloud status`, and `cloud destroy` with parity
+    to HPC behavior.
   - [ ] Generate Ansible inventory for K8s and invoke `playbook-k8s.yml`.
 
 - [ ] **0.7.5. Independent Lifecycle Control:**
-  - [ ] Ensure HPC and Cloud subcommands operate independently (separate inventories, domains, and state entries).
+  - [ ] Ensure HPC and Cloud subcommands operate independently (separate
+    inventories, domains, and state entries).
   - [ ] Implement locks and idempotence to avoid cross-cluster interference.
 
 - [ ] **0.7.6. Limited Resource Guardrails:**
   - [ ] Add capacity checks during `start` to evaluate CPU/RAM/GPU constraints.
-  - [ ] Block concurrent start of both clusters when capacity is insufficient; print actionable guidance.
-  - [ ] Provide `--force` override flag with explicit warnings and confirmation prompt (non-interactive mode fails).
-  - [ ] Record decisions and capacity snapshots in `output/state.json` for drift analysis.
+  - [ ] Block concurrent start of both clusters when capacity is insufficient;
+    print actionable guidance.
+  - [ ] Provide `--force` override flag with explicit warnings and confirmation
+    prompt (non-interactive mode fails).
+  - [ ] Record decisions and capacity snapshots in `output/state.json` for drift
+    analysis.
 
 ---
 
 ## Cluster Configuration Structure
 
-The `config/cluster.yaml` file serves as the single source of truth for defining both HPC and Cloud cluster specifications.
-This configuration drives all provisioning, GPU allocation, and deployment automation.
+The `config/cluster.yaml` file serves as the single source of truth for defining
+both HPC and Cloud cluster specifications. This configuration drives all
+provisioning, GPU allocation, and deployment automation.
 
 ### YAML Configuration Structure
 
@@ -210,14 +247,6 @@ metadata:
   description: "Dual-stack AI infrastructure emulation"
   
 global:
-  networks:
-    hpc_network:
-      subnet: "192.168.100.0/24"
-      bridge: "virbr100"
-    cloud_network:
-      subnet: "192.168.200.0/24"
-      bridge: "virbr200"
-  
   gpu_allocation:
     # Multi-GPU inventory and allocation strategy
     devices:
@@ -240,6 +269,9 @@ global:
 
 clusters:
   hpc:
+    network:
+      subnet: "192.168.100.0/24"
+      bridge: "virbr100"
     controller:
       cpu_cores: 4
       memory_gb: 8
@@ -260,6 +292,9 @@ clusters:
       max_job_time: "24:00:00"
 
   cloud:
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
     control_plane:
       cpu_cores: 4
       memory_gb: 8
@@ -292,45 +327,59 @@ clusters:
 
 The `schemas/cluster.schema.json` will validate:
 
-- **Resource Constraints**: Ensure CPU, memory, and disk allocations are within reasonable bounds
-- **Network Validation**: Verify IP ranges don't overlap and are properly formatted
+- **Resource Constraints**: Ensure CPU, memory, and disk allocations are within
+  reasonable bounds
+- **Network Validation**: Verify IP ranges don't overlap and are properly
+  formatted
 - **GPU Allocation (Multi-GPU)**:
   - Validate per-device constraints (MIG profiles only on MIG-capable devices)
-  - Prevent oversubscription across devices and slices (sum of slices and whole-GPUs within capacity)
+  - Prevent oversubscription across devices and slices (sum of slices and
+    whole-GPUs within capacity)
   - Enforce uniqueness and validity of GPU `pci_address` and `id`
-  - Validate placement rules for HPC/Cloud pools under `strategy` (mig | whole | hybrid)
-- **Cross-Dependencies**: Validate that GPU-enabled nodes have corresponding GPU instances allocated
-- **Configuration Consistency**: Ensure cluster sizing is feasible for the target hardware
+  - Validate placement rules for HPC/Cloud pools under `strategy` (mig | whole |
+    hybrid)
+- **Cross-Dependencies**: Validate that GPU-enabled nodes have corresponding GPU
+  instances allocated
+- **Configuration Consistency**: Ensure cluster sizing is feasible for the
+  target hardware
 
 ---
 
 ## Implementation Infrastructure (Completed)
 
-The following development infrastructure has been successfully implemented to support the project:
+The following development infrastructure has been successfully implemented to
+support the project:
 
 ### ✅ Development Environment Infrastructure
 
-- **Docker Environment**: Complete containerized development environment (`docker/Dockerfile`)
+- **Docker Environment**: Complete containerized development environment
+  (`docker/Dockerfile`)
 - **Build Automation**: Comprehensive Makefile with Docker workflow automation
 - **Dependency Management**: Pinned tool versions and dependency manifest
 - **Build System**: CMake-based project with Ninja generator support
 
 ### ✅ Code Quality and Standards
 
-- **Pre-commit Hooks**: Comprehensive linting and validation pipeline (`.pre-commit-config.yaml`)
-- **Conventional Commits**: Commitizen configuration for standardized commit messages (`.cz.toml`)
-- **Markdown Standards**: Linting configuration with project-specific rules (`.markdownlint.yaml`)
+- **Pre-commit Hooks**: Comprehensive linting and validation pipeline
+  (`.pre-commit-config.yaml`)
+- **Conventional Commits**: Commitizen configuration for standardized commit
+  messages (`.cz.toml`)
+- **Markdown Standards**: Linting configuration with project-specific rules
+  (`.markdownlint.yaml`)
 - **Shell Script Quality**: ShellCheck integration for script validation
 
 ### ✅ CI/CD Foundation
 
-- **GitHub Actions**: Basic linting and validation workflow (`.github/workflows/ci.yml`)
-- **Multi-language Linting**: Support for Dockerfile, shell scripts, YAML, and markdown
+- **GitHub Actions**: Basic linting and validation workflow
+  (`.github/workflows/ci.yml`)
+- **Multi-language Linting**: Support for Dockerfile, shell scripts, YAML, and
+  markdown
 - **Git Hooks**: Local validation before commits and pushes
 
 ### ✅ Documentation Framework
 
-- **Design Documents**: Complete architectural documentation in `docs/design-docs/`
+- **Design Documents**: Complete architectural documentation in
+  `docs/design-docs/`
 - **Implementation Plans**: Detailed task-specific implementation guides
 - **Open Source Analysis**: Comprehensive evaluation of alternative solutions
 
@@ -338,20 +387,27 @@ The following development infrastructure has been successfully implemented to su
 
 ## Phase 1: Host Preparation and Validation
 
-This phase prepares the physical host machine with comprehensive validation and error handling.
-Enhanced security and recovery procedures ensure a stable foundation for the virtualized environment.
+This phase prepares the physical host machine with comprehensive validation and
+error handling. Enhanced security and recovery procedures ensure a stable
+foundation for the virtualized environment.
 
-- [ ] **1.1. Enhanced Prerequisite Validation:**
-  - [ ] **Script 1: Comprehensive System Checker (`check_prereqs.sh`)**
-    - [ ] Validate CPU virtualization (Intel VT-x / AMD-V) with detailed error messages.
-    - [ ] Validate IOMMU (Intel VT-d / AMD-Vi) with specific troubleshooting guidance.
-    - [ ] Check KVM acceleration availability and performance.
-    - [ ] Verify `nouveau` driver blacklist status.
-    - [ ] Validate virtualization packages installation and versions.
-    - [ ] Check user group memberships (`libvirt`, `kvm`).
-    - [ ] Test NVIDIA GPU visibility and basic functionality.
-    - [ ] Validate system resources (RAM, disk space, CPU cores).
-    - [ ] Check for conflicting services and processes.
+- [x] **1.1. Enhanced Prerequisite Validation:**
+  - [x] **Script 1: Comprehensive System Checker (`check_prereqs.sh`)**
+    - [x] Validate CPU virtualization (Intel VT-x / AMD-V) with detailed error
+      messages.
+    - [x] Validate IOMMU (Intel VT-d / AMD-Vi) with specific troubleshooting
+      guidance.
+    - [x] Check KVM acceleration availability and performance.
+    - [x] Verify `nouveau` driver blacklist status.
+    - [x] Validate virtualization packages installation and versions.
+    - [x] Check user group memberships (`libvirt`, `kvm`).
+    - [x] Test NVIDIA GPU visibility and basic functionality.
+    - [x] Validate system resources (RAM, disk space, CPU cores).
+    - [x] Check for conflicting services and processes.
+  - [x] **Script 2: GPU Inventory (`gpu_inventory.sh`)**
+    - [x] Enumerate available GPUs and their capabilities.
+    - [x] Detect MIG support and current configuration.
+    - [x] Report GPU memory and utilization status.
 
 - [ ] **1.2. Automated Host Configuration:**
   - [ ] **Script 2: Safe System Configurator (`configure_host.sh`)**
@@ -385,15 +441,18 @@ Enhanced security and recovery procedures ensure a stable foundation for the vir
 
 ## Phase 2: Automated Golden Image Creation
 
-This phase uses Packer to build standardized, secure Debian 12 base images for the VMs with
-comprehensive testing and validation. Images are built with security hardening and monitoring tools.
+This phase uses Packer to build standardized, secure Debian 12 base images for
+the VMs with comprehensive testing and validation. Images are built with
+security hardening and monitoring tools.
 
 - [ ] **2.1. Enhanced Packer Configurations:**
-  - [x] Write a Packer template (`hpc-base.pkr.hcl`) for the HPC cluster base image.
+  - [x] Write a Packer template (`hpc-base.pkr.hcl`) for the HPC cluster base
+    image.
     - [ ] Include security hardening configurations.
     - [ ] Add monitoring and logging tools.
     - [ ] Implement image validation tests.
-  - [x] Write a Packer template (`cloud-base.pkr.hcl`) for the cloud cluster base image.
+  - [x] Write a Packer template (`cloud-base.pkr.hcl`) for the cloud cluster
+    base image.
     - [ ] Include container runtime optimizations.
     - [ ] Add Kubernetes-specific security configurations.
     - [ ] Implement cloud-native monitoring tools.
@@ -427,8 +486,9 @@ comprehensive testing and validation. Images are built with security hardening a
 
 ## Phase 3: Infrastructure Provisioning and Resource Management
 
-This phase implements intelligent resource management with dynamic GPU partitioning, capacity planning,
-and comprehensive validation of the infrastructure provisioning process.
+This phase implements intelligent resource management with dynamic GPU
+partitioning, capacity planning, and comprehensive validation of the
+infrastructure provisioning process.
 
 - [ ] **3.1. Enhanced GPU Resource Management:**
   - [ ] **Script 1: Intelligent MIG Manager (`manage_mig.py`)**
@@ -440,8 +500,10 @@ and comprehensive validation of the infrastructure provisioning process.
   
   - [ ] **Script 2: Smart vGPU Provisioner (`create_vgpus.py`)**
     - [ ] Read and validate `config/cluster.yaml` with schema validation.
-    - [ ] Parse GPU allocation requirements from both HPC and Cloud cluster specifications.
-    - [ ] Calculate optimal MIG slicing strategy with performance considerations.
+    - [ ] Parse GPU allocation requirements from both HPC and Cloud cluster
+      specifications.
+    - [ ] Calculate optimal MIG slicing strategy with performance
+      considerations.
     - [ ] Validate total GPU resource demands against available hardware.
     - [ ] Implement resource constraint validation and error handling.
     - [ ] Create GPU Instances with comprehensive error checking.
@@ -459,7 +521,8 @@ and comprehensive validation of the infrastructure provisioning process.
   - [ ] **Cluster Definition YAML Structure (`config/cluster.yaml`):**
     - [ ] Define HPC cluster specification:
       - [ ] Controller node: CPU cores, memory, disk size, network configuration
-      - [ ] Compute nodes: Number of nodes, CPU cores per node, memory per node, GPU assignment
+      - [ ] Compute nodes: Number of nodes, CPU cores per node, memory per node,
+        GPU assignment
       - [ ] Storage requirements and shared filesystem configuration
       - [ ] SLURM-specific settings (partitions, QoS, accounting)
     - [ ] Define Cloud cluster specification:
@@ -480,12 +543,14 @@ and comprehensive validation of the infrastructure provisioning process.
       - [ ] Resource constraints (minimum/maximum CPU, memory, disk)
       - [ ] Network IP range validation and conflict detection
       - [ ] GPU allocation validation (total resources vs. cluster demands)
-      - [ ] Cross-dependencies validation (e.g., GPU nodes require GPU allocation)
+      - [ ] Cross-dependencies validation (e.g., GPU nodes require GPU
+        allocation)
     - [ ] Add descriptive error messages for validation failures
     - [ ] Include schema versioning for future compatibility
   
   - [ ] **Configuration Management Tools:**
-    - [ ] Implement configuration validator (`scripts/validate_config.py`) with detailed error reporting
+    - [ ] Implement configuration validator (`scripts/validate_config.py`) with
+      detailed error reporting
     - [ ] Create default configuration templates:
       - [ ] Minimal cluster (development/testing)
       - [ ] Production-like cluster (full resource allocation)
@@ -498,8 +563,9 @@ and comprehensive validation of the infrastructure provisioning process.
 
 ## Phase 4: Security Hardening and Access Control
 
-This phase implements comprehensive security measures, authentication systems, and access controls
-throughout the infrastructure to ensure a production-ready security posture.
+This phase implements comprehensive security measures, authentication systems,
+and access controls throughout the infrastructure to ensure a production-ready
+security posture.
 
 - [ ] **4.1. Authentication and Authorization:**
   - [ ] **SSH Key Management:**
@@ -544,8 +610,9 @@ throughout the infrastructure to ensure a production-ready security posture.
 
 ## Phase 5: Parallel Cluster Deployment (HPC and Cloud)
 
-This phase deploys both clusters in parallel with enhanced provisioning, comprehensive testing,
-and integration validation. Both HPC and Kubernetes clusters are deployed simultaneously for efficiency.
+This phase deploys both clusters in parallel with enhanced provisioning,
+comprehensive testing, and integration validation. Both HPC and Kubernetes
+clusters are deployed simultaneously for efficiency.
 
 - [ ] **5.1. Enhanced Infrastructure Provisioning:**
   - [ ] **Dynamic VM Provisioning Script (`scripts/provision.py`):**
@@ -595,8 +662,9 @@ and integration validation. Both HPC and Kubernetes clusters are deployed simult
 
 ## Phase 6: MLOps Stack Deployment
 
-This phase deploys the comprehensive MLOps and storage services onto the Kubernetes cluster with
-enhanced security, monitoring, and high availability configurations.
+This phase deploys the comprehensive MLOps and storage services onto the
+Kubernetes cluster with enhanced security, monitoring, and high availability
+configurations.
 
 - [ ] **6.1. MLOps Infrastructure Preparation:**
   - [ ] **Node Configuration and Labeling:**
@@ -636,8 +704,9 @@ enhanced security, monitoring, and high availability configurations.
 
 ## Phase 7: Monitoring and Observability
 
-This phase implements comprehensive monitoring, logging, and observability across the entire infrastructure
-to ensure operational excellence and proactive issue detection.
+This phase implements comprehensive monitoring, logging, and observability
+across the entire infrastructure to ensure operational excellence and proactive
+issue detection.
 
 - [ ] **7.1. Infrastructure Monitoring:**
   - [ ] **Metrics Collection and Visualization:**
@@ -655,7 +724,8 @@ to ensure operational excellence and proactive issue detection.
 
 - [ ] **7.2. Logging and Audit Infrastructure:**
   - [ ] **Centralized Logging:**
-    - [ ] Deploy ELK stack (Elasticsearch, Logstash, Kibana) for log aggregation.
+    - [ ] Deploy ELK stack (Elasticsearch, Logstash, Kibana) for log
+      aggregation.
     - [ ] Configure log shipping from all VMs and containers.
     - [ ] Implement log parsing and structured logging.
     - [ ] Set up log retention and archival policies.
@@ -683,8 +753,9 @@ to ensure operational excellence and proactive issue detection.
 
 ## Phase 8: End-to-End Validation and Testing
 
-This phase implements comprehensive testing and validation of the entire system through automated test suites,
-performance benchmarking, and complete MLOps workflow validation.
+This phase implements comprehensive testing and validation of the entire system
+through automated test suites, performance benchmarking, and complete MLOps
+workflow validation.
 
 - [ ] **8.1. Infrastructure Integration Testing:**
   - [ ] **Automated Test Suite Execution:**
@@ -717,7 +788,8 @@ performance benchmarking, and complete MLOps workflow validation.
   
   - [ ] **Model Deployment and Inference Testing:**
     - [ ] Test model promotion and registry workflows.
-    - [ ] Deploy multiple inference services with different resource requirements.
+    - [ ] Deploy multiple inference services with different resource
+      requirements.
     - [ ] Validate autoscaling and load balancing.
     - [ ] Test model versioning and rollback procedures.
   
@@ -744,8 +816,9 @@ performance benchmarking, and complete MLOps workflow validation.
 
 ## Phase 9: Backup and Disaster Recovery
 
-This phase implements comprehensive backup strategies, disaster recovery procedures, and business continuity
-planning to ensure data protection and system resilience.
+This phase implements comprehensive backup strategies, disaster recovery
+procedures, and business continuity planning to ensure data protection and
+system resilience.
 
 - [ ] **9.1. Infrastructure Backup Strategy:**
   - [ ] **VM and Configuration Backup:**
@@ -777,7 +850,8 @@ planning to ensure data protection and system resilience.
 - [ ] **9.3. Disaster Recovery Planning:**
   - [ ] **Recovery Procedures and Documentation:**
     - [ ] Create comprehensive disaster recovery runbooks.
-    - [ ] Define Recovery Time Objectives (RTO) and Recovery Point Objectives (RPO).
+    - [ ] Define Recovery Time Objectives (RTO) and Recovery Point Objectives
+      (RPO).
     - [ ] Implement automated disaster recovery testing.
     - [ ] Create escalation procedures and communication plans.
   
@@ -791,8 +865,9 @@ planning to ensure data protection and system resilience.
 
 ## Phase 10: Documentation and Knowledge Management
 
-This phase creates comprehensive documentation, troubleshooting guides, and knowledge transfer materials
-to ensure long-term maintainability and operational excellence.
+This phase creates comprehensive documentation, troubleshooting guides, and
+knowledge transfer materials to ensure long-term maintainability and operational
+excellence.
 
 - [ ] **10.1. Technical Documentation:**
   - [ ] **Architecture and Design Documentation:**
@@ -831,8 +906,8 @@ to ensure long-term maintainability and operational excellence.
 
 ## Phase 11: Resource Optimization and Cost Management
 
-This phase implements advanced resource management, cost optimization, and performance tuning
-to maximize efficiency and minimize operational overhead.
+This phase implements advanced resource management, cost optimization, and
+performance tuning to maximize efficiency and minimize operational overhead.
 
 - [ ] **11.1. Resource Management and Optimization:**
   - [ ] **Dynamic Resource Allocation:**

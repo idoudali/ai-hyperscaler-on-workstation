@@ -1,6 +1,7 @@
 # AI-HOW CLI
 
-Self-contained Python package providing a CLI to manage the Hyperscaler on Workstation clusters.
+Self-contained Python package providing a CLI to manage the Hyperscaler on
+Workstation clusters.
 
 ## Prerequisites
 
@@ -30,22 +31,55 @@ pip install -e .
 
 ## Development
 
+This project uses [Nox](https://nox.thea.codes/) with
+[nox-uv](https://github.com/wntrblm/nox-uv) for fast and reliable testing and
+development workflows.
+
+### Quick Start with Nox
+
 ```bash
-# Install development dependencies
+# Install development dependencies (includes nox and nox-uv)
 uv sync --dev
 
+# List available nox sessions
+uv run nox --list
+
 # Run tests
-uv run nox -s test
+uv run nox --session test
 
 # Run linting
-uv run nox -s lint
+uv run nox --session lint
 
 # Format code
-uv run nox -s format
+uv run nox --session format
 
 # Build documentation
-uv run nox -s docs
+uv run nox --session docs
+
+# Serve documentation locally
+uv run nox --session docs_serve
+
+# Clean build artifacts
+uv run nox --session clean
 ```
+
+### Nox with nox-uv Integration
+
+This project leverages `nox-uv` for seamless integration between Nox and uv,
+providing:
+
+- **Ultra-fast dependency resolution**: Uses uv's Rust-based resolver for
+  lightning-fast package installation
+- **Automatic dependency installation**: Each session automatically installs the
+  required dependencies
+- **Better caching**: Aggressive caching reduces repeated downloads and
+  environment creation time
+- **Lock file compatibility**: Full integration with `uv.lock` for reproducible
+  builds
+
+All Nox sessions automatically install the required dependencies using
+`s.install(".[dev]")` or `s.install(".[docs]")` for development and
+documentation dependencies respectively.
 
 ## Usage
 
@@ -62,5 +96,6 @@ ai_how/
 ├── docs/                # Documentation
 ├── pyproject.toml       # Project configuration
 ├── uv.lock             # Locked dependencies
+├── noxfile.py          # Nox configuration
 └── README.md           # This file
 ```

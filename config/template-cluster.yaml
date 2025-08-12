@@ -1,0 +1,106 @@
+version: "1.0"
+metadata:
+  name: "hyperscaler-emulation"
+  description: "Dual-stack AI infrastructure emulation"
+
+global:
+  gpu_allocation:
+    devices:
+      - id: "GPU-0"
+        pci_address: "0000:65:00.0"
+        model: "NVIDIA A100 80GB"
+        mig_capable: true
+        allowed_mig_profiles: ["1g.5gb", "2g.10gb", "3g.20gb", "7g.80gb"]
+      - id: "GPU-1"
+        pci_address: "0000:ca:00.0"
+        model: "NVIDIA RTX 6000"
+        mig_capable: false
+    strategy: "hybrid"
+    mig_slices:
+      hpc: 4
+      cloud: 3
+    whole_gpus:
+      hpc: 0
+      cloud: 1
+
+clusters:
+  hpc:
+    name: "hpc-cluster"
+    network:
+      subnet: "192.168.100.0/24"
+      bridge: "virbr100"
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.100.10"
+
+    compute_nodes:
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        gpu_assigned: "hpc-mig-0"
+        ip: "192.168.100.11"
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        gpu_assigned: "hpc-mig-1"
+        ip: "192.168.100.12"
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        gpu_assigned: "hpc-mig-2"
+        ip: "192.168.100.13"
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        gpu_assigned: "hpc-mig-3"
+        ip: "192.168.100.14"
+
+    slurm_config:
+      partitions: ["gpu", "debug"]
+      default_partition: "gpu"
+      max_job_time: "24:00:00"
+
+  cloud:
+    name: "cloud-cluster"
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
+    control_plane:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.200.10"
+
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.200.11"
+      gpu:
+        - worker_type: "gpu"
+          cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          gpu_assigned: "cloud-mig-0"
+          ip: "192.168.200.12"
+        - worker_type: "gpu"
+          cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          gpu_assigned: "cloud-mig-1"
+          ip: "192.168.200.13"
+        - worker_type: "gpu"
+          cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          gpu_assigned: "cloud-mig-2"
+          ip: "192.168.200.14"
+
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"

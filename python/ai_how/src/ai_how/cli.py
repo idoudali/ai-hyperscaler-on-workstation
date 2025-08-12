@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import importlib.resources
 import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.console import Console
+
+from ai_how.validation import validate_config
 
 app = typer.Typer(help="AI-HOW CLI for managing HPC and Cloud clusters")
 console = Console()
@@ -18,6 +21,7 @@ def abort_not_implemented(feature: str) -> None:
 
 DEFAULT_CONFIG: Path = Path("config/cluster.yaml")
 DEFAULT_STATE: Path = Path("output/state.json")
+CLUSTER_SCHEMA_FILENAME: str = "cluster.schema.json"
 
 
 @app.callback()
@@ -43,7 +47,18 @@ def main(
 @app.command()
 def validate(ctx: typer.Context) -> None:  # noqa: ARG001
     """Validate cluster.yaml against schema and semantic rules."""
-    abort_not_implemented("validate config against schema and rules")
+    console.print(f"Validating {ctx.obj['config']}...")
+
+    try:
+        schema_resource = importlib.resources.files("ai_how.schemas").joinpath(
+            CLUSTER_SCHEMA_FILENAME
+        )
+        with importlib.resources.as_file(schema_resource) as schema_path:
+            if not validate_config(ctx.obj["config"], schema_path):
+                raise typer.Exit(code=1)
+    except (FileNotFoundError, ModuleNotFoundError) as e:
+        console.print(f"[red]Error:[/red] Could not locate schema file: {e}")
+        raise typer.Exit(code=1)  # noqa: B904
 
 
 hpc = typer.Typer(help="HPC cluster lifecycle")

@@ -49,7 +49,6 @@ repos:
     - id: cmake-format
       args: ['--config=.cmake-format.py']
 
-
   # Commit message validation (Conventional Commits)
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.2.0
@@ -61,32 +60,40 @@ repos:
           '--scopes', 'ansible,terraform,packer,slurm,k8s,gpu,docs,ci,scripts'
         ]
 
-
   # Dockerfile linting is covered in CI via GitHub Actions hadolint. Removed from local pre-commit to avoid requiring hadolint binary locally.
 
-  # Python formatting and linting
-  - repo: https://github.com/psf/black
-    rev: 24.4.2
+  # Python formatting and linting using Makefile targets for consistency
+  - repo: local
     hooks:
-      - id: black
-        language_version: python3
+      - id: make-lint
+        name: make-lint
+        entry: make
+        language: system
+        args: ['lint-ai-how']
+        files: ^python/ai_how/
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        additional_dependencies: []
+        require_serial: true
+        verbose: true
+        description: "Run linting using Makefile lint-ai-how target"
+        working_dir: .
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.10
-    hooks:
-      - id: ruff
-        args: ["--fix"]
+      - id: make-format
+        name: make-format
+        entry: make
+        language: system
+        args: ['format-ai-how']
         files: ^python/ai_how/
-      - id: ruff-format
-        files: ^python/ai_how/
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
-    hooks:
-      - id: mypy
-        files: ^python/ai_how/
-        additional_dependencies:
-          - tokenize-rt==3.2.0
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        additional_dependencies: []
+        require_serial: true
+        verbose: true
+        description: "Run code formatting using Makefile format-ai-how target"
+        working_dir: .
 
 # Global excludes
 exclude: |

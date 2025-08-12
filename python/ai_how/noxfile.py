@@ -1,53 +1,72 @@
 """Nox configuration for ai-how project."""
 
-import nox
+from __future__ import annotations
 
-nox.options.default_venv_backend = "uv"
+from nox import Session, options
+from nox_uv import session
+
+options.default_venv_backend = "uv"
 
 
-@nox.session(python=["3.11"])
-def test(session):
+@session(python=["3.11"])
+def test(s: Session) -> None:
     """Run the test suite."""
-    session.install(".[dev]")
-    session.run("pytest", *session.posargs)
+    s.install(".[dev]")
+    s.run("python", "-m", "pytest", *s.posargs)
 
 
-@nox.session(python=["3.11"])
-def lint(session):
+@session(python=["3.11"])
+def lint(s: Session) -> None:
     """Run linting and formatting checks."""
-    session.install(".[dev]")
-    session.run("ruff", "check", "src", "tests")
-    session.run("ruff", "format", "--check", "src", "tests")
-    session.run("black", "--check", "src", "tests")
-    session.run("mypy", "src")
+    s.install(".[dev]")
+    # Check if --fix flag is passed
+    if "--fix" in s.posargs:
+        s.run("ruff", "check", "--fix", "src", "tests")
+        s.run("ruff", "format", "src", "tests")
+        s.run("black", "src", "tests")
+    else:
+        s.run("ruff", "check", "src", "tests")
+        s.run("ruff", "format", "--check", "src", "tests")
+        s.run("black", "--check", "src", "tests")
+    s.run("mypy", "src")
 
 
-@nox.session(python=["3.11"])
-def format(session):
+@session(python=["3.11"])
+def lint_fix(s: Session) -> None:
+    """Automatically fix linting and formatting issues."""
+    s.install(".[dev]")
+    s.run("ruff", "check", "--fix", "src", "tests")
+    s.run("ruff", "format", "src", "tests")
+    s.run("black", "src", "tests")
+    s.run("mypy", "src")
+
+
+@session(python=["3.11"])
+def format(s: Session) -> None:
     """Format code with ruff and black."""
-    session.install(".[dev]")
-    session.run("ruff", "format", "src", "tests")
-    session.run("black", "src", "tests")
+    s.install(".[dev]")
+    s.run("ruff", "format", "src", "tests")
+    s.run("black", "src", "tests")
 
 
-@nox.session(python=["3.11"])
-def docs(session):
+@session(python=["3.11"])
+def docs(s: Session) -> None:
     """Build the documentation."""
-    session.install(".[docs]")
-    session.run("mkdocs", "build")
+    s.install(".[docs]")
+    s.run("mkdocs", "build")
 
 
-@nox.session(python=["3.11"])
-def docs_serve(session):
+@session(python=["3.11"])
+def docs_serve(s: Session) -> None:
     """Serve the documentation locally."""
-    session.install(".[docs]")
-    session.run("mkdocs", "serve")
+    s.install(".[docs]")
+    s.run("mkdocs", "serve")
 
 
-@nox.session(python=["3.11"])
-def clean(session):
+@session(python=["3.11"])
+def clean(s: Session) -> None:
     """Clean up build artifacts."""
-    session.run(
+    s.run(
         "rm",
         "-rf",
         ".pytest_cache",
@@ -57,4 +76,4 @@ def clean(session):
         "build",
         external=True,
     )
-    session.run("rm", "-rf", "*.egg-info", external=True)
+    s.run("rm", "-rf", "*.egg-info", external=True)
