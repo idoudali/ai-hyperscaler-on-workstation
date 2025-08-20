@@ -71,8 +71,8 @@ repos:
         language: system
         args: ['lint-ai-how']
         files: ^python/ai_how/
+        types: [python]
         pass_filenames: false
-        always_run: true
         stages: [commit]
         additional_dependencies: []
         require_serial: true
@@ -86,8 +86,8 @@ repos:
         language: system
         args: ['format-ai-how']
         files: ^python/ai_how/
+        types: [python]
         pass_filenames: false
-        always_run: true
         stages: [commit]
         additional_dependencies: []
         require_serial: true
