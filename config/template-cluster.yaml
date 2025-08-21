@@ -26,6 +26,7 @@ global:
 clusters:
   hpc:
     name: "hpc-cluster"
+    base_image_path: "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2"
     network:
       subnet: "192.168.100.0/24"
       bridge: "virbr100"
@@ -64,6 +65,7 @@ clusters:
 
   cloud:
     name: "cloud-cluster"
+    base_image_path: "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2"
     network:
       subnet: "192.168.200.0/24"
       bridge: "virbr200"

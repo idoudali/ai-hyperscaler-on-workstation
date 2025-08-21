@@ -23,6 +23,65 @@ def schema_file(tmp_path: Path) -> Path:
     return schema_path
 
 
+@pytest.fixture
+def cluster_schema_file(tmp_path: Path) -> Path:
+    """Create a temporary cluster schema file for testing."""
+    schema_content = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+            "version": {"type": "string", "pattern": "^1\\.0$"},
+            "metadata": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "description": {"type": "string"}},
+                "required": ["name", "description"],
+            },
+            "clusters": {
+                "type": "object",
+                "properties": {
+                    "hpc": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "base_image_path": {"type": "string"},
+                            "network": {
+                                "type": "object",
+                                "properties": {
+                                    "subnet": {"type": "string"},
+                                    "bridge": {"type": "string"},
+                                },
+                                "required": ["subnet", "bridge"],
+                            },
+                        },
+                        "required": ["name", "base_image_path", "network"],
+                    },
+                    "cloud": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "base_image_path": {"type": "string"},
+                            "network": {
+                                "type": "object",
+                                "properties": {
+                                    "subnet": {"type": "string"},
+                                    "bridge": {"type": "string"},
+                                },
+                                "required": ["subnet", "bridge"],
+                            },
+                        },
+                        "required": ["name", "base_image_path", "network"],
+                    },
+                },
+                "required": ["hpc", "cloud"],
+            },
+        },
+        "required": ["version", "metadata", "clusters"],
+    }
+    schema_path = tmp_path / "cluster_schema.json"
+    schema_path.write_text(json.dumps(schema_content))
+    return schema_path
+
+
 def test_validate_config_valid(schema_file: Path, tmp_path: Path):
     """Test that a valid configuration file passes validation."""
     valid_config = {"name": "test-cluster", "count": 5}
@@ -80,3 +139,75 @@ def test_validate_schema_invalid_json(tmp_path: Path):
     schema_path = tmp_path / "invalid_schema.json"
     schema_path.write_text('{"type": "object", "properties": }')  # Malformed JSON
     assert validate_config(config_path, schema_path) is False
+
+
+def test_validate_cluster_config_with_base_image_path(cluster_schema_file: Path, tmp_path: Path):
+    """Test that a cluster configuration with base_image_path passes validation."""
+    valid_cluster_config = {
+        "version": "1.0",
+        "metadata": {"name": "test-hyperscaler", "description": "Test cluster configuration"},
+        "clusters": {
+            "hpc": {
+                "name": "hpc-cluster",
+                "base_image_path": "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2",
+                "network": {"subnet": "192.168.100.0/24", "bridge": "virbr100"},
+            },
+            "cloud": {
+                "name": "cloud-cluster",
+                "base_image_path": "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2",
+                "network": {"subnet": "192.168.200.0/24", "bridge": "virbr200"},
+            },
+        },
+    }
+    config_path = tmp_path / "cluster_config.yaml"
+    config_path.write_text(yaml.dump(valid_cluster_config))
+
+    assert validate_config(config_path, cluster_schema_file) is True
+
+
+def test_validate_cluster_config_missing_base_image_path(cluster_schema_file: Path, tmp_path: Path):
+    """Test that a cluster configuration missing base_image_path fails validation."""
+    invalid_cluster_config = {
+        "version": "1.0",
+        "metadata": {"name": "test-hyperscaler", "description": "Test cluster configuration"},
+        "clusters": {
+            "hpc": {
+                "name": "hpc-cluster",
+                "network": {"subnet": "192.168.100.0/24", "bridge": "virbr100"},
+            },
+            "cloud": {
+                "name": "cloud-cluster",
+                "network": {"subnet": "192.168.200.0/24", "bridge": "virbr200"},
+            },
+        },
+    }
+    config_path = tmp_path / "cluster_config.yaml"
+    config_path.write_text(yaml.dump(invalid_cluster_config))
+
+    assert validate_config(config_path, cluster_schema_file) is False
+
+
+def test_validate_cluster_config_base_image_path_wrong_type(
+    cluster_schema_file: Path, tmp_path: Path
+):
+    """Test that a cluster configuration with wrong base_image_path type fails validation."""
+    invalid_cluster_config = {
+        "version": "1.0",
+        "metadata": {"name": "test-hyperscaler", "description": "Test cluster configuration"},
+        "clusters": {
+            "hpc": {
+                "name": "hpc-cluster",
+                "base_image_path": 123,  # Should be a string
+                "network": {"subnet": "192.168.100.0/24", "bridge": "virbr100"},
+            },
+            "cloud": {
+                "name": "cloud-cluster",
+                "base_image_path": "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2",
+                "network": {"subnet": "192.168.200.0/24", "bridge": "virbr200"},
+            },
+        },
+    }
+    config_path = tmp_path / "cluster_config.yaml"
+    config_path.write_text(yaml.dump(invalid_cluster_config))
+
+    assert validate_config(config_path, cluster_schema_file) is False

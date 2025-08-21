@@ -88,6 +88,7 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "base_image_path": { "type": "string" },
         "network": { "$ref": "#/definitions/network" },
         "controller": { "$ref": "#/definitions/controllerNode" },
         "compute_nodes": { "$ref": "#/definitions/computeNodeGroup" },
@@ -101,12 +102,13 @@
           "required": ["partitions", "default_partition"]
         }
       },
-      "required": ["network", "controller", "compute_nodes", "slurm_config", "name"]
+      "required": ["base_image_path", "network", "controller", "compute_nodes", "slurm_config", "name"]
     },
     "cloudCluster": {
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "base_image_path": { "type": "string" },
         "network": { "$ref": "#/definitions/network" },
         "control_plane": { "$ref": "#/definitions/controllerNode" },
         "worker_nodes": {
@@ -128,7 +130,7 @@
           "required": ["cni", "ingress", "storage_class"]
         }
       },
-      "required": ["network", "control_plane", "worker_nodes", "kubernetes_config", "name"]
+      "required": ["base_image_path", "network", "control_plane", "worker_nodes", "kubernetes_config", "name"]
     },
     "controllerNode": {
       "type": "object",
