@@ -1,7 +1,3 @@
----
-description: "Generate conventional commit messages that follow the project's commitizen configuration and Conventional Commits specification."
-alwaysApply: true
----
 
 # Conventional Commit Message Guidelines
 
@@ -16,12 +12,23 @@ When creating commit messages, you MUST follow the Conventional Commits specific
 [optional footer]
 ```
 
+**IMPORTANT**: The pre-commit hook is very strict about parsing. Follow this exact format:
+- **First line**: Must be exactly `<type>(<scope>): <subject>` with no extra characters
+- **Second line**: Must be completely empty (blank line)
+- **Body**: Can start on the third line, but must be separated by the blank line
+- **No bullet points or special characters** in the first line or body
+
+## Specification Compliance
+
+This guide follows the Conventional Commits specification and RFC 2119 requirements. The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" are to be interpreted as described in RFC 2119.
+
 ## Required Elements
 
 ### Type (REQUIRED)
-Use one of these standardized types:
-- **feat**: A new feature
-- **fix**: A bug fix
+Commits MUST be prefixed with a type. Use one of these standardized types:
+
+- **feat**: A new feature (correlates with MINOR in Semantic Versioning)
+- **fix**: A bug fix (correlates with PATCH in Semantic Versioning)
 - **docs**: Documentation only changes
 - **style**: Changes that do not affect the meaning of the code (white-space, formatting, etc.)
 - **refactor**: A code change that neither fixes a bug nor adds a feature
@@ -32,16 +39,22 @@ Use one of these standardized types:
 - **chore**: Other changes that don't modify src or test files
 - **revert**: Reverts a previous commit
 
+**Note**: BREAKING CHANGE commits can be part of any type and correlate with MAJOR in Semantic Versioning.
+
 ### Subject (REQUIRED)
+A description MUST immediately follow the colon and space after the type/scope prefix. The description requirements:
+
 - Use imperative mood ("add" not "added" or "adds")
 - Keep it under 50 characters
 - Don't capitalize the first letter
 - No period at the end
 - Be descriptive but concise
+- Example: `fix: array parsing issue when multiple spaces were contained in string`
 
-### Scope (OPTIONAL but RECOMMENDED)
-Use project-specific scopes when applicable:
+### Scope (REQUIRED)
+A scope MAY be provided after a type. A scope MUST consist of a noun describing a section of the codebase surrounded by parentheses. Use project-specific scopes when applicable:
 - **ansible**: Ansible playbooks and roles
+- **cursor**: Cursor rules and other related changes
 - **terraform**: Terraform infrastructure code
 - **packer**: Packer image building configurations
 - **slurm**: SLURM workload manager configuration
@@ -50,46 +63,141 @@ Use project-specific scopes when applicable:
 - **docs**: Documentation updates
 - **ci**: CI/CD pipeline changes
 - **scripts**: Shell scripts and utilities
+- **python**: Generic python changes
+- **ai-how**: changes to the ai-how python package
 
 ## Examples
 
-### Good Examples
+### Good Examples (Pre-commit Hook Compatible)
 ```
 feat(ansible): add GPU node provisioning playbook
-fix(terraform): resolve VPC subnet configuration issue
+
+This commit introduces a new Ansible playbook for provisioning
+GPU nodes with proper MIG configuration and driver setup.
+
+feat(terraform): implement VPC subnet configuration
+
+Resolves VPC subnet configuration issues by implementing proper
+CIDR block management and route table associations.
+
 docs(slurm): update MIG GPU configuration guide
+
+Comprehensive update to SLURM MIG GPU configuration documentation
+including gres.conf and cgroup.conf examples.
+
 ci: add pre-commit hooks for conventional commits
+
+Implements pre-commit hooks to enforce conventional commit
+message format and validate commit messages automatically.
+
 refactor(scripts): simplify node health check logic
+
+Refactors the node health check script to improve readability
+and reduce code duplication while maintaining functionality.
 ```
 
-### Bad Examples
+### Bad Examples (Will Fail Pre-commit Hook)
 ```
 ❌ Added new features
 ❌ Fix bug
 ❌ Update documentation
 ❌ WIP: working on ansible stuff
 ❌ feat: did some work on the thing
+❌ feat(ansible): add GPU provisioning
+- Added new playbook
+- Updated documentation
+- Fixed configuration issues
 ```
 
 ## Body and Footer Guidelines
 
 ### Body (OPTIONAL)
+A longer commit body MAY be provided after the short description, providing additional contextual information about the code changes. The body MUST begin one blank line after the description.
+
 - Separate from subject with a blank line
 - Use to explain the "what" and "why", not the "how"
 - Wrap at 72 characters per line
+- A commit body is free-form and MAY consist of any number of newline separated paragraphs
 
 ### Footer (OPTIONAL)
-- Use for breaking changes: `BREAKING CHANGE: <description>`
-- Reference issues: `Closes #123`, `Fixes #456`
+One or more footers MAY be provided one blank line after the body. Each footer MUST consist of a word token, followed by either a `:<space>` or `<space>#` separator, followed by a string value.
+
+**Footer Requirements:**
+- A footer's token MUST use `-` in place of whitespace characters (e.g., `Acked-by`)
+- Exception: `BREAKING CHANGE` MAY also be used as a token
+- A footer's value MAY contain spaces and newlines
+- Parsing MUST terminate when the next valid footer token/separator pair is observed
+
+**Common Footer Types:**
+- Breaking changes: `BREAKING CHANGE: <description>`
+- Issue references: `Closes #123`, `Fixes #456`
 - Co-authored commits: `Co-authored-by: Name <email@example.com>`
+- Other git trailer format: `Reviewed-by: Name <email@example.com>`
 
 ## Breaking Changes
-For breaking changes, use either:
-1. `!` after the type/scope: `feat(api)!: remove deprecated endpoints`
-2. Footer: `BREAKING CHANGE: removed support for Node.js 14`
+Breaking changes MUST be indicated in the type/scope prefix of a commit, or as an entry in the footer. For breaking changes, use either:
+
+1. **Exclamation mark method**: `!` immediately before the `:`
+   - Example: `feat(api)!: remove deprecated endpoints`
+   - If `!` is used, `BREAKING CHANGE:` MAY be omitted from the footer section
+   - The commit description SHALL be used to describe the breaking change
+
+2. **Footer method**: `BREAKING CHANGE: <description>`
+   - Example: `BREAKING CHANGE: environment variables now take precedence over config files`
+   - Must consist of the uppercase text `BREAKING CHANGE`, followed by a colon, space, and description
+
+**Alternative Format**: `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE` when used as a token in a footer.
+
+## Format Specification Requirements
+
+### General Rules
+- Commits MUST be prefixed with a type, followed by the OPTIONAL scope, OPTIONAL `!`, and REQUIRED terminal colon and space
+- The type `feat` MUST be used when a commit adds a new feature to your application or library
+- The type `fix` MUST be used when a commit represents a bug fix for your application
+- Types other than `feat` and `fix` MAY be used in your commit messages (e.g., `docs: update ref docs`)
+
+### Case Sensitivity
+- The units of information that make up Conventional Commits MUST NOT be treated as case sensitive by implementors
+- **Exception**: `BREAKING CHANGE` which MUST be uppercase
+- Type and scope are typically lowercase by convention
+
+## Pre-commit Hook Compatibility
+
+The project uses `conventional-pre-commit` which has strict parsing requirements:
+
+### Strict Format Requirements
+- **First line format**: Must be exactly `<type>(<scope>): <subject>`
+- **No extra characters**: No leading/trailing spaces, no special characters
+- **Blank line separation**: Must have exactly one blank line between subject and body
+- **Body formatting**: Avoid bullet points, dashes, or special characters at line start
+- **Line length**: Keep subject under 50 characters, body lines under 72 characters
+
+### What the Hook Expects
+```
+type(scope): subject
+
+Body text starts here with proper spacing.
+No bullet points or special formatting.
+Keep it simple and readable.
+```
+
+### What Will Fail
+```
+type(scope): subject
+Body without blank line separation
+
+type(scope): subject
+
+- Bullet points will cause parsing errors
+- Special characters can confuse the parser
+```
 
 ## Automation
 - The repository uses `pre-commit` with `conventional-pre-commit` hook
 - Commit messages are validated automatically
+- Use `cz commit` for interactive commit message creation
+- Run `pre-commit install --hook-type commit-msg` to enable validation
+- All commits are automatically checked against this specification
+
 - Use `cz commit` for interactive commit message creation
 - Run `pre-commit install --hook-type commit-msg` to enable validation

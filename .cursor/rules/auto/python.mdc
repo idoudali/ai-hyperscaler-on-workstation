@@ -1,0 +1,124 @@
+---
+alwaysApply: false
+---
+# Cursor Rules: Python
+
+These rules guide Python development using modern tools and best practices.
+
+## Environment and tooling
+- Use `uv` for dependency management and virtualenvs. Support modern Python versions (3.9+).
+- Use Nox sessions defined in `noxfile.py` (adapt session names as needed):
+  - `uv run nox -s fmt` — sort imports and format code
+  - `uv run nox -s lint` — lint and format check
+  - `uv run nox -s type_check` — mypy strict type checking
+  - `uv run nox -s test` — run tests with coverage enforcement
+  - `uv run nox -s docs` — build documentation
+  - `uv run nox -s licenses` — license reports when needed
+- Configure pre-commit hooks: `ruff`, `ruff-format`, `mypy`, and repo checks.
+- Run tools via `uv run` for proper environment resolution.
+
+## Dependencies and layout
+- Pin exact versions in `uv.lock`; use ranges in `pyproject.toml`
+- Document version constraints and reasoning when needed
+- Run `uv run nox -s licenses` before adding new dependencies
+- Update regularly with `uv lock --upgrade`
+- Use `uv add --dev` for development dependencies
+- Place source under `src/` with package root `src/package_name/`
+- Place tests under `tests/` with pytest
+- Use absolute imports only; avoid wildcards
+- Order imports as enforced by ruff-isort: standard library first, then third-party, then first-party; type-only imports last
+- Export public APIs via `__all__` in `__init__.py`
+
+## Module organization
+- Keep modules focused on a single responsibility
+- Use `__init__.py` to expose public APIs via `__all__`
+- Organize related functionality into sub-packages
+- Avoid circular imports; use dependency injection or protocols
+- Place shared utilities in a dedicated `utils/` or `common/` package
+
+## Code style and quality
+- Line length: 99 characters
+- Ruff handles all formatting and linting
+- Prefer `pathlib.Path`, f-strings, early returns
+- Keep functions small and focused; avoid deep nesting
+- Eliminate trailing whitespace; ensure newline at end of file
+
+## Performance
+- Profile before optimizing using `cProfile` or `py-spy` for bottlenecks
+- Prefer list comprehensions over loops for simple transformations
+- Use `functools.lru_cache` for expensive, pure functions
+- Consider `__slots__` for frequently instantiated classes
+- Readability first, then optimize hot paths
+
+## Typing and APIs
+- Add precise type hints for all new functions, methods, and public APIs
+- Follow strict typing; mypy is configured with `strict = true`
+- Prefer clear names over abbreviations; avoid 1–2 character identifiers
+- Use early-return patterns and handle error cases first
+- Prefer PEP 604 unions (`str | None`), `typing.Literal`, `Final`, `TypedDict`, `Protocol`, `NewType`
+- Use `dataclasses.dataclass` for simple data containers (`frozen=True, slots=True` when sensible)
+- Avoid `Any`. If unavoidable, minimize scope and justify with focused `# type: ignore[code]`
+- Public APIs should have stable, well-typed signatures and clear error semantics
+
+## Testing and docs
+- Add or update tests for new behavior in `tests/`
+- Keep coverage at or above the configured threshold (aim for high coverage)
+- Use pytest naming: files `test_*.py`, tests `test_*`
+- Treat warnings as errors when configured; fix root causes or mark with precise filters
+- Use `pytest.mark.parametrize` for input matrices; prefer fixtures over ad-hoc setup
+- Avoid broad exception catching in tests; assert specific exceptions and messages
+- Use `tmp_path`/`monkeypatch` judiciously; avoid network or external side effects
+- Use Google-style docstrings for public functions/classes
+- Keep docs up to date when modifying public behavior; update documentation as needed
+- Type hints are the source of truth for types; docstrings should describe behavior and errors
+- Build docs with appropriate tools (`uv run nox -s docs` or similar)
+
+## Error handling and security
+- Raise specific exceptions (`ValueError`, `TypeError`, etc.); avoid bare `except`
+- Write clear, actionable error messages including context and how to fix it
+- Use `breakpoint()` instead of `import pdb; pdb.set_trace()`
+- Prefer `subprocess.run([...], check=True)` without `shell=True`. If shell is required, document why
+- Never use `eval`/`exec` on untrusted input. Keep secrets in environment variables, not in code
+- Include reproduction steps in bug reports and tests
+
+## CLI specifics (when applicable)
+- Preserve current CLI UX unless explicitly changing it
+- Write clear, actionable error messages for end users
+- Include context about what went wrong and how to fix it
+- Use `rich` or similar for formatted CLI output when appropriate
+- Distinguish between user errors (exit code 1) and system errors (exit code 2)
+- Consider using Typer, Click, or argparse for CLI implementation
+- Structure CLI commands in a dedicated module (e.g., `cli.py` or `cli/` package)
+
+## Development workflow
+- Create feature branches from `main`; use descriptive names (`feat/add-auth`, `fix/handle-timeout`)
+- Run `uv run nox -s lint type_check test` before pushing
+- Write tests first for bug fixes (TDD for defects)
+- Update documentation in the same commit as code changes
+- Use `uv run nox -s fmt` in pre-commit hooks
+- Do not add TODO comments; implement the behavior or open an issue
+- Follow Conventional Commits for clear commit history
+
+## Async programming
+- Use `async`/`await` consistently; avoid mixing sync/async without proper bridging
+- Prefer `asyncio.create_task()` over `asyncio.gather()` for independent operations
+- Use `async with` for async context managers (like httpx.AsyncClient)
+- Handle `asyncio.CancelledError` appropriately in long-running tasks
+- Use `await` for all async operations; avoid blocking calls in async functions
+
+## Configuration and logging
+- Use environment variables for deployment config
+- Prefer `pydantic.BaseSettings` for validation
+- Use standard `logging` module, not `print()`
+- Configure logging at application entry point
+- Use log levels consistently:
+  - `DEBUG` for development and diagnostic information
+  - `INFO` for user events and normal operations
+  - `WARNING`/`ERROR` for issues and unexpected conditions
+- Prefer structured logging (e.g., use `extra={...}` with `logging` or consider `structlog`)
+- Include context in log messages
+
+## References
+- **Configuration files**: `pyproject.toml`, `noxfile.py` (adapt to your project structure)
+- **Standards**: [PEP 8](https://peps.python.org/pep-0008/), [PEP 604](https://peps.python.org/pep-0604/), [typing docs](https://docs.python.org/3/library/typing.html)
+- **External guide**: [awesome-cursorrules Python rules](https://github.com/PatrickJS/awesome-cursorrules/blob/main/rules-new/python.mdc)

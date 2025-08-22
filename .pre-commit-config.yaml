@@ -57,7 +57,7 @@ repos:
         stages: [commit-msg]
         args: [
           '--verbose',
-          '--scopes', 'ansible,terraform,packer,slurm,k8s,gpu,docs,ci,scripts'
+          '--scopes', 'ansible,terraform,packer,slurm,k8s,gpu,docs,ci,scripts,cursor,python,ai-how'
         ]
 
   # Dockerfile linting is covered in CI via GitHub Actions hadolint. Removed from local pre-commit to avoid requiring hadolint binary locally.
