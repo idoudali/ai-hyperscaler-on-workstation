@@ -20,36 +20,18 @@
     "global": {
       "type": "object",
       "properties": {
-        "gpu_allocation": {
+        "gpu_inventory": {
           "type": "object",
           "properties": {
             "devices": {
               "type": "array",
               "items": { "$ref": "#/definitions/gpuDevice" }
-            },
-            "strategy": {
-              "type": "string",
-              "enum": ["mig", "whole", "hybrid"]
-            },
-            "mig_slices": {
-              "type": "object",
-              "properties": {
-                "hpc": { "type": "integer", "minimum": 0 },
-                "cloud": { "type": "integer", "minimum": 0 }
-              }
-            },
-            "whole_gpus": {
-              "type": "object",
-              "properties": {
-                "hpc": { "type": "integer", "minimum": 0 },
-                "cloud": { "type": "integer", "minimum": 0 }
-              }
             }
           },
-          "required": ["strategy"]
+          "required": ["devices"]
         }
       },
-      "required": ["gpu_allocation"]
+      "required": ["gpu_inventory"]
     },
     "clusters": {
       "type": "object",
@@ -76,13 +58,83 @@
         "id": { "type": "string" },
         "pci_address": { "type": "string", "pattern": "^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\\.[0-9]$" },
         "model": { "type": "string" },
-        "mig_capable": { "type": "boolean" },
-        "allowed_mig_profiles": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
+        "vendor_id": { "type": "string", "pattern": "^[0-9a-fA-F]{4}$" },
+        "device_id": { "type": "string", "pattern": "^[0-9a-fA-F]{4}$" },
+        "iommu_group": { "type": "integer", "minimum": 0 },
+        "mig_capable": { "type": "boolean" }
       },
-      "required": ["id", "pci_address", "model", "mig_capable"]
+      "required": ["id", "pci_address", "model", "vendor_id", "device_id", "iommu_group", "mig_capable"]
+    },
+    "pciePassthrough": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "pci_address": { "type": "string", "pattern": "^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\\.[0-9]$" },
+              "device_type": { "type": "string", "enum": ["gpu", "network", "storage", "other"] },
+              "vendor_id": { "type": "string", "pattern": "^[0-9a-fA-F]{4}$" },
+              "device_id": { "type": "string", "pattern": "^[0-9a-fA-F]{4}$" },
+              "iommu_group": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["pci_address", "device_type"]
+          }
+        }
+      }
+    },
+    "hardwareAcceleration": {
+      "type": "object",
+      "properties": {
+        "enable_kvm": { "type": "boolean", "default": true },
+        "enable_nested": { "type": "boolean", "default": false },
+        "cpu_model": {
+          "type": "string",
+          "enum": ["host", "host-passthrough", "host-model", "qemu64"],
+          "default": "host-model"
+        },
+        "cpu_features": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[+-]?[a-zA-Z0-9_.]+$" }
+        },
+        "numa_topology": {
+          "type": ["object", "null"],
+          "properties": {
+            "nodes": { "type": "integer", "minimum": 1, "maximum": 8 },
+            "memory_per_node": { "type": "integer", "minimum": 1024 }
+          }
+        },
+        "cpu_topology": {
+          "type": "object",
+          "properties": {
+            "sockets": { "type": "integer", "minimum": 1, "maximum": 4 },
+            "cores": { "type": "integer", "minimum": 1, "maximum": 64 },
+            "threads": { "type": "integer", "minimum": 1, "maximum": 2 }
+          },
+          "required": ["sockets", "cores", "threads"]
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "enable_hugepages": { "type": "boolean", "default": false },
+            "hugepage_size": { "type": "string", "enum": ["2M", "1G"], "default": "2M" },
+            "cpu_pinning": { "type": "boolean", "default": false },
+            "memory_backing": {
+              "type": "string",
+              "enum": ["default", "hugepages", "memfd"],
+              "default": "default"
+            }
+          }
+        }
+      }
+    },
+    "hardwareConfig": {
+      "type": "object",
+      "properties": {
+        "acceleration": { "$ref": "#/definitions/hardwareAcceleration" }
+      }
     },
     "hpcCluster": {
       "type": "object",
@@ -90,6 +142,7 @@
         "name": { "type": "string" },
         "base_image_path": { "type": "string" },
         "network": { "$ref": "#/definitions/network" },
+        "hardware": { "$ref": "#/definitions/hardwareConfig" },
         "controller": { "$ref": "#/definitions/controllerNode" },
         "compute_nodes": { "$ref": "#/definitions/computeNodeGroup" },
         "slurm_config": {
@@ -110,6 +163,7 @@
         "name": { "type": "string" },
         "base_image_path": { "type": "string" },
         "network": { "$ref": "#/definitions/network" },
+        "hardware": { "$ref": "#/definitions/hardwareConfig" },
         "control_plane": { "$ref": "#/definitions/controllerNode" },
         "worker_nodes": {
           "type": "object",
@@ -148,7 +202,7 @@
         "cpu_cores": { "type": "integer", "minimum": 1 },
         "memory_gb": { "type": "integer", "minimum": 1 },
         "disk_gb": { "type": "integer", "minimum": 10 },
-        "gpu_assigned": { "type": "string" }
+        "pcie_passthrough": { "$ref": "#/definitions/pciePassthrough" }
       },
       "required": ["cpu_cores", "memory_gb", "disk_gb"]
     },
@@ -203,8 +257,7 @@
               "properties": {
                 "worker_type": { "const": "cpu" }
               },
-              "required": ["worker_type"],
-              "not": { "required": ["gpu_assigned"] }
+              "required": ["worker_type"]
             }
           ]
         },
@@ -214,10 +267,9 @@
             {
               "type": "object",
               "properties": {
-                "worker_type": { "const": "gpu" },
-                "gpu_assigned": { "type": "string" }
+                "worker_type": { "const": "gpu" }
               },
-              "required": ["worker_type", "gpu_assigned"]
+              "required": ["worker_type"]
             }
           ]
         }

@@ -631,6 +631,17 @@ check_packages() {
         virt-manager
         ebtables
         dnsmasq-base
+        # Python development dependencies
+        python3-dev
+        python3-pip
+        python3-venv
+        # libvirt development libraries needed by libvirt-python
+        libvirt-dev
+        pkg-config
+        # Additional build dependencies for Python packages
+        build-essential
+        python3-setuptools
+        python3-wheel
     )
     local missing_packages=()
     local package_check_errors=()
@@ -667,6 +678,176 @@ check_packages() {
         fi
 
         return 1
+    fi
+}
+
+# Stage 5.5: Python Library Dependencies Check
+# ------------------------------------------------------------------------------
+check_python_dependencies() {
+    log "Running Python library dependencies check..."
+    local return_code=0
+    local critical_failure=false
+
+    # Check if Python 3 is available
+    if ! command -v python3 >/dev/null 2>&1; then
+        report_failure \
+            "Python 3" \
+            "CRITICAL" \
+            "command -v python3" \
+            "Python 3 is not installed or not in PATH" \
+            "Python-based tools and libraries cannot function" \
+            "Install Python 3 with: sudo apt-get install python3 python3-pip python3-venv" \
+            "which python3; python3 --version"
+        critical_failure=true
+        return_code=1
+    else
+        local python_version
+        python_version=$(python3 --version 2>&1 | cut -d' ' -f2)
+        success "Python 3 is available (version: ${python_version})"
+        log "Command used: python3 --version"
+    fi
+
+    # Check if pip is available
+    if ! command -v pip3 >/dev/null 2>&1; then
+        report_failure \
+            "pip3" \
+            "CRITICAL" \
+            "command -v pip3" \
+            "pip3 is not installed or not in PATH" \
+            "Cannot install Python packages" \
+            "Install pip3 with: sudo apt-get install python3-pip" \
+            "which pip3; pip3 --version"
+        critical_failure=true
+        return_code=1
+    else
+        local pip_version
+        pip_version=$(pip3 --version 2>&1 | cut -d' ' -f2)
+        success "pip3 is available (version: ${pip_version})"
+        log "Command used: pip3 --version"
+    fi
+
+    # Check if virtual environment can be created
+    if ! python3 -m venv --help >/dev/null 2>&1; then
+        report_failure \
+            "Python venv module" \
+            "CRITICAL" \
+            "python3 -m venv --help" \
+            "Python venv module is not available" \
+            "Cannot create isolated Python environments" \
+            "Install python3-venv with: sudo apt-get install python3-venv" \
+            "python3 -m venv --help; dpkg -l | grep python3-venv"
+        critical_failure=true
+        return_code=1
+    else
+        success "Python venv module is available"
+        log "Command used: python3 -m venv --help"
+    fi
+
+    # Check if build tools are available
+    if ! command -v gcc >/dev/null 2>&1; then
+        report_failure \
+            "GCC compiler" \
+            "CRITICAL" \
+            "command -v gcc" \
+            "GCC compiler is not available" \
+            "Cannot compile Python packages with C extensions" \
+            "Install build tools with: sudo apt-get install build-essential" \
+            "which gcc; gcc --version"
+        critical_failure=true
+        return_code=1
+    else
+        local gcc_version
+        gcc_version=$(gcc --version 2>&1 | head -1 | cut -d' ' -f3)
+        success "GCC compiler is available (version: ${gcc_version})"
+        log "Command used: gcc --version"
+    fi
+
+    # Check if setuptools and wheel are available
+    if ! python3 -c "import setuptools" 2>/dev/null; then
+        report_failure \
+            "Python setuptools" \
+            "CRITICAL" \
+            "python3 -c 'import setuptools'" \
+            "Python setuptools is not available" \
+            "Cannot build or install Python packages" \
+            "Install setuptools with: sudo apt-get install python3-setuptools" \
+            "python3 -c 'import setuptools'; dpkg -l | grep python3-setuptools"
+        critical_failure=true
+        return_code=1
+    else
+        success "Python setuptools is available"
+        log "Command used: python3 -c 'import setuptools'"
+    fi
+
+    # Check if libvirt development libraries are properly installed
+    log "Checking libvirt development libraries for Python bindings..."
+
+    # Check if pkg-config can find libvirt
+    if ! pkg-config --exists libvirt; then
+        report_failure \
+            "libvirt pkg-config" \
+            "CRITICAL" \
+            "pkg-config --exists libvirt" \
+            "pkg-config cannot find libvirt development files" \
+            "Python libvirt-python package cannot be installed or compiled" \
+            "Install libvirt development package: sudo apt-get install libvirt-dev" \
+            "pkg-config --libs-only-L libvirt; dpkg -l | grep libvirt-dev"
+        critical_failure=true
+        return_code=1
+    else
+        success "libvirt pkg-config configuration is available"
+        log "Command used: pkg-config --exists libvirt"
+
+        # Show libvirt configuration details
+        local libvirt_cflags libvirt_libs
+        libvirt_cflags=$(pkg-config --cflags libvirt 2>/dev/null || echo "unknown")
+        libvirt_libs=$(pkg-config --libs libvirt 2>/dev/null || echo "unknown")
+
+        log "libvirt configuration details:"
+        log "  ├─ CFLAGS: ${libvirt_cflags}"
+        log "  └─ LIBS: ${libvirt_libs}"
+    fi
+
+    # Check if libvirt headers are available
+    if [[ ! -f /usr/include/libvirt/libvirt.h ]]; then
+        report_failure \
+            "libvirt headers" \
+            "CRITICAL" \
+            "check /usr/include/libvirt/libvirt.h" \
+            "libvirt header files are not installed" \
+            "Python libvirt-python package cannot be compiled" \
+            "Install libvirt development package: sudo apt-get install libvirt-dev" \
+            "ls -la /usr/include/libvirt/; dpkg -l | grep libvirt-dev"
+        critical_failure=true
+        return_code=1
+    else
+        success "libvirt header files are available"
+        log "Command used: check /usr/include/libvirt/libvirt.h"
+    fi
+
+    # Test if libvirt-python can be imported (if already installed)
+    if python3 -c "import libvirt" 2>/dev/null; then
+        success "libvirt-python is already installed and importable"
+        log "Command used: python3 -c 'import libvirt'"
+
+        # Get version information
+        local libvirt_version
+        if libvirt_version=$(python3 -c "import libvirt; print(libvirt.__version__)" 2>/dev/null); then
+            log "libvirt-python version: ${libvirt_version}"
+        fi
+    else
+        log "libvirt-python is not yet installed (this is expected for fresh systems)"
+        log "Command used: python3 -c 'import libvirt'"
+        log "Note: This will be installed when setting up the Python environment"
+    fi
+
+    # Summary
+    if [[ ${critical_failure} == true ]]; then
+        fail "Python dependencies check completed with CRITICAL failures that must be resolved."
+        return 1
+    else
+        success "Python dependencies check completed successfully. All components are functional."
+        return 0
     fi
 }
 
@@ -828,14 +1009,15 @@ check_user_groups() {
 # ==============================================================================
 
 usage() {
-    echo "Usage: $0 {all|cpu|iommu|kvm|gpu|packages|resources|conflicts|groups}"
+    echo "Usage: $0 {all|cpu|iommu|kvm|gpu|packages|python-deps|resources|conflicts|groups}"
     echo "  all: Run all prerequisite checks."
     echo "  cpu: Check for CPU virtualization support."
     echo "  iommu: Check for IOMMU support."
     echo "  kvm: Check for KVM acceleration."
     echo "  gpu: Check for NVIDIA GPU and driver status."
     echo "  packages: Check for required software packages."
-    echo "  resources: Check for sufficient system resources."
+    echo "  python-deps: Check for Python library dependencies."
+    echo "  resources: Check for sufficient system resources (RAM, disk, CPU)."
     echo "  conflicts: Check for conflicting services."
     echo "  groups: Check for user group memberships (libvirt, kvm)."
     exit 1
@@ -857,6 +1039,7 @@ main() {
         "check_kvm_acceleration"
         "check_gpu_drivers"
         "check_packages"
+        "check_python_dependencies"
         "check_system_resources"
         "check_conflicting_services"
         "check_user_groups"
@@ -869,6 +1052,7 @@ main() {
         ["check_kvm_acceleration"]="KVM Acceleration"
         ["check_gpu_drivers"]="GPU Drivers"
         ["check_packages"]="Required Packages"
+        ["check_python_dependencies"]="Python Dependencies"
         ["check_system_resources"]="System Resources"
         ["check_conflicting_services"]="Conflicting Services"
         ["check_user_groups"]="User Group Membership"
@@ -925,6 +1109,7 @@ main() {
         kvm) run_stage "check_kvm_acceleration" ;;
         gpu) run_stage "check_gpu_drivers" ;;
         packages) run_stage "check_packages" ;;
+        python-deps) run_stage "check_python_dependencies" ;;
         resources) run_stage "check_system_resources" ;;
         conflicts) run_stage "check_conflicting_services" ;;
         groups) run_stage "check_user_groups" ;;
@@ -1022,6 +1207,7 @@ main() {
         echo "  ├─ KVM acceleration: Ready for high-performance VMs"
         echo "  ├─ GPU drivers: Installed and operational"
         echo "  ├─ Required packages: All dependencies satisfied"
+        echo "  ├─ Python dependencies: All libraries and tools available"
         echo "  ├─ System resources: Sufficient for workloads"
         echo "  ├─ Service conflicts: None detected"
         echo "  └─ User permissions: Properly configured"

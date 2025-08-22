@@ -242,6 +242,9 @@ done
 
 
 This completes the GPU partitioning. The single A100 is now logically divided into seven independent, virtual GPUs, ready for allocation according to the master plan below.
+
+**Note on Schema Evolution**: The current implementation has evolved to use a simplified per-VM PCIe passthrough configuration instead of this complex MIG+mdev approach. In the updated schema, each VM directly specifies its PCIe device assignments in its `pcie_passthrough` configuration block, providing greater flexibility and simpler management. The global GPU inventory serves as a reference for conflict detection.
+
 MIG Profile
 Mediated Device (mdev) UUID (Generated)
 Assigned VM Name

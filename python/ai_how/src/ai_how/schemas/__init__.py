@@ -1,6 +1,6 @@
 """Schema definitions for the ai-how package."""
 
-from .cluster import (
+from ai_how.schemas.cluster import (
     get_required_fields,
     get_schema_description,
     get_schema_title,

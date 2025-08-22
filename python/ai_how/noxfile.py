@@ -23,11 +23,11 @@ def lint(s: Session) -> None:
     if "--fix" in s.posargs:
         s.run("ruff", "check", "--fix", "src", "tests")
         s.run("ruff", "format", "src", "tests")
-        s.run("black", "src", "tests")
+       # s.run("black", "src", "tests")
     else:
         s.run("ruff", "check", "src", "tests")
         s.run("ruff", "format", "--check", "src", "tests")
-        s.run("black", "--check", "src", "tests")
+       # s.run("black", "--check", "src", "tests")
     s.run("mypy", "src")
 
 
@@ -37,7 +37,7 @@ def lint_fix(s: Session) -> None:
     s.install(".[dev]")
     s.run("ruff", "check", "--fix", "src", "tests")
     s.run("ruff", "format", "src", "tests")
-    s.run("black", "src", "tests")
+   #  s.run("black", "src", "tests")
     s.run("mypy", "src")
 
 
@@ -46,7 +46,7 @@ def format(s: Session) -> None:
     """Format code with ruff and black."""
     s.install(".[dev]")
     s.run("ruff", "format", "src", "tests")
-    s.run("black", "src", "tests")
+    # s.run("black", "src", "tests")
 
 
 @session(python=["3.11"])

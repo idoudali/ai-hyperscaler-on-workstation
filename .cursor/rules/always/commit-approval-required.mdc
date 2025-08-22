@@ -8,34 +8,55 @@ You MUST NOT commit changes directly to the repository. Your role is to prepare 
 
 **Your process is as follows:**
 1.  **Complete the Task:** Fulfill the user's request by creating, modifying, or deleting files as necessary.
-2.  **Stage Modified Files:** Use `git add -u` to automatically stage all tracked files that have been modified or deleted.
-3.  **Identify New Files:** Use `git ls-files --others --exclude-standard` to identify any new, untracked files.
-4.  **Present for Review:**
-    - If there are new files, you MUST list them and ask the user for permission to add them to the commit.
-    - Present the generated commit message.
-    - State that modified files are staged and you are awaiting instructions on the new files.
-5.  **Await Approval:** You must stop and wait for the user to explicitly approve which new files to add (if any) and to approve the final commit.
+2.  **Present Change Summary:** Provide a comprehensive summary of all changes made, including:
+    - **Modified Files:** List all files that were modified with a brief description of what changed
+    - **New Files:** List all new files created with their purpose
+    - **Deleted Files:** List any files that were removed (if applicable)
+3.  **Provide Context and Rationale:**
+    - **Why the changes were made:** Explain the reasoning behind each change
+    - **What problem was solved:** Describe the specific issue or requirement that was addressed
+4.  **Present Commit Message:** Provide a well-structured commit message that follows conventional commit format
+5.  **Await Approval:** Wait for explicit user approval before staging and committing any changes
 
-**Example Interaction (with a new file):**
+**Example Interaction:**
 
-> **AI:** I have completed the task. All modified files have been staged.
+> **AI:** I have completed the task. Here is a summary of the changes made:
 >
-> The following new file was created:
-> - `scripts/helpers/new_utility.sh`
+> ## Changes Made
 >
-> Please let me know if I should add this new file to the commit.
+> ### Modified Files:
+> - `ansible/playbooks/main.yml`: Updated log processing task to use new utility script
+> - `docs/README.md`: Added documentation for the new log parsing functionality
 >
-> Here is the proposed commit message:
+> ### New Files:
+> - `scripts/helpers/log_parser.sh`: New utility script for parsing system logs
+>
+> ## Context and Rationale
+>
+> ### Why the changes were made:
+> The existing log processing was inefficient and prone to errors when handling large log files.
+> The manual parsing approach was time-consuming and inconsistent across different environments.
+>
+> ### What problem was solved:
+> - **Performance Issue:** Reduced log processing time from 15+ minutes to under 2 minutes
+> - **Consistency Problem:** Standardized log parsing across all deployment environments
+> - **Maintainability:** Centralized log parsing logic in a reusable utility script
+>
+> ## Proposed Commit Message:
 >
 > ```
-> feat: Add new utility script for parsing logs
+> feat: Add efficient log parsing utility script
 >
-> This commit introduces a new script and updates the main playbook
-> to use it for log processing.
+> - Create reusable log_parser.sh for standardized log processing
+> - Update main playbook to use new parsing utility
+> - Add documentation for log parsing functionality
+>
+> Resolves performance issues with large log files and ensures
+> consistent parsing behavior across all environments.
 > ```
 >
-> Please review and approve.
+> Please review the changes and let me know if you approve this commit.
 
-> **User:** Yes, add the new script and proceed.
+> **User:** Looks good, please proceed with the commit.
 
-> **AI:** *(executes `git add scripts/helpers/new_utility.sh` and then `git commit`)*
+> **AI:** *(executes `git add`, stages the appropriate files, and then `git commit`)*

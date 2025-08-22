@@ -77,6 +77,7 @@ repos:
         additional_dependencies: []
         require_serial: true
         verbose: true
+        quiet: true
         description: "Run linting using Makefile lint-ai-how target"
         working_dir: .
 
@@ -92,6 +93,7 @@ repos:
         additional_dependencies: []
         require_serial: true
         verbose: true
+        quiet: true
         description: "Run code formatting using Makefile format-ai-how target"
         working_dir: .
 

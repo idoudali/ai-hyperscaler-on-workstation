@@ -7,7 +7,9 @@ name = "ai-how"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "jinja2" },
     { name = "jsonschema" },
+    { name = "libvirt-python" },
     { name = "pyyaml" },
     { name = "rich" },
     { name = "typer" },
@@ -35,7 +37,9 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "jinja2", specifier = ">=3.1.0" },
     { name = "jsonschema", specifier = ">=4.21.0" },
+    { name = "libvirt-python", specifier = ">=9.0.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.0.0" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.20.0" },
@@ -466,6 +470,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/bf/ce/46fbd9c8119cfc358
 wheels = [
     { url = "https://files.pythonhosted.org/packages/01/0e/b27cdbaccf30b890c40ed1da9fd4a3593a5cf94dae54fb34f8a4b74fcd3f/jsonschema_specifications-2025.4.1-py3-none-any.whl", hash = "sha256:4653bffbd6584f7de83a67e0d620ef16900b390ddc7939d56684d6c81e33f1af", size = 18437, upload-time = "2025-04-23T12:34:05.422Z" },
 ]
+
+[[package]]
+name = "libvirt-python"
+version = "11.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/12/325da88706d5d7f7d7e569cd4d3f93e68dca87b5cff4d9243a3afe370fde/libvirt-python-11.6.0.tar.gz", hash = "sha256:cf6077eddf7e0d20d7193c48309d57cb8d63e2adc68cafb2cf8354ec3d807dd8", size = 242654, upload-time = "2025-08-01T09:09:56.662Z" }
 
 [[package]]
 name = "markdown"

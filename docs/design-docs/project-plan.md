@@ -240,32 +240,30 @@ provisioning, GPU allocation, and deployment automation.
 ### YAML Configuration Structure
 
 ```yaml
-# Example cluster.yaml structure
+# Example cluster.yaml structure with per-VM PCIe passthrough
 version: "1.0"
 metadata:
   name: "hyperscaler-emulation"
   description: "Dual-stack AI infrastructure emulation"
   
 global:
-  gpu_allocation:
-    # Multi-GPU inventory and allocation strategy
+  gpu_inventory:
+    # Host GPU inventory for reference and conflict detection
     devices:
       - id: "GPU-0"
         pci_address: "0000:65:00.0"
         model: "NVIDIA A100 80GB"
+        vendor_id: "10de"
+        device_id: "2684"
+        iommu_group: 1
         mig_capable: true
-        allowed_mig_profiles: ["1g.5gb", "2g.10gb", "3g.20gb", "7g.80gb"]
       - id: "GPU-1"
         pci_address: "0000:ca:00.0"
         model: "NVIDIA RTX 6000"
+        vendor_id: "10de"
+        device_id: "1e36"
+        iommu_group: 4
         mig_capable: false
-    strategy: "hybrid"  # one of: mig | whole | hybrid
-    mig_slices:
-      hpc: 4
-      cloud: 3
-    whole_gpus:
-      hpc: 0
-      cloud: 1
 
 clusters:
   hpc:
@@ -279,12 +277,30 @@ clusters:
       ip_address: "192.168.100.10"
     
     compute_nodes:
-      count: 4
-      cpu_cores: 8
-      memory_gb: 16
-      disk_gb: 200
-      gpu_enabled: true
-      ip_range: "192.168.100.11-14"
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.11"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:65:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2684"
+              iommu_group: 1
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.12"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:65:00.1"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2684"
+              iommu_group: 2
     
     slurm_config:
       partitions: ["gpu", "debug"]
@@ -310,12 +326,30 @@ clusters:
         ip_range: "192.168.200.11"
       
       gpu_workers:
-        count: 3
-        cpu_cores: 8
-        memory_gb: 16
-        disk_gb: 200
-        gpu_enabled: true
-        ip_range: "192.168.200.12-14"
+        - cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          ip: "192.168.200.12"
+          pcie_passthrough:
+            enabled: true
+            devices:
+              - pci_address: "0000:65:00.2"
+                device_type: "gpu"
+                vendor_id: "10de"
+                device_id: "2684"
+                iommu_group: 3
+        - cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          ip: "192.168.200.13"
+          pcie_passthrough:
+            enabled: true
+            devices:
+              - pci_address: "0000:ca:00.0"
+                device_type: "gpu"
+                vendor_id: "10de"
+                device_id: "1e36"
+                iommu_group: 4
     
     kubernetes_config:
       cni: "calico"
@@ -331,17 +365,20 @@ The `schemas/cluster.schema.json` will validate:
   reasonable bounds
 - **Network Validation**: Verify IP ranges don't overlap and are properly
   formatted
-- **GPU Allocation (Multi-GPU)**:
-  - Validate per-device constraints (MIG profiles only on MIG-capable devices)
-  - Prevent oversubscription across devices and slices (sum of slices and
-    whole-GPUs within capacity)
-  - Enforce uniqueness and validity of GPU `pci_address` and `id`
-  - Validate placement rules for HPC/Cloud pools under `strategy` (mig | whole |
-    hybrid)
-- **Cross-Dependencies**: Validate that GPU-enabled nodes have corresponding GPU
-  instances allocated
-- **Configuration Consistency**: Ensure cluster sizing is feasible for the
-  target hardware
+- **PCIe/GPU Passthrough Validation**:
+  - Validate PCIe address format (0000:xx:xx.x pattern)
+  - Ensure vendor_id and device_id are valid 4-digit hex values
+  - Validate IOMMU group assignments are non-negative integers
+  - Prevent duplicate PCIe address assignments across all VMs
+  - Validate device_type enum values (gpu, network, storage, other)
+- **GPU Inventory Validation**:
+  - Ensure GPU inventory devices have unique IDs and PCI addresses
+  - Validate MIG capability flags match known device capabilities
+  - Cross-reference VM PCIe assignments against inventory devices
+- **Cross-Dependencies**: Validate that VMs with pcie_passthrough enabled have
+  valid device assignments
+- **Configuration Consistency**: Ensure cluster sizing and GPU assignments are
+  feasible for the target hardware
 
 ---
 

@@ -1,0 +1,20 @@
+<network>
+  <name>{{ cluster_name }}-network</name>
+  <bridge name="{{ bridge_name }}" stp="on" delay="0"/>
+  <domain name="{{ cluster_name }}.local"/>
+  <ip address="{{ gateway_ip }}" netmask="{{ netmask }}">
+    <dhcp>
+      <range start="{{ dhcp_start }}" end="{{ dhcp_end }}"/>
+      {% for vm_name, ip in static_leases.items() %}
+      <host {% if vm_name in vm_macs %}mac="{{ vm_macs[vm_name] }}" {% endif %}name="{{ vm_name }}" ip="{{ ip }}"/>
+      {% endfor %}
+    </dhcp>
+  </ip>
+  {% if dns_servers %}
+  <dns>
+    {% for dns in dns_servers %}
+    <forwarder addr="{{ dns }}"/>
+    {% endfor %}
+  </dns>
+  {% endif %}
+</network>
