@@ -111,6 +111,7 @@ add_custom_command(
         init-hpc-packer
         generate-packer-vars-hpc-base
         ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-base.sh
+    USES_TERMINAL
     VERBATIM
 )
 

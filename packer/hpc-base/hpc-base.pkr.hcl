@@ -108,7 +108,7 @@ source "qemu" "hpc_base" {
   cd_label = "cidata"
 
   # Optimized boot wait - cloud-init typically completes in 30-45s
-  boot_wait = "45s"
+  boot_wait = "10s"
 
   # Communication settings - optimized for speed
   communicator           = "ssh"
@@ -187,6 +187,14 @@ build {
     ]
   }
 
+  # Regenerate SSH host keys after cleanup to ensure SSH service can start
+  provisioner "shell" {
+    inline = [
+      "echo 'Regenerating SSH host keys...'",
+      "sudo ssh-keygen -A",
+      "echo 'SSH host keys regenerated successfully'"
+    ]
+  }
 
 
   # Create build metadata
