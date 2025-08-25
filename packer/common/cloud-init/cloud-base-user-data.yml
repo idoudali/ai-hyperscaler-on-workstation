@@ -4,12 +4,17 @@ users:
     gecos: Debian User
     groups: sudo,adm,systemd-journal
     sudo: ALL=(ALL) NOPASSWD:ALL
-    lock_passwd: true
+    lock_passwd: false
+    plain_text_passwd: hpc-cloud
     ssh_authorized_keys:
       - REPLACE_SSH_KEY
     shell: /bin/bash
+  - name: root
+    lock_passwd: false
+    plain_text_passwd: hpc-cloud
+    shell: /bin/bash
 
-ssh_pwauth: false
+ssh_pwauth: true
 
 growpart:
   mode: auto

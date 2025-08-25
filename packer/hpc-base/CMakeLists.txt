@@ -38,6 +38,7 @@ add_custom_target(generate-packer-vars-hpc-base
 
 # Packer variable arguments
 set(PACKER_VARS
+    -var "source_directory=${CMAKE_CURRENT_SOURCE_DIR}"
     -var "build_directory=${HPC_OUTPUT_DIR}"
     -var "image_name=${IMAGE_NAME}"
     -var "vm_name=${VM_NAME}"
@@ -60,12 +61,14 @@ add_custom_command(
         ${COMMON_SCRIPTS_DIR}/prepare-cloud-init.sh
         ${CMAKE_CURRENT_SOURCE_DIR}/../common/cloud-init/hpc-base-user-data.yml
         ${CMAKE_CURRENT_SOURCE_DIR}/../common/cloud-init/hpc-base-meta-data.yml
+        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-base.sh
     VERBATIM
 )
 
 # Target to prepare cloud-init files
 add_custom_target(prepare-cloud-init-hpc-base
     DEPENDS ${CLOUD_INIT_BUILD_DIR}/user-data ${CLOUD_INIT_BUILD_DIR}/meta-data
+        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-base.sh
 )
 
 # Initialize Packer plugins
@@ -107,6 +110,7 @@ add_custom_command(
         ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
         init-hpc-packer
         generate-packer-vars-hpc-base
+        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-base.sh
     VERBATIM
 )
 

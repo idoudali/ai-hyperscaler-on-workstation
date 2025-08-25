@@ -37,10 +37,16 @@ variable "debian_cloud_image_checksum" {
   default = ""
 }
 
+variable "source_directory" {
+  type        = string
+  description = "Source directory path"
+}
+
 variable "build_directory" {
   type        = string
   description = "Base build directory path"
 }
+
 
 variable "image_name" {
   type        = string
@@ -144,18 +150,23 @@ build {
     ]
   }
 
-  # Minimal system preparation - optimized for speed
+  # System preparation with networking and debugging tools
+  provisioner "file" {
+    source = "${var.source_directory}/setup-hpc-base.sh"
+    destination = "/tmp/setup-hpc-base.sh"
+  }
+
   provisioner "shell" {
     inline = [
-      "echo 'Performing minimal system preparation for HPC workloads...'",
-      # Combined update and upgrade with optimizations
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq",
-      # Quick cleanup
-      "sudo apt-get autoremove -y -qq && sudo apt-get autoclean -qq",
-      "echo 'HPC base image preparation complete'"
+      "echo 'Running HPC base setup script...'",
+      "chmod +x /tmp/setup-hpc-base.sh",
+      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-hpc-base.sh",
+      "rm -f /tmp/setup-hpc-base.sh",
+      "echo 'HPC base setup script completed'"
     ]
   }
+
+
 
   # Final cleanup for cloning - optimized for speed
   provisioner "shell" {
@@ -176,6 +187,8 @@ build {
     ]
   }
 
+
+
   # Create build metadata
   post-processor "shell-local" {
     inline = [
@@ -185,6 +198,7 @@ build {
       "echo 'HPC Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
+      "echo 'Network debugging tools installed' > ${local.output_directory}/features.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"
     ]
   }

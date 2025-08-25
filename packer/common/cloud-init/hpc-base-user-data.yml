@@ -9,6 +9,8 @@ users:
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
     lock_passwd: true
+    # Uncomment to set a password for the admin user for debugging reasons
+    # plain_text_passwd: hpc-cloud
     ssh_authorized_keys:
       - REPLACE_SSH_KEY
 
@@ -58,4 +60,4 @@ runcmd:
   - chown admin:admin /opt/hpc
 
 # Final message
-final_message: "HPC base cloud image setup complete. The system is ready for HPC workload configuration."
+final_message: "HPC base cloud image setup complete. Login with admin/hpc-cloud or root/hpc-cloud. The system is ready for HPC workload configuration."
