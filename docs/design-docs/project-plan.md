@@ -6,8 +6,8 @@ outlines the concrete steps for an AI agent to execute, transforming the
 architectural blueprint into a robust, production-ready, emulated environment
 with comprehensive error handling, security, and monitoring.
 
-**Project Status:** Phase 0 Foundation - Near Complete (60% Complete) **Last
-Updated:** 2025-01-02
+**Project Status:** Phase 0 Foundation - Near Complete (85% Complete) **Last
+Updated:** 2025-01-15 **Latest Enhancement:** Added PCIe GPU passthrough support for 2 discrete NVIDIA GPUs
 
 ## Current Status Summary
 
@@ -18,11 +18,15 @@ Updated:** 2025-01-02
 - **Build System Core**: CMake-based build system with Ninja generator support
   and custom targets for building minimal base images.
 - **Development Workflow**: Makefile automation, pre-commit hooks, conventional
-  commits, and basic CI/CD.
+  commits, and basic CI/CD, with all relative imports migrated to absolute imports. (Refer to [Absolute Imports Migration](docs/implementation-plans/absolute-imports-migration.md))
 - **Documentation**: Comprehensive design documents and implementation plans.
-- **Python CLI Orchestrator**: Complete CLI framework with Typer, configuration
-  validation, and command structure for HPC and Cloud cluster management
-  (`ai_how` package, provides `ai-how` command).
+- **Python CLI Orchestrator**: Complete CLI framework with Typer, robust configuration
+  validation, comprehensive logging, and command structure for HPC and Cloud cluster management
+  (`ai_how` package, provides `ai-how` command). (Refer to [Enhanced Logging Implementation Guide](docs/implementation-plans/enhanced-logging-guide.md)
+  and [Subprocess Logging Improvements](docs/implementation-plans/subprocess-logging-improvements.md))
+- **HPC VM Management**: Complete system for provisioning, managing, and destroying HPC VMs, including LibVirt Client,
+VM Lifecycle Manager, Disk Manager, State Models, Cluster State Manager, XML Templates, HPC Manager, and CLI Integration.
+(Refer to [HPC VM Management Implementation - Complete](docs/implementation-plans/hpc-implementation-complete.md))
 - **Cluster Configuration Management**: Comprehensive `cluster.yaml` schema
   design, JSON schema validation, and configuration validator implementation.
 - **Host Preparation and Validation**: Complete system prerequisite checker
@@ -38,31 +42,23 @@ Updated:** 2025-01-02
   container runtimes). Automated testing targets are placeholders.
 - **CI/CD Pipeline**: Basic linting workflow implemented; multi-stage quality
   gates and deployment automation are pending.
-- **CLI Implementation**: Command scaffolding complete with stubbed
-  implementations; actual provisioning logic for HPC and Cloud clusters needs
-  implementation.
 
 ### 📋 Next Milestones
 
 - **Implement CLI Provisioning Logic** (Phase 0.7 continuation):
-  - Add VM provisioning capabilities to `hpc start` and `cloud start` commands
-  - Implement libvirt XML generation and qcow2 disk management
   - Add Ansible inventory generation and playbook execution
   - Complete state management and tracking functionality
 - **Complete Phase 0.2 build system enhancements** (add software to images,
   implement tests).
 - **Enhance Golden Images** (Phase 2.2): Add HPC-specific packages and container
   runtimes to base images.
-- **Implement GPU Resource Management** (Phase 3.1): MIG management and vGPU
-  provisioning scripts.
+- **Implement GPU Resource Management** (Phase 3.1): MIG management, vGPU
+  provisioning scripts, and PCIe GPU passthrough for discrete GPU access.
 - **Enhance CI/CD pipeline** with build and deployment stages.
 
 ### 🎯 Immediate Action Items (Priority Order)
 
 1.  **Complete CLI Provisioning Implementation** (Phase 0.7 continuation):
-    - Implement VM provisioning logic in `hpc start` and `cloud start` commands
-    - Add libvirt XML template generation from `cluster.yaml` specifications
-    - Implement qcow2 disk creation and management with copy-on-write
     - Add Ansible inventory generation and playbook execution integration
     - Complete state management with `output/state.json` tracking
 
@@ -71,6 +67,11 @@ Updated:** 2025-01-02
       partitioning
     - Implement smart vGPU provisioner (`create_vgpus.py`) with `cluster.yaml`
       integration
+    - **NEW: Implement PCIe GPU passthrough management**:
+      - Add PCIe passthrough validation scripts (`check_pcie_passthrough.sh`)
+      - Create PCIe device preparation tools (`prepare_pcie_devices.sh`)
+      - Implement PCIe passthrough resource manager (`manage_pcie_passthrough.py`)
+      - Add support for 2 discrete NVIDIA GPUs with direct VM access
     - Add GPU resource validation and conflict detection
     - Create resource cleanup manager for safe GPU resource destruction
 
@@ -200,12 +201,12 @@ enforces resource guardrails to handle limited host capacity.
   - [x] Provide `--config` flag to point to `config/cluster.yaml` and `--state`
     for `output/state.json`.
 
-- [ ] **0.7.3. HPC-First Implementation:**
-  - [ ] Implement `hpc start` to provision HPC VMs per `cluster.yaml` (libvirt
+- [x] **0.7.3. HPC-First Implementation:**
+  - [x] Implement `hpc start` to provision HPC VMs per `cluster.yaml` (libvirt
     XML templates, qcow2 disks).
-  - [ ] Implement `hpc stop` to gracefully shutdown HPC VMs.
-  - [ ] Implement `hpc status` to report VM and service health.
-  - [ ] Implement `hpc destroy` with safe teardown and rollback checks.
+  - [x] Implement `hpc stop` to gracefully shutdown HPC VMs.
+  - [x] Implement `hpc status` to report VM and service health.
+  - [x] Implement `hpc destroy` with safe teardown and rollback checks.
   - [ ] Generate Ansible inventory for HPC and invoke `playbook-hpc.yml`.
 
 - [ ] **0.7.4. Cloud Cluster Enablement:**
@@ -240,7 +241,7 @@ provisioning, GPU allocation, and deployment automation.
 ### YAML Configuration Structure
 
 ```yaml
-# Example cluster.yaml structure with per-VM PCIe passthrough
+# Example cluster.yaml structure with PCIe passthrough for 2 discrete NVIDIA GPUs
 version: "1.0"
 metadata:
   name: "hyperscaler-emulation"
@@ -410,7 +411,7 @@ support the project:
 - **GitHub Actions**: Basic linting and validation workflow
   (`.github/workflows/ci.yml`)
 - **Multi-language Linting**: Support for Dockerfile, shell scripts, YAML, and
-  markdown
+  markdown, including enforcement of absolute imports. (Refer to [Absolute Imports Migration](docs/implementation-plans/absolute-imports-migration.md))
 - **Git Hooks**: Local validation before commits and pushes
 
 ### ✅ Documentation Framework
@@ -445,6 +446,27 @@ foundation for the virtualized environment.
     - [x] Enumerate available GPUs and their capabilities.
     - [x] Detect MIG support and current configuration.
     - [x] Report GPU memory and utilization status.
+
+- [ ] **1.1.1. PCIe GPU Passthrough Prerequisites:**
+  - [ ] **Script 3: PCIe Passthrough Validator (`check_pcie_passthrough.sh`)**
+    - [ ] Validate IOMMU configuration and enabled status (`intel_iommu=on` or `amd_iommu=on`).
+    - [ ] Check IOMMU groups for GPU isolation and validate group membership.
+    - [ ] Verify VFIO driver availability and kernel module loading.
+    - [ ] Validate that target GPUs are not bound to host drivers (`nvidia`, `nouveau`).
+    - [ ] Check for PCIe ACS (Access Control Services) support and configuration.
+    - [ ] Validate host system compatibility for SR-IOV if applicable.
+    - [ ] Report potential conflicts with existing GPU utilization.
+    - [ ] Generate PCIe device inventory with IOMMU group mappings.
+  
+  - [ ] **Script 4: PCIe Device Preparation (`prepare_pcie_devices.sh`)**
+    - [ ] Create backup of current GPU driver bindings and configurations.
+    - [ ] Unbind target GPUs from host drivers (nvidia, nouveau) safely.
+    - [ ] Bind target GPUs to VFIO-PCI driver with validation.
+    - [ ] Configure VFIO driver parameters and permissions.
+    - [ ] Validate PCIe device isolation and IOMMU group assignment.
+    - [ ] Implement rollback procedures for driver binding failures.
+    - [ ] Create persistent configuration for PCIe passthrough devices.
+    - [ ] Generate device mapping configuration for VM provisioning.
 
 - [ ] **1.2. Automated Host Configuration:**
   - [ ] **Script 2: Safe System Configurator (`configure_host.sh`)**
@@ -554,12 +576,25 @@ infrastructure provisioning process.
     - [ ] Add resource usage validation before cleanup.
     - [ ] Create backup of resource configurations before destruction.
 
+  - [ ] **Script 4: PCIe Passthrough Resource Manager (`manage_pcie_passthrough.py`)**
+    - [ ] Read and validate `config/cluster.yaml` for PCIe passthrough device assignments.
+    - [ ] Parse discrete GPU allocation requirements for HPC compute nodes.
+    - [ ] Validate PCIe device availability and IOMMU group compatibility.
+    - [ ] Implement conflict detection between MIG/vGPU and PCIe passthrough modes.
+    - [ ] Generate libvirt XML hostdev configurations for PCIe passthrough.
+    - [ ] Create device mapping and assignment validation system.
+    - [ ] Implement PCIe device reservation and release management.
+    - [ ] Save PCIe device assignments to `output/pcie_map.json` with metadata.
+    - [ ] Implement rollback procedures for failed PCIe device allocations.
+    - [ ] Create validation scripts for PCIe passthrough device functionality.
+
 - [ ] **3.2. Dynamic Cluster Configuration:**
   - [ ] **Cluster Definition YAML Structure (`config/cluster.yaml`):**
     - [ ] Define HPC cluster specification:
       - [ ] Controller node: CPU cores, memory, disk size, network configuration
       - [ ] Compute nodes: Number of nodes, CPU cores per node, memory per node,
-        GPU assignment
+        GPU assignment (MIG, vGPU, or PCIe passthrough)
+      - [ ] PCIe passthrough device specifications with IOMMU group validation
       - [ ] Storage requirements and shared filesystem configuration
       - [ ] SLURM-specific settings (partitions, QoS, accounting)
     - [ ] Define Cloud cluster specification:
@@ -670,13 +705,28 @@ clusters are deployed simultaneously for efficiency.
     - [ ] Deploy SLURM controller with high availability considerations.
     - [ ] Configure compute nodes with GPU resource management.
     - [ ] Attach vGPU mdevs with validation and error handling.
+    - [ ] Configure PCIe passthrough devices for discrete GPU access:
+      - [ ] Generate libvirt XML with hostdev PCIe passthrough configuration.
+      - [ ] Validate IOMMU group isolation and device assignment.
+      - [ ] Configure VM CPU affinity and NUMA topology for optimal performance.
+      - [ ] Implement PCIe device hotplug support for maintenance scenarios.
     - [ ] Install NVIDIA guest drivers with version compatibility.
+    - [ ] Validate PCIe passthrough GPU functionality in guest VMs:
+      - [ ] Test NVIDIA driver installation and GPU detection.
+      - [ ] Verify CUDA runtime and libraries functionality.
+      - [ ] Validate GPU memory allocation and compute capabilities.
+      - [ ] Test direct GPU access without virtualization overhead.
     - [ ] Set up monitoring and logging for SLURM services.
     - [ ] Configure backup and recovery procedures.
   
   - [ ] **HPC Testing and Validation:**
     - [ ] Comprehensive cluster health checks.
-    - [ ] GPU allocation and scheduling tests.
+    - [ ] GPU allocation and scheduling tests (both MIG/vGPU and PCIe passthrough).
+    - [ ] PCIe passthrough specific validation:
+      - [ ] Test exclusive GPU access without hypervisor overhead.
+      - [ ] Validate GPU memory bandwidth and compute performance.
+      - [ ] Test GPU-to-GPU communication for multi-GPU workloads.
+      - [ ] Verify SLURM gres (generic resource) configuration for discrete GPUs.
     - [ ] Performance benchmarking with standard HPC workloads.
     - [ ] Security compliance validation.
 
@@ -806,6 +856,11 @@ workflow validation.
     - [ ] Execute standardized HPC benchmarks on SLURM cluster.
     - [ ] Run Kubernetes performance and scalability tests.
     - [ ] Benchmark GPU performance and MIG efficiency.
+    - [ ] Test PCIe passthrough GPU performance benchmarks:
+      - [ ] Compare native vs. virtualized GPU performance.
+      - [ ] Benchmark memory bandwidth and compute throughput.
+      - [ ] Test multi-GPU workload scaling and inter-GPU communication.
+      - [ ] Validate latency and overhead measurements for discrete GPU access.
     - [ ] Test MLOps workflow performance and throughput.
 
 - [ ] **8.2. Oumi Orchestration Setup and Configuration:**
@@ -820,6 +875,11 @@ workflow validation.
   - [ ] **Training Workflow Validation:**
     - [ ] Create comprehensive training recipes with error handling.
     - [ ] Execute parallel training jobs to test resource allocation.
+    - [ ] Test PCIe passthrough GPU training workflows:
+      - [ ] Validate exclusive GPU access for high-performance training.
+      - [ ] Test multi-GPU distributed training with discrete GPU access.
+      - [ ] Verify CUDA and cuDNN functionality in PCIe passthrough mode.
+      - [ ] Benchmark training performance vs. vGPU alternatives.
     - [ ] Validate model artifacts, metadata, and experiment tracking.
     - [ ] Test failure scenarios and recovery procedures.
   
@@ -922,6 +982,11 @@ excellence.
 - [ ] **10.2. Troubleshooting and Support:**
   - [ ] **Comprehensive Troubleshooting Guide:**
     - [ ] Document common failure scenarios and their solutions.
+    - [ ] Create PCIe passthrough specific troubleshooting procedures:
+      - [ ] IOMMU configuration and validation issues.
+      - [ ] VFIO driver binding and device isolation problems.
+      - [ ] GPU passthrough performance optimization guide.
+      - [ ] Host and guest driver conflict resolution.
     - [ ] Create diagnostic procedures and debugging workflows.
     - [ ] Document performance tuning and optimization procedures.
     - [ ] Create escalation procedures and support contacts.
