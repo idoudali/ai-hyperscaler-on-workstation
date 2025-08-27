@@ -9,12 +9,13 @@ IFS=$'\n\t'
 #
 # Output:
 # - Human-readable summary to stdout
-# - YAML snippet to stdout (copy-paste into config/cluster.yaml)
-# - Also writes YAML to ./output/gpu_inventory.yaml
+# - YAML snippet for global GPU inventory (copy-paste into config/cluster.yaml)
+# - YAML snippets for VM PCIe passthrough configurations
+# - Also writes all output to ./output/gpu_inventory.yaml
 #
 # Requirements:
 # - nvidia-smi (from NVIDIA driver), version 450.80.02 or newer (for MIG support and reliable output)
-#   - NVIDIA driver version 450.80.02 or newer
+# - lspci (for PCI vendor/device ID detection)
 # - bash, coreutils, awk, sed, grep
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,12 +34,70 @@ require_cmd() {
   fi
 }
 
+# Get PCI vendor and device IDs for a given PCI address
+get_pci_ids() {
+  local pci_addr="$1"
+  # Convert from nvidia-smi format (00000000:01:00.0) to lspci format (01:00.0)
+  local short_addr
+  short_addr="${pci_addr#*:}"
+
+  local pci_info
+  pci_info=$(lspci -n -s "${short_addr}" 2>/dev/null | head -n1 || true)
+  if [[ -n "${pci_info}" ]]; then
+    # Extract vendor:device from format like "01:00.0 0300: 10de:2684 (rev a1)"
+    local ids
+    ids=$(echo "${pci_info}" | grep -Eo '[0-9a-f]{4}:[0-9a-f]{4}' | head -n1)
+    if [[ -n "${ids}" ]]; then
+      echo "${ids}" | tr ':' ' '
+    else
+      echo "unknown unknown"
+    fi
+  else
+    echo "unknown unknown"
+  fi
+}
+
+# Get IOMMU group for a given PCI address
+get_iommu_group() {
+  local pci_addr="$1"
+  # nvidia-smi returns format like 00000000:01:00.0, but sysfs uses 0000:01:00.0
+  # Convert from nvidia-smi format to sysfs format
+  local normalized_addr
+  if [[ "${pci_addr}" =~ ^[0-9]+: ]]; then
+    # Remove leading domain (00000000: -> "")
+    normalized_addr="${pci_addr#*:}"
+    # Ensure we have the 4-digit domain prefix (add 0000: if missing)
+    if [[ ! "${normalized_addr}" =~ ^[0-9a-f]{4}: ]]; then
+      normalized_addr="0000:${normalized_addr}"
+    fi
+  else
+    normalized_addr="${pci_addr}"
+  fi
+
+  local iommu_path="/sys/bus/pci/devices/${normalized_addr}/iommu_group"
+  if [[ -L "${iommu_path}" ]]; then
+    basename "$(readlink "${iommu_path}")" 2>/dev/null || echo "unknown"
+  else
+    echo "unknown"
+  fi
+}
+
+# Get NVIDIA driver version
+get_nvidia_driver_version() {
+  nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits 2>/dev/null | head -n1 | tr -d ' ' || echo "unknown"
+}
+
 cleanup() { :; }
 trap cleanup EXIT
 
 main() {
   require_cmd nvidia-smi || {
     log_err "nvidia-smi not found. Please install NVIDIA drivers and ensure nvidia-smi is available."
+    exit 1
+  }
+
+  require_cmd lspci || {
+    log_err "lspci not found. Please install pciutils package."
     exit 1
   }
 
@@ -53,22 +112,36 @@ main() {
 
   if [[ ${#gpu_rows[@]} -eq 0 ]]; then
     log_warn "No NVIDIA GPUs detected."
-    print_yaml_header >"${OUT_YAML}"
+    echo "global:" >"${OUT_YAML}"
+    echo "  gpu_inventory:" >>"${OUT_YAML}"
+    echo "    devices: []" >>"${OUT_YAML}"
     cat "${OUT_YAML}"
     exit 0
   fi
 
-  log_info "Detected ${#gpu_rows[@]} NVIDIA GPU(s). Gathering MIG capability and profiles..."
+  log_info "Detected ${#gpu_rows[@]} NVIDIA GPU(s). Gathering detailed information..."
 
-  # Collect per-GPU data
-  local yaml
-  yaml="$(print_yaml_header)"
-  yaml+=$'\n    devices:'
+  # Get driver version once
+  local driver_version
+  driver_version="$(get_nvidia_driver_version)"
 
-  local idx=0
+  # Generate timestamp
+  local timestamp
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+
+  # Print human-readable report
+  echo ""
+  echo "=== GPU Inventory Report ==="
+  echo "Generated: ${timestamp}"
+  echo ""
+
+  # Collect detailed GPU information for both human report and YAML
+  local -a gpu_data=()
+  local mig_capable_count=0
+  local available_count=0
+
   for row in "${gpu_rows[@]}"; do
-    # Example row: 0, GPU-xxxx, NVIDIA A100 80GB PCIe, 0000:65:00.0, 81251
-    # CSV without quoting
+    # Parse CSV row
     local gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib
     gpu_index=$(echo "${row}" | awk -F',' '{gsub(/^ +| +$/,"",$1); print $1}')
     gpu_uuid=$(echo "${row}"  | awk -F',' '{gsub(/^ +| +$/,"",$2); print $2}')
@@ -76,12 +149,21 @@ main() {
     gpu_bus=$(echo "${row}"   | awk -F',' '{gsub(/^ +| +$/,"",$4); print $4}')
     gpu_mem_mib=$(echo "${row}"| awk -F',' '{gsub(/^ +| +$/,"",$5); print $5}')
 
+    # Get PCI vendor and device IDs
+    local pci_ids vendor_id device_id
+    pci_ids="$(get_pci_ids "${gpu_bus}")"
+    vendor_id="${pci_ids%% *}"  # First part before space
+    device_id="${pci_ids##* }"  # Last part after space
+
+    # Get IOMMU group
+    local iommu_group
+    iommu_group="$(get_iommu_group "${gpu_bus}")"
+
     # Determine MIG capability and mode
     local mig_capable="false" mig_mode="disabled"
     local q
     q=$(nvidia-smi -i "${gpu_index}" -q 2>/dev/null || true)
     if echo "${q}" | grep -q "MIG Mode"; then
-      # Try to parse the current MIG mode line value
       local current_line
       current_line=$(echo "${q}" \
         | awk '/MIG Mode/{flag=1;next}/^\S/{flag=0}flag' \
@@ -89,96 +171,111 @@ main() {
         | head -n1)
       if [[ -n "${current_line}" ]]; then
         mig_mode="${current_line}"
-        # Consider device MIG-capable only if mode is not n/a
         if [[ "${mig_mode}" != "n/a" ]]; then
           mig_capable="true"
+          mig_capable_count=$((mig_capable_count + 1))
         fi
       fi
     fi
 
-    # If MIG-capable, attempt to list allowed GPU instance profiles
-    local -a profiles=()
-    if [[ "${mig_capable}" == "true" ]]; then
-      # nvidia-smi mig profile listing can vary by version. Try multiple options.
-      local prof_output=""
-      if prof_output=$(nvidia-smi mig -i "${gpu_index}" -lgip 2>/dev/null || true); then
-        :
-      elif prof_output=$(nvidia-smi mig -i "${gpu_index}" -lgci 2>/dev/null || true); then
-        :
-      else
-        prof_output=""
-      fi
+    # Status - assume available if nvidia-smi can query it
+    local status="Available"
+    available_count=$((available_count + 1))
 
-      if [[ -n "${prof_output}" ]]; then
-        # Extract tokens like 1g.5gb, 2g.10gb, etc.
-        mapfile -t profiles < <(echo "${prof_output}" | grep -Eo "[0-9]+g\.[0-9]+gb" | sort -u)
-      else
-        # Fallback common profiles for A100-family if unknown
-        profiles=("1g.5gb" "2g.10gb" "3g.20gb" "7g.80gb")
-      fi
-    fi
+    # Store data for later use
+    gpu_data+=("${gpu_index}|${gpu_uuid}|${gpu_name}|${gpu_bus}|${gpu_mem_mib}|${vendor_id}|${device_id}|${iommu_group}|${mig_capable}|${mig_mode}|${status}")
 
-    # Current MIG instances (if any)
-    local -a active_profiles=()
-    if [[ "${mig_capable}" == "true" && "${mig_mode}" == "enabled" ]]; then
-      local l
-      l=$(nvidia-smi -i "${gpu_index}" -L 2>/dev/null || true)
-      # Lines like: MIG 1g.5gb Device 0: (UUID: ...)
-      mapfile -t active_profiles < <(echo "${l}" | grep -Eo "MIG [0-9]+g\.[0-9]+gb" | awk '{print $2}' | sort | uniq -c | awk '{print $2":"$1}')
-    fi
-
-    # Append device YAML
-    yaml+=$(printf "\n      - id: \"GPU-%s\"\n" "${gpu_index}")
-    yaml+=$(printf "        pci_address: \"%s\"\n" "${gpu_bus}")
-    yaml+=$(printf "        model: \"%s\"\n" "${gpu_name}")
-    yaml+=$(printf "        uuid: \"%s\"\n" "${gpu_uuid}")
-    yaml+=$(printf "        memory_mib: %s\n" "${gpu_mem_mib}")
-    yaml+=$(printf "        mig_capable: %s\n" "${mig_capable}")
-    if [[ "${mig_capable}" == "true" ]]; then
-      yaml+=$(printf "        mig_mode: \"%s\"\n" "${mig_mode}")
-      if [[ ${#profiles[@]} -gt 0 ]]; then
-        yaml+=$(printf "        allowed_mig_profiles: [%s]\n" "$(printf '%s,' "${profiles[@]}" | sed 's/,$//')")
-      else
-        yaml+=$(printf "        allowed_mig_profiles: []\n")
-      fi
-      if [[ ${#active_profiles[@]} -gt 0 ]]; then
-        yaml+=$(printf "        current_mig_slices:\n")
-        local ap
-        for ap in "${active_profiles[@]}"; do
-          # ap like 1g.5gb:2
-          local prof cnt
-          prof="${ap%%:*}"; cnt="${ap##*:}"
-          yaml+=$(printf "          - profile: \"%s\"\n            count: %s\n" "${prof}" "${cnt}")
-        done
-      fi
-    fi
-
-    idx=$((idx+1))
+    # Print human-readable summary for this GPU
+    echo "GPU ${gpu_index}:"
+    echo "  Model: ${gpu_name}"
+    echo "  PCI Address: ${gpu_bus}"
+    echo "  Vendor ID: ${vendor_id}"
+    echo "  Device ID: ${device_id}"
+    echo "  IOMMU Group: ${iommu_group}"
+    echo "  MIG Capable: $(if [[ "${mig_capable}" == "true" ]]; then echo "Yes"; else echo "No"; fi)"
+    echo "  Driver: nvidia (version ${driver_version})"
+    echo "  Status: ${status}"
+    echo ""
   done
 
-  # Strategy guidance
-  yaml+=$'\n    strategy: "hybrid"  # one of: mig | whole | hybrid'
-  yaml+=$'\n    # Optional pool sizing examples (edit as needed)\n    mig_slices:\n      hpc: 0\n      cloud: 0\n    whole_gpus:\n      hpc: 0\n      cloud: 0\n'
-
-  # Print summary
-  echo ""
-  echo "==== GPU INVENTORY (SUMMARY) ===="
-  printf "%s\n" "${gpu_rows[@]}" | nl -w2 -s': '
+  # Print summary statistics
+  echo "=== Summary ==="
+  echo "Total GPUs: ${#gpu_rows[@]}"
+  echo "MIG Capable: ${mig_capable_count}"
+  echo "Available for Passthrough: ${available_count}"
   echo ""
 
-  # Write YAML
-  printf "%s\n" "${yaml}" >"${OUT_YAML}"
+  # Generate YAML sections
+  local global_yaml vm_yaml_sections
+  global_yaml="$(generate_global_yaml "${gpu_data[@]}")"
+  vm_yaml_sections="$(generate_vm_yaml_sections "${gpu_data[@]}")"
+
+  # Combine all output
+  local full_output
+  full_output="${global_yaml}"
+  full_output+=$'\n\n'
+  full_output+="${vm_yaml_sections}"
+
+  # Write to file
+  printf "%s\n" "${full_output}" >"${OUT_YAML}"
   log_info "Wrote YAML to ${OUT_YAML}"
   echo ""
-  echo "==== YAML SNIPPET (copy into config/cluster.yaml under global.gpu_allocation) ===="
-  printf "%s\n" "${yaml}"
+
+  # Print YAML sections
+  echo "==== GLOBAL GPU INVENTORY YAML (copy into config/cluster.yaml under global.gpu_inventory) ===="
+  printf "%s\n" "${global_yaml}"
+  echo ""
+  echo "==== VM PCIE PASSTHROUGH CONFIGURATIONS ===="
+  printf "%s\n" "${vm_yaml_sections}"
 }
 
-print_yaml_header() {
-  cat <<'YAML'
-global:
-  gpu_allocation:
-YAML
+# Generate global GPU inventory YAML section
+generate_global_yaml() {
+  local gpu_data=("$@")
+  local yaml="global:"
+  yaml+=$'\n  gpu_inventory:'
+  yaml+=$'\n    # Host GPU inventory for reference and conflict detection'
+  yaml+=$'\n    devices:'
+
+  for data in "${gpu_data[@]}"; do
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status <<< "${data}"
+
+    yaml+=$'\n      - id: "GPU-'"${gpu_index}"'"'
+    yaml+=$'\n        pci_address: "'"${gpu_bus}"'"'
+    yaml+=$'\n        model: "'"${gpu_name}"'"'
+    yaml+=$'\n        vendor_id: "'"${vendor_id}"'"'
+    yaml+=$'\n        device_id: "'"${device_id}"'"'
+    yaml+=$'\n        iommu_group: '"${iommu_group}"
+    yaml+=$'\n        mig_capable: '"${mig_capable}"
+  done
+
+  printf "%s" "${yaml}"
+}
+
+# Generate VM PCIe passthrough configuration sections
+generate_vm_yaml_sections() {
+  local gpu_data=("$@")
+  local sections=""
+
+  sections+="# Copy the following sections to compute nodes in your cluster configuration"
+  sections+=$'\n# Each GPU should be assigned to only one VM to avoid conflicts\n'
+
+  for data in "${gpu_data[@]}"; do
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status <<< "${data}"
+
+    sections+=$'\n# Configuration for GPU '"${gpu_index}"' ('"${gpu_name}"')'
+    sections+=$'\npcie_passthrough:'
+    sections+=$'\n  enabled: true'
+    sections+=$'\n  devices:'
+    sections+=$'\n    - pci_address: "'"${gpu_bus}"'"'
+    sections+=$'\n      device_type: "gpu"'
+    sections+=$'\n      vendor_id: "'"${vendor_id}"'"'
+    sections+=$'\n      device_id: "'"${device_id}"'"'
+    sections+=$'\n      iommu_group: '"${iommu_group}"
+    sections+=$'\n'
+  done
+
+  printf "%s" "${sections}"
 }
 
 main "$@"
