@@ -23,17 +23,12 @@
     <kvm>
       <hidden state='on'/>
     </kvm>
-    <!-- Add IOMMU support for better passthrough -->
     <ioapic driver='qemu'/>
   </features>
 
   <cpu mode='host-passthrough'>
     <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
-    <!-- Only enable vmx for Intel systems, remove svm requirement -->
-    <feature policy='require' name='vmx'/>
     <feature policy='disable' name='hypervisor'/>
-    <!-- Remove svm requirement as it causes issues on Intel systems -->
-    <!-- <feature policy='require' name='svm'/> -->
   </cpu>
 
   <clock offset='utc'>
@@ -69,16 +64,10 @@
     <controller type='usb' index='0' model='qemu-xhci'/>
     <controller type='pci' index='0' model='pcie-root'/>
 
-    <!-- Add IOMMU device for better passthrough support -->
-    <iommu model='intel'>
-      <driver intremap='on' caching_mode='on'/>
-    </iommu>
-
-    <!-- PCIe Device Passthrough (GPU, Audio, etc.) -->
+    <!-- GPU Passthrough -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
-    <!-- Let libvirt manage PCI topology automatically -->
     {% for device in pcie_passthrough['devices'] %}
-      {% if device.get('device_type') in ['gpu', 'audio'] %}
+      {% if device.get('device_type') == 'gpu' %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
@@ -86,7 +75,6 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
-      <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (IOMMU Group {{ device.get('iommu_group', 'N/A') }}) -->
     </hostdev>
       {% endif %}
     {% endfor %}
