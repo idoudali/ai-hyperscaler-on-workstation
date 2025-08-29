@@ -6,6 +6,7 @@ IFS=$'\n\t'
 # gpu_inventory.sh
 # Reports the current GPU configuration and prints a YAML snippet suitable for
 # the project's cluster configuration. Supports MIG-capable and non-MIG GPUs.
+# Also detects GPUs attached to vfio-pci driver for PCIe passthrough scenarios.
 #
 # Output:
 # - Human-readable summary to stdout
@@ -15,7 +16,7 @@ IFS=$'\n\t'
 #
 # Requirements:
 # - nvidia-smi (from NVIDIA driver), version 450.80.02 or newer (for MIG support and reliable output)
-# - lspci (for PCI vendor/device ID detection)
+# - lspci (for PCI vendor/device ID detection and vfio-pci GPU detection)
 # - bash, coreutils, awk, sed, grep
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,58 +88,107 @@ get_nvidia_driver_version() {
   nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits 2>/dev/null | head -n1 | tr -d ' ' || echo "unknown"
 }
 
-cleanup() { :; }
-trap cleanup EXIT
+# Detect GPUs using lspci (including those attached to vfio-pci)
+detect_gpus_with_lspci() {
+  local -a gpu_data=()
 
-main() {
-  require_cmd nvidia-smi || {
-    log_err "nvidia-smi not found. Please install NVIDIA drivers and ensure nvidia-smi is available."
-    exit 1
-  }
+  # List all VGA and 3D controllers (GPUs)
+  local gpu_pci_addresses
+  gpu_pci_addresses=$(lspci -nn | grep -i 'vga\|3d' | awk '{print $1}' || true)
 
-  require_cmd lspci || {
-    log_err "lspci not found. Please install pciutils package."
-    exit 1
-  }
+  if [[ -z "${gpu_pci_addresses}" ]]; then
+    return 0
+  fi
 
-  mkdir -p "${OUT_DIR}"
+  local gpu_index=0
+  while IFS= read -r pci_addr; do
+    [[ -z "${pci_addr}" ]] && continue
 
-  # Basic GPU enumeration
-  local -a gpu_rows
+    # Get detailed information for this GPU
+    local pci_info
+    pci_info=$(lspci -nnk -s "${pci_addr}" 2>/dev/null || true)
+
+    if [[ -z "${pci_info}" ]]; then
+      continue
+    fi
+
+    # Extract vendor and device IDs
+    local vendor_device_ids
+    vendor_device_ids=$(echo "${pci_info}" | grep -Eo '[0-9a-f]{4}:[0-9a-f]{4}' | head -n1 || true)
+
+    if [[ -z "${vendor_device_ids}" ]]; then
+      continue
+    fi
+
+    local vendor_id device_id
+    vendor_id="${vendor_device_ids%%:*}"
+    device_id="${vendor_device_ids##*:}"
+
+    # Check if this is an NVIDIA GPU (vendor ID 10de)
+    if [[ "${vendor_id}" != "10de" ]]; then
+      continue
+    fi
+
+    # Get kernel driver in use
+    local driver
+    driver=$(echo "${pci_info}" | grep 'Kernel driver in use' | awk '{print $5}' || echo "none")
+
+    # Get GPU name/model from lspci output
+    local gpu_name
+    gpu_name=$(echo "${pci_info}" | head -n1 | sed 's/.*VGA compatible controller: //' | sed 's/.*3D controller: //' || echo "Unknown NVIDIA GPU")
+
+    # Get IOMMU group
+    local iommu_group
+    iommu_group="$(get_iommu_group "${pci_addr}")"
+
+    # Determine status based on driver
+    local status
+    if [[ "${driver}" == "vfio-pci" ]]; then
+      status="Attached to vfio-pci"
+    elif [[ "${driver}" == "nvidia" ]]; then
+      status="Attached to NVIDIA driver"
+    else
+      status="Unknown driver: ${driver}"
+    fi
+
+    # For vfio-pci GPUs, we can't get MIG info or memory info
+    local mig_capable="false"
+    local mig_mode="disabled"
+    local gpu_mem_mib="unknown"
+    local gpu_uuid="unknown"
+
+    # Store data for later use
+    gpu_data+=("${gpu_index}|${gpu_uuid}|${gpu_name}|${pci_addr}|${gpu_mem_mib}|${vendor_id}|${device_id}|${iommu_group}|${mig_capable}|${mig_mode}|${status}|${driver}")
+
+    gpu_index=$((gpu_index + 1))
+  done <<< "${gpu_pci_addresses}"
+
+  printf "%s\n" "${gpu_data[@]}"
+}
+
+# Detect GPUs using nvidia-smi (only those attached to NVIDIA driver)
+detect_gpus_with_nvidia_smi() {
+  local -a gpu_data=()
+
+  # Check if nvidia-smi is working properly
+  if ! nvidia-smi --query-gpu=index --format=csv,noheader,nounits >/dev/null 2>&1; then
+    log_warn "nvidia-smi is not working properly. Skipping NVIDIA driver detection."
+    return 0
+  fi
+
   # Fields: index,uuid,name,pci.bus_id,memory.total (in MiB)
+  local -a gpu_rows
   mapfile -t gpu_rows < <(nvidia-smi \
     --query-gpu=index,uuid,name,pci.bus_id,memory.total \
     --format=csv,noheader,nounits 2>/dev/null || true)
 
   if [[ ${#gpu_rows[@]} -eq 0 ]]; then
-    log_warn "No NVIDIA GPUs detected."
-    echo "global:" >"${OUT_YAML}"
-    echo "  gpu_inventory:" >>"${OUT_YAML}"
-    echo "    devices: []" >>"${OUT_YAML}"
-    cat "${OUT_YAML}"
-    exit 0
+    return 0
   fi
-
-  log_info "Detected ${#gpu_rows[@]} NVIDIA GPU(s). Gathering detailed information..."
 
   # Get driver version once
   local driver_version
   driver_version="$(get_nvidia_driver_version)"
-
-  # Generate timestamp
-  local timestamp
-  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-
-  # Print human-readable report
-  echo ""
-  echo "=== GPU Inventory Report ==="
-  echo "Generated: ${timestamp}"
-  echo ""
-
-  # Collect detailed GPU information for both human report and YAML
-  local -a gpu_data=()
-  local mig_capable_count=0
-  local available_count=0
 
   for row in "${gpu_rows[@]}"; do
     # Parse CSV row
@@ -148,6 +198,11 @@ main() {
     gpu_name=$(echo "${row}"  | awk -F',' '{gsub(/^ +| +$/,"",$3); print $3}')
     gpu_bus=$(echo "${row}"   | awk -F',' '{gsub(/^ +| +$/,"",$4); print $4}')
     gpu_mem_mib=$(echo "${row}"| awk -F',' '{gsub(/^ +| +$/,"",$5); print $5}')
+
+    # Skip if any field is empty or invalid
+    if [[ -z "${gpu_index}" || -z "${gpu_name}" || -z "${gpu_bus}" ]]; then
+      continue
+    fi
 
     # Get PCI vendor and device IDs
     local pci_ids vendor_id device_id
@@ -173,17 +228,151 @@ main() {
         mig_mode="${current_line}"
         if [[ "${mig_mode}" != "n/a" ]]; then
           mig_capable="true"
-          mig_capable_count=$((mig_capable_count + 1))
         fi
       fi
     fi
 
-    # Status - assume available if nvidia-smi can query it
-    local status="Available"
-    available_count=$((available_count + 1))
+    # Status - available if nvidia-smi can query it
+    local status="Available (NVIDIA driver)"
+    local driver="nvidia"
 
     # Store data for later use
-    gpu_data+=("${gpu_index}|${gpu_uuid}|${gpu_name}|${gpu_bus}|${gpu_mem_mib}|${vendor_id}|${device_id}|${iommu_group}|${mig_capable}|${mig_mode}|${status}")
+    gpu_data+=("${gpu_index}|${gpu_uuid}|${gpu_name}|${gpu_bus}|${gpu_mem_mib}|${vendor_id}|${device_id}|${iommu_group}|${mig_capable}|${mig_mode}|${status}|${driver}")
+  done
+
+  printf "%s\n" "${gpu_data[@]}"
+}
+
+# Merge and deduplicate GPU data based on PCI address
+merge_gpu_data() {
+  local -a nvidia_gpus=("$1")
+  local -a lspci_gpus=("$2")
+  local -a merged_gpus=()
+  local -a seen_pci_addresses=()
+
+  # First, add NVIDIA GPUs
+  for gpu in "${nvidia_gpus[@]}"; do
+    [[ -z "${gpu}" ]] && continue
+
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${gpu}"
+    seen_pci_addresses+=("${gpu_bus}")
+    merged_gpus+=("${gpu}")
+  done
+
+  # Then add lspci GPUs that aren't already covered by NVIDIA detection
+  for gpu in "${lspci_gpus[@]}"; do
+    [[ -z "${gpu}" ]] && continue
+
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${gpu}"
+
+    # Check if this PCI address is already covered
+    local already_seen=false
+    for seen_addr in "${seen_pci_addresses[@]}"; do
+      if [[ "${gpu_bus}" == "${seen_addr}" ]]; then
+        already_seen=true
+        break
+      fi
+    done
+
+    if [[ "${already_seen}" == "false" ]]; then
+      seen_pci_addresses+=("${gpu_bus}")
+      merged_gpus+=("${gpu}")
+    fi
+  done
+
+  printf "%s\n" "${merged_gpus[@]}"
+}
+
+cleanup() { :; }
+trap cleanup EXIT
+
+main() {
+  require_cmd lspci || {
+    log_err "lspci not found. Please install pciutils package."
+    exit 1
+  }
+
+  mkdir -p "${OUT_DIR}"
+
+  # Detect GPUs using both methods
+  local -a nvidia_gpus=()
+  local -a lspci_gpus=()
+
+  # Try to detect GPUs with nvidia-smi first
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    log_info "Detecting GPUs with NVIDIA driver..."
+    mapfile -t nvidia_gpus < <(detect_gpus_with_nvidia_smi)
+  else
+    log_warn "nvidia-smi not found. Will only detect GPUs with lspci."
+  fi
+
+  # Always detect GPUs with lspci
+  log_info "Detecting GPUs with lspci..."
+  mapfile -t lspci_gpus < <(detect_gpus_with_lspci)
+
+  # Merge and deduplicate GPU data
+  local -a all_gpus=()
+  mapfile -t all_gpus < <(merge_gpu_data "${nvidia_gpus[@]}" "${lspci_gpus[@]}")
+
+  if [[ ${#all_gpus[@]} -eq 0 ]]; then
+    log_warn "No NVIDIA GPUs detected with either method."
+    echo "global:" >"${OUT_YAML}"
+    echo "  gpu_inventory:" >>"${OUT_YAML}"
+    echo "    devices: []" >>"${OUT_YAML}"
+    echo ""
+    echo "=== GPU Inventory Report ==="
+    echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
+    echo "No NVIDIA GPUs detected on this system."
+    echo "This could mean:"
+    echo "  - No NVIDIA GPUs are installed"
+    echo "  - GPUs are installed but not detected by lspci"
+    echo "  - GPUs are bound to a different driver"
+    echo ""
+    cat "${OUT_YAML}"
+    exit 0
+  fi
+
+  log_info "Detected ${#all_gpus[@]} NVIDIA GPU(s). Gathering detailed information..."
+
+  # Get driver version if available
+  local driver_version
+  driver_version="$(get_nvidia_driver_version)"
+
+  # Generate timestamp
+  local timestamp
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+
+  # Print human-readable report
+  echo ""
+  echo "=== GPU Inventory Report ==="
+  echo "Generated: ${timestamp}"
+  echo ""
+
+  # Collect detailed GPU information for both human report and YAML
+  local -a gpu_data=()
+  local mig_capable_count=0
+  local nvidia_driver_count=0
+  local vfio_pci_count=0
+
+  for gpu in "${all_gpus[@]}"; do
+    [[ -z "${gpu}" ]] && continue
+
+    # Parse GPU data
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${gpu}"
+
+    # Count by driver type
+    if [[ "${driver}" == "nvidia" ]]; then
+      nvidia_driver_count=$((nvidia_driver_count + 1))
+      if [[ "${mig_capable}" == "true" ]]; then
+        mig_capable_count=$((mig_capable_count + 1))
+      fi
+    elif [[ "${driver}" == "vfio-pci" ]]; then
+      vfio_pci_count=$((vfio_pci_count + 1))
+    fi
+
+    # Store data for later use
+    gpu_data+=("${gpu_index}|${gpu_uuid}|${gpu_name}|${gpu_bus}|${gpu_mem_mib}|${vendor_id}|${device_id}|${iommu_group}|${mig_capable}|${mig_mode}|${status}|${driver}")
 
     # Print human-readable summary for this GPU
     echo "GPU ${gpu_index}:"
@@ -193,16 +382,23 @@ main() {
     echo "  Device ID: ${device_id}"
     echo "  IOMMU Group: ${iommu_group}"
     echo "  MIG Capable: $(if [[ "${mig_capable}" == "true" ]]; then echo "Yes"; else echo "No"; fi)"
-    echo "  Driver: nvidia (version ${driver_version})"
+    if [[ "${driver}" == "nvidia" ]]; then
+      echo "  Driver: nvidia (version ${driver_version})"
+      echo "  Memory: ${gpu_mem_mib} MiB"
+    else
+      echo "  Driver: ${driver}"
+      echo "  Memory: ${gpu_mem_mib}"
+    fi
     echo "  Status: ${status}"
     echo ""
   done
 
   # Print summary statistics
   echo "=== Summary ==="
-  echo "Total GPUs: ${#gpu_rows[@]}"
+  echo "Total GPUs: ${#all_gpus[@]}"
+  echo "  - NVIDIA Driver: ${nvidia_driver_count}"
+  echo "  - vfio-pci: ${vfio_pci_count}"
   echo "MIG Capable: ${mig_capable_count}"
-  echo "Available for Passthrough: ${available_count}"
   echo ""
 
   # Generate YAML sections
@@ -238,7 +434,9 @@ generate_global_yaml() {
   yaml+=$'\n    devices:'
 
   for data in "${gpu_data[@]}"; do
-    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status <<< "${data}"
+    [[ -z "${data}" ]] && continue
+
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${data}"
 
     yaml+=$'\n      - id: "GPU-'"${gpu_index}"'"'
     yaml+=$'\n        pci_address: "'"${gpu_bus}"'"'
@@ -247,6 +445,8 @@ generate_global_yaml() {
     yaml+=$'\n        device_id: "'"${device_id}"'"'
     yaml+=$'\n        iommu_group: '"${iommu_group}"
     yaml+=$'\n        mig_capable: '"${mig_capable}"
+    yaml+=$'\n        driver: "'"${driver}"'"'
+    yaml+=$'\n        status: "'"${status}"'"'
   done
 
   printf "%s" "${yaml}"
@@ -261,9 +461,11 @@ generate_vm_yaml_sections() {
   sections+=$'\n# Each GPU should be assigned to only one VM to avoid conflicts\n'
 
   for data in "${gpu_data[@]}"; do
-    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status <<< "${data}"
+    [[ -z "${data}" ]] && continue
 
-    sections+=$'\n# Configuration for GPU '"${gpu_index}"' ('"${gpu_name}"')'
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${data}"
+
+    sections+=$'\n# Configuration for GPU '"${gpu_index}"' ('"${gpu_name}"') - Driver: '"${driver}"
     sections+=$'\npcie_passthrough:'
     sections+=$'\n  enabled: true'
     sections+=$'\n  devices:'
