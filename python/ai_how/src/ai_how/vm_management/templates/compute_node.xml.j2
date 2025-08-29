@@ -17,13 +17,16 @@
     <kvm>
       <hidden state='on'/>
     </kvm>
+    <!-- Add IOMMU support for better passthrough -->
+    <ioapic driver='kvm'/>
   </features>
 
   <cpu mode='host-passthrough'>
     <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
-    <!-- Enable nested virtualization for containers -->
+    <!-- Only enable vmx for Intel systems, remove svm requirement -->
     <feature policy='require' name='vmx'/>
-    <feature policy='require' name='svm'/>
+    <!-- Remove svm requirement as it causes issues on Intel systems -->
+    <!-- <feature policy='require' name='svm'/> -->
   </cpu>
 
   <clock offset='utc'>
@@ -59,10 +62,37 @@
     <controller type='usb' index='0' model='qemu-xhci'/>
     <controller type='pci' index='0' model='pcie-root'/>
 
-    <!-- GPU Passthrough (if configured) -->
+    <!-- Add IOMMU device for better passthrough support -->
+    <iommu model='intel'/>
+
+    <!-- PCIe Device Passthrough (GPU, Audio, etc.) -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
+    <!-- Group devices by IOMMU group to ensure proper addressing -->
+    {% set iommu_groups = {} %}
     {% for device in pcie_passthrough['devices'] %}
-    {% if device.get('device_type') == 'gpu' %}
+      {% if device.get('device_type') in ['gpu', 'audio'] and device.get('iommu_group') %}
+        {% set group_id = device.get('iommu_group') %}
+        {% if group_id not in iommu_groups %}
+          {% set _ = iommu_groups.update({group_id: []}) %}
+        {% endif %}
+        {% set _ = iommu_groups[group_id].append(device) %}
+      {% endif %}
+    {% endfor %}
+
+    <!-- Create PCI controllers for each IOMMU group -->
+    {% set controller_index = 1 %}
+    {% for group_id, devices in iommu_groups.items() %}
+    <controller type='pci' index='{{ controller_index }}' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='{{ controller_index }}' port='0x{{ "%x" | format(7 + controller_index) }}'/>
+    </controller>
+    {% set controller_index = controller_index + 1 %}
+    {% endfor %}
+
+    <!-- Pass through devices grouped by IOMMU group -->
+    {% set controller_index = 1 %}
+    {% for group_id, devices in iommu_groups.items() %}
+      {% for device in devices %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
@@ -70,8 +100,31 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
+      <!-- Assign devices from the same IOMMU group to the same virtual PCI controller -->
+      <address type='pci' domain='0x0000'
+               bus='0x{{ "%02x" | format(controller_index) }}'
+               slot='0x00'
+               function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
+      <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (IOMMU Group {{ group_id }}) -->
     </hostdev>
-    {% endif %}
+      {% endfor %}
+      {% set controller_index = controller_index + 1 %}
+    {% endfor %}
+
+    <!-- Handle devices without IOMMU group specified (fallback) -->
+    {% for device in pcie_passthrough['devices'] %}
+      {% if device.get('device_type') in ['gpu', 'audio'] and not device.get('iommu_group') %}
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x{{ device['pci_address'].split(":")[0] }}'
+                 bus='0x{{ device['pci_address'].split(":")[1] }}'
+                 slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
+                 function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
+      </source>
+      <!-- Let QEMU auto-assign addresses for devices without IOMMU group info -->
+      <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (Auto-assigned) -->
+    </hostdev>
+      {% endif %}
     {% endfor %}
     {% endif %}
 
