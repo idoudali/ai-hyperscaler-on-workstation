@@ -50,18 +50,18 @@ clusters:
         pcie_passthrough:
           enabled: true
           devices:
-                        # GPU device (primary function)
+            # GPU device (primary function)
             - pci_address: "0000:01:00.0"
               device_type: "gpu"
               vendor_id: "10de"
               device_id: "2805"
-              #iommu_group: 18
+              iommu_group: 18
             # Audio device (secondary function) - REQUIRED for same IOMMU group
             - pci_address: "0000:01:00.1"
               device_type: "audio"
               vendor_id: "10de"
               device_id: "22bd"
-              #iommu_group: 18
+              iommu_group: 18
       # - cpu_cores: 8
       #   memory_gb: 16
       #   disk_gb: 200

@@ -79,12 +79,12 @@
       {% endif %}
     {% endfor %}
 
-    <!-- Create PCI controllers for each IOMMU group -->
+    <!-- Create PCI bridges for each IOMMU group -->
     {% set controller_index = 1 %}
     {% for group_id, devices in iommu_groups.items() %}
-    <controller type='pci' index='{{ controller_index }}' model='pcie-root-port'>
-      <model name='pcie-root-port'/>
-      <target chassis='{{ controller_index }}' port='0x{{ "%x" | format(7 + controller_index) }}'/>
+    <controller type='pci' index='{{ controller_index }}' model='pcie-to-pci-bridge'>
+      <model name='pcie-pci-bridge'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x{{ "%02x" | format(controller_index + 1) }}' function='0x0'/>
     </controller>
     {% set controller_index = controller_index + 1 %}
     {% endfor %}
@@ -100,7 +100,8 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
-      <!-- Assign devices from the same IOMMU group to the same virtual PCI controller -->
+            <!-- Assign devices from the same IOMMU group to the same virtual PCI controller -->
+      <!-- Use a unique virtual bus number that doesn't conflict with physical buses -->
       <address type='pci' domain='0x0000'
                bus='0x{{ "%02x" | format(controller_index) }}'
                slot='0x00'
