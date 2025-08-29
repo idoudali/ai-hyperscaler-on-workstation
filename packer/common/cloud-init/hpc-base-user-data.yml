@@ -8,9 +8,9 @@ users:
     groups: [sudo]
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
-    lock_passwd: true
+    lock_passwd: false
     # Uncomment to set a password for the admin user for debugging reasons
-    # plain_text_passwd: hpc-cloud
+    plain_text_passwd: hpc-cloud
     ssh_authorized_keys:
       - REPLACE_SSH_KEY
 
@@ -19,7 +19,7 @@ hostname: hpc-base
 fqdn: hpc-base.local
 
 # SSH configuration
-ssh_pwauth: false
+ssh_pwauth: true
 disable_root: true
 
 # System updates

@@ -16,7 +16,6 @@ set -euo pipefail
 
 # VM Configuration
 VM_NAME="hpc-cluster-compute-01"
-VM_UUID="d0625707-44a2-4934-ae26-2453b3fb373b"
 VM_MEMORY_GB=16
 VM_CPUS=8
 
@@ -28,12 +27,11 @@ SNAPSHOT_DIR="/tmp/qemu-snapshots"
 SNAPSHOT_IMAGE="$SNAPSHOT_DIR/${VM_NAME}-snapshot-$(date +%Y%m%d_%H%M%S).qcow2"
 
 # Network Configuration
-MAC_ADDRESS="66:a4:f5:05:88:3a"
 SSH_HOST_PORT="2222"  # SSH will be accessible on localhost:2222
 
 # GPU Configuration (from XML: 0000:01:00.0)
 GPU_PCI_ADDRESS="0000:01:00.0"
-# GPU_AUDIO_PCI_ADDRESS="0000:01:00.1"  # Usually audio controller is function 1
+GPU_AUDIO_PCI_ADDRESS="" # "0000:01:00.1"  # Usually audio controller is function 1
 
 # QEMU Paths
 QEMU_SYSTEM="/usr/bin/qemu-system-x86_64"
@@ -59,6 +57,25 @@ log_debug() { echo -e "${BLUE}[DEBUG]${NC} $1"; }
 
 check_requirements() {
     log_info "Checking basic requirements..."
+
+    # Check for VFIO permissions
+    if [[ ! -w "/dev/vfio/vfio" ]]; then
+        log_error "Cannot write to /dev/vfio/vfio. VFIO permissions issue."
+        log_error "Try running with sudo, or add user to vfio group"
+        exit 1
+    fi
+
+    # Check for VFIO group permissions (group 18 from the error)
+    local gpu_iommu_group
+    if [[ -L "/sys/bus/pci/devices/$GPU_PCI_ADDRESS/iommu_group" ]]; then
+        gpu_iommu_group=$(basename "$(readlink "/sys/bus/pci/devices/$GPU_PCI_ADDRESS/iommu_group")")
+        if [[ ! -w "/dev/vfio/$gpu_iommu_group" ]]; then
+            log_error "Cannot write to /dev/vfio/$gpu_iommu_group. VFIO group permissions issue."
+            log_error "Try running with sudo: sudo ./scripts/start-gpu-passthrough-vm.sh"
+            exit 1
+        fi
+        log_info "VFIO group $gpu_iommu_group permissions OK"
+    fi
 
     # Check if QEMU is available
     if [[ ! -x "$QEMU_SYSTEM" ]]; then
@@ -145,64 +162,43 @@ cleanup_snapshot() {
 # =============================================================================
 
 build_qemu_command() {
-    log_info "Building QEMU command line..." >&2
+    log_info "Building minimal QEMU command line..." >&2
 
     local qemu_args=()
 
     # Basic QEMU setup
     qemu_args+=("$QEMU_SYSTEM")
     qemu_args+=("-name" "$VM_NAME")
-    qemu_args+=("-uuid" "$VM_UUID")
 
-    # Machine and CPU configuration
-    qemu_args+=("-machine" "type=q35,accel=kvm,kernel_irqchip=split,hpet=off")
-    qemu_args+=("-cpu" "host,kvm=on,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time,hv_vendor_id=kvm_hyperv,-hypervisor,+vmx")
-    qemu_args+=("-smp" "$VM_CPUS,sockets=1,cores=$VM_CPUS,threads=1")
+    # Minimal machine configuration - no IOMMU device, let host handle it
+    qemu_args+=("-machine" "type=q35,accel=kvm")
+    qemu_args+=("-cpu" "host")
+    qemu_args+=("-smp" "$VM_CPUS")
 
-    # Memory configuration
+    # Memory configuration - simple
     qemu_args+=("-m" "${VM_MEMORY_GB}G")
 
-    # IOMMU configuration for passthrough
-    qemu_args+=("-device" "intel-iommu,intremap=on,caching-mode=on")
+    # Storage configuration - basic
+    qemu_args+=("-drive" "file=$SNAPSHOT_IMAGE,format=$DISK_FORMAT,if=virtio")
 
-    # Storage configuration - using ephemeral snapshot
-    qemu_args+=("-drive" "file=$SNAPSHOT_IMAGE,format=$DISK_FORMAT,if=none,id=disk0,cache=writeback,aio=threads")
-    qemu_args+=("-device" "virtio-blk-pci,drive=disk0,id=virtio-disk0")
-
-    # Network configuration - User-mode networking with SSH forwarding
-    qemu_args+=("-netdev" "user,id=hostnet0,hostfwd=tcp::$SSH_HOST_PORT-:22")
-    qemu_args+=("-device" "virtio-net-pci,netdev=hostnet0,id=net0,mac=$MAC_ADDRESS")
+    # Network configuration - minimal
+    qemu_args+=("-netdev" "user,id=net0,hostfwd=tcp::$SSH_HOST_PORT-:22")
+    qemu_args+=("-device" "e1000,netdev=net0")
     log_info "Using host networking. SSH available on localhost:$SSH_HOST_PORT" >&2
 
-    # GPU PCIe passthrough
-    qemu_args+=("-device" "vfio-pci,host=$GPU_PCI_ADDRESS,id=hostdev0")
+    # GPU PCIe passthrough - essential only
+    qemu_args+=("-device" "vfio-pci,host=$GPU_PCI_ADDRESS")
 
-    # GPU audio passthrough (if available)
+    # GPU audio passthrough (if available) - minimal
     if [[ -n "$GPU_AUDIO_PCI_ADDRESS" && -d "/sys/bus/pci/devices/$GPU_AUDIO_PCI_ADDRESS" ]]; then
-        qemu_args+=("-device" "vfio-pci,host=$GPU_AUDIO_PCI_ADDRESS,id=hostdev1")
+        qemu_args+=("-device" "vfio-pci,host=$GPU_AUDIO_PCI_ADDRESS")
         log_info "GPU audio controller will be passed through" >&2
     fi
 
-    # USB controller
-    qemu_args+=("-device" "qemu-xhci,id=usb")
-
-    # Console configuration - direct serial to stdout for login
+    # Console configuration - minimal
     qemu_args+=("-serial" "stdio")
     qemu_args+=("-monitor" "none")
-    qemu_args+=("-vga" "none")
     qemu_args+=("-nographic")
-
-    # Clock and timer configuration
-    qemu_args+=("-rtc" "base=utc,driftfix=slew")
-    qemu_args+=("-global" "kvm-pit.lost_tick_policy=delay")
-
-    # Random number generator
-    qemu_args+=("-object" "rng-random,id=objrng0,filename=/dev/urandom")
-    qemu_args+=("-device" "virtio-rng-pci,rng=objrng0,id=rng0")
-
-    # Essential devices
-    qemu_args+=("-device" "virtio-keyboard-pci")
-    qemu_args+=("-device" "virtio-mouse-pci")
 
     printf "%s\n" "${qemu_args[@]}"
 }
@@ -236,7 +232,7 @@ Features:
   - KVM acceleration (requires kvm group membership)
   - Host networking with SSH forwarding (no bridge required)
   - Ephemeral changes via snapshot overlay (base image preserved)
-  - No root required (assuming proper setup)
+  - VFIO permission checking (may require sudo for VFIO access)
 
 Exit: Press Ctrl+A then X to exit QEMU, or Ctrl+C to terminate
 Note: Snapshot overlay is automatically cleaned up on exit
