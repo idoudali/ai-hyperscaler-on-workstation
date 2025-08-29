@@ -145,7 +145,7 @@ cleanup_snapshot() {
 # =============================================================================
 
 build_qemu_command() {
-    log_info "Building QEMU command line..."
+    log_info "Building QEMU command line..." >&2
 
     local qemu_args=()
 
@@ -161,7 +161,6 @@ build_qemu_command() {
 
     # Memory configuration
     qemu_args+=("-m" "${VM_MEMORY_GB}G")
-    qemu_args+=("-balloon" "none")
 
     # IOMMU configuration for passthrough
     qemu_args+=("-device" "intel-iommu,intremap=on,caching-mode=on")
@@ -173,7 +172,7 @@ build_qemu_command() {
     # Network configuration - User-mode networking with SSH forwarding
     qemu_args+=("-netdev" "user,id=hostnet0,hostfwd=tcp::$SSH_HOST_PORT-:22")
     qemu_args+=("-device" "virtio-net-pci,netdev=hostnet0,id=net0,mac=$MAC_ADDRESS")
-    log_info "Using host networking. SSH available on localhost:$SSH_HOST_PORT"
+    log_info "Using host networking. SSH available on localhost:$SSH_HOST_PORT" >&2
 
     # GPU PCIe passthrough
     qemu_args+=("-device" "vfio-pci,host=$GPU_PCI_ADDRESS,id=hostdev0")
@@ -181,7 +180,7 @@ build_qemu_command() {
     # GPU audio passthrough (if available)
     if [[ -n "$GPU_AUDIO_PCI_ADDRESS" && -d "/sys/bus/pci/devices/$GPU_AUDIO_PCI_ADDRESS" ]]; then
         qemu_args+=("-device" "vfio-pci,host=$GPU_AUDIO_PCI_ADDRESS,id=hostdev1")
-        log_info "GPU audio controller will be passed through"
+        log_info "GPU audio controller will be passed through" >&2
     fi
 
     # USB controller
