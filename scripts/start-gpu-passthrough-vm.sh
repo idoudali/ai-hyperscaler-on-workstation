@@ -33,7 +33,7 @@ SSH_HOST_PORT="2222"  # SSH will be accessible on localhost:2222
 
 # GPU Configuration (from XML: 0000:01:00.0)
 GPU_PCI_ADDRESS="0000:01:00.0"
-GPU_AUDIO_PCI_ADDRESS="0000:01:00.1"  # Usually audio controller is function 1
+# GPU_AUDIO_PCI_ADDRESS="0000:01:00.1"  # Usually audio controller is function 1
 
 # QEMU Paths
 QEMU_SYSTEM="/usr/bin/qemu-system-x86_64"
@@ -155,7 +155,7 @@ build_qemu_command() {
     qemu_args+=("-uuid" "$VM_UUID")
 
     # Machine and CPU configuration
-    qemu_args+=("-machine" "type=q35,accel=kvm,kernel_irqchip=on")
+    qemu_args+=("-machine" "type=q35,accel=kvm,kernel_irqchip=split,hpet=off")
     qemu_args+=("-cpu" "host,kvm=on,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time,hv_vendor_id=kvm_hyperv,-hypervisor,+vmx")
     qemu_args+=("-smp" "$VM_CPUS,sockets=1,cores=$VM_CPUS,threads=1")
 
@@ -188,13 +188,13 @@ build_qemu_command() {
 
     # Console configuration - direct serial to stdout for login
     qemu_args+=("-serial" "stdio")
+    qemu_args+=("-monitor" "none")
     qemu_args+=("-vga" "none")
     qemu_args+=("-nographic")
 
     # Clock and timer configuration
     qemu_args+=("-rtc" "base=utc,driftfix=slew")
     qemu_args+=("-global" "kvm-pit.lost_tick_policy=delay")
-    qemu_args+=("-no-hpet")
 
     # Random number generator
     qemu_args+=("-object" "rng-random,id=objrng0,filename=/dev/urandom")
