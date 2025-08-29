@@ -14,6 +14,12 @@
     <acpi/>
     <apic/>
     <vmport state='off'/>
+    <hyperv>
+      <relaxed state='on'/>
+      <vapic state='on'/>
+      <spinlocks state='on' retries='8191'/>
+      <vendor_id state='on' value='kvm hyperv'/>
+    </hyperv>
     <kvm>
       <hidden state='on'/>
     </kvm>
@@ -25,6 +31,7 @@
     <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
     <!-- Only enable vmx for Intel systems, remove svm requirement -->
     <feature policy='require' name='vmx'/>
+    <feature policy='disable' name='hypervisor'/>
     <!-- Remove svm requirement as it causes issues on Intel systems -->
     <!-- <feature policy='require' name='svm'/> -->
   </cpu>
@@ -69,39 +76,9 @@
 
     <!-- PCIe Device Passthrough (GPU, Audio, etc.) -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
-    <!-- Group devices by IOMMU group to ensure proper addressing -->
-    {% set iommu_groups = {} %}
+    <!-- Let libvirt manage PCI topology automatically -->
     {% for device in pcie_passthrough['devices'] %}
-      {% if device.get('device_type') in ['gpu', 'audio'] and device.get('iommu_group') %}
-        {% set group_id = device.get('iommu_group') %}
-        {% if group_id not in iommu_groups %}
-          {% set _ = iommu_groups.update({group_id: []}) %}
-        {% endif %}
-        {% set _ = iommu_groups[group_id].append(device) %}
-      {% endif %}
-    {% endfor %}
-
-    <!-- Create PCI bridges for each IOMMU group -->
-    {% set controller_index = 1 %}
-    {% for group_id, devices in iommu_groups.items() %}
-    <!-- Add pcie-root-port first (required for Q35) -->
-    <controller type='pci' index='{{ controller_index }}' model='pcie-root-port'>
-      <model name='pcie-root-port'/>
-      <target chassis='{{ controller_index }}' port='0x{{ "%x" | format(controller_index + 7) }}'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x{{ "%02x" | format(controller_index + 7) }}' function='0x0'/>
-    </controller>
-    <!-- Then add pcie-to-pci-bridge connected to the root port -->
-    <controller type='pci' index='{{ controller_index + 10 }}' model='pcie-to-pci-bridge'>
-      <model name='pcie-pci-bridge'/>
-      <address type='pci' domain='0x0000' bus='0x{{ "%02x" | format(controller_index) }}' slot='0x00' function='0x0'/>
-    </controller>
-    {% set controller_index = controller_index + 1 %}
-    {% endfor %}
-
-    <!-- Pass through devices grouped by IOMMU group -->
-    {% set device_controller_index = 1 %}
-    {% for group_id, devices in iommu_groups.items() %}
-      {% for device in devices %}
+      {% if device.get('device_type') in ['gpu', 'audio'] %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
@@ -109,30 +86,7 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
-      <!-- Assign devices from the same IOMMU group to the same virtual PCI controller -->
-      <!-- Use configurable slot numbers (slot 0 is reserved, must be >= 1) -->
-      <address type='pci' domain='0x0000'
-               bus='0x{{ "%02x" | format(device_controller_index + 10) }}'
-               slot='{{ device.get("virtual_slot", "0x01") }}'
-               function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
-      <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (IOMMU Group {{ group_id }}) -->
-    </hostdev>
-      {% endfor %}
-      {% set device_controller_index = device_controller_index + 1 %}
-    {% endfor %}
-
-    <!-- Handle devices without IOMMU group specified (fallback) -->
-    {% for device in pcie_passthrough['devices'] %}
-      {% if device.get('device_type') in ['gpu', 'audio'] and not device.get('iommu_group') %}
-    <hostdev mode='subsystem' type='pci' managed='yes'>
-      <source>
-        <address domain='0x{{ device['pci_address'].split(":")[0] }}'
-                 bus='0x{{ device['pci_address'].split(":")[1] }}'
-                 slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
-                 function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
-      </source>
-      <!-- Let QEMU auto-assign addresses for devices without IOMMU group info -->
-      <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (Auto-assigned) -->
+      <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (IOMMU Group {{ device.get('iommu_group', 'N/A') }}) -->
     </hostdev>
       {% endif %}
     {% endfor %}
@@ -167,7 +121,7 @@
     <!-- Essential devices -->
     <input type='keyboard' bus='ps2'/>
     <input type='mouse' bus='ps2'/>
-    <memballoon model='virtio'/>
+    <memballoon model='none'/>
     <rng model='virtio'>
       <backend model='random'>/dev/urandom</backend>
     </rng>

@@ -14,6 +14,12 @@
     <acpi/>
     <apic/>
     <vmport state='off'/>
+    <hyperv>
+      <relaxed state='on'/>
+      <vapic state='on'/>
+      <spinlocks state='on' retries='8191'/>
+      <vendor_id state='on' value='kvm hyperv'/>
+    </hyperv>
     <kvm>
       <hidden state='on'/>
     </kvm>
@@ -21,6 +27,7 @@
 
   <cpu mode='host-passthrough'>
     <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
+    <feature policy='disable' name='hypervisor'/>
     <!-- Keep CPU configuration simple for controller nodes -->
   </cpu>
 
@@ -74,7 +81,7 @@
     <!-- Essential devices -->
     <input type='keyboard' bus='ps2'/>
     <input type='mouse' bus='ps2'/>
-    <memballoon model='virtio'/>
+    <memballoon model='none'/>
     <rng model='virtio'>
       <backend model='random'>/dev/urandom</backend>
     </rng>

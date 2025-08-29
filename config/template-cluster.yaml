@@ -57,13 +57,13 @@ clusters:
               device_id: "2805"
               iommu_group: 18
               virtual_slot: "0x01"  # Virtual PCI slot (must be >= 0x01)
-            # Audio device (secondary function) - REQUIRED for same IOMMU group
-            - pci_address: "0000:01:00.1"
-              device_type: "audio"
-              vendor_id: "10de"
-              device_id: "22bd"
-              iommu_group: 18
-              virtual_slot: "0x01"  # Same slot as GPU to keep IOMMU group together
+            # # Audio device (secondary function) - REQUIRED for same IOMMU group
+            # - pci_address: "0000:01:00.1"
+            #   device_type: "audio"
+            #   vendor_id: "10de"
+            #   device_id: "22bd"
+            #   iommu_group: 18
+            #   virtual_slot: "0x01"  # Same slot as GPU to keep IOMMU group together
       # - cpu_cores: 8
       #   memory_gb: 16
       #   disk_gb: 200
