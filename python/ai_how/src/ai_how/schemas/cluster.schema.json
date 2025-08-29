@@ -75,10 +75,15 @@
             "type": "object",
             "properties": {
               "pci_address": { "type": "string", "pattern": "^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\\.[0-9]$" },
-              "device_type": { "type": "string", "enum": ["gpu", "network", "storage", "other"] },
+              "device_type": { "type": "string", "enum": ["gpu", "audio", "network", "storage", "other"] },
               "vendor_id": { "type": "string", "pattern": "^[0-9a-fA-F]{4}$" },
               "device_id": { "type": "string", "pattern": "^[0-9a-fA-F]{4}$" },
-              "iommu_group": { "type": "integer", "minimum": 0 }
+              "iommu_group": { "type": "integer", "minimum": 0 },
+              "virtual_slot": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{2}$",
+                "description": "Virtual PCI slot address (e.g., 0x01). Must be >= 0x01 as slot 0x00 is reserved."
+              }
             },
             "required": ["pci_address", "device_type"]
           }

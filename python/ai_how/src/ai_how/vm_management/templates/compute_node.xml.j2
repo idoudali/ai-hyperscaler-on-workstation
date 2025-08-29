@@ -63,7 +63,9 @@
     <controller type='pci' index='0' model='pcie-root'/>
 
     <!-- Add IOMMU device for better passthrough support -->
-    <iommu model='intel'/>
+    <iommu model='intel'>
+      <driver intremap='on' caching_mode='on'/>
+    </iommu>
 
     <!-- PCIe Device Passthrough (GPU, Audio, etc.) -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
@@ -82,15 +84,22 @@
     <!-- Create PCI bridges for each IOMMU group -->
     {% set controller_index = 1 %}
     {% for group_id, devices in iommu_groups.items() %}
-    <controller type='pci' index='{{ controller_index }}' model='pcie-to-pci-bridge'>
+    <!-- Add pcie-root-port first (required for Q35) -->
+    <controller type='pci' index='{{ controller_index }}' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='{{ controller_index }}' port='0x{{ "%x" | format(controller_index + 7) }}'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x{{ "%02x" | format(controller_index + 7) }}' function='0x0'/>
+    </controller>
+    <!-- Then add pcie-to-pci-bridge connected to the root port -->
+    <controller type='pci' index='{{ controller_index + 10 }}' model='pcie-to-pci-bridge'>
       <model name='pcie-pci-bridge'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x{{ "%02x" | format(controller_index + 1) }}' function='0x0'/>
+      <address type='pci' domain='0x0000' bus='0x{{ "%02x" | format(controller_index) }}' slot='0x00' function='0x0'/>
     </controller>
     {% set controller_index = controller_index + 1 %}
     {% endfor %}
 
     <!-- Pass through devices grouped by IOMMU group -->
-    {% set controller_index = 1 %}
+    {% set device_controller_index = 1 %}
     {% for group_id, devices in iommu_groups.items() %}
       {% for device in devices %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
@@ -100,16 +109,16 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
-            <!-- Assign devices from the same IOMMU group to the same virtual PCI controller -->
-      <!-- Use a unique virtual bus number that doesn't conflict with physical buses -->
+      <!-- Assign devices from the same IOMMU group to the same virtual PCI controller -->
+      <!-- Use configurable slot numbers (slot 0 is reserved, must be >= 1) -->
       <address type='pci' domain='0x0000'
-               bus='0x{{ "%02x" | format(controller_index) }}'
-               slot='0x00'
+               bus='0x{{ "%02x" | format(device_controller_index + 10) }}'
+               slot='{{ device.get("virtual_slot", "0x01") }}'
                function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       <!-- {{ device.get('device_type', 'unknown').title() }} Device: {{ device['pci_address'] }} (IOMMU Group {{ group_id }}) -->
     </hostdev>
       {% endfor %}
-      {% set controller_index = controller_index + 1 %}
+      {% set device_controller_index = device_controller_index + 1 %}
     {% endfor %}
 
     <!-- Handle devices without IOMMU group specified (fallback) -->
@@ -138,22 +147,21 @@
     </console>
 
     <!-- Graphics (only if no GPU passthrough) -->
-    {% set has_gpu_passthrough = false %}
+    {% set gpu_devices = [] %}
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
       {% for device in pcie_passthrough['devices'] %}
         {% if device.get('device_type') == 'gpu' %}
-          {% set has_gpu_passthrough = true %}
+          {% set _ = gpu_devices.append(device) %}
         {% endif %}
       {% endfor %}
     {% endif %}
+    {% set has_gpu_passthrough = gpu_devices|length > 0 %}
 
     {% if not has_gpu_passthrough %}
     <graphics type='vnc' port='-1' autoport='yes' listen='127.0.0.1'/>
     <video>
       <model type='qxl'/>
     </video>
-    {% else %}
-    <graphics type='none'/>
     {% endif %}
 
     <!-- Essential devices -->
