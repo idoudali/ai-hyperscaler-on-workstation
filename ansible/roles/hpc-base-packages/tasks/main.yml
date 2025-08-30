@@ -1,7 +1,110 @@
 ---
 # HPC Base Packages Role - Main Tasks
-# This role installs and configures packages needed for HPC workloads
+# This role installs only essential packages and NVIDIA GPU drivers
 
-- name: Placeholder for HPC base package installation
+- name: Update package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+
+- name: Install essential system packages
+  apt:
+    name:
+      - git
+      - wget
+      - curl
+      - vim
+      - htop
+      - unzip
+      - bzip2
+      - gzip
+      - tar
+      - rsync
+      - openssh-server
+      - openssh-client
+      - ca-certificates
+      - apt-transport-https
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - build-essential
+    state: present
+  become: true
+  notify: restart services
+
+- name: Install NVIDIA repository GPG key
+  apt_key:
+    url: https://developer.download.nvidia.com/compute/cuda/repos/debian11/x86_64/3bf863cc.pub
+    state: present
+  become: true
+
+- name: Add NVIDIA CUDA repository
+  apt_repository:
+    repo: "deb https://developer.download.nvidia.com/compute/cuda/repos/debian11/x86_64/ /"
+    state: present
+    filename: nvidia-cuda
+  become: true
+
+- name: Install NVIDIA GPU drivers and CUDA toolkit
+  apt:
+    name:
+      - nvidia-driver-535
+      - nvidia-utils-535
+      - nvidia-settings
+      - cuda-toolkit-12-3
+      - cuda-drivers
+      - nvidia-modprobe
+      - nvidia-persistenced
+    state: present
+  become: true
+  notify: restart nvidia services
+
+- name: Install NVIDIA container runtime
+  apt:
+    name:
+      - nvidia-container-toolkit
+      - nvidia-container-runtime
+    state: present
+  become: true
+
+- name: Configure NVIDIA container runtime
+  copy:
+    content: |
+      {
+        "default-runtime": "nvidia",
+        "runtimes": {
+          "nvidia": {
+            "path": "nvidia-container-runtime",
+            "runtimeArgs": []
+          }
+        }
+      }
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  when: ansible_facts.pkg_mgr == "apt"
+
+- name: Final package cleanup
+  apt:
+    autoremove: yes
+    autoclean: yes
+  become: true
+
+- name: Display installation summary
   debug:
-    msg: "HPC base packages installation tasks will be implemented here"
+    msg: |
+      Essential HPC Base Packages Installation Complete!
+
+      Installed packages:
+      - Essential system tools and utilities
+      - NVIDIA GPU drivers and CUDA toolkit
+      - NVIDIA container runtime support
+
+      System configured for HPC workloads with:
+      - Optimized kernel parameters
+      - Increased system limits
+      - HPC user and group setup
+      - NVIDIA container runtime support

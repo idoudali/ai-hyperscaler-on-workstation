@@ -47,7 +47,6 @@ variable "build_directory" {
   description = "Base build directory path"
 }
 
-
 variable "image_name" {
   type        = string
   description = "Name identifier for the image (e.g., 'hpc-base')"
@@ -66,6 +65,11 @@ variable "cloud_init_dir" {
 variable "ssh_keys_dir" {
   type        = string
   description = "Directory containing SSH key pair for authentication"
+}
+
+variable "ansible_dir" {
+  type        = string
+  description = "Directory containing Ansible playbooks and roles"
 }
 
 # Local variables
@@ -136,7 +140,7 @@ source "qemu" "hpc_base" {
   ]
 }
 
-# Build configuration with minimal provisioning
+# Build configuration with hybrid provisioning (shell + Ansible)
 build {
   name    = "hpc-base-image"
   sources = ["source.qemu.hpc_base"]
@@ -166,7 +170,35 @@ build {
     ]
   }
 
+  # Install Ansible and dependencies
+  provisioner "shell" {
+    inline = [
+      "echo 'Installing Ansible and dependencies...'",
+      "apt-get update -qq",
+      "apt-get install -y -qq python3-pip python3-setuptools python3-wheel",
+      "pip3 install ansible",
+      "echo 'Ansible installation completed'"
+    ]
+  }
 
+  # Copy Ansible playbooks and roles
+  provisioner "file" {
+    source = "${var.ansible_dir}"
+    destination = "/tmp/ansible"
+  }
+
+  # Run Ansible playbook to install HPC packages
+  provisioner "ansible-local" {
+    playbook_file = "/tmp/ansible/playbooks/playbook-hpc-packer.yml"
+    role_paths = [
+      "/tmp/ansible/roles"
+    ]
+    extra_arguments = [
+      "--connection=local",
+      "--inventory=localhost,",
+      "-vv"
+    ]
+  }
 
   # Final cleanup for cloning - optimized for speed
   provisioner "shell" {
@@ -183,6 +215,8 @@ build {
       "sudo rm -f /etc/ssh/ssh_host_* /etc/udev/rules.d/70-persistent-net.rules",
       # Clean cloud-init state
       "sudo cloud-init clean --logs",
+      # Clean Ansible temporary files
+      "sudo rm -rf /tmp/ansible",
       "echo 'Cleanup complete'"
     ]
   }
@@ -196,7 +230,6 @@ build {
     ]
   }
 
-
   # Create build metadata
   post-processor "shell-local" {
     inline = [
@@ -206,7 +239,9 @@ build {
       "echo 'HPC Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
-      "echo 'Network debugging tools installed' > ${local.output_directory}/features.txt",
+      "echo 'HPC packages installed via Ansible' > ${local.output_directory}/features.txt",
+      "echo 'NVIDIA GPU drivers and CUDA toolkit included' > ${local.output_directory}/gpu_features.txt",
+      "echo 'Basic system setup via setup-hpc-base.sh' > ${local.output_directory}/system_setup.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"
     ]
   }

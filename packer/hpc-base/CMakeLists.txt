@@ -8,12 +8,14 @@ set(DISK_SIZE "20G")
 set(MEMORY "2048")
 set(CPUS "2")
 
-
 # Set output directory for the image
 set(HPC_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/hpc-base")
 
 # Use shared SSH keys directory (managed by parent CMakeLists.txt)
 set(SSH_KEYS_DIR "${CMAKE_BINARY_DIR}/shared/ssh-keys")
+
+# Set Ansible directory path
+set(ANSIBLE_DIR "${PROJECT_SOURCE_DIR}/ansible")
 
 # Set up cloud-init build directory
 set(CLOUD_INIT_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/cloud-init")
@@ -21,7 +23,6 @@ file(MAKE_DIRECTORY ${CLOUD_INIT_BUILD_DIR})
 
 # Common scripts directory
 set(COMMON_SCRIPTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../common/scripts")
-
 
 # Read the checksum from file to pass to Packer
 add_custom_command(
@@ -48,9 +49,8 @@ set(PACKER_VARS
     -var "debian_cloud_image_url=${DEBIAN_CLOUD_IMAGE_URL}"
     -var "cloud_init_dir=${CLOUD_INIT_BUILD_DIR}"
     -var "ssh_keys_dir=${SSH_KEYS_DIR}"
+    -var "ansible_dir=${ANSIBLE_DIR}"
 )
-
-
 
 # Prepare cloud-init configuration for hpc-base
 add_custom_command(
@@ -105,11 +105,13 @@ add_custom_command(
     COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     COMMAND PACKER_LOG=1 packer build -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Building HPC base image..."
+    COMMENT "Building HPC base image with hybrid provisioning (shell + Ansible)..."
     DEPENDS prepare-cloud-init-hpc-base
         ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
         init-hpc-packer
         generate-packer-vars-hpc-base
+        ${ANSIBLE_DIR}/playbooks/playbook-hpc-packer.yml
+        ${ANSIBLE_DIR}/roles/hpc-base-packages/tasks/main.yml
         ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-base.sh
     USES_TERMINAL
     VERBATIM

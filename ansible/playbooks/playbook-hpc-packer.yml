@@ -1,0 +1,51 @@
+---
+# HPC Base Image Packer Playbook
+# This playbook is used by Packer to install essential HPC packages during image build
+
+- name: Install HPC Base Packages
+  hosts: localhost
+  become: true
+  gather_facts: true
+
+  vars:
+    # Packer-specific variables
+    ansible_connection: local
+    ansible_python_interpreter: /usr/bin/python3
+
+  roles:
+    - role: hpc-base-packages
+      tags: ["hpc", "packages", "nvidia"]
+
+  tasks:
+    - name: Verify NVIDIA driver installation
+      command: nvidia-smi
+      register: nvidia_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display NVIDIA driver status
+      debug:
+        msg: "NVIDIA driver check result: {{ nvidia_check.stdout_lines }}"
+      when: nvidia_check.rc == 0
+
+    - name: Verify CUDA installation
+      command: nvcc --version
+      register: cuda_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display CUDA version
+      debug:
+        msg: "CUDA version: {{ cuda_check.stdout_lines }}"
+      when: cuda_check.rc == 0
+
+    - name: Verify essential packages
+      command: which git && which wget && which curl && which vim && which htop
+      register: essential_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display essential packages status
+      debug:
+        msg: "Essential packages check passed: {{ essential_check.stdout_lines }}"
+      when: essential_check.rc == 0

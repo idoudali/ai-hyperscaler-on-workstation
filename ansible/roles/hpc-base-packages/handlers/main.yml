@@ -1,0 +1,35 @@
+---
+# HPC Base Packages Role - Handlers
+# This file contains handlers for the essential HPC base packages role
+
+- name: restart services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    daemon_reload: yes
+  loop:
+    - ssh
+    - systemd-resolved
+  when: ansible_facts.pkg_mgr == "apt"
+
+- name: reload sysctl
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: 'vm.swappiness', value: '1' }
+    - { name: 'vm.dirty_ratio', value: '15' }
+    - { name: 'vm.dirty_background_ratio', value: '5' }
+    - { name: 'kernel.shmmax', value: '68719476736' }
+    - { name: 'kernel.shmall', value: '4294967296' }
+
+- name: restart nvidia services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    daemon_reload: yes
+  loop:
+    - nvidia-persistenced
+  when: ansible_facts.pkg_mgr == "apt"
