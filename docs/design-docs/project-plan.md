@@ -62,7 +62,14 @@ VM Lifecycle Manager, Disk Manager, State Models, Cluster State Manager, XML Tem
     - Add Ansible inventory generation and playbook execution integration
     - Complete state management with `output/state.json` tracking
 
-2.  **Implement GPU Resource Management** (Phase 3.1):
+2.  **Implement Ansible Infrastructure and Roles** (Phase 0.8):
+    - Create basic Ansible directory structure and configuration
+    - Implement package installation roles for Packer (HPC and cloud base images)
+    - Create cluster setup roles for post-deployment configuration
+    - Develop main execution playbooks for both cluster types
+    - Implement dynamic inventory generation from `cluster.yaml`
+
+3.  **Implement GPU Resource Management** (Phase 3.1):
     - Create MIG management script (`manage_mig.py`) for dynamic GPU
       partitioning
     - Implement smart vGPU provisioner (`create_vgpus.py`) with `cluster.yaml`
@@ -75,16 +82,16 @@ VM Lifecycle Manager, Disk Manager, State Models, Cluster State Manager, XML Tem
     - Add GPU resource validation and conflict detection
     - Create resource cleanup manager for safe GPU resource destruction
 
-3.  **Enhance Golden Images** (Phase 2.2):
+4.  **Enhance Golden Images** (Phase 2.2):
     - Add HPC-specific packages (Slurm, Munge) to the `hpc-base` image
     - Add container runtime and Kubernetes packages to the `cloud-base` image
     - Implement security hardening and monitoring tools in both images
 
-4.  **Complete Build System Enhancement** (Phase 0.2 remaining items):
+5.  **Complete Build System Enhancement** (Phase 0.2 remaining items):
     - Replace placeholder test commands with actual integration tests
     - Enhance CI/CD pipeline with multi-stage quality gates
 
-5.  **Finalize Development Environment** (Phase 0.1 remaining items):
+6.  **Finalize Development Environment** (Phase 0.1 remaining items):
     - Configure container registry push workflow
     - Add security scanning for Docker images
 
@@ -201,20 +208,20 @@ enforces resource guardrails to handle limited host capacity.
   - [x] Provide `--config` flag to point to `config/cluster.yaml` and `--state`
     for `output/state.json`.
 
-- [x] **0.7.3. HPC-First Implementation:**
+- [ ] **0.7.3. HPC-First Implementation:**
   - [x] Implement `hpc start` to provision HPC VMs per `cluster.yaml` (libvirt
     XML templates, qcow2 disks).
   - [x] Implement `hpc stop` to gracefully shutdown HPC VMs.
   - [x] Implement `hpc status` to report VM and service health.
   - [x] Implement `hpc destroy` with safe teardown and rollback checks.
-  - [ ] Generate Ansible inventory for HPC and invoke `playbook-hpc.yml`.
+  - [ ] Generate Ansible inventory for HPC and invoke `ansible/playbooks/playbook-hpc.yml`.
 
 - [ ] **0.7.4. Cloud Cluster Enablement:**
   - [ ] Implement `cloud start` to provision control plane and worker nodes per
     `cluster.yaml`.
   - [ ] Implement `cloud stop`, `cloud status`, and `cloud destroy` with parity
     to HPC behavior.
-  - [ ] Generate Ansible inventory for K8s and invoke `playbook-k8s.yml`.
+  - [ ] Generate Ansible inventory for K8s and invoke `ansible/playbooks/playbook-cloud.yml`.
 
 - [ ] **0.7.5. Independent Lifecycle Control:**
   - [ ] Ensure HPC and Cloud subcommands operate independently (separate
@@ -229,6 +236,183 @@ enforces resource guardrails to handle limited host capacity.
     prompt (non-interactive mode fails).
   - [ ] Record decisions and capacity snapshots in `output/state.json` for drift
     analysis.
+
+- [ ] **0.7.7. Ansible Integration and Role Execution:**
+  - [ ] **Dynamic Inventory Generation:**
+    - [ ] Use `ansible/inventories/generate_inventory.py` to create inventories from `cluster.yaml`
+    - [ ] Generate separate inventories for HPC and cloud clusters
+    - [ ] Include proper variable assignments and group definitions
+    - [ ] Support for different deployment environments and configurations
+  - [ ] **Role-Based Configuration:**
+    - [ ] Execute `ansible/roles/hpc-cluster-setup/` for HPC cluster configuration
+    - [ ] Execute `ansible/roles/cloud-cluster-setup/` for Kubernetes cluster configuration
+    - [ ] Implement role dependency management and execution order
+    - [ ] Add comprehensive error handling and rollback for role failures
+  - [ ] **State Management Integration:**
+    - [ ] Track Ansible execution status in `output/state.json`
+    - [ ] Record role execution results and configuration drift
+    - [ ] Implement state-based rollback for failed configurations
+    - [ ] Generate comprehensive deployment reports and validation
+
+---
+
+## Phase 0.8: Ansible Infrastructure and Roles
+
+This phase establishes the Ansible automation framework with roles for both pre-installation
+(Packer) and post-deployment cluster configuration. The structure supports both HPC and
+cloud cluster automation with clear separation of concerns.
+
+### Proposed Ansible Directory Structure
+
+```bash
+ansible/
+├── ansible.cfg                    # Ansible configuration for local deployment
+├── requirements.txt               # Python dependencies for Ansible
+├── collections/
+│   └── requirements.yml          # Required Ansible collections
+├── inventories/
+│   ├── generate_inventory.py     # Dynamic inventory generator from cluster.yaml
+│   ├── hpc/                     # HPC cluster inventory templates
+│   └── cloud/                   # Cloud cluster inventory templates
+├── group_vars/
+│   ├── all.yml                  # Global variables for all clusters
+│   ├── hpc_cluster.yml          # HPC-specific variables
+│   └── cloud_cluster.yml        # Cloud-specific variables
+├── host_vars/                   # Host-specific variables (if needed)
+├── roles/
+│   ├── hpc-base-packages/       # Package installation for HPC base images
+│   │   ├── tasks/
+│   │   ├── defaults/
+│   │   ├── vars/
+│   │   └── meta/
+│   ├── cloud-base-packages/     # Package installation for cloud base images
+│   │   ├── tasks/
+│   │   ├── defaults/
+│   │   ├── vars/
+│   │   └── meta/
+│   ├── hpc-cluster-setup/       # Post-deployment HPC cluster configuration
+│   │   ├── tasks/
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   ├── defaults/
+│   │   ├── vars/
+│   │   └── meta/
+│   └── cloud-cluster-setup/     # Post-deployment Kubernetes cluster configuration
+│       ├── tasks/
+│       ├── handlers/
+│       ├── templates/
+│       ├── defaults/
+│       ├── vars/
+│       └── meta/
+├── playbooks/
+│   ├── playbook-hpc.yml         # Main HPC cluster deployment playbook
+│   ├── playbook-cloud.yml       # Main Kubernetes cluster deployment playbook
+│   └── playbook-mlops.yml       # MLOps stack deployment playbook
+└── vault/                       # Encrypted sensitive data
+    └── secrets.yml
+```
+
+- [ ] **0.8.1. Basic Ansible Structure and Dependencies:**
+  - [ ] **Create Ansible Directory Structure:**
+    - [ ] Create `ansible/` root directory with proper organization
+    - [ ] Set up `ansible/roles/` for modular role definitions
+    - [ ] Create `ansible/playbooks/` for main execution playbooks
+    - [ ] Set up `ansible/inventories/` for dynamic inventory generation
+    - [ ] Create `ansible/group_vars/` and `ansible/host_vars/` for configuration
+    - [ ] Set up `ansible/collections/requirements.yml` for external dependencies
+  - [ ] **Ansible Configuration and Dependencies:**
+    - [ ] Create `ansible/ansible.cfg` with optimized settings for local deployment
+    - [ ] Define `ansible/requirements.txt` for Python dependencies
+    - [ ] Set up `ansible/collections/requirements.yml` for required collections
+    - [ ] Configure SSH connection settings and key management
+    - [ ] Set up Ansible vault for sensitive configuration data
+
+- [ ] **0.8.2. Package Installation Roles for Packer (Pre-installation):**
+  - [ ] **HPC Base Image Role (`ansible/roles/hpc-base-packages/`):**
+    - [ ] Define package lists for HPC workloads:
+      - [ ] Core system packages: `build-essential`, `git`, `wget`, `curl`
+      - [ ] HPC tools: `slurm-wlm`, `munge`, `openmpi-bin`, `libopenmpi-dev`
+      - [ ] Development tools: `cmake`, `ninja-build`, `gcc`, `g++`
+      - [ ] Monitoring: `htop`, `iotop`, `nethogs`, `sysstat`
+      - [ ] Security: `fail2ban`, `unattended-upgrades`, `auditd`
+    - [ ] Configure system optimizations for HPC workloads
+    - [ ] Set up user accounts and SSH key management
+    - [ ] Implement security hardening configurations
+  - [ ] **Cloud Base Image Role (`ansible/roles/cloud-base-packages/`):**
+    - [ ] Define package lists for cloud-native workloads:
+      - [ ] Container runtime: `containerd`, `runc`, `docker.io`
+      - [ ] Kubernetes tools: `kubeadm`, `kubelet`, `kubectl`
+      - [ ] Network tools: `calico-ctl`, `flannel`, `cilium-cli`
+      - [ ] Storage tools: `ceph-common`, `glusterfs-client`
+      - [ ] Monitoring: `prometheus-node-exporter`, `grafana-agent`
+    - [ ] Configure container runtime optimizations
+    - [ ] Set up Kubernetes prerequisites and dependencies
+    - [ ] Implement cloud-native security configurations
+
+- [ ] **0.8.3. Cluster Setup Roles (Post-deployment):**
+  - [ ] **HPC Cluster Setup Role (`ansible/roles/hpc-cluster-setup/`):**
+    - [ ] **SLURM Controller Configuration:**
+      - [ ] Install and configure SLURM controller daemon (`slurmctld`)
+      - [ ] Set up SLURM database and accounting
+      - [ ] Configure SLURM partitions and QoS settings
+      - [ ] Set up MUNGE authentication service
+      - [ ] Configure SLURM spool and log directories
+    - [ ] **SLURM Compute Node Configuration:**
+      - [ ] Install and configure SLURM compute daemon (`slurmd`)
+      - [ ] Set up GPU resource management (GRES) configuration
+      - [ ] Configure cgroup isolation for job resource management
+      - [ ] Set up node health monitoring and reporting
+      - [ ] Configure SLURM prolog and epilog scripts
+    - [ ] **HPC Cluster Integration:**
+      - [ ] Configure shared filesystem mounts (NFS/CephFS)
+      - [ ] Set up user account synchronization
+      - [ ] Configure job submission and scheduling policies
+      - [ ] Set up cluster monitoring and alerting
+  - [ ] **Cloud Cluster Setup Role (`ansible/roles/cloud-cluster-setup/`):**
+    - [ ] **Kubernetes Control Plane:**
+      - [ ] Bootstrap Kubernetes cluster with `kubeadm`
+      - [ ] Configure high-availability control plane
+      - [ ] Set up cluster networking (CNI) and DNS
+      - [ ] Configure RBAC and security policies
+      - [ ] Set up cluster monitoring and logging
+    - [ ] **Kubernetes Worker Nodes:**
+      - [ ] Join worker nodes to the cluster
+      - [ ] Configure node labels and taints
+      - [ ] Set up GPU operator and device plugins
+      - [ ] Configure storage classes and persistent volumes
+      - [ ] Set up node monitoring and health checks
+    - [ ] **Cloud Infrastructure Services:**
+      - [ ] Deploy ingress controller and load balancer
+      - [ ] Set up storage provisioner and CSI drivers
+      - [ ] Configure network policies and security groups
+      - [ ] Deploy monitoring stack (Prometheus, Grafana)
+
+- [ ] **0.8.4. Main Execution Playbooks:**
+  - [ ] **HPC Cluster Playbook (`ansible/playbooks/playbook-hpc.yml`):**
+    - [ ] Orchestrate complete HPC cluster deployment
+    - [ ] Include role dependencies and execution order
+    - [ ] Handle configuration validation and error handling
+    - [ ] Implement rollback procedures for failed deployments
+    - [ ] Generate cluster status reports and validation
+  - [ ] **Cloud Cluster Playbook (`ansible/playbooks/playbook-cloud.yml`):**
+    - [ ] Orchestrate complete Kubernetes cluster deployment
+    - [ ] Handle multi-node cluster bootstrapping
+    - [ ] Implement progressive deployment with validation
+    - [ ] Configure post-deployment services and monitoring
+    - [ ] Generate cluster health reports and access information
+
+- [ ] **0.8.5. Dynamic Inventory and Configuration Management:**
+  - [ ] **Dynamic Inventory Generation:**
+    - [ ] Create `ansible/inventories/generate_inventory.py` script
+    - [ ] Parse `config/cluster.yaml` to generate Ansible inventory
+    - [ ] Support both HPC and cloud cluster inventory formats
+    - [ ] Generate host and group variables automatically
+    - [ ] Support for different deployment environments
+  - [ ] **Configuration Templating:**
+    - [ ] Create Jinja2 templates for all configuration files
+    - [ ] Support variable substitution from `cluster.yaml`
+    - [ ] Implement configuration validation and testing
+    - [ ] Support configuration versioning and migration
 
 ---
 
@@ -513,6 +697,18 @@ security hardening and monitoring tools.
   - [ ] Implement common security baseline for both images.
   - [ ] Add automated testing hooks for image validation.
 
+- [ ] **2.2.1. Ansible-Enhanced Package Installation:**
+  - [ ] **Integrate Ansible Roles with Packer:**
+    - [ ] Use `ansible/roles/hpc-base-packages/` for HPC base image configuration
+    - [ ] Use `ansible/roles/cloud-base-packages/` for cloud base image configuration
+    - [ ] Configure Packer to execute Ansible playbooks during image build
+    - [ ] Implement package installation validation and testing
+  - [ ] **Package Installation Workflow:**
+    - [ ] Create minimal preseed files for basic OS installation
+    - [ ] Use Ansible roles for comprehensive package installation and configuration
+    - [ ] Implement package verification and integrity checking
+    - [ ] Support for different package versions and configurations
+
 - [ ] **2.3. Build and Validation Pipeline:**
   - [x] Execute CMake targets with comprehensive error handling.
   - [ ] Implement automated image testing:
@@ -683,7 +879,8 @@ clusters are deployed simultaneously for efficiency.
     - [ ] Implement parallel provisioning for both clusters.
 
 - [ ] **5.2. HPC Cluster Configuration:**
-  - [ ] **Enhanced SLURM Deployment (`playbook-hpc.yml`):**
+  - [ ] **Enhanced SLURM Deployment (`ansible/playbooks/playbook-hpc.yml`):**
+    - [ ] Use `ansible/roles/hpc-cluster-setup/` for comprehensive SLURM configuration
     - [ ] Install and configure MUNGE with security hardening.
     - [ ] Deploy SLURM controller with high availability considerations.
     - [ ] Configure compute nodes with GPU resource management.
@@ -714,7 +911,8 @@ clusters are deployed simultaneously for efficiency.
     - [ ] Security compliance validation.
 
 - [ ] **5.3. Kubernetes Cluster Configuration:**
-  - [ ] **Enhanced Kubernetes Deployment (`playbook-k8s.yml`):**
+  - [ ] **Enhanced Kubernetes Deployment (`ansible/playbooks/playbook-cloud.yml`):**
+    - [ ] Use `ansible/roles/cloud-cluster-setup/` for comprehensive Kubernetes configuration
     - [ ] Install container runtime with security configurations.
     - [ ] Bootstrap Kubernetes with kubeadm and security hardening.
     - [ ] Configure networking with CNI and network policies.
