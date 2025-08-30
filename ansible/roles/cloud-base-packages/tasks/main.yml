@@ -1,0 +1,7 @@
+---
+# Cloud Base Packages Role - Main Tasks
+# This role installs and configures packages needed for cloud-native workloads
+
+- name: Placeholder for cloud base package installation
+  debug:
+    msg: "Cloud base packages installation tasks will be implemented here"

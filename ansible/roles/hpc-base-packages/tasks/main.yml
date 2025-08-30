@@ -1,0 +1,7 @@
+---
+# HPC Base Packages Role - Main Tasks
+# This role installs and configures packages needed for HPC workloads
+
+- name: Placeholder for HPC base package installation
+  debug:
+    msg: "HPC base packages installation tasks will be implemented here"
