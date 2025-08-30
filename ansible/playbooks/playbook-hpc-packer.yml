@@ -9,6 +9,11 @@
   become_user: root
   gather_facts: false
 
+  module_defaults:
+    setup:
+      gather_subset: minimal
+      gather_timeout: 10
+
   vars:
     # Packer-specific variables
     ansible_connection: ssh

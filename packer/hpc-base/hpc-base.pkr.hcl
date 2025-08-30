@@ -185,18 +185,25 @@ build {
     playbook_file = "${var.ansible_dir}/playbooks/playbook-hpc-packer.yml"
     use_sftp      = false
     ansible_env_vars = [
-      "ANSIBLE_CONFIG=${var.ansible_dir}/ansible.cfg"
+      "ANSIBLE_CONFIG=${var.ansible_dir}/ansible.cfg",
+      "ANSIBLE_HOST_KEY_CHECKING=False",
+      "ANSIBLE_SSH_RETRIES=3"
     ]
     extra_arguments = [
       "--skip-tags", "debug",
       "--extra-vars", "ansible_become_password=''",
       "--extra-vars", "ansible_become_method=sudo",
-      "--extra-vars", "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
+      "--extra-vars", "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30'",
+      "-vv"
     ]
-    inventory_file_template = <<EOF
-[all]
-{{ .Host }} ansible_ssh_host={{ .Host }} ansible_ssh_port={{ .Port }} ansible_ssh_user={{ .User }} ansible_ssh_private_key_file={{ .KeyPath }} ansible_become=true ansible_become_method=sudo ansible_become_user=root ansible_become_password=''
-EOF
+    # Let Packer automatically generate the inventory file
+    user             = "admin"
+    keep_inventory_file = true
+    ansible_ssh_extra_args = [
+      "-o IdentitiesOnly=yes",
+      "-o ServerAliveInterval=60",
+      "-o ServerAliveCountMax=3"
+    ]
   }
 
   # Final cleanup for cloning - optimized for speed
