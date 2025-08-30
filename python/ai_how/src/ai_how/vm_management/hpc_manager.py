@@ -744,6 +744,13 @@ class HPCClusterManager:
             ),  # Controllers typically don't have PCIe passthrough
         )
 
+        # Ensure trace folder exists before VM creation (for serial logging)
+        try:
+            self.xml_tracer.trace_folder.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Ensured trace folder exists: {self.xml_tracer.trace_folder}")
+        except OSError as e:
+            logger.warning(f"Could not ensure trace folder exists: {e}")
+
         # Create VM
         try:
             domain_uuid = self.vm_lifecycle.create_vm(vm_name, xml_config)
@@ -816,6 +823,15 @@ class HPCClusterManager:
                 pcie_passthrough=node_config.get("pcie_passthrough"),
             )
 
+            # Ensure trace folder exists before VM creation (for serial logging)
+            try:
+                self.xml_tracer.trace_folder.mkdir(parents=True, exist_ok=True)
+                logger.debug(
+                    f"Ensured trace folder exists for compute node: {self.xml_tracer.trace_folder}"
+                )
+            except OSError as e:
+                logger.warning(f"Could not ensure trace folder exists: {e}")
+
             # Create VM
             try:
                 domain_uuid = self.vm_lifecycle.create_vm(vm_name, xml_config)
@@ -887,6 +903,8 @@ class HPCClusterManager:
                 "pcie_passthrough": pcie_passthrough or {},
                 # MAC address generation for network
                 "mac_address": self._generate_mac_address(vm_name),
+                # Trace folder path for serial console logging (absolute path)
+                "trace_folder": str(self.xml_tracer.trace_folder.resolve()),
             }
 
             xml_config = template.render(**template_vars)

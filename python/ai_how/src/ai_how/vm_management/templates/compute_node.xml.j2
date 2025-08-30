@@ -5,6 +5,18 @@
   <currentMemory unit='GiB'>{{ memory_gb }}</currentMemory>
   <vcpu placement='static'>{{ cpu_cores }}</vcpu>
 
+  {% if hardware.get('use_hugepages', false) %}
+  <memoryBacking>
+    <hugepages>
+      {% if hardware.get('hugepage_size_gb') %}
+      <page size='{{ hardware.get('hugepage_size_gb') }}' unit='GiB'/>
+      {% endif %}
+    </hugepages>
+    <access mode='shared'/>
+  </memoryBacking>
+  {% endif %}
+
+
   <os>
     <type arch='x86_64' machine='q35'>hvm</type>
     <boot dev='hd'/>
@@ -24,11 +36,14 @@
       <hidden state='on'/>
     </kvm>
     <ioapic driver='qemu'/>
+    <smm state='on'/>
   </features>
 
   <cpu mode='host-passthrough'>
     <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
     <feature policy='disable' name='hypervisor'/>
+    <feature policy='require' name='topoext'/>
+    <feature policy='disable' name='la57'/>
   </cpu>
 
   <clock offset='utc'>
@@ -40,6 +55,23 @@
   <on_poweroff>destroy</on_poweroff>
   <on_reboot>restart</on_reboot>
   <on_crash>restart</on_crash>
+
+  <!-- QEMU arguments to exactly match working script -->
+  {% if hardware.get('large_memory_bar_support', true) %}
+  <qemu:commandline xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+    <qemu:arg value='-mem-prealloc'/>
+    <qemu:arg value='-overcommit'/>
+    <qemu:arg value='mem-lock=off'/>
+    <qemu:arg value='-global'/>
+    <qemu:arg value='PIIX4_PM.disable_s3=1'/>
+    <qemu:arg value='-global'/>
+    <qemu:arg value='PIIX4_PM.disable_s4=1'/>
+    <qemu:arg value='-global'/>
+    <qemu:arg value='ICH9-LPC.disable_s3=1'/>
+    <qemu:arg value='-global'/>
+    <qemu:arg value='ICH9-LPC.disable_s4=1'/>
+  </qemu:commandline>
+  {% endif %}
 
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
@@ -69,6 +101,9 @@
     {% for device in pcie_passthrough['devices'] %}
       {% if device.get('device_type') == 'gpu' %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
+      {% if hardware.get('vfio_no_mmap', false) %}
+      <driver name='vfio' x-no-mmap='on'/>
+      {% endif %}
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
                  bus='0x{{ device['pci_address'].split(":")[1] }}'
@@ -80,11 +115,21 @@
     {% endfor %}
     {% endif %}
 
-    <!-- Console access -->
-    <serial type='pty'>
+    <!-- Console access with trace folder logging -->
+    <!-- Primary serial console with file logging to trace folder -->
+    <serial type='file'>
+      <source path='{{ trace_folder }}/{{ vm_name }}-serial.log'/>
       <target type='isa-serial' port='0'/>
     </serial>
-    <console type='pty'>
+
+    <!-- PTY console for virsh console (fallback) -->
+    <serial type='pty'>
+      <target type='isa-serial' port='1'/>
+    </serial>
+
+    <!-- Console mapped to first serial port -->
+    <console type='file'>
+      <source path='{{ trace_folder }}/{{ vm_name }}-console.log'/>
       <target type='serial' port='0'/>
     </console>
 

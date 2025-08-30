@@ -64,11 +64,21 @@
     <controller type='usb' index='0' model='qemu-xhci'/>
     <controller type='pci' index='0' model='pcie-root'/>
 
-    <!-- Console access -->
-    <serial type='pty'>
+    <!-- Console access with trace folder logging -->
+    <!-- Primary serial console with file logging to trace folder -->
+    <serial type='file'>
+      <source path='{{ trace_folder }}/{{ vm_name }}-serial.log'/>
       <target type='isa-serial' port='0'/>
     </serial>
-    <console type='pty'>
+
+    <!-- PTY console for virsh console (fallback) -->
+    <serial type='pty'>
+      <target type='isa-serial' port='1'/>
+    </serial>
+
+    <!-- Console mapped to first serial port -->
+    <console type='file'>
+      <source path='{{ trace_folder }}/{{ vm_name }}-console.log'/>
       <target type='serial' port='0'/>
     </console>
 

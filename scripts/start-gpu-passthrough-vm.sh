@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# GPU Passthrough VM Startup Script
-# Starts a QEMU VM with the same configuration as hpc-cluster-compute-01
-# including GPU PCIe passthrough via VFIO
+# GPU Passthrough VM Startup Script with Large Memory BAR Support
+# Starts a QEMU VM with optimized configuration for large GPU memory BARs
+# including GPU PCIe passthrough via VFIO for RTX 4060 Ti 16GB and similar cards
 #
-# This script replicates the libvirt XML configuration in direct QEMU commands
+# This script uses optimized QEMU arguments to handle large GPU memory mappings
 # Run with: ./scripts/start-gpu-passthrough-vm.sh
 # Serial console will be available in stdout - you can login directly
 
@@ -162,7 +162,7 @@ cleanup_snapshot() {
 # =============================================================================
 
 build_qemu_command() {
-    log_info "Building minimal QEMU command line..." >&2
+    log_info "Building optimized QEMU command line for large GPU memory BARs..." >&2
 
     local qemu_args=()
 
@@ -170,13 +170,15 @@ build_qemu_command() {
     qemu_args+=("$QEMU_SYSTEM")
     qemu_args+=("-name" "$VM_NAME")
 
-    # Minimal machine configuration - no IOMMU device, let host handle it
-    qemu_args+=("-machine" "type=q35,accel=kvm")
-    qemu_args+=("-cpu" "host")
+    # Enhanced machine configuration for large memory BAR support
+    qemu_args+=("-machine" "type=q35,accel=kvm,kernel_irqchip=on")
+    qemu_args+=("-cpu" "host,kvm=on,+topoext")
     qemu_args+=("-smp" "$VM_CPUS")
 
-    # Memory configuration - simple
+    # Memory configuration optimized for large GPU memory BARs
     qemu_args+=("-m" "${VM_MEMORY_GB}G")
+    qemu_args+=("-mem-prealloc")
+    qemu_args+=("-overcommit" "mem-lock=off")
 
     # Storage configuration - basic
     qemu_args+=("-drive" "file=$SNAPSHOT_IMAGE,format=$DISK_FORMAT,if=virtio")
@@ -186,10 +188,19 @@ build_qemu_command() {
     qemu_args+=("-device" "e1000,netdev=net0")
     log_info "Using host networking. SSH available on localhost:$SSH_HOST_PORT" >&2
 
-    # GPU PCIe passthrough - essential only
-    qemu_args+=("-device" "vfio-pci,host=$GPU_PCI_ADDRESS")
+    # Large memory BAR optimizations for RTX 4060 Ti 16GB
+    qemu_args+=("-global" "PIIX4_PM.disable_s3=1")
+    qemu_args+=("-global" "PIIX4_PM.disable_s4=1")
+    qemu_args+=("-global" "ICH9-LPC.disable_s3=1")
+    qemu_args+=("-global" "ICH9-LPC.disable_s4=1")
 
-    # GPU audio passthrough (if available) - minimal
+    # GPU PCIe passthrough optimized for large memory BARs
+    # x-no-mmap=false enables memory mapping (default false is what we want)
+    # x-balloon-allowed=false prevents memory balloon conflicts (default false is what we want)
+    qemu_args+=("-device" "vfio-pci,host=$GPU_PCI_ADDRESS")
+    log_info "GPU passthrough configured for large memory BAR support" >&2
+
+    # GPU audio passthrough (if available) - optimized
     if [[ -n "$GPU_AUDIO_PCI_ADDRESS" && -d "/sys/bus/pci/devices/$GPU_AUDIO_PCI_ADDRESS" ]]; then
         qemu_args+=("-device" "vfio-pci,host=$GPU_AUDIO_PCI_ADDRESS")
         log_info "GPU audio controller will be passed through" >&2
@@ -228,11 +239,13 @@ Configuration:
 
 Features:
   - Serial console output to stdout (you can login directly)
-  - GPU PCIe passthrough via VFIO
+  - GPU PCIe passthrough via VFIO with large memory BAR support
   - KVM acceleration (requires kvm group membership)
   - Host networking with SSH forwarding (no bridge required)
   - Ephemeral changes via snapshot overlay (base image preserved)
   - VFIO permission checking (may require sudo for VFIO access)
+  - Optimized for RTX 4060 Ti 16GB and other large memory BAR GPUs
+  - Memory preallocation and large mapping support
 
 Exit: Press Ctrl+A then X to exit QEMU, or Ctrl+C to terminate
 Note: Snapshot overlay is automatically cleaned up on exit
