@@ -5,16 +5,18 @@
   <currentMemory unit='GiB'>{{ memory_gb }}</currentMemory>
   <vcpu placement='static'>{{ cpu_cores }}</vcpu>
 
-  {% if hardware.get('use_hugepages', false) %}
+  <!-- Memory backend configuration matching working script -->
   <memoryBacking>
+    <source type='memfd'/>
+    <access mode='shared'/>
+    {% if hardware.get('use_hugepages', false) %}
     <hugepages>
       {% if hardware.get('hugepage_size_gb') %}
       <page size='{{ hardware.get('hugepage_size_gb') }}' unit='GiB'/>
       {% endif %}
     </hugepages>
-    <access mode='shared'/>
+    {% endif %}
   </memoryBacking>
-  {% endif %}
 
 
   <os>
@@ -39,6 +41,7 @@
     <smm state='on'/>
   </features>
 
+  <!-- CPU configuration matching working script -->
   <cpu mode='host-passthrough'>
     <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
     <feature policy='disable' name='hypervisor'/>
@@ -56,34 +59,25 @@
   <on_reboot>restart</on_reboot>
   <on_crash>restart</on_crash>
 
-  <!-- QEMU arguments to exactly match working script -->
-  {% if hardware.get('large_memory_bar_support', true) %}
+  <!-- QEMU arguments to match working script configuration -->
   <qemu:commandline xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
-    <qemu:arg value='-mem-prealloc'/>
-    <qemu:arg value='-overcommit'/>
-    <qemu:arg value='mem-lock=off'/>
-    <qemu:arg value='-global'/>
-    <qemu:arg value='PIIX4_PM.disable_s3=1'/>
-    <qemu:arg value='-global'/>
-    <qemu:arg value='PIIX4_PM.disable_s4=1'/>
-    <qemu:arg value='-global'/>
-    <qemu:arg value='ICH9-LPC.disable_s3=1'/>
-    <qemu:arg value='-global'/>
-    <qemu:arg value='ICH9-LPC.disable_s4=1'/>
+    <qemu:arg value='-cpu'/>
+    <qemu:arg value='host,host-phys-bits=on,host-phys-bits-limit=39'/>
   </qemu:commandline>
-  {% endif %}
 
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
 
-    <!-- Primary disk -->
+    <!-- Primary disk (with snapshot protection like working script) -->
     <disk type='file' device='disk'>
-      <driver name='qemu' type='qcow2'/>
+      <driver name='qemu' type='qcow2' snapshot='external'/>
       <source file='{{ disk_path }}'/>
       <target dev='vda' bus='virtio'/>
     </disk>
 
     <!-- Network interface -->
+    <!-- Note: Working script uses user networking with port forwarding -->
+    <!-- For cluster setup, we use bridged networking instead -->
     <interface type='network'>
       <source network='{{ cluster_name }}-network'/>
       <model type='virtio'/>
@@ -96,60 +90,35 @@
     <controller type='usb' index='0' model='qemu-xhci'/>
     <controller type='pci' index='0' model='pcie-root'/>
 
-    <!-- GPU Passthrough -->
+    <!-- GPU Passthrough (simplified to match working script) -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
     {% for device in pcie_passthrough['devices'] %}
-      {% if device.get('device_type') == 'gpu' %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
-      {% if hardware.get('vfio_no_mmap', false) %}
-      <driver name='vfio' x-no-mmap='on'/>
-      {% endif %}
+      <driver name='vfio'/>
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
                  bus='0x{{ device['pci_address'].split(":")[1] }}'
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
-    </hostdev>
+      {% if device.get('device_type') == 'gpu' %}
+      <address type='pci' multifunction='on'/>
       {% endif %}
+    </hostdev>
     {% endfor %}
     {% endif %}
 
-    <!-- Console access with trace folder logging -->
-    <!-- Primary serial console with file logging to trace folder -->
+    <!-- Console access (simplified, matching working script's nographic approach) -->
     <serial type='file'>
-      <source path='{{ trace_folder }}/{{ vm_name }}-serial.log'/>
+      <source path='{{ trace_folder }}/{{ vm_name }}-console.log'/>
       <target type='isa-serial' port='0'/>
     </serial>
-
-    <!-- PTY console for virsh console (fallback) -->
-    <serial type='pty'>
-      <target type='isa-serial' port='1'/>
-    </serial>
-
-    <!-- Console mapped to first serial port -->
     <console type='file'>
       <source path='{{ trace_folder }}/{{ vm_name }}-console.log'/>
       <target type='serial' port='0'/>
     </console>
 
-    <!-- Graphics (only if no GPU passthrough) -->
-    {% set gpu_devices = [] %}
-    {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
-      {% for device in pcie_passthrough['devices'] %}
-        {% if device.get('device_type') == 'gpu' %}
-          {% set _ = gpu_devices.append(device) %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-    {% set has_gpu_passthrough = gpu_devices|length > 0 %}
-
-    {% if not has_gpu_passthrough %}
-    <graphics type='vnc' port='-1' autoport='yes' listen='127.0.0.1'/>
-    <video>
-      <model type='qxl'/>
-    </video>
-    {% endif %}
+    <!-- No graphics when using GPU passthrough (matches working script -nographic) -->
 
     <!-- Essential devices -->
     <input type='keyboard' bus='ps2'/>
