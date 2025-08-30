@@ -89,16 +89,31 @@ def main(
 
 
 @app.command()
-def validate(ctx: typer.Context) -> None:  # noqa: ARG001
+def validate(
+    ctx: typer.Context,
+    config: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to cluster.yaml configuration file",
+        ),
+    ] = DEFAULT_CONFIG,
+) -> None:  # noqa: ARG001
     """Validate cluster.yaml against schema and semantic rules."""
-    console.print(f"Validating {DEFAULT_CONFIG}...")
+    # Get logger for this module to show that logging is working
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting validation with log level: {ctx.obj.get('log_level', 'INFO')}")
+
+    console.print(f"Validating {config}...")
 
     try:
         schema_resource = importlib.resources.files("ai_how.schemas").joinpath(
             CLUSTER_SCHEMA_FILENAME
         )
         with importlib.resources.as_file(schema_resource) as schema_path:
-            if not validate_config(DEFAULT_CONFIG, schema_path):
+            if not validate_config(config, schema_path):
                 raise typer.Exit(code=1)
     except (FileNotFoundError, ModuleNotFoundError) as e:
         console.print(f"[red]Error:[/red] Could not locate schema file: {e}")
