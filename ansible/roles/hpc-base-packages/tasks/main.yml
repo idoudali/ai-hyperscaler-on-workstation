@@ -14,18 +14,44 @@
     state: present
   become: true
   notify: restart services
+  when: ansible_facts.pkg_mgr is defined or ansible_facts.pkg_mgr == "apt"
 
 - name: Download NVIDIA GPG key
   get_url:
     url: "{{ nvidia_gpg_key_url }}"
     dest: /tmp/nvidia-key.pub
     mode: '0644'
+    timeout: 30
+    retries: 3
+  register: nvidia_key_download
+  failed_when: false
+  ignore_errors: true
+
+- name: Display NVIDIA key download result
+  debug:
+    msg: "NVIDIA GPG key download result: {{ nvidia_key_download }}"
+  when: nvidia_key_download is defined
+  tags:
+    - debug
+
+- name: Check if NVIDIA key was downloaded successfully
+  stat:
+    path: /tmp/nvidia-key.pub
+  register: nvidia_key_file_check
+
+- name: Display NVIDIA key file status
+  debug:
+    msg: "NVIDIA key file exists: {{ nvidia_key_file_check.stat.exists }}"
+  when: nvidia_key_file_check is defined
+  tags:
+    - debug
 
 - name: Dearmor NVIDIA GPG key
   command:
     cmd: gpg --dearmor -o /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg /tmp/nvidia-key.pub
     creates: /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg
   become: true
+  when: nvidia_key_file_check.stat.exists
 
 - name: Display NVIDIA key installation result
   debug:
@@ -40,6 +66,7 @@
     state: present
     filename: nvidia-cuda
   become: true
+  when: nvidia_key_file_check.stat.exists
 
 - name: Display NVIDIA repository addition result
   debug:
@@ -48,10 +75,23 @@
   tags:
     - debug
 
+- name: Display NVIDIA repository setup status
+  debug:
+    msg: |
+      NVIDIA Repository Setup Status:
+      - GPG key downloaded: {{ 'Yes' if nvidia_key_file_check.stat.exists else 'No' }}
+      - GPG key dearmored: {{ 'Yes' if (nvidia_key_file_check.stat.exists and nvidia_key_check.stat.exists) else 'No' }}
+      - Repository added: {{ 'Yes' if (nvidia_key_file_check.stat.exists and nvidia_repo_check.stat.exists) else 'No' }}
+
+      Note: If any step failed, NVIDIA packages will not be available for installation.
+  tags:
+    - debug
+
 - name: Update package cache after adding NVIDIA repository
   apt:
     update_cache: yes
   become: true
+  when: nvidia_key_file_check.stat.exists
 
 - name: Verify NVIDIA repository was added
   stat:
@@ -172,7 +212,7 @@
     owner: root
     group: root
   become: true
-  when: ansible_facts.pkg_mgr == "apt" and nvidia_container_result is defined and nvidia_container_result.changed
+  when: (ansible_facts.pkg_mgr is defined and ansible_facts.pkg_mgr == "apt") and nvidia_container_result is defined and nvidia_container_result.changed
 
 - name: Configure NVIDIA container runtime
   copy:
@@ -191,7 +231,7 @@
     group: root
     mode: '0644'
   become: true
-  when: ansible_facts.pkg_mgr == "apt" and nvidia_container_result is defined and nvidia_container_result.changed
+  when: (ansible_facts.pkg_mgr is defined and ansible_facts.pkg_mgr == "apt") and nvidia_container_result is defined and nvidia_container_result.changed
 
 - name: Final package cleanup
   apt:
@@ -216,8 +256,9 @@
       - NVIDIA container runtime support (if available)
 
       NVIDIA Installation Status:
-      - Repository added: {{ nvidia_repo_check.stat.exists if nvidia_repo_check is defined else 'Unknown' }}
-      - GPG key added: {{ nvidia_key_check.stat.exists if nvidia_key_check is defined else 'Unknown' }}
+      - GPG key downloaded: {{ 'Yes' if nvidia_key_file_check.stat.exists else 'No' }}
+      - GPG key added: {{ 'Yes' if nvidia_key_check.stat.exists else 'No' }}
+      - Repository added: {{ 'Yes' if nvidia_repo_check.stat.exists else 'No' }}
       - Packages available: {{ 'Yes' if (nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0) else 'No' }}
       - Installation attempted: {{ 'Yes' if (nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0) else 'No' }}
       - NVIDIA drivers installed: {{ 'Yes' if (nvidia_install_result is defined and nvidia_install_result.changed) else 'No' }}

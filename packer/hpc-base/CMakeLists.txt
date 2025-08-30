@@ -105,7 +105,7 @@ add_custom_command(
     COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     COMMAND PACKER_LOG=1 packer build -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Building HPC base image with hybrid provisioning (shell + improved Ansible role via shell provisioner)..."
+    COMMENT "Building HPC base image with hybrid provisioning (shell + native Ansible provisioner)..."
     DEPENDS prepare-cloud-init-hpc-base
         ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
         init-hpc-packer

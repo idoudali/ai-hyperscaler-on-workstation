@@ -3,14 +3,35 @@
 # This playbook is used by Packer to install essential HPC packages during image build
 
 - name: Install HPC Base Packages
-  hosts: localhost
+  hosts: all
   become: true
-  gather_facts: true
+  become_method: sudo
+  become_user: root
+  gather_facts: false
 
   vars:
     # Packer-specific variables
-    ansible_connection: local
+    ansible_connection: ssh
     ansible_python_interpreter: /usr/bin/python3
+    # Fallback values for when fact gathering fails
+    ansible_facts:
+      pkg_mgr: "apt"
+      os_family: "Debian"
+      distribution: "Debian"
+      distribution_version: "13"
+
+  pre_tasks:
+    - name: Gather facts manually with error handling
+      setup:
+        gather_subset: minimal
+      register: fact_result
+      failed_when: false
+      ignore_errors: true
+
+    - name: Set facts based on result
+      set_fact:
+        ansible_facts: "{{ fact_result.ansible_facts | default(ansible_facts) }}"
+      when: fact_result.ansible_facts is defined
 
   roles:
     - role: hpc-base-packages

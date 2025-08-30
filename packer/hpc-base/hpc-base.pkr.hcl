@@ -8,6 +8,10 @@ packer {
       version = ">= 1.0.9"
       source  = "github.com/hashicorp/qemu"
     }
+    ansible = {
+      version = "~> 1"
+      source  = "github.com/hashicorp/ansible"
+    }
   }
 }
 
@@ -176,31 +180,23 @@ build {
     destination = "/tmp/ansible"
   }
 
-  # Install Ansible and dependencies
-  provisioner "shell" {
-    inline = [
-      "echo 'Installing Python dependencies and Ansible...'",
-      "sudo apt-get update -qq",
-      "sudo apt-get install -y -qq python3-pip python3-setuptools python3-wheel python3-venv",
-      "echo 'Creating virtual environment and installing Ansible...'",
-      "cd /home/admin",
-      "python3 -m venv ansible-venv",
-      ". /home/admin/ansible-venv/bin/activate",
-      "pip install --upgrade pip",
-      "pip install ansible",
-      "echo 'Ansible installation completed'"
+  # Run Ansible playbook using native provisioner
+  provisioner "ansible" {
+    playbook_file = "${var.ansible_dir}/playbooks/playbook-hpc-packer.yml"
+    use_sftp      = false
+    ansible_env_vars = [
+      "ANSIBLE_CONFIG=${var.ansible_dir}/ansible.cfg"
     ]
-  }
-
-  # Run Ansible playbook to install HPC packages
-  provisioner "shell" {
-    inline = [
-      "echo 'Running Ansible playbook for HPC packages...'",
-      "cd /tmp/ansible",
-      ". /home/admin/ansible-venv/bin/activate",
-      "ansible-playbook --connection=local --inventory=localhost, playbooks/playbook-hpc-packer.yml --skip-tags debug",
-      "echo 'Ansible playbook execution completed'"
+    extra_arguments = [
+      "--skip-tags", "debug",
+      "--extra-vars", "ansible_become_password=''",
+      "--extra-vars", "ansible_become_method=sudo",
+      "--extra-vars", "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
     ]
+    inventory_file_template = <<EOF
+[all]
+{{ .Host }} ansible_ssh_host={{ .Host }} ansible_ssh_port={{ .Port }} ansible_ssh_user={{ .User }} ansible_ssh_private_key_file={{ .KeyPath }} ansible_become=true ansible_become_method=sudo ansible_become_user=root ansible_become_password=''
+EOF
   }
 
   # Final cleanup for cloning - optimized for speed
@@ -218,9 +214,8 @@ build {
       "sudo rm -f /etc/ssh/ssh_host_* /etc/udev/rules.d/70-persistent-net.rules",
       # Clean cloud-init state
       "sudo cloud-init clean --logs",
-      # Clean Ansible temporary files and virtual environment
+      # Clean Ansible temporary files
       "sudo rm -rf /tmp/ansible",
-      "sudo rm -rf /home/admin/ansible-venv",
       "echo 'Cleanup complete'"
     ]
   }
@@ -243,7 +238,7 @@ build {
       "echo 'HPC Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
-      "echo 'HPC packages installed via improved Ansible role with shell provisioner' > ${local.output_directory}/features.txt",
+      "echo 'HPC packages installed via native Ansible provisioner' > ${local.output_directory}/features.txt",
       "echo 'NVIDIA GPU drivers and CUDA toolkit included' > ${local.output_directory}/gpu_features.txt",
       "echo 'Basic system setup via setup-hpc-base.sh' > ${local.output_directory}/system_setup.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"

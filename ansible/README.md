@@ -56,9 +56,6 @@ pip install -r ansible/requirements.txt
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
 
-**Note:** The Packer template currently uses shell provisioners to install and run Ansible, as the native `ansible` provisioner
-plugin is not available in the current environment. This approach provides the same functionality while maintaining compatibility.
-
 ## Usage
 
 The Ansible infrastructure will be used by the CLI orchestrator to:
@@ -81,7 +78,7 @@ The Ansible infrastructure will be used by the CLI orchestrator to:
 ### **Packer Integration** (`playbooks/playbook-hpc-packer.yml`)
 
 - **Packer-specific playbook** for building HPC base images
-- **Shell provisioner integration** with Packer (Ansible provisioner plugin not available)
+- **Native Ansible provisioner** integration with Packer
 - **Verification tasks** for NVIDIA drivers, CUDA, and essential packages
 - **Local connection** configuration for Packer environment
 - **Debug tag support** for controlling output verbosity
@@ -91,11 +88,11 @@ The Ansible infrastructure will be used by the CLI orchestrator to:
 The HPC base image uses a **hybrid provisioning approach**:
 
 1. **Shell Script (`setup-hpc-base.sh`)**: Handles basic system setup, networking, and debugging tools
-2. **Shell Provisioner**: Installs Ansible in virtual environment and executes playbooks
+2. **Native Ansible Provisioner**: Automatically handles Ansible installation and execution
 3. **Ansible Role**: Installs essential packages and NVIDIA drivers with proper configuration
 4. **Combined Benefits**:
    - Shell script for system-level operations and networking
-   - Shell provisioner for Ansible installation and execution
+   - Native Ansible provisioner for clean, maintainable automation
    - Ansible for package management and configuration
    - Best of both worlds: speed, reliability, and maintainability
 
