@@ -4,23 +4,7 @@ metadata:
   name: "test-pcie-cluster"
   description: "Test cluster with PCIe passthrough configuration"
 
-global:
-  gpu_inventory:
-    devices:
-      - id: "gpu-01"
-        pci_address: "0000:01:00.0"
-        model: "NVIDIA A100"
-        vendor_id: "10de"
-        device_id: "2684"
-        iommu_group: 17
-        mig_capable: false
-      - id: "gpu-02"
-        pci_address: "0000:07:00.0"
-        model: "NVIDIA RTX 6000"
-        vendor_id: "10de"
-        device_id: "1e36"
-        iommu_group: 21
-        mig_capable: false
+global: {}
 
 clusters:
   hpc:

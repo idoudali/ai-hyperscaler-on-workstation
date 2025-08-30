@@ -247,24 +247,7 @@ metadata:
   name: "hyperscaler-emulation"
   description: "Dual-stack AI infrastructure emulation"
   
-global:
-  gpu_inventory:
-    # Host GPU inventory for reference and conflict detection
-    devices:
-      - id: "GPU-0"
-        pci_address: "0000:65:00.0"
-        model: "NVIDIA A100 80GB"
-        vendor_id: "10de"
-        device_id: "2684"
-        iommu_group: 1
-        mig_capable: true
-      - id: "GPU-1"
-        pci_address: "0000:ca:00.0"
-        model: "NVIDIA RTX 6000"
-        vendor_id: "10de"
-        device_id: "1e36"
-        iommu_group: 4
-        mig_capable: false
+global: {}
 
 clusters:
   hpc:
