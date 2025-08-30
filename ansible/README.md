@@ -56,6 +56,9 @@ pip install -r ansible/requirements.txt
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
 
+**Note:** The Packer template currently uses shell provisioners to install and run Ansible, as the native `ansible` provisioner
+plugin is not available in the current environment. This approach provides the same functionality while maintaining compatibility.
+
 ## Usage
 
 The Ansible infrastructure will be used by the CLI orchestrator to:
@@ -67,28 +70,67 @@ The Ansible infrastructure will be used by the CLI orchestrator to:
 
 ### **HPC Base Packages Role** (`roles/hpc-base-packages/`)
 
-- **Essential system packages**: git, wget, curl, vim, htop, build-essential
-- **NVIDIA GPU drivers**: Latest drivers (535 series) and CUDA toolkit 12.4
+- **Essential system packages**: Configurable package list via variables
+- **NVIDIA GPU drivers**: Configurable driver version (default: 535) and CUDA toolkit (default: 12-4)
 - **NVIDIA container runtime**: Support for GPU-accelerated containers
 - **Debian 13 compatibility**: Optimized for Debian 13 (trixie) cloud images
-- **Error handling**: Robust installation with graceful fallbacks for unavailable packages
+- **Idempotent modules**: Uses proper Ansible modules instead of shell commands
+- **Configurable variables**: All versions and URLs configurable via defaults
+- **Debug tags**: Debug output can be controlled with `--skip-tags debug`
 
 ### **Packer Integration** (`playbooks/playbook-hpc-packer.yml`)
 
 - **Packer-specific playbook** for building HPC base images
+- **Shell provisioner integration** with Packer (Ansible provisioner plugin not available)
 - **Verification tasks** for NVIDIA drivers, CUDA, and essential packages
 - **Local connection** configuration for Packer environment
+- **Debug tag support** for controlling output verbosity
 
 ### **Hybrid Provisioning Approach**
 
 The HPC base image uses a **hybrid provisioning approach**:
 
 1. **Shell Script (`setup-hpc-base.sh`)**: Handles basic system setup, networking, and debugging tools
-2. **Ansible Role**: Installs essential packages and NVIDIA drivers with proper configuration
-3. **Combined Benefits**:
+2. **Shell Provisioner**: Installs Ansible in virtual environment and executes playbooks
+3. **Ansible Role**: Installs essential packages and NVIDIA drivers with proper configuration
+4. **Combined Benefits**:
    - Shell script for system-level operations and networking
+   - Shell provisioner for Ansible installation and execution
    - Ansible for package management and configuration
-   - Best of both worlds: speed and reliability
+   - Best of both worlds: speed, reliability, and maintainability
+
+## Configuration
+
+### **Role Variables** (`roles/hpc-base-packages/defaults/main.yml`)
+
+The HPC base packages role is fully configurable through variables:
+
+```yaml
+# NVIDIA Driver and CUDA Configuration
+nvidia_driver_version: "535"
+cuda_version: "12-4"
+
+# Repository Configuration
+nvidia_repository_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/"
+nvidia_gpg_key_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub"
+
+# Package Lists
+essential_packages: [git, wget, curl, vim, htop, ...]
+nvidia_driver_packages: [nvidia-driver-535, nvidia-utils-535, ...]
+nvidia_container_packages: [nvidia-container-toolkit, nvidia-container-runtime]
+```
+
+### **Debug Output Control**
+
+Debug output can be controlled using Ansible tags:
+
+```bash
+# Run with debug output (default)
+ansible-playbook playbooks/playbook-hpc-packer.yml
+
+# Run without debug output
+ansible-playbook playbooks/playbook-hpc-packer.yml --skip-tags debug
+```
 
 ## Next Steps
 

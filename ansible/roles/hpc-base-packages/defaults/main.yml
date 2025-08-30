@@ -1,0 +1,41 @@
+---
+# NVIDIA Driver and CUDA Configuration
+nvidia_driver_version: "535"
+cuda_version: "12-4"
+
+# Repository Configuration
+nvidia_repository_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/"
+nvidia_gpg_key_url: "https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub"
+
+# Package Lists
+essential_packages:
+  - git
+  - wget
+  - curl
+  - vim
+  - htop
+  - unzip
+  - bzip2
+  - gzip
+  - tar
+  - rsync
+  - openssh-server
+  - openssh-client
+  - ca-certificates
+  - apt-transport-https
+  - gnupg
+  - lsb-release
+  - build-essential
+
+nvidia_driver_packages:
+  - "nvidia-driver-{{ nvidia_driver_version }}"
+  - "nvidia-utils-{{ nvidia_driver_version }}"
+  - nvidia-settings
+  - "cuda-toolkit-{{ cuda_version }}"
+  - cuda-drivers
+  - nvidia-modprobe
+  - nvidia-persistenced
+
+nvidia_container_packages:
+  - nvidia-container-toolkit
+  - nvidia-container-runtime

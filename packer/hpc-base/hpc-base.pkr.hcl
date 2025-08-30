@@ -170,37 +170,35 @@ build {
     ]
   }
 
-  # Install Ansible and dependencies in virtual environment
-  provisioner "shell" {
-    inline = [
-      "echo 'Installing Python dependencies and creating virtual environment...'",
-      "sudo apt-get update -qq",
-      "sudo apt-get install -y -qq python3-pip python3-setuptools python3-wheel python3-venv",
-      "echo 'Creating virtual environment in home directory...'",
-      "cd /home/admin",
-      "python3 -m venv ansible-venv",
-      "echo 'Activating virtual environment and installing Ansible...'",
-      ". /home/admin/ansible-venv/bin/activate",
-      "pip install --upgrade pip",
-      "pip install ansible",
-      "echo 'Ansible installation completed in virtual environment'"
-    ]
-  }
-
   # Copy Ansible playbooks and roles
   provisioner "file" {
     source = "${var.ansible_dir}"
     destination = "/tmp/ansible"
   }
 
-  # Run Ansible playbook to install HPC packages using shell
+  # Install Ansible and dependencies
+  provisioner "shell" {
+    inline = [
+      "echo 'Installing Python dependencies and Ansible...'",
+      "sudo apt-get update -qq",
+      "sudo apt-get install -y -qq python3-pip python3-setuptools python3-wheel python3-venv",
+      "echo 'Creating virtual environment and installing Ansible...'",
+      "cd /home/admin",
+      "python3 -m venv ansible-venv",
+      ". /home/admin/ansible-venv/bin/activate",
+      "pip install --upgrade pip",
+      "pip install ansible",
+      "echo 'Ansible installation completed'"
+    ]
+  }
+
+  # Run Ansible playbook to install HPC packages
   provisioner "shell" {
     inline = [
       "echo 'Running Ansible playbook for HPC packages...'",
       "cd /tmp/ansible",
-      "echo 'Activating virtual environment and running Ansible...'",
       ". /home/admin/ansible-venv/bin/activate",
-      "ansible-playbook --connection=local --inventory=localhost, playbooks/playbook-hpc-packer.yml -vv",
+      "ansible-playbook --connection=local --inventory=localhost, playbooks/playbook-hpc-packer.yml --skip-tags debug",
       "echo 'Ansible playbook execution completed'"
     ]
   }
@@ -245,7 +243,7 @@ build {
       "echo 'HPC Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
-      "echo 'HPC packages installed via Ansible in virtual environment' > ${local.output_directory}/features.txt",
+      "echo 'HPC packages installed via improved Ansible role with shell provisioner' > ${local.output_directory}/features.txt",
       "echo 'NVIDIA GPU drivers and CUDA toolkit included' > ${local.output_directory}/gpu_features.txt",
       "echo 'Basic system setup via setup-hpc-base.sh' > ${local.output_directory}/system_setup.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"

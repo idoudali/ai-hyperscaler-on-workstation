@@ -10,57 +10,43 @@
 
 - name: Install essential system packages
   apt:
-    name:
-      - git
-      - wget
-      - curl
-      - vim
-      - htop
-      - unzip
-      - bzip2
-      - gzip
-      - tar
-      - rsync
-      - openssh-server
-      - openssh-client
-      - ca-certificates
-      - apt-transport-https
-      - gnupg
-      - lsb-release
-      - build-essential
+    name: "{{ essential_packages }}"
     state: present
   become: true
   notify: restart services
 
-- name: Install NVIDIA repository GPG key
-  shell: |
-    wget -O- https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub | gpg --dearmor -o /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg
-  become: true
-  args:
+- name: Download NVIDIA GPG key
+  get_url:
+    url: "{{ nvidia_gpg_key_url }}"
+    dest: /tmp/nvidia-key.pub
+    mode: '0644'
+
+- name: Dearmor NVIDIA GPG key
+  command:
+    cmd: gpg --dearmor -o /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg /tmp/nvidia-key.pub
     creates: /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg
-  register: nvidia_key_result
-  failed_when: false
-  ignore_errors: true
+  become: true
 
 - name: Display NVIDIA key installation result
   debug:
     msg: "NVIDIA GPG key installation result: {{ nvidia_key_result }}"
   when: nvidia_key_result is defined
+  tags:
+    - debug
 
 - name: Add NVIDIA CUDA repository
-  shell: |
-    echo "deb [signed-by=/usr/share/keyrings/nvidia-cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/ /" > /etc/apt/sources.list.d/nvidia-cuda.list
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/nvidia-cuda-archive-keyring.gpg] {{ nvidia_repository_url }} /"
+    state: present
+    filename: nvidia-cuda
   become: true
-  args:
-    creates: /etc/apt/sources.list.d/nvidia-cuda.list
-  register: nvidia_repo_add_result
-  failed_when: false
-  ignore_errors: true
 
 - name: Display NVIDIA repository addition result
   debug:
     msg: "NVIDIA repository addition result: {{ nvidia_repo_add_result }}"
   when: nvidia_repo_add_result is defined
+  tags:
+    - debug
 
 - name: Update package cache after adding NVIDIA repository
   apt:
@@ -84,6 +70,8 @@
       - Repository file exists: {{ nvidia_repo_check.stat.exists if nvidia_repo_check is defined else 'Unknown' }}
       - GPG key exists: {{ nvidia_key_check.stat.exists if nvidia_key_check is defined else 'Unknown' }}
   when: nvidia_repo_check is defined and nvidia_key_check is defined
+  tags:
+    - debug
 
 - name: Check available NVIDIA packages
   apt:
@@ -102,32 +90,30 @@
   debug:
     msg: "Available NVIDIA packages: {{ nvidia_package_check.stdout_lines }}"
   when: nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
+  tags:
+    - debug
 
 - name: Display no NVIDIA packages available
   debug:
     msg: "No NVIDIA packages found in repository - skipping NVIDIA installation"
   when: nvidia_package_check is defined and (nvidia_package_check.rc != 0 or nvidia_package_check.stdout_lines | length == 0)
+  tags:
+    - debug
 
 - name: Display NVIDIA repository not set up
   debug:
     msg: "NVIDIA repository not properly set up - skipping NVIDIA package check"
   when: nvidia_package_check is not defined
+  tags:
+    - debug
 
 - name: Install NVIDIA GPU drivers and CUDA toolkit
   apt:
-    name:
-      - nvidia-driver-535
-      - nvidia-utils-535
-      - nvidia-settings
-      - cuda-toolkit-12-4
-      - cuda-drivers
-      - nvidia-modprobe
-      - nvidia-persistenced
+    name: "{{ nvidia_driver_packages }}"
     state: present
     install_recommends: no
   become: true
   notify: restart nvidia services
-  ignore_errors: true
   register: nvidia_install_result
   when: nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
 
@@ -135,6 +121,8 @@
   debug:
     msg: "NVIDIA installation result: {{ nvidia_install_result }}"
   when: nvidia_install_result is defined
+  tags:
+    - debug
 
 - name: Display NVIDIA installation summary
   debug:
@@ -145,16 +133,15 @@
       - Packages changed: {{ nvidia_install_result.changed if nvidia_install_result is defined else 'N/A' }}
       - Packages failed: {{ nvidia_install_result.failed if nvidia_install_result is defined else 'N/A' }}
   when: nvidia_install_result is defined
+  tags:
+    - debug
 
 - name: Install NVIDIA container runtime
   apt:
-    name:
-      - nvidia-container-toolkit
-      - nvidia-container-runtime
+    name: "{{ nvidia_container_packages }}"
     state: present
     install_recommends: no
   become: true
-  ignore_errors: true
   register: nvidia_container_result
   when: nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
 
@@ -162,6 +149,8 @@
   debug:
     msg: "NVIDIA container installation result: {{ nvidia_container_result }}"
   when: nvidia_container_result is defined
+  tags:
+    - debug
 
 - name: Display NVIDIA container installation summary
   debug:
@@ -172,6 +161,8 @@
       - Packages changed: {{ nvidia_container_result.changed if nvidia_container_result is defined else 'N/A' }}
       - Packages failed: {{ nvidia_container_result.failed if nvidia_container_result is defined else 'N/A' }}
   when: nvidia_container_result is defined
+  tags:
+    - debug
 
 - name: Ensure Docker daemon configuration directory exists
   file:
@@ -234,3 +225,5 @@
 
       Note: Some NVIDIA packages may not be available in all environments.
       Check the installation results above for any failed packages.
+  tags:
+    - debug
