@@ -30,7 +30,7 @@ BUILD_DIR := build
 # Python virtual environment settings
 PYTHON_DIR := python
 VENV_NAME := .venv
-VENV_PATH := $(PYTHON_DIR)/$(VENV_NAME)
+VENV_PATH := $(VENV_NAME)
 
 # Default target
 .PHONY: all
@@ -144,13 +144,13 @@ cleanup: config
 # Create a new Python virtual environment using uv
 venv-create:
 	@echo "Creating Python virtual environment using uv..."
-	@cd $(PYTHON_DIR) && uv venv --clear $(VENV_NAME)
+	@uv venv --clear $(VENV_NAME)
 	@echo "Virtual environment created at $(VENV_PATH)"
 
 # Force recreation of the virtual environment
 venv-recreate:
 	@echo "Force recreating Python virtual environment using uv..."
-	@cd $(PYTHON_DIR) && rm -rf $(VENV_NAME) && uv venv $(VENV_NAME)
+	@rm -rf $(VENV_NAME) && uv venv $(VENV_NAME)
 	@echo "Virtual environment recreated at $(VENV_PATH)"
 
 # Quick reset: clean and reinstall everything
@@ -160,20 +160,20 @@ venv-reset: venv-clean venv-install
 # Install all workspace packages from pyproject.toml in editable mode
 venv-install: venv-create
 	@echo "Installing workspace packages in editable mode..."
-	@cd $(PYTHON_DIR) && uv pip install --reinstall -e ai_how
+	@uv pip install --reinstall -e $(PYTHON_DIR)/ai_how
 	@echo "Workspace packages installed successfully"
 
 # Activate the virtual environment (prints activation command)
 venv-activate:
 	@echo "To activate the virtual environment, run:"
-	@echo "  cd $(PYTHON_DIR) && source $(VENV_NAME)/bin/activate"
+	@echo "  source $(VENV_NAME)/bin/activate"
 	@echo "Or use uv directly:"
-	@echo "  cd $(PYTHON_DIR) && uv run python"
+	@echo "  uv run python"
 
 # Update all workspace packages
 venv-update:
 	@echo "Updating all workspace packages..."
-	@cd $(PYTHON_DIR) && uv pip install --upgrade -e ai_how
+	@uv pip install --upgrade -e $(PYTHON_DIR)/ai_how
 
 # Clean the virtual environment
 venv-clean:
@@ -184,22 +184,22 @@ venv-clean:
 # Run linting tools on Python code
 venv-lint:
 	@echo "Running linting tools on Python code..."
-	@cd $(PYTHON_DIR) && uv run pre-commit run --all-files
+	@uv run pre-commit run --all-files
 
 # Run pre-commit hooks using nox-based configuration
 venv-pre-commit:
 	@echo "Running pre-commit hooks with nox-based configuration..."
-	@cd $(PYTHON_DIR) && uv run pre-commit run --all-files
+	@uv run pre-commit run --all-files
 
 # Install pre-commit hooks
 venv-install-hooks:
 	@echo "Installing pre-commit hooks..."
-	@cd $(PYTHON_DIR) && uv run pre-commit install
+	@uv run pre-commit install
 
 # Run tests in the virtual environment
 venv-test:
 	@echo "Running tests in virtual environment..."
-	@cd $(PYTHON_DIR) && uv run pytest
+	@uv run pytest
 
 #==============================================================================
 # AI-HOW Python Package Management (Nox)
