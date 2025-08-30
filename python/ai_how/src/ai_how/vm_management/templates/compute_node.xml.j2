@@ -1,5 +1,14 @@
 {% set hw_accel = hardware.get('acceleration', {}) if hardware else {} %}
 {% set hw_perf = hw_accel.get('performance', {}) if hw_accel else {} %}
+
+{# Macro to parse hugepage size and return size and unit #}
+{% macro parse_hugepage_size(size_str) %}
+  {% set size_str_upper = size_str | upper %}
+  {% set size_value = size_str_upper.rstrip('MGK') %}
+  {% set unit = "G" if "G" in size_str_upper else ("K" if "K" in size_str_upper else "M") %}
+  {{ size_value }},{{ unit }}
+{% endmacro %}
+
 <domain type='kvm'>
   <name>{{ vm_name }}</name>
   <uuid>{{ vm_uuid | default('') }}</uuid>
@@ -23,15 +32,16 @@
     <access mode='shared'/>
     {% if hw_perf.get('enable_hugepages', false) %}
     <hugepages>
-      {% set hugepage_size_str = hw_perf.get('hugepage_size', '2M') | upper %}
-      <page size='{{ hugepage_size_str.rstrip('MGK') }}' unit='{{ "G" if "G" in hugepage_size_str else ("K" if "K" in hugepage_size_str else "M") }}'/>
+      {% set hugepage_parsed = parse_hugepage_size(hw_perf.get('hugepage_size', '2M')).split(',') %}
+      <page size='{{ hugepage_parsed[0] }}' unit='{{ hugepage_parsed[1] }}'/>
     </hugepages>
     {% endif %}
   </memoryBacking>
   {% elif hw_perf.get('enable_hugepages', false) %}
   <memoryBacking>
     <hugepages>
-      <page size='{{ hw_perf.get('hugepage_size', '2M') }}' unit='M'/>
+      {% set hugepage_parsed = parse_hugepage_size(hw_perf.get('hugepage_size', '2M')).split(',') %}
+      <page size='{{ hugepage_parsed[0] }}' unit='{{ hugepage_parsed[1] }}'/>
     </hugepages>
   </memoryBacking>
   {% endif %}
@@ -112,8 +122,8 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
-      {% if loop.first %}
-      <!-- Enable multifunction for first device in IOMMU group -->
+      {% if device.get('device_type') == 'gpu' %}
+      <!-- Enable ROM BAR for GPU device -->
       <rom bar='on'/>
       {% endif %}
     </hostdev>

@@ -1,0 +1,121 @@
+# Example configuration file for testing PCIe passthrough validation
+version: "1.0"
+metadata:
+  name: "test-pcie-cluster"
+  description: "Test cluster with PCIe passthrough configuration"
+
+global:
+  gpu_inventory:
+    devices:
+      - id: "gpu-01"
+        pci_address: "0000:01:00.0"
+        model: "NVIDIA A100"
+        vendor_id: "10de"
+        device_id: "2684"
+        iommu_group: 17
+        mig_capable: false
+      - id: "gpu-02"
+        pci_address: "0000:07:00.0"
+        model: "NVIDIA RTX 6000"
+        vendor_id: "10de"
+        device_id: "1e36"
+        iommu_group: 21
+        mig_capable: false
+
+clusters:
+  hpc:
+    name: "hpc-test-cluster"
+    base_image_path: "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2"
+    network:
+      subnet: "192.168.100.0/24"
+      bridge: "virbr100"
+
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.100.10"
+
+    compute_nodes:
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.11"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:01:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2684"
+              iommu_group: 17
+            - pci_address: "0000:01:00.1"
+              device_type: "audio"
+              vendor_id: "10de"
+              device_id: "22bd"
+              iommu_group: 17
+
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.12"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:07:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "1e36"
+              iommu_group: 21
+
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.100.13"
+        # No PCIe passthrough for this node
+
+    slurm_config:
+      partitions: ["gpu", "cpu"]
+      default_partition: "gpu"
+      max_job_time: "24:00:00"
+
+  cloud:
+    name: "cloud-test-cluster"
+    base_image_path: "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2"
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
+
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 50
+      ip_address: "192.168.200.10"
+
+    worker_nodes:
+      cpu_workers:
+        - cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.200.11"
+          worker_type: "cpu"
+
+      gpu_workers:
+        - cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          ip: "192.168.200.12"
+          worker_type: "gpu"
+          pcie_passthrough:
+            enabled: true
+            devices:
+              - pci_address: "0000:01:00.0"
+                device_type: "gpu"
+                vendor_id: "10de"
+                device_id: "2684"
+                iommu_group: 17
+
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"

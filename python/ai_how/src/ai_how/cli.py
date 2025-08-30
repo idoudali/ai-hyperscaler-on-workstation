@@ -11,6 +11,7 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
+from ai_how.pcie_validation.pcie_passthrough import PCIePassthroughValidator
 from ai_how.utils.logging import configure_logging
 from ai_how.validation import validate_config
 from ai_how.vm_management.hpc_manager import HPCClusterManager, HPCManagerError
@@ -100,8 +101,21 @@ def validate(
             help="Path to cluster.yaml configuration file",
         ),
     ] = DEFAULT_CONFIG,
+    skip_pcie_validation: Annotated[
+        bool,
+        typer.Option(
+            "--skip-pcie-validation",
+            help="Skip PCIe passthrough validation (use only for basic schema validation)",
+        ),
+    ] = False,
 ) -> None:  # noqa: ARG001
-    """Validate cluster.yaml against schema and semantic rules."""
+    """Validate cluster.yaml against schema and semantic rules.
+
+    This command performs comprehensive validation including:
+    - JSON schema validation
+    - PCIe passthrough configuration validation
+    - System readiness checks for VFIO and IOMMU
+    """
     # Get logger for this module to show that logging is working
     logger = logging.getLogger(__name__)
     logger.info(f"Starting validation with log level: {ctx.obj.get('log_level', 'INFO')}")
@@ -109,15 +123,58 @@ def validate(
     console.print(f"Validating {config}...")
 
     try:
+        # Load configuration for validation
+        with open(config, encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+
+        # Step 1: Schema validation
+        console.print("🔍 [cyan]Step 1:[/cyan] Schema validation...")
         schema_resource = importlib.resources.files("ai_how.schemas").joinpath(
             CLUSTER_SCHEMA_FILENAME
         )
         with importlib.resources.as_file(schema_resource) as schema_path:
             if not validate_config(config, schema_path):
                 raise typer.Exit(code=1)
-    except (FileNotFoundError, ModuleNotFoundError) as e:
+
+        console.print("[green]✅ Schema validation passed[/green]")
+
+        # Step 2: PCIe passthrough validation (if not skipped)
+        if not skip_pcie_validation:
+            console.print("🔍 [cyan]Step 2:[/cyan] PCIe passthrough validation...")
+
+            try:
+                pcie_validator = PCIePassthroughValidator()
+                pcie_validator.validate_pcie_passthrough_config(config_data)
+                console.print("[green]✅ PCIe passthrough validation passed[/green]")
+
+                # Show PCIe device status summary
+                _display_pcie_validation_summary(pcie_validator, config_data)
+
+            except ValueError as e:
+                console.print(f"[red]❌ PCIe passthrough validation failed:[/red] {e}")
+                console.print("\n[yellow]To fix PCIe passthrough issues:[/yellow]")
+                console.print("1. Ensure IOMMU is enabled in BIOS (Intel VT-d or AMD IOMMU)")
+                console.print("2. Add kernel parameters: intel_iommu=on or amd_iommu=on")
+                console.print("3. Load VFIO modules: modprobe vfio vfio_iommu_type1 vfio_pci")
+                console.print("4. Bind GPU devices to VFIO driver instead of NVIDIA driver")
+                console.print("5. Use --skip-pcie-validation to bypass this check if needed")
+                raise typer.Exit(code=1) from None
+        else:
+            console.print("[yellow]⚠️  PCIe passthrough validation skipped[/yellow]")
+
+        console.print(f"\n[green]🎉 All validations passed for {config}[/green]")
+
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found: {config}")
+        console.print(f"[red]Error:[/red] Configuration file not found: {config}")
+        raise typer.Exit(code=1) from None
+    except yaml.YAMLError as e:
+        logger.error(f"Invalid YAML in config file: {e}")
+        console.print(f"[red]Error:[/red] Invalid YAML in config file: {e}")
+        raise typer.Exit(code=1) from e
+    except ModuleNotFoundError as e:
         console.print(f"[red]Error:[/red] Could not locate schema file: {e}")
-        raise typer.Exit(code=1)  # noqa: B904
+        raise typer.Exit(code=1) from e
 
 
 hpc = typer.Typer(help="HPC cluster lifecycle")
@@ -382,6 +439,76 @@ def inventory_gpu(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("inventory gpu")
 
 
+@inventory.command("pcie")
+def inventory_pcie(ctx: typer.Context) -> None:  # noqa: ARG001
+    """Show detailed PCIe device inventory and driver binding status."""
+    console.print("[bold]PCIe Device Inventory[/bold]")
+
+    try:
+        validator = PCIePassthroughValidator()
+        devices = validator.list_pcie_devices()
+
+        if not devices:
+            console.print("[yellow]No PCIe devices found[/yellow]")
+            return
+
+        # Create detailed inventory table
+        inventory_table = Table(title="PCIe Device Inventory")
+        inventory_table.add_column("PCI Address", style="cyan")
+        inventory_table.add_column("Class", style="white")
+        inventory_table.add_column("Driver", style="white")
+        inventory_table.add_column("VFIO", style="white")
+        inventory_table.add_column("Conflicting", style="white")
+        inventory_table.add_column("IOMMU Group", style="white")
+
+        for device in devices:
+            # Color code the driver status
+            driver_text: str = str(device["driver"])
+            if device["is_vfio"]:
+                driver_text = f"[green]{driver_text}[/green]"
+            elif device["is_conflicting"]:
+                driver_text = f"[red]{driver_text}[/red]"
+            elif device["driver"] != "unknown":
+                driver_text = f"[yellow]{driver_text}[/yellow]"
+
+            # Color code VFIO status
+            vfio_text = "[green]Yes[/green]" if device["is_vfio"] else "[red]No[/red]"
+
+            # Color code conflicting status
+            conflicting_text = "[red]Yes[/red]" if device["is_conflicting"] else "[green]No[/green]"
+
+            inventory_table.add_row(
+                str(device["pci_address"]),
+                str(device.get("device_class", "unknown")),
+                driver_text,
+                vfio_text,
+                conflicting_text,
+                str(device["iommu_group"]),
+            )
+
+        console.print(inventory_table)
+
+        # Show summary statistics
+        total_devices = len(devices)
+        vfio_devices = sum(1 for d in devices if d["is_vfio"])
+        conflicting_devices = sum(1 for d in devices if d["is_conflicting"])
+
+        console.print("\n[bold]Summary:[/bold]")
+        console.print(f"Total PCIe devices: {total_devices}")
+        console.print(f"VFIO-bound devices: {vfio_devices}")
+        console.print(f"Conflicting drivers: {conflicting_devices}")
+
+        if conflicting_devices > 0:
+            console.print(
+                f"\n[yellow]⚠️  {conflicting_devices} device(s) have conflicting drivers[/yellow]"
+            )
+            console.print("These devices need to be bound to VFIO for PCIe passthrough to work.")
+
+    except Exception as e:
+        console.print(f"[red]Error getting PCIe inventory:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
 def _display_cluster_status(status: dict) -> None:
     """Display cluster status information in a formatted table."""
     if status.get("status") == "not_configured":
@@ -435,6 +562,106 @@ def _display_cluster_status(status: dict) -> None:
             )
 
         console.print(vm_table)
+
+
+def _display_pcie_validation_summary(
+    validator: PCIePassthroughValidator, config_data: dict
+) -> None:
+    """Display a summary of PCIe passthrough validation results."""
+    console.print("\n[bold]PCIe Passthrough Validation Summary:[/bold]")
+
+    # Get all PCIe devices from configuration
+    pcie_devices = []
+    clusters = config_data.get("clusters", {})
+
+    for cluster_name, cluster_config in clusters.items():
+        compute_nodes = cluster_config.get("compute_nodes", [])
+        for node in compute_nodes:
+            pcie_config = node.get("pcie_passthrough", {})
+            if pcie_config.get("enabled", False):
+                devices = pcie_config.get("devices", [])
+                for device in devices:
+                    device_info = {
+                        "cluster": cluster_name,
+                        "node": node.get("name", "unknown"),
+                        "pci_address": device.get("pci_address"),
+                        "device_type": device.get("device_type"),
+                        "vendor_id": device.get("vendor_id", "N/A"),
+                        "device_id": device.get("device_id", "N/A"),
+                    }
+                    pcie_devices.append(device_info)
+
+    if not pcie_devices:
+        console.print("[yellow]No PCIe passthrough devices configured[/yellow]")
+        return
+
+    # Create summary table
+    summary_table = Table(title="Configured PCIe Passthrough Devices")
+    summary_table.add_column("Cluster", style="cyan")
+    summary_table.add_column("Node", style="cyan")
+    summary_table.add_column("PCI Address", style="white")
+    summary_table.add_column("Type", style="white")
+    summary_table.add_column("Vendor:Device", style="white")
+    summary_table.add_column("Status", style="white")
+
+    for device_info in pcie_devices:
+        pci_address = device_info["pci_address"]
+        status = validator.get_pcie_device_status(pci_address)
+
+        # Determine status color and text
+        if not status["exists"]:
+            status_text = "[red]Not Found[/red]"
+        elif status["is_conflicting"]:
+            status_text = "[red]Conflicting Driver[/red]"
+        elif status["is_vfio"]:
+            status_text = "[green]Ready[/green]"
+        else:
+            status_text = "[yellow]Wrong Driver[/yellow]"
+
+        vendor_device = f"{device_info['vendor_id']}:{device_info['device_id']}"
+
+        summary_table.add_row(
+            device_info["cluster"],
+            device_info["node"],
+            pci_address,
+            device_info["device_type"],
+            vendor_device,
+            status_text,
+        )
+
+    console.print(summary_table)
+
+    # Show system status
+    console.print("\n[bold]System PCIe Passthrough Status:[/bold]")
+
+    # Check VFIO modules
+    try:
+        vfio_loaded = validator._validate_vfio_modules()
+        vfio_status = "[green]Loaded[/green]" if vfio_loaded else "[red]Missing[/red]"
+    except (FileNotFoundError, PermissionError, OSError):
+        vfio_status = "[yellow]Unknown[/yellow]"
+
+    # Check IOMMU
+    try:
+        iommu_enabled = validator._validate_iommu_configuration()
+        iommu_status = "[green]Enabled[/green]" if iommu_enabled else "[red]Disabled[/red]"
+    except (FileNotFoundError, PermissionError, OSError):
+        iommu_status = "[yellow]Unknown[/yellow]"
+
+    # Check KVM
+    kvm_status = (
+        "[green]Available[/green]" if Path("/dev/kvm").exists() else "[red]Not Available[/red]"
+    )
+
+    system_table = Table()
+    system_table.add_column("Component", style="cyan")
+    system_table.add_column("Status", style="white")
+
+    system_table.add_row("VFIO Modules", vfio_status)
+    system_table.add_row("IOMMU", iommu_status)
+    system_table.add_row("KVM", kvm_status)
+
+    console.print(system_table)
 
 
 if __name__ == "__main__":
