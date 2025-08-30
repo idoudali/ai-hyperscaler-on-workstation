@@ -161,7 +161,11 @@ venv-reset: venv-clean venv-install
 venv-install: venv-create
 	@echo "Installing workspace packages in editable mode..."
 	@uv pip install --reinstall -e $(PYTHON_DIR)/ai_how
-	@echo "Workspace packages installed successfully"
+	@echo "Installing Ansible and dependencies..."
+	@uv pip install -r ansible/requirements.txt
+	@echo "Installing Ansible collections..."
+	@uv run ansible-galaxy collection install -r ansible/collections/requirements.yml
+	@echo "Workspace packages and Ansible installation complete"
 
 # Activate the virtual environment (prints activation command)
 venv-activate:
