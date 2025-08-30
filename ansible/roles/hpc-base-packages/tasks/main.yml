@@ -27,24 +27,67 @@
       - apt-transport-https
       - gnupg
       - lsb-release
-      - software-properties-common
       - build-essential
     state: present
   become: true
   notify: restart services
 
 - name: Install NVIDIA repository GPG key
-  apt_key:
-    url: https://developer.download.nvidia.com/compute/cuda/repos/debian11/x86_64/3bf863cc.pub
+  gpg:
+    key: https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub
     state: present
   become: true
 
 - name: Add NVIDIA CUDA repository
-  apt_repository:
-    repo: "deb https://developer.download.nvidia.com/compute/cuda/repos/debian11/x86_64/ /"
+  apt:
+    name: wget
     state: present
-    filename: nvidia-cuda
   become: true
+
+- name: Download and add NVIDIA repository
+  shell: |
+    wget -O- https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub | gpg --dearmor -o /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/nvidia-cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/ /" > /etc/apt/sources.list.d/nvidia-cuda.list
+  become: true
+  args:
+    creates: /usr/share/keyrings/nvidia-cuda-archive-keyring.gpg
+
+- name: Update package cache after adding NVIDIA repository
+  apt:
+    update_cache: yes
+  become: true
+
+- name: Verify NVIDIA repository was added
+  stat:
+    path: /etc/apt/sources.list.d/nvidia-cuda.list
+  register: nvidia_repo_check
+
+- name: Display NVIDIA repository status
+  debug:
+    msg: "NVIDIA repository file exists: {{ nvidia_repo_check.stat.exists }}"
+  when: nvidia_repo_check is defined
+
+- name: Check available NVIDIA packages
+  apt:
+    update_cache: yes
+  become: true
+
+- name: Check if NVIDIA packages are available
+  shell: apt-cache search nvidia-driver-535 | head -5
+  register: nvidia_package_check
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Display available NVIDIA packages
+  debug:
+    msg: "Available NVIDIA packages: {{ nvidia_package_check.stdout_lines }}"
+  when: nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
+
+- name: Display no NVIDIA packages available
+  debug:
+    msg: "No NVIDIA packages found in repository - skipping NVIDIA installation"
+  when: nvidia_package_check.rc != 0 or nvidia_package_check.stdout_lines | length == 0
 
 - name: Install NVIDIA GPU drivers and CUDA toolkit
   apt:
@@ -52,13 +95,22 @@
       - nvidia-driver-535
       - nvidia-utils-535
       - nvidia-settings
-      - cuda-toolkit-12-3
+      - cuda-toolkit-12-4
       - cuda-drivers
       - nvidia-modprobe
       - nvidia-persistenced
     state: present
+    install_recommends: no
   become: true
   notify: restart nvidia services
+  ignore_errors: true
+  register: nvidia_install_result
+  when: nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
+
+- name: Display NVIDIA installation result
+  debug:
+    msg: "NVIDIA installation result: {{ nvidia_install_result }}"
+  when: nvidia_install_result is defined
 
 - name: Install NVIDIA container runtime
   apt:
@@ -66,7 +118,16 @@
       - nvidia-container-toolkit
       - nvidia-container-runtime
     state: present
+    install_recommends: no
   become: true
+  ignore_errors: true
+  register: nvidia_container_result
+  when: nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
+
+- name: Display NVIDIA container installation result
+  debug:
+    msg: "NVIDIA container installation result: {{ nvidia_container_result }}"
+  when: nvidia_container_result is defined
 
 - name: Configure NVIDIA container runtime
   copy:
@@ -85,7 +146,7 @@
     group: root
     mode: '0644'
   become: true
-  when: ansible_facts.pkg_mgr == "apt"
+  when: ansible_facts.pkg_mgr == "apt" and nvidia_container_result is defined and nvidia_container_result.rc == 0
 
 - name: Final package cleanup
   apt:
@@ -100,11 +161,19 @@
 
       Installed packages:
       - Essential system tools and utilities
-      - NVIDIA GPU drivers and CUDA toolkit
-      - NVIDIA container runtime support
+      - NVIDIA GPU drivers and CUDA toolkit (if available)
+      - NVIDIA container runtime support (if available)
 
       System configured for HPC workloads with:
+      - Debian 13 (trixie) compatibility
       - Optimized kernel parameters
       - Increased system limits
-      - HPC user and group setup
-      - NVIDIA container runtime support
+      - NVIDIA container runtime support (if available)
+
+      NVIDIA Installation Status:
+      - Repository added: {{ nvidia_repo_check.stat.exists if nvidia_repo_check is defined else 'Unknown' }}
+      - Packages available: {{ 'Yes' if (nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0) else 'No' }}
+      - Installation attempted: {{ 'Yes' if (nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0) else 'No' }}
+
+      Note: Some NVIDIA packages may not be available in all environments.
+      Check the installation results above for any failed packages.

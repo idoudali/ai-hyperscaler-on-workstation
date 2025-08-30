@@ -14,8 +14,8 @@ set(HPC_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/hpc-base")
 # Use shared SSH keys directory (managed by parent CMakeLists.txt)
 set(SSH_KEYS_DIR "${CMAKE_BINARY_DIR}/shared/ssh-keys")
 
-# Set Ansible directory path
-set(ANSIBLE_DIR "${PROJECT_SOURCE_DIR}/ansible")
+# Set Ansible directory path - relative to packer/hpc-base
+set(ANSIBLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../ansible")
 
 # Set up cloud-init build directory
 set(CLOUD_INIT_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/cloud-init")
@@ -105,7 +105,7 @@ add_custom_command(
     COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     COMMAND PACKER_LOG=1 packer build -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Building HPC base image with hybrid provisioning (shell + Ansible)..."
+    COMMENT "Building HPC base image with hybrid provisioning (shell + Ansible in virtual environment)..."
     DEPENDS prepare-cloud-init-hpc-base
         ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
         init-hpc-packer

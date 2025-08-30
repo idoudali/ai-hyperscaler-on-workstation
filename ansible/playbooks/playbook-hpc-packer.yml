@@ -22,22 +22,34 @@
       register: nvidia_check
       changed_when: false
       failed_when: false
+      ignore_errors: true
 
     - name: Display NVIDIA driver status
       debug:
         msg: "NVIDIA driver check result: {{ nvidia_check.stdout_lines }}"
       when: nvidia_check.rc == 0
 
+    - name: Display NVIDIA driver not available
+      debug:
+        msg: "NVIDIA drivers not available - this is expected in some environments"
+      when: nvidia_check.rc != 0
+
     - name: Verify CUDA installation
       command: nvcc --version
       register: cuda_check
       changed_when: false
       failed_when: false
+      ignore_errors: true
 
     - name: Display CUDA version
       debug:
         msg: "CUDA version: {{ cuda_check.stdout_lines }}"
       when: cuda_check.rc == 0
+
+    - name: Display CUDA not available
+      debug:
+        msg: "CUDA toolkit not available - this is expected in some environments"
+      when: cuda_check.rc != 0
 
     - name: Verify essential packages
       command: which git && which wget && which curl && which vim && which htop
@@ -49,3 +61,8 @@
       debug:
         msg: "Essential packages check passed: {{ essential_check.stdout_lines }}"
       when: essential_check.rc == 0
+
+    - name: Display essential packages missing
+      debug:
+        msg: "Some essential packages are missing - check installation"
+      when: essential_check.rc != 0

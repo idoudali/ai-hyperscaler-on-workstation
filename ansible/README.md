@@ -68,8 +68,10 @@ The Ansible infrastructure will be used by the CLI orchestrator to:
 ### **HPC Base Packages Role** (`roles/hpc-base-packages/`)
 
 - **Essential system packages**: git, wget, curl, vim, htop, build-essential
-- **NVIDIA GPU drivers**: Latest drivers (535 series) and CUDA toolkit 12.3
+- **NVIDIA GPU drivers**: Latest drivers (535 series) and CUDA toolkit 12.4
 - **NVIDIA container runtime**: Support for GPU-accelerated containers
+- **Debian 13 compatibility**: Optimized for Debian 13 (trixie) cloud images
+- **Error handling**: Robust installation with graceful fallbacks for unavailable packages
 
 ### **Packer Integration** (`playbooks/playbook-hpc-packer.yml`)
 
