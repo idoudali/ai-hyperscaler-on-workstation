@@ -90,11 +90,20 @@
     <controller type='usb' index='0' model='qemu-xhci'/>
     <controller type='pci' index='0' model='pcie-root'/>
 
+
+    <!-- Console access -->
+    <serial type='pty'>
+      <target type='isa-serial' port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+
     <!-- GPU Passthrough (simplified to match working script) -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
     {% for device in pcie_passthrough['devices'] %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
-      <driver name='vfio'/>
+      <driver name="vfio"/>
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
                  bus='0x{{ device['pci_address'].split(":")[1] }}'
@@ -107,16 +116,6 @@
     </hostdev>
     {% endfor %}
     {% endif %}
-
-    <!-- Console access (simplified, matching working script's nographic approach) -->
-    <serial type='file'>
-      <source path='{{ trace_folder }}/{{ vm_name }}-console.log'/>
-      <target type='isa-serial' port='0'/>
-    </serial>
-    <console type='file'>
-      <source path='{{ trace_folder }}/{{ vm_name }}-console.log'/>
-      <target type='serial' port='0'/>
-    </console>
 
     <!-- No graphics when using GPU passthrough (matches working script -nographic) -->
 
