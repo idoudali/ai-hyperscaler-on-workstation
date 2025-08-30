@@ -64,6 +64,19 @@ clusters:
         memory_gb: 16
         disk_gb: 200
         ip: "192.168.100.11"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            # GPU device (primary function) - MUST be listed first for ROM BAR to be enabled correctly
+            - pci_address: "0000:01:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2805"
+            # Audio device (secondary function) - REQUIRED for same IOMMU group
+            - pci_address: "0000:01:00.1"
+              device_type: "audio"
+              vendor_id: "10de"
+              device_id: "22bd"
         # pcie_passthrough:
         #   enabled: true
         #   devices:

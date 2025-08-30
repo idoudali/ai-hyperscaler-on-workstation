@@ -1,9 +1,40 @@
+{% set hw_accel = hardware.get('acceleration', {}) if hardware else {} %}
+{% set hw_perf = hw_accel.get('performance', {}) if hw_accel else {} %}
 <domain type='kvm'>
   <name>{{ vm_name }}</name>
   <uuid>{{ vm_uuid | default('') }}</uuid>
   <memory unit='GiB'>{{ memory_gb }}</memory>
   <currentMemory unit='GiB'>{{ memory_gb }}</currentMemory>
   <vcpu placement='static'>{{ cpu_cores }}</vcpu>
+
+  {% if hw_perf.get('cpu_pinning', false) %}
+  <!-- CPU pinning configuration for better PCIe passthrough performance -->
+  <cputune>
+    {% for i in range(cpu_cores) %}
+    <vcpupin vcpu='{{ i }}' cpuset='{{ i }}'/>
+    {% endfor %}
+  </cputune>
+  {% endif %}
+
+  <!-- Memory backing configuration for PCIe passthrough performance -->
+  {% if hw_perf.get('memory_backing') == 'memfd' or pcie_passthrough.get('enabled', false) %}
+  <memoryBacking>
+    <source type='memfd'/>
+    <access mode='shared'/>
+    {% if hw_perf.get('enable_hugepages', false) %}
+    <hugepages>
+      {% set hugepage_size_str = hw_perf.get('hugepage_size', '2M') | upper %}
+      <page size='{{ hugepage_size_str.rstrip('MGK') }}' unit='{{ "G" if "G" in hugepage_size_str else ("K" if "K" in hugepage_size_str else "M") }}'/>
+    </hugepages>
+    {% endif %}
+  </memoryBacking>
+  {% elif hw_perf.get('enable_hugepages', false) %}
+  <memoryBacking>
+    <hugepages>
+      <page size='{{ hw_perf.get('hugepage_size', '2M') }}' unit='M'/>
+    </hugepages>
+  </memoryBacking>
+  {% endif %}
 
   <os>
     <type arch='x86_64' machine='q35'>hvm</type>
@@ -19,11 +50,23 @@
     </kvm>
   </features>
 
-  <cpu mode='host-passthrough'>
-    <topology sockets='1' cores='{{ cpu_cores }}' threads='1'/>
-    <!-- Enable nested virtualization for containers -->
-    <feature policy='require' name='vmx'/>
-    <feature policy='require' name='svm'/>
+  <cpu mode='{{ hw_accel.get('cpu_model', 'host-passthrough') }}'>
+    {% set cpu_topo = hw_accel.get('cpu_topology', {}) %}
+    <topology sockets='{{ cpu_topo.get('sockets', 1) }}'
+              cores='{{ cpu_cores }}'
+              threads='{{ cpu_topo.get('threads', 1) }}'/>
+    <!-- CPU features for virtualization and performance -->
+    {% set cpu_features = [] %}
+    {% if hw_accel.get('enable_nested', false) or pcie_passthrough.get('enabled', false) %}
+      {% set _ = cpu_features.extend(['vmx', 'svm']) %}
+    {% endif %}
+    {% for feature in hw_accel.get('cpu_features', []) %}
+      {% set _ = cpu_features.append(feature.lstrip('+')) %}
+    {% endfor %}
+    {% set unique_features = cpu_features | unique | list %}
+    {% for feature in unique_features %}
+    <feature policy='require' name='{{ feature }}'/>
+    {% endfor %}
   </cpu>
 
   <clock offset='utc'>
@@ -59,10 +102,9 @@
     <controller type='usb' index='0' model='qemu-xhci'/>
     <controller type='pci' index='0' model='pcie-root'/>
 
-    <!-- GPU Passthrough (if configured) -->
+    <!-- PCIe Passthrough (if configured) -->
     {% if pcie_passthrough and pcie_passthrough.get('enabled') and pcie_passthrough.get('devices') %}
     {% for device in pcie_passthrough['devices'] %}
-    {% if device.get('device_type') == 'gpu' %}
     <hostdev mode='subsystem' type='pci' managed='yes'>
       <source>
         <address domain='0x{{ device['pci_address'].split(":")[0] }}'
@@ -70,8 +112,11 @@
                  slot='0x{{ device['pci_address'].split(":")[2].split(".")[0] }}'
                  function='0x{{ device['pci_address'].split(":")[2].split(".")[1] }}'/>
       </source>
+      {% if loop.first %}
+      <!-- Enable multifunction for first device in IOMMU group -->
+      <rom bar='on'/>
+      {% endif %}
     </hostdev>
-    {% endif %}
     {% endfor %}
     {% endif %}
 
