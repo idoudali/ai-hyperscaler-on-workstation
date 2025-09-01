@@ -10,7 +10,7 @@
   loop:
     - ssh
     - systemd-resolved
-  when: (ansible_facts.pkg_mgr is defined and ansible_facts.pkg_mgr == "apt") or ansible_facts.pkg_mgr == "apt"
+
 
 - name: reload sysctl
   sysctl:
@@ -32,4 +32,3 @@
     daemon_reload: yes
   loop:
     - nvidia-persistenced
-  when: (ansible_facts.pkg_mgr is defined and ansible_facts.pkg_mgr == "apt") or ansible_facts.pkg_mgr == "apt"

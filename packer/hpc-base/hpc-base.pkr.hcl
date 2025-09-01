@@ -166,11 +166,15 @@ build {
 
   provisioner "shell" {
     inline = [
+      "echo '=== HPC BASE SETUP PHASE ==='",
+      "echo 'Starting setup at: $(date)'",
       "echo 'Running HPC base setup script...'",
       "chmod +x /tmp/setup-hpc-base.sh",
       "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-hpc-base.sh",
       "rm -f /tmp/setup-hpc-base.sh",
-      "echo 'HPC base setup script completed'"
+      "echo 'HPC base setup script completed'",
+      "echo '=== SETUP PHASE COMPLETE ==='",
+      "echo"
     ]
   }
 
@@ -180,30 +184,43 @@ build {
     destination = "/tmp/ansible"
   }
 
-  # Run Ansible playbook using native provisioner
+  # Pre-Ansible environment check
+  provisioner "shell" {
+    inline = [
+      "echo '=== PRE-ANSIBLE CHECK ==='",
+      "echo 'Starting Ansible provisioning at: $(date)'",
+      "echo 'Python: $(python3 --version)'",
+      "echo 'Ready for Ansible execution'",
+      "echo"
+    ]
+  }
+
+  # Run Ansible playbook using native provisioner with enhanced debugging
   provisioner "ansible" {
     playbook_file = "${var.ansible_dir}/playbooks/playbook-hpc-packer.yml"
     use_sftp      = false
     ansible_env_vars = [
       "ANSIBLE_CONFIG=${var.ansible_dir}/ansible.cfg",
+      "ANSIBLE_ROLES_PATH=${var.ansible_dir}/roles",
       "ANSIBLE_HOST_KEY_CHECKING=False",
-      "ANSIBLE_SSH_RETRIES=3"
+      "ANSIBLE_STDOUT_CALLBACK=yaml", 
+      "ANSIBLE_FORCE_COLOR=1",
+      "PYTHONUNBUFFERED=1",
+      "ANSIBLE_DISPLAY_SKIPPED_HOSTS=False",
+      "ANSIBLE_DISPLAY_OK_HOSTS=True",
+      "ANSIBLE_CALLBACK_WHITELIST=timer,profile_tasks"
     ]
     extra_arguments = [
-      "--skip-tags", "debug",
       "--extra-vars", "ansible_become_password=''",
-      "--extra-vars", "ansible_become_method=sudo",
+      "--extra-vars", "ansible_become_method=sudo", 
       "--extra-vars", "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30'",
-      "-vv"
+      "--flush-cache",
+      "--timeout=30",
+      "-vvv"
     ]
-    # Let Packer automatically generate the inventory file
-    user             = "admin"
+    # Keep inventory file for debugging
     keep_inventory_file = true
-    ansible_ssh_extra_args = [
-      "-o IdentitiesOnly=yes",
-      "-o ServerAliveInterval=60",
-      "-o ServerAliveCountMax=3"
-    ]
+    user = "admin"
   }
 
   # Final cleanup for cloning - optimized for speed

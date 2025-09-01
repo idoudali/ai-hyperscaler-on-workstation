@@ -16,12 +16,16 @@ GROUP_ID := $(shell id -g)
 # The user running this Makefile must be in the 'kvm' and 'libvirt' groups on the host.
 KVM_GID := $(shell getent group kvm | cut -d: -f3)
 LIBVIRT_GID := $(shell getent group libvirt | cut -d: -f3)
+SUDO_GID := $(shell getent group sudo | cut -d: -f3)
 DOCKER_EXTRA_ARGS :=
 ifneq ($(KVM_GID),)
 	DOCKER_EXTRA_ARGS += --device /dev/kvm --group-add $(KVM_GID)
 endif
 ifneq ($(LIBVIRT_GID),)
 	DOCKER_EXTRA_ARGS += --group-add $(LIBVIRT_GID)
+endif
+ifneq ($(SUDO_GID),)
+	DOCKER_EXTRA_ARGS += --group-add $(SUDO_GID)
 endif
 
 # Build system variables

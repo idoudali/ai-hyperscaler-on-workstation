@@ -7,6 +7,7 @@
     update_cache: yes
     cache_valid_time: 3600
   become: true
+  timeout: 300
 
 - name: Install essential system packages
   apt:
@@ -14,7 +15,13 @@
     state: present
   become: true
   notify: restart services
-  when: ansible_facts.pkg_mgr is defined or ansible_facts.pkg_mgr == "apt"
+  timeout: 600
+  async: 700
+  poll: 10
+
+- name: Display essential packages installation progress
+  debug:
+    msg: "Essential packages installation completed at {{ ansible_date_time.iso8601 }}"
 
 - name: Download NVIDIA GPG key
   get_url:
@@ -156,6 +163,9 @@
   notify: restart nvidia services
   register: nvidia_install_result
   when: nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
+  timeout: 900
+  async: 1000
+  poll: 30
 
 - name: Display NVIDIA installation result
   debug:
@@ -184,6 +194,9 @@
   become: true
   register: nvidia_container_result
   when: nvidia_package_check is defined and nvidia_package_check.rc == 0 and nvidia_package_check.stdout_lines | length > 0
+  timeout: 300
+  async: 400
+  poll: 15
 
 - name: Display NVIDIA container installation result
   debug:
@@ -212,7 +225,7 @@
     owner: root
     group: root
   become: true
-  when: (ansible_facts.pkg_mgr is defined and ansible_facts.pkg_mgr == "apt") and nvidia_container_result is defined and nvidia_container_result.changed
+  when: nvidia_container_result is defined and nvidia_container_result.changed
 
 - name: Configure NVIDIA container runtime
   copy:
@@ -231,7 +244,7 @@
     group: root
     mode: '0644'
   become: true
-  when: (ansible_facts.pkg_mgr is defined and ansible_facts.pkg_mgr == "apt") and nvidia_container_result is defined and nvidia_container_result.changed
+  when: nvidia_container_result is defined and nvidia_container_result.changed
 
 - name: Final package cleanup
   apt:

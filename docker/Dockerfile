@@ -14,6 +14,7 @@ RUN apt-get update && \
     build-essential=12.9 \
     cmake=3.25.1-1 \
     curl \
+    iproute2 \
     git \
     gnupg \
     libvirt-clients=9.0.0-4+deb12u2 \
