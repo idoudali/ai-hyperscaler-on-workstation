@@ -83,6 +83,81 @@ get_iommu_group() {
   fi
 }
 
+# Detect sound devices associated with NVIDIA GPUs
+detect_nvidia_sound_devices() {
+  local gpu_pci_addr="$1"
+  local -a sound_devices=()
+
+  # Look for audio devices in the same IOMMU group as the GPU
+  local gpu_iommu_group
+  gpu_iommu_group="$(get_iommu_group "${gpu_pci_addr}")"
+
+  if [[ "${gpu_iommu_group}" == "unknown" ]]; then
+    return 0
+  fi
+
+  # Find all PCI devices in the same IOMMU group
+  local iommu_group_path="/sys/kernel/iommu_groups/${gpu_iommu_group}/devices"
+  if [[ ! -d "${iommu_group_path}" ]]; then
+    return 0
+  fi
+
+  # Look for audio devices (function 1, 2, etc.) associated with the GPU
+  for device_path in "${iommu_group_path}"/*; do
+    local device_name
+    device_name=$(basename "${device_path}")
+
+    # Convert device name to PCI address format
+    local normalized_device_pci_addr
+    normalized_device_pci_addr="${device_name}"
+    # Skip the GPU device itself
+    if [[ "${normalized_device_pci_addr}" == "${gpu_pci_addr}" ]]; then
+      continue
+    fi
+
+    # Check if this is an audio device associated with the GPU
+    # Use normalized_device_pci_addr from above
+    local device_pci_addr="${normalized_device_pci_addr}"
+
+    # Get device info
+    local device_info
+    device_info=$(lspci -nnk -s "${device_pci_addr}" 2>/dev/null || true)
+
+    if [[ -z "${device_info}" ]]; then
+      continue
+    fi
+
+    # Check if this is an audio device
+    if echo "${device_info}" | grep -q "Audio device\|Multimedia audio controller"; then
+      # Extract vendor and device IDs
+      local vendor_device_ids
+      vendor_device_ids=$(echo "${device_info}" | grep -Eo '[0-9a-f]{4}:[0-9a-f]{4}' | head -n1 || true)
+
+      if [[ -n "${vendor_device_ids}" ]]; then
+        local vendor_id device_id
+        vendor_id="${vendor_device_ids%%:*}"
+        device_id="${vendor_device_ids##*:}"
+
+        # Check if this is an NVIDIA audio device (vendor ID 10de)
+        if [[ "${vendor_id}" == "10de" ]]; then
+          # Get device name
+          local audio_name
+          audio_name=$(echo "${device_info}" | head -n1 | sed 's/.*Audio device: //' | sed 's/.*Multimedia audio controller: //' || echo "NVIDIA Audio Device")
+
+          # Get kernel driver
+          local audio_driver
+          audio_driver=$(echo "${device_info}" | grep 'Kernel driver in use' | awk '{print $5}' || echo "none")
+
+          # Store audio device info
+          sound_devices+=("${device_pci_addr}|${audio_name}|${vendor_id}|${device_id}|${gpu_iommu_group}|${audio_driver}")
+        fi
+      fi
+    fi
+  done
+
+  printf "%s\n" "${sound_devices[@]}"
+}
+
 # Get NVIDIA driver version
 get_nvidia_driver_version() {
   nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits 2>/dev/null | head -n1 | tr -d ' ' || echo "unknown"
@@ -245,8 +320,20 @@ detect_gpus_with_nvidia_smi() {
 
 # Merge and deduplicate GPU data based on PCI address
 merge_gpu_data() {
-  local -a nvidia_gpus=("$1")
-  local -a lspci_gpus=("$2")
+  local -a nvidia_gpus=()
+  local -a lspci_gpus=()
+  local marker_found=false
+  for arg in "$@"; do
+    if [[ "$arg" == "--" ]]; then
+      marker_found=true
+      continue
+    fi
+    if [[ "$marker_found" == false ]]; then
+      nvidia_gpus+=("$arg")
+    else
+      lspci_gpus+=("$arg")
+    fi
+  done
   local -a merged_gpus=()
   local -a seen_pci_addresses=()
 
@@ -312,7 +399,7 @@ main() {
 
   # Merge and deduplicate GPU data
   local -a all_gpus=()
-  mapfile -t all_gpus < <(merge_gpu_data "${nvidia_gpus[@]}" "${lspci_gpus[@]}")
+  mapfile -t all_gpus < <(merge_gpu_data "${nvidia_gpus[@]}" "--" "${lspci_gpus[@]}")
 
   if [[ ${#all_gpus[@]} -eq 0 ]]; then
     log_warn "No NVIDIA GPUs detected with either method."
@@ -349,6 +436,7 @@ main() {
 
   # Collect detailed GPU information for both human report and YAML
   local -a gpu_data=()
+  local -a sound_devices=()
   local mig_capable_count=0
   local nvidia_driver_count=0
   local vfio_pci_count=0
@@ -358,6 +446,11 @@ main() {
 
     # Parse GPU data
     IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${gpu}"
+
+    # Debug: Only process actual GPUs (should have proper GPU data)
+    if [[ "${gpu_name}" == "" ]]; then
+      continue  # Skip invalid GPU entries
+    fi
 
     # Count by driver type
     if [[ "${driver}" == "nvidia" ]]; then
@@ -371,6 +464,11 @@ main() {
 
     # Store data for later use
     gpu_data+=("${gpu_index}|${gpu_uuid}|${gpu_name}|${gpu_bus}|${gpu_mem_mib}|${vendor_id}|${device_id}|${iommu_group}|${mig_capable}|${mig_mode}|${status}|${driver}")
+
+    # Detect sound devices associated with this GPU
+    local gpu_sound_devices
+    mapfile -t gpu_sound_devices < <(detect_nvidia_sound_devices "${gpu_bus}")
+    sound_devices+=("${gpu_sound_devices[@]}")
 
     # Print human-readable summary for this GPU
     echo "GPU ${gpu_index}:"
@@ -388,6 +486,16 @@ main() {
       echo "  Memory: ${gpu_mem_mib}"
     fi
     echo "  Status: ${status}"
+
+    # Print associated sound devices
+    if [[ ${#gpu_sound_devices[@]} -gt 0 ]]; then
+      echo "  Associated Sound Devices:"
+      for sound_device in "${gpu_sound_devices[@]}"; do
+        [[ -z "${sound_device}" ]] && continue
+        IFS='|' read -r sound_pci_addr sound_name sound_vendor_id sound_device_id sound_iommu_group sound_driver <<< "${sound_device}"
+        echo "    - ${sound_name} (${sound_pci_addr}) - Driver: ${sound_driver}"
+      done
+    fi
     echo ""
   done
 
@@ -402,7 +510,7 @@ main() {
   # Generate YAML sections
   local global_yaml vm_yaml_sections
   global_yaml="$(generate_global_yaml "${gpu_data[@]}")"
-  vm_yaml_sections="$(generate_vm_yaml_sections "${gpu_data[@]}")"
+  vm_yaml_sections="$(generate_vm_yaml_sections)"
 
   # Combine all output
   local full_output
@@ -419,40 +527,124 @@ main() {
   echo "==== GLOBAL CONFIGURATION SECTION ===="
   printf "%s\n" "${global_yaml}"
   echo ""
-  echo "==== VM PCIE PASSTHROUGH CONFIGURATIONS ===="
+  echo "==== UNIFIED PCIE PASSTHROUGH CONFIGURATIONS ===="
+  echo "Each configuration block includes the GPU and ALL associated sound devices"
+  echo "These MUST be assigned to the same VM for proper PCIe passthrough"
+  echo ""
   printf "%s\n" "${vm_yaml_sections}"
 }
 
 # Generate global configuration YAML section
 generate_global_yaml() {
   local gpu_data=("$@")
-  local yaml="global: {}"
+  local yaml="global:\n  gpus:"
+
+  for data in "${gpu_data[@]}"; do
+    [[ -z "${data}" ]] && continue
+    IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${data}"
+    yaml+=$'\n    - index: '"${gpu_index}"
+    yaml+=$'\n      uuid: '"${gpu_uuid}"
+    yaml+=$'\n      name: '"${gpu_name}"
+    yaml+=$'\n      bus_address: '"${gpu_bus}"
+    yaml+=$'\n      memory_mib: '"${gpu_mem_mib}"
+    yaml+=$'\n      vendor_id: '"${vendor_id}"
+    yaml+=$'\n      device_id: '"${device_id}"
+    yaml+=$'\n      iommu_group: '"${iommu_group}"
+    yaml+=$'\n      mig_capable: '"${mig_capable}"
+    yaml+=$'\n      mig_mode: '"${mig_mode}"
+    yaml+=$'\n      status: '"${status}"
+    yaml+=$'\n      driver: '"${driver}"
+  done
 
   printf "%s" "${yaml}"
 }
 
 # Generate VM PCIe passthrough configuration sections
 generate_vm_yaml_sections() {
-  local gpu_data=("$@")
   local sections=""
 
   sections+="# Copy the following sections to compute nodes in your cluster configuration"
   sections+=$'\n# Each GPU should be assigned to only one VM to avoid conflicts\n'
+  sections+=$'\n# IMPORTANT: GPUs and their associated sound devices are grouped together\n'
+  sections+=$'\n# and MUST be assigned to the same VM for proper PCIe passthrough\n'
 
+  # Process each GPU from the global gpu_data array
   for data in "${gpu_data[@]}"; do
     [[ -z "${data}" ]] && continue
 
     IFS='|' read -r gpu_index gpu_uuid gpu_name gpu_bus gpu_mem_mib vendor_id device_id iommu_group mig_capable mig_mode status driver <<< "${data}"
 
-    sections+=$'\n# Configuration for GPU '"${gpu_index}"' ('"${gpu_name}"') - Driver: '"${driver}"
+    sections+=$'\n# ===== COMPLETE PCIE PASSTHROUGH CONFIGURATION FOR GPU '"${gpu_index}"' ====='
+    sections+=$'\n# GPU: '"${gpu_name}"' (Driver: '"${driver}"')'
+    sections+=$'\n# This configuration includes the GPU and ALL associated sound devices'
+    sections+=$'\n# Copy this entire block to your VM configuration\n'
     sections+=$'\npcie_passthrough:'
     sections+=$'\n  enabled: true'
     sections+=$'\n  devices:'
+    sections+=$'\n    # GPU device (primary function) - MUST be listed first for ROM BAR to be enabled correctly'
     sections+=$'\n    - pci_address: "'"${gpu_bus}"'"'
     sections+=$'\n      device_type: "gpu"'
     sections+=$'\n      vendor_id: "'"${vendor_id}"'"'
     sections+=$'\n      device_id: "'"${device_id}"'"'
     sections+=$'\n      iommu_group: '"${iommu_group}"
+
+    # Add associated sound devices for this GPU
+    local sound_devices_found=false
+    for sound_device in "${sound_devices[@]}"; do
+      [[ -z "${sound_device}" ]] && continue
+      IFS='|' read -r sound_pci_addr sound_name sound_vendor_id sound_device_id sound_iommu_group sound_driver <<< "${sound_device}"
+
+      # Check if this sound device is in the same IOMMU group as the GPU
+      if [[ "${sound_iommu_group}" == "${iommu_group}" ]]; then
+        if [[ "${sound_devices_found}" == "false" ]]; then
+          sections+=$'\n    # Audio devices (secondary functions) - REQUIRED for same IOMMU group'
+          sound_devices_found=true
+        fi
+        sections+=$'\n    - pci_address: "'"${sound_pci_addr}"'"'
+        sections+=$'\n      device_type: "audio"'
+        sections+=$'\n      vendor_id: "'"${sound_vendor_id}"'"'
+        sections+=$'\n      device_id: "'"${sound_device_id}"'"'
+        sections+=$'\n      iommu_group: '"${sound_iommu_group}"
+      fi
+    done
+
+    if [[ "${sound_devices_found}" == "false" ]]; then
+      sections+=$'\n    # No associated sound devices found for this GPU'
+    fi
+
+    sections+=$'\n'
+    sections+=$'\n# ===== END OF CONFIGURATION FOR GPU '"${gpu_index}"' =====\n'
+  done
+
+  printf "%s" "${sections}"
+}
+
+# Generate sound device PCIe passthrough configuration sections
+generate_sound_device_yaml_sections() {
+  local sound_devices=("$@")
+  local sections=""
+
+  if [[ ${#sound_devices[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  sections+=$'\n# Sound Device PCIe Passthrough Configurations\n'
+  sections+=$'\n# These devices are typically in the same IOMMU group as their associated GPUs\n'
+  sections+=$'\n# and should be passed together for proper functionality\n'
+
+  for sound_device in "${sound_devices[@]}"; do
+    [[ -z "${sound_device}" ]] && continue
+    IFS='|' read -r sound_pci_addr sound_name sound_vendor_id sound_device_id sound_iommu_group sound_driver <<< "${sound_device}"
+
+    sections+=$'\n# Configuration for Sound Device '"${sound_pci_addr}"' ('"${sound_name}"') - Driver: '"${sound_driver}"
+    sections+=$'\npcie_passthrough:'
+    sections+=$'\n  enabled: true'
+    sections+=$'\n  devices:'
+    sections+=$'\n    - pci_address: "'"${sound_pci_addr}"'"'
+    sections+=$'\n      device_type: "audio"'
+    sections+=$'\n      vendor_id: "'"${sound_vendor_id}"'"'
+    sections+=$'\n      device_id: "'"${sound_device_id}"'"'
+    sections+=$'\n      iommu_group: '"${sound_iommu_group}"
     sections+=$'\n'
   done
 

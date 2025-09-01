@@ -67,11 +67,16 @@ clusters:
         pcie_passthrough:
           enabled: true
           devices:
+            # GPU device (primary function) - MUST be listed first for ROM BAR to be enabled correctly
             - pci_address: "0000:07:00.0"
               device_type: "gpu"
               vendor_id: "10de"
               device_id: "2504"
-
+            # Audio devices (secondary functions) - REQUIRED for same IOMMU group
+            - pci_address: "0000:07:00.1"
+              device_type: "audio"
+              vendor_id: "10de"
+              device_id: "228e"
 
 
     slurm_config:
@@ -107,10 +112,17 @@ clusters:
           pcie_passthrough:
             enabled: true
             devices:
+              # GPU device (primary function) - MUST be listed first for ROM BAR to be enabled correctly
               - pci_address: "0000:65:00.2"
                 device_type: "gpu"
                 vendor_id: "10de"
                 device_id: "2684"
+                iommu_group: 3
+              # Audio device (secondary function) - REQUIRED for same IOMMU group
+              - pci_address: "0000:65:00.3"
+                device_type: "audio"
+                vendor_id: "10de"
+                device_id: "22bd"
                 iommu_group: 3
         - worker_type: "gpu"
           cpu_cores: 8
@@ -120,10 +132,17 @@ clusters:
           pcie_passthrough:
             enabled: true
             devices:
+              # GPU device (primary function) - MUST be listed first for ROM BAR to be enabled correctly
               - pci_address: "0000:ca:00.0"
                 device_type: "gpu"
                 vendor_id: "10de"
                 device_id: "1e36"
+                iommu_group: 4
+              # Audio device (secondary function) - REQUIRED for same IOMMU group
+              - pci_address: "0000:ca:00.1"
+                device_type: "audio"
+                vendor_id: "10de"
+                device_id: "22bd"
                 iommu_group: 4
 
     kubernetes_config:
