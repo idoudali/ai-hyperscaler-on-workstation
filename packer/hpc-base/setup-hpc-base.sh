@@ -28,6 +28,7 @@ apt-get update -qq
 # Install essential networking and debugging packages
 log "Installing networking and debugging packages..."
 apt-get install -y -qq \
+    acl \
     net-tools \
     ifupdown \
     curl \
@@ -38,6 +39,15 @@ apt-get install -y -qq \
     procps \
     network-manager \
     systemd-resolved
+
+# Ensure ACL support is properly configured
+log "Configuring ACL support for Ansible..."
+# Check if ACL is available
+if command -v setfacl >/dev/null 2>&1; then
+    log "ACL support is available"
+else
+    log "WARNING: ACL support not available, Ansible may have permission issues"
+fi
 
 # Configure networking for libvirt environment
 log "Configuring networking for libvirt environment..."

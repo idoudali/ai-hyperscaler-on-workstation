@@ -8,6 +8,9 @@ set(DISK_SIZE "20G")
 set(MEMORY "2048")
 set(CPUS "2")
 
+# SSH username to be used by Packer communicator and Ansible (must match cloud-init user)
+set(SSH_USERNAME "admin" CACHE STRING "SSH username for image provisioning")
+
 
 # Set output directory for the image
 set(HPC_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/hpc-base")
@@ -39,6 +42,7 @@ add_custom_target(generate-packer-vars-hpc-base
 # Packer variable arguments
 set(PACKER_VARS
     -var "source_directory=${CMAKE_CURRENT_SOURCE_DIR}"
+    -var "repo_tot_dir=${PROJECT_SOURCE_DIR}"
     -var "build_directory=${HPC_OUTPUT_DIR}"
     -var "image_name=${IMAGE_NAME}"
     -var "vm_name=${VM_NAME}"
@@ -48,6 +52,7 @@ set(PACKER_VARS
     -var "debian_cloud_image_url=${DEBIAN_CLOUD_IMAGE_URL}"
     -var "cloud_init_dir=${CLOUD_INIT_BUILD_DIR}"
     -var "ssh_keys_dir=${SSH_KEYS_DIR}"
+    -var "ssh_username=${SSH_USERNAME}"
 )
 
 
@@ -74,7 +79,7 @@ add_custom_target(prepare-cloud-init-hpc-base
 # Initialize Packer plugins
 add_custom_target(init-hpc-packer
     COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer init hpc-base.pkr.hcl
+    COMMAND packer init --force hpc-base.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS generate-shared-ssh-keys generate-packer-vars-hpc-base
     COMMENT "Initializing HPC Packer plugins..."

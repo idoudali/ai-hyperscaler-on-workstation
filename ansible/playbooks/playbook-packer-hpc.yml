@@ -1,0 +1,30 @@
+---
+# HPC Base Image Packer Playbook
+# This playbook installs HPC base packages during Packer image building
+# It targets the Packer-provided SSH host (not localhost)
+
+- name: Install HPC Base Packages for Packer Build
+  hosts: all
+  become: true
+  become_user: root
+  gather_facts: true
+
+  vars:
+    # HPC Base Configuration
+    packer_build: true
+
+  roles:
+    - hpc-base-packages
+
+  tasks:
+    - name: Verify HPC base packages installation
+      debug:
+        msg: "HPC base packages have been installed successfully during Packer build"
+
+    - name: Gather installed package facts
+      package_facts:
+        manager: auto
+
+    - name: Display relevant installed packages
+      debug:
+        msg: "{{ ansible_facts.packages | dict2items | selectattr('key', 'in', ['tmux', 'htop', 'vim', 'curl', 'wget']) | list }}"

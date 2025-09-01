@@ -8,6 +8,10 @@ packer {
       version = ">= 1.0.9"
       source  = "github.com/hashicorp/qemu"
     }
+    ansible = {
+      version = ">= 1.1.4"
+      source  = "github.com/hashicorp/ansible"
+    }
   }
 }
 
@@ -35,6 +39,11 @@ variable "debian_cloud_image_url" {
 variable "debian_cloud_image_checksum" {
   type    = string
   default = ""
+}
+
+variable "repo_tot_dir" {
+  type        = string
+  description = "Repository top of tree directory path"
 }
 
 variable "source_directory" {
@@ -66,6 +75,11 @@ variable "cloud_init_dir" {
 variable "ssh_keys_dir" {
   type        = string
   description = "Directory containing SSH key pair for authentication"
+}
+
+variable "ssh_username" {
+  type        = string
+  description = "SSH username used by the communicator and Ansible"
 }
 
 # Local variables
@@ -112,7 +126,7 @@ source "qemu" "hpc_base" {
 
   # Communication settings - optimized for speed
   communicator           = "ssh"
-  ssh_username           = "admin"
+  ssh_username           = var.ssh_username
   ssh_private_key_file   = "${var.ssh_keys_dir}/id_rsa"
   ssh_timeout            = "8m" # Reduced from 10m
   ssh_port               = 22
@@ -166,18 +180,41 @@ build {
     ]
   }
 
-
+  # Install HPC base packages using Ansible
+  provisioner "ansible" {
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-packer-hpc.yml"
+    ansible_env_vars = [
+      "ANSIBLE_HOST_KEY_CHECKING=False",
+      "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
+      "ANSIBLE_ROLES_PATH=${var.repo_tot_dir}/ansible/roles",
+      "ANSIBLE_BECOME_FLAGS='-H -S -n'",
+      "ANSIBLE_SCP_IF_SSH=True",
+      "ANSIBLE_SCP_EXTRA_ARGS='-O'",
+      "ANSIBLE_REMOTE_TMP=/tmp"
+    ]
+    extra_arguments = [
+      "-u", var.ssh_username,
+      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
+      "--connection=ssh",
+      "--become",
+      "--become-user=root",
+      "-v"
+    ]
+  }
 
   # Final cleanup for cloning - optimized for speed
   provisioner "shell" {
+    # Use bash and set options within the script (shebang only supports a single arg)
+    inline_shebang = "/usr/bin/env bash"
     inline = [
+      "set -xeuo pipefail",
       "echo 'Performing final cleanup...'",
       # Combined cleanup operations for speed
       "sudo apt-get clean",
       "sudo truncate -s 0 /var/log/*log 2>/dev/null || true",
       "sudo find /var/log -type f -name '*.log' -exec truncate -s 0 {} + 2>/dev/null || true",
-      # Clear history and identifiers
-      "history -c && history -w; sudo rm -f /root/.bash_history",
+      # Clear shell histories and identifiers (avoid history builtin in non-interactive shell)
+      "sudo rm -f /root/.bash_history /home/${var.ssh_username}/.bash_history || true",
       "sudo truncate -s 0 /etc/machine-id; sudo rm -f /var/lib/dbus/machine-id",
       # Remove SSH host keys and network persistence
       "sudo rm -f /etc/ssh/ssh_host_* /etc/udev/rules.d/70-persistent-net.rules",

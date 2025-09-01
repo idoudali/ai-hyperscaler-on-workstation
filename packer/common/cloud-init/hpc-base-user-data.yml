@@ -66,4 +66,4 @@ runcmd:
   - systemctl enable systemd-resolved
 
 # Final message
-final_message: "HPC base cloud image setup complete. Login with admin/hpc-cloud or root/hpc-cloud. The system is ready for HPC workload configuration."
+final_message: "HPC base cloud image setup complete. Login with admin user (root access disabled for security). The system is ready for HPC workload configuration."
