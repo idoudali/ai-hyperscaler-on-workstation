@@ -552,13 +552,18 @@ def _display_cluster_status(status: dict) -> None:
 
         for vm in status["vms"]:
             state_color = "green" if vm["state"] == "running" else "yellow"
+
+            # Format GPU information
+            gpu_info = vm.get("gpu_assigned")
+            gpu_display = f"[green]{gpu_info}[/green]" if gpu_info else "[dim]None[/dim]"
+
             vm_table.add_row(
                 vm["name"],
                 f"[{state_color}]{vm['state']}[/{state_color}]",
                 str(vm.get("cpu_cores", "N/A")),
                 str(vm.get("memory_gb", "N/A")),
                 vm.get("ip_address", "N/A"),
-                f"{vm.get('gpu_assigned', 'None')}",
+                gpu_display,
             )
 
         console.print(vm_table)

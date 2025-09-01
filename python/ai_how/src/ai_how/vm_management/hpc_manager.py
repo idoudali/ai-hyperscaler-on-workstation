@@ -24,6 +24,8 @@ from ai_how.vm_management.vm_lifecycle import VMLifecycleError, VMLifecycleManag
 from ai_how.vm_management.volume_manager import VolumeManager, VolumeManagerError
 from ai_how.vm_management.xml_tracer import XMLTracer
 
+from .gpu_mapper import get_gpu_mapper
+
 logger = logging.getLogger(__name__)
 
 
@@ -770,6 +772,7 @@ class HPCClusterManager:
     def _create_compute_nodes(self, cluster_state: ClusterState) -> None:
         """Create HPC compute nodes."""
         cluster_name = self.hpc_config["name"]
+        gpu_mapper = get_gpu_mapper()
 
         for i, node_config in enumerate(self.hpc_config["compute_nodes"]):
             vm_name = f"{self.hpc_config['name']}-compute-{i + 1:02d}"
@@ -824,6 +827,12 @@ class HPCClusterManager:
             except VMLifecycleError as e:
                 raise HPCManagerError(f"Failed to create compute node {vm_name}: {e}") from e
 
+            # Determine GPU assignment from PCIe configuration
+            pcie_config = node_config.get("pcie_passthrough")
+            gpu_assigned = (
+                gpu_mapper.get_gpu_info_from_pcie_config(pcie_config) if pcie_config else None
+            )
+
             # Create VM info and add to state
             vm_info = VMInfo(
                 name=vm_name,
@@ -834,7 +843,7 @@ class HPCClusterManager:
                 volume_path=Path(volume_path),
                 vm_type="compute",
                 ip_address=allocated_ip,
-                gpu_assigned=node_config.get("gpu_assigned"),
+                gpu_assigned=gpu_assigned,
             )
 
             cluster_state.add_vm(vm_info)

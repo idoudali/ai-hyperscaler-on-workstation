@@ -179,7 +179,7 @@ class VMInfo:
     volume_path: Path  # Changed from disk_path
     vm_type: str = "compute"  # controller, compute, etc.
     ip_address: str | None = None
-    gpu_assigned: bool = False
+    gpu_assigned: str | None = None  # Changed from bool to str to store GPU model name
     created_at: datetime | None = None
     last_modified: datetime | None = None
 
@@ -214,6 +214,10 @@ class VMInfo:
         # Handle backward compatibility for disk_path -> volume_path
         if "disk_path" in data and "volume_path" not in data:
             data["volume_path"] = data.pop("disk_path")
+
+        # Handle backward compatibility for gpu_assigned as boolean
+        if "gpu_assigned" in data and isinstance(data["gpu_assigned"], bool):
+            data["gpu_assigned"] = "GPU" if data["gpu_assigned"] else None
 
         # Validate required fields
         required_fields = ["name", "domain_uuid", "state", "cpu_cores", "memory_gb", "volume_path"]
