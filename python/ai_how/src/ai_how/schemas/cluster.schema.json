@@ -117,7 +117,11 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "base_image_path": { "type": "string" },
+        "base_image_path": {
+          "type": "string",
+          "description": "Path to the base qcow2 image file. Can be absolute or relative to the current working directory.",
+          "pattern": ".*\\.qcow2$"
+        },
         "network": { "$ref": "#/definitions/network" },
         "hardware": { "$ref": "#/definitions/hardwareConfig" },
         "controller": { "$ref": "#/definitions/controllerNode" },
@@ -138,7 +142,11 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "base_image_path": { "type": "string" },
+        "base_image_path": {
+          "type": "string",
+          "description": "Path to the base qcow2 image file. Can be absolute or relative to the current working directory.",
+          "pattern": ".*\\.qcow2$"
+        },
         "network": { "$ref": "#/definitions/network" },
         "hardware": { "$ref": "#/definitions/hardwareConfig" },
         "control_plane": { "$ref": "#/definitions/controllerNode" },
