@@ -39,6 +39,7 @@ add_custom_target(generate-packer-vars-hpc-base
 # Packer variable arguments
 set(PACKER_VARS
     -var "source_directory=${CMAKE_CURRENT_SOURCE_DIR}"
+    -var "repo_tot_dir=${PROJECT_SOURCE_DIR}"
     -var "build_directory=${HPC_OUTPUT_DIR}"
     -var "image_name=${IMAGE_NAME}"
     -var "vm_name=${VM_NAME}"
@@ -74,7 +75,7 @@ add_custom_target(prepare-cloud-init-hpc-base
 # Initialize Packer plugins
 add_custom_target(init-hpc-packer
     COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer init hpc-base.pkr.hcl
+    COMMAND packer init --force hpc-base.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS generate-shared-ssh-keys generate-packer-vars-hpc-base
     COMMENT "Initializing HPC Packer plugins..."

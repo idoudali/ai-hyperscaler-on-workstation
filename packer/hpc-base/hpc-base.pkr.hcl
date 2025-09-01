@@ -8,6 +8,10 @@ packer {
       version = ">= 1.0.9"
       source  = "github.com/hashicorp/qemu"
     }
+    ansible = {
+      version = ">= 1.1.4"
+      source  = "github.com/hashicorp/ansible"
+    }
   }
 }
 
@@ -35,6 +39,11 @@ variable "debian_cloud_image_url" {
 variable "debian_cloud_image_checksum" {
   type    = string
   default = ""
+}
+
+variable "repo_tot_dir" {
+  type        = string
+  description = "Repository top of tree directory path"
 }
 
 variable "source_directory" {
@@ -166,7 +175,21 @@ build {
     ]
   }
 
-
+  # Install HPC base packages using Ansible
+  provisioner "ansible" {
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc.yml"
+    ansible_env_vars = [
+      "ANSIBLE_HOST_KEY_CHECKING=False",
+      "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
+      "ANSIBLE_ROLES_PATH=${var.repo_tot_dir}/ansible/roles"
+    ]
+    extra_arguments = [
+      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
+      "--connection=ssh",
+      "--become",
+      "-vvv"
+    ]
+  }
 
   # Final cleanup for cloning - optimized for speed
   provisioner "shell" {

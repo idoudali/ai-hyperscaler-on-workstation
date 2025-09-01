@@ -11,7 +11,10 @@
     # HPC Cluster Configuration
     slurm_version: "23.11.4"
 
+  roles:
+    - hpc-base-packages
+
   tasks:
-    - name: Placeholder for HPC cluster deployment
+    - name: HPC cluster deployment complete
       debug:
-        msg: "HPC cluster deployment tasks will be implemented here"
+        msg: "HPC base packages have been installed successfully"
