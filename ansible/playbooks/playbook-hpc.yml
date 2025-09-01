@@ -10,9 +10,14 @@
   vars:
     # HPC Cluster Configuration
     slurm_version: "23.11.4"
+    # NVIDIA GPU Configuration for HPC workloads
+    nvidia_install_cuda: true
+    # Enable Packer build mode (suppresses reboot warnings)
+    nvidia_packer_build: true
 
   roles:
     - hpc-base-packages
+    - nvidia-gpu-drivers
 
   tasks:
     - name: HPC cluster deployment complete

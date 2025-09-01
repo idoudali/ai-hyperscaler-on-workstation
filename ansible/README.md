@@ -15,23 +15,38 @@ ansible/
 │   │   └── tasks/                # Role tasks
 │   ├── cloud-base-packages/      # Cloud base package installation
 │   │   └── tasks/                # Role tasks
+│   ├── nvidia-gpu-drivers/       # NVIDIA GPU driver installation
+│   │   ├── tasks/                # Role tasks
+│   │   ├── handlers/             # Role handlers
+│   │   ├── defaults/             # Default variables
+│   │   └── README.md             # Role documentation
 │   ├── hpc-cluster-setup/        # HPC cluster configuration
 │   │   └── tasks/                # Role tasks
 │   └── cloud-cluster-setup/      # Cloud cluster configuration
 │       └── tasks/                # Role tasks
 ├── playbooks/
 │   ├── playbook-hpc.yml          # HPC cluster deployment
-│   └── playbook-cloud.yml        # Cloud cluster deployment
+│   ├── playbook-cloud.yml        # Cloud cluster deployment
+│   ├── playbook-hpc-packer.yml   # HPC Packer image build
+│   └── playbook-cloud-packer.yml # Cloud Packer image build
 └── inventories/
     └── generate_inventory.py     # Dynamic inventory generator
 ```
 
 ## Current Status
 
-This is a **minimal skeleton** structure. The following components are placeholders and will be implemented as needed:
+The Ansible infrastructure includes both implemented and placeholder components:
 
-- **Role tasks**: Currently contain only debug messages
-- **Playbooks**: Basic structure without functional tasks
+### Implemented Components
+
+- **nvidia-gpu-drivers role**: Fully functional NVIDIA GPU driver installation following [Debian wiki guidelines](https://wiki.debian.org/NvidiaGraphicsDrivers)
+- **hpc-base-packages role**: Basic HPC package installation (tmux, htop, vim, etc.)
+- **HPC playbook**: Includes NVIDIA drivers with CUDA support for GPU-accelerated computing
+
+### Placeholder Components
+
+- **cloud-base-packages role**: Currently contains only debug messages  
+- **cluster setup roles**: Basic structure without functional tasks
 - **Inventory generator**: Basic Python script structure
 
 ## Installation
@@ -55,17 +70,60 @@ ansible-galaxy collection install -r ansible/collections/requirements.yml
 
 ## Usage
 
-The Ansible infrastructure will be used by the CLI orchestrator to:
+The Ansible infrastructure supports both package pre-installation and post-deployment configuration:
 
-1. **Pre-install packages** using Packer with the base package roles
-2. **Configure clusters** after deployment using the cluster setup roles
+### Pre-installation (with Packer)
+
+1. **Base packages** using `hpc-base-packages` and `cloud-base-packages` roles
+2. **NVIDIA GPU drivers** using `nvidia-gpu-drivers` role for GPU-enabled images
+
+### Post-deployment Configuration
+
+1. **Cluster setup** using cluster setup roles (to be implemented)
+2. **GPU workload configuration** for CUDA and OpenGL applications
+
+### NVIDIA GPU Driver Support
+
+The `nvidia-gpu-drivers` role provides:
+
+- **Automatic GPU detection** and driver selection
+- **Support for multiple Debian versions** (Trixie, Bookworm, Bullseye)
+- **CUDA toolkit installation** for HPC and ML workloads
+- **Tesla driver support** for datacenter GPUs
+
+#### Example: Running GPU-enabled HPC playbook
+
+```bash
+# Run HPC deployment with NVIDIA drivers and CUDA
+ansible-playbook -i inventories/ playbooks/playbook-hpc.yml
+
+# Run cloud deployment with NVIDIA drivers
+ansible-playbook -i inventories/ playbooks/playbook-cloud.yml
+```
+
+#### GPU Driver Configuration Variables
+
+```yaml
+# Enable CUDA toolkit installation (default for HPC)
+nvidia_install_cuda: true
+
+# Enable Packer build mode (suppresses reboot warnings during image creation)
+nvidia_packer_build: true  # Set to false for runtime deployments
+```
+
+**Important**:
+
+- **For runtime deployments**: A system reboot is required for drivers to become active
+- **For Packer builds**: Drivers are pre-installed and will be available after image deployment
 
 ## Next Steps
 
-1. Implement actual package installation tasks in base package roles
-2. Implement cluster configuration tasks in cluster setup roles
-3. Complete the inventory generator to read from cluster.yaml
-4. Integrate with the CLI orchestrator for automated deployment
+1. ✅ **NVIDIA GPU drivers**: Completed - Full implementation with Debian wiki compliance
+2. Implement cloud-base-packages role tasks for Kubernetes workloads
+3. Implement cluster configuration tasks in cluster setup roles
+4. Complete the inventory generator to read from cluster.yaml
+5. Integrate with the CLI orchestrator for automated deployment
+6. Add GPU resource configuration for SLURM and Kubernetes
 
 ## Minimal Design Philosophy
 

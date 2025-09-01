@@ -7,7 +7,7 @@
     update_cache: yes
     cache_valid_time: 3600
 
-- name: Install tmux and other HPC base packages
+- name: Install HPC base packages
   apt:
     name:
       - tmux
@@ -16,3 +16,7 @@
       - curl
       - wget
     state: present
+
+- name: Verify package installation
+  debug:
+    msg: "HPC base packages installed successfully"

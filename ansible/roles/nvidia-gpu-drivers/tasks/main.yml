@@ -1,0 +1,128 @@
+---
+# NVIDIA GPU Drivers Role - Main Tasks
+# This role installs NVIDIA proprietary GPU drivers following Debian wiki guidelines
+# Reference: https://wiki.debian.org/NvidiaGraphicsDrivers
+
+- name: Check if NVIDIA GPU is present
+  shell: |
+    lspci -nn | grep -i nvidia || true
+  register: nvidia_gpu_check
+  changed_when: false
+
+- name: Skip NVIDIA installation if no GPU detected
+  debug:
+    msg: "No NVIDIA GPU detected, skipping driver installation"
+  when: nvidia_gpu_check.stdout == ""
+
+- block:
+  - name: Enable non-free repository for NVIDIA drivers
+    lineinfile:
+      path: /etc/apt/sources.list
+      regexp: '^deb http://deb.debian.org/debian'
+      line: 'deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
+      state: present
+      backup: yes
+    notify: update apt cache
+
+  - name: Ensure non-free-firmware is in sources.list (for Debian 12+)
+    lineinfile:
+      path: /etc/apt/sources.list
+      regexp: '^deb-src http://deb.debian.org/debian'
+      line: 'deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
+      state: present
+      backup: yes
+    when: ansible_distribution_major_version|int >= 12
+    notify: update apt cache
+
+  - name: Force apt cache update
+    meta: flush_handlers
+
+  - name: Install kernel headers (prerequisite for NVIDIA driver)
+    apt:
+      name: "linux-headers-{{ ansible_kernel }}"
+      state: present
+      update_cache: yes
+
+  - name: Install NVIDIA detection utility
+    apt:
+      name: nvidia-detect
+      state: present
+
+  - name: Detect recommended NVIDIA driver
+    shell: nvidia-detect
+    register: nvidia_detect_output
+    changed_when: false
+    failed_when: false
+
+  - name: Display NVIDIA detection results
+    debug:
+      var: nvidia_detect_output.stdout_lines
+
+  - name: Install NVIDIA driver package
+    apt:
+      name: nvidia-driver
+      state: present
+    when: "'nvidia-driver' in nvidia_detect_output.stdout"
+
+  - name: Install NVIDIA Tesla driver if recommended
+    apt:
+      name: "{{ item }}"
+      state: present
+    loop:
+      - nvidia-tesla-470-driver
+      - nvidia-tesla-535-driver
+    when: "'tesla' in nvidia_detect_output.stdout.lower()"
+    ignore_errors: yes
+
+  - name: Install NVIDIA CUDA toolkit (optional)
+    apt:
+      name:
+        - nvidia-cuda-dev
+        - nvidia-cuda-toolkit
+      state: present
+    when: nvidia_install_cuda | default(false)
+
+  - name: Install additional NVIDIA utilities
+    apt:
+      name:
+        - nvidia-settings
+        - nvidia-smi
+      state: present
+
+  - name: Blacklist nouveau driver (conflicts with NVIDIA)
+    copy:
+      content: |
+        # Blacklist nouveau driver to prevent conflicts with NVIDIA
+        blacklist nouveau
+        blacklist lbm-nouveau
+        options nouveau modeset=0
+        alias nouveau off
+        alias lbm-nouveau off
+      dest: /etc/modprobe.d/blacklist-nouveau.conf
+      mode: '0644'
+    notify: update initramfs
+
+  - name: Check if reboot is required
+    stat:
+      path: /var/run/reboot-required
+    register: reboot_required_file
+
+  - name: Notify about required reboot (runtime deployments)
+    debug:
+      msg: |
+        IMPORTANT: A system reboot is required to complete NVIDIA driver installation.
+        The system will need to be rebooted before the NVIDIA driver will be functional.
+        Run 'sudo reboot' after this playbook completes.
+    when:
+      - not (nvidia_packer_build | default(false))
+      - (reboot_required_file.stat.exists or nvidia_force_reboot_warning | default(true))
+
+  - name: Notify about Packer build completion
+    debug:
+      msg: |
+        NVIDIA drivers installed successfully during Packer build.
+        Drivers will be available after the image is deployed and rebooted.
+        No reboot required during image creation process.
+    when: nvidia_packer_build | default(false)
+
+  when: nvidia_gpu_check.stdout != ""
