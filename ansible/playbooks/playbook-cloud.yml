@@ -10,8 +10,16 @@
   vars:
     # Kubernetes Configuration
     kubernetes_version: "1.28.0"
+    # NVIDIA GPU Configuration for cloud workloads
+    nvidia_install_cuda: true
+    # Enable Packer build mode (suppresses reboot warnings)
+    nvidia_packer_build: true
+
+  roles:
+    - cloud-base-packages
+    - nvidia-gpu-drivers
 
   tasks:
-    - name: Placeholder for cloud cluster deployment
+    - name: Cloud cluster deployment in progress
       debug:
-        msg: "Cloud cluster deployment tasks will be implemented here"
+        msg: "Cloud base packages and NVIDIA drivers have been configured"

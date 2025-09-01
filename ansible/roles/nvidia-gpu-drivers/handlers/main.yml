@@ -1,0 +1,20 @@
+---
+# NVIDIA GPU Drivers Role - Handlers
+# Handlers for NVIDIA driver installation tasks
+
+- name: update apt cache
+  apt:
+    update_cache: yes
+
+- name: update initramfs
+  command: update-initramfs -u -k all
+  notify: reboot required
+
+- name: reboot required
+  debug:
+    msg: |
+      {% if nvidia_packer_build | default(false) %}
+      Initramfs updated during Packer build - changes will take effect on image deployment
+      {% else %}
+      System reboot is required for changes to take effect
+      {% endif %}

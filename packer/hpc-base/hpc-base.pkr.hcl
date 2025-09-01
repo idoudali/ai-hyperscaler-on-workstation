@@ -180,9 +180,11 @@ build {
     ]
   }
 
-  # Install HPC base packages using Ansible
+
+
+  # Install HPC base packages and NVIDIA drivers using consolidated Ansible playbook
   provisioner "ansible" {
-    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-packer-hpc.yml"
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc.yml"
     ansible_env_vars = [
       "ANSIBLE_HOST_KEY_CHECKING=False",
       "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
@@ -195,11 +197,13 @@ build {
     extra_arguments = [
       "-u", var.ssh_username,
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
-      "--connection=ssh",
+      "--extra-vars", "packer_build=true",
+      "--extra-vars", "nvidia_install_cuda=false",
       "--become",
       "--become-user=root",
       "-v"
     ]
+    use_proxy = false
   }
 
   # Final cleanup for cloning - optimized for speed
@@ -243,7 +247,7 @@ build {
       "echo 'HPC Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
-      "echo 'Network debugging tools installed' > ${local.output_directory}/features.txt",
+      "echo 'Network debugging tools and NVIDIA drivers (force-installed for Packer build)' > ${local.output_directory}/features.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"
     ]
   }

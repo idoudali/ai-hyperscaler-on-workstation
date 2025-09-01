@@ -1,0 +1,25 @@
+---
+# NVIDIA GPU Drivers Role - Default Variables
+# These variables can be overridden in playbooks or inventory
+
+# Whether to install NVIDIA CUDA toolkit and development tools
+nvidia_install_cuda: false
+
+# Whether this is running during a Packer build (suppresses reboot warnings)
+nvidia_packer_build: false
+
+# Whether to show reboot warning even if /var/run/reboot-required doesn't exist
+# Automatically disabled during Packer builds
+nvidia_force_reboot_warning: true
+
+# NVIDIA driver version preference (auto-detected by default)
+# Set to specific version if needed, e.g., "535", "470", etc.
+nvidia_driver_version: "auto"
+
+# Force NVIDIA driver installation even when no GPU is detected
+# Useful for Packer builds where you want drivers pre-installed
+nvidia_force_install: false
+
+# APT configuration for better progress monitoring
+nvidia_apt_show_progress: true
+nvidia_apt_verbose: true
