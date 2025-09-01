@@ -87,7 +87,7 @@ def validate_config(config_path: Path, schema_path: Path, console: Console | Non
         return False
 
     try:
-        validator = jsonschema.Draft202012Validator(schema_data)
+        validator = jsonschema.Draft7Validator(schema_data)
         validator.validate(config_data)
         console.print("[green]✅ Configuration is valid.[/green]")
         return True

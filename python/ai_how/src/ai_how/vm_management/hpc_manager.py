@@ -17,6 +17,7 @@ from ai_how.utils.logging import (
     log_operation_start,
     log_operation_success,
 )
+from ai_how.utils.path_utils import resolve_and_validate_image_path
 from ai_how.vm_management.libvirt_client import LibvirtClient, LibvirtConnectionError
 from ai_how.vm_management.network_manager import NetworkManager, NetworkManagerError
 from ai_how.vm_management.vm_lifecycle import VMLifecycleError, VMLifecycleManager
@@ -445,24 +446,24 @@ class HPCClusterManager:
                 raise HPCManagerError(f"Missing required field in HPC config: {field}")
             logger.debug(f"Required field present: {field}")
 
-        # Validate base image exists
-        base_image = Path(self.hpc_config["base_image_path"])
-        logger.debug(f"Validating base image exists: {base_image}")
-
-        if not base_image.exists():
-            logger.error(f"Base image not found: {base_image}")
-            raise HPCManagerError(f"Base image not found: {base_image}")
-
-        logger.debug(f"Base image exists: {base_image}")
-
-        # Get base image info for debugging
+        # Validate base image exists and is a qcow2 file
+        # Resolve relative paths relative to current working directory
         try:
-            stat = base_image.stat()
-            logger.debug(
-                f"Base image size: {stat.st_size} bytes ({stat.st_size / (1024**3):.2f} GB)"
-            )
-        except OSError as e:
-            logger.warning(f"Could not get base image stats: {e}")
+            base_image = resolve_and_validate_image_path(self.hpc_config["base_image_path"])
+            logger.debug(f"Resolved base image path: {base_image}")
+
+            # Get base image info for debugging
+            try:
+                stat = base_image.stat()
+                logger.debug(
+                    f"Base image size: {stat.st_size} bytes ({stat.st_size / (1024**3):.2f} GB)"
+                )
+            except OSError as e:
+                logger.warning(f"Could not get base image stats: {e}")
+
+        except (FileNotFoundError, ValueError) as e:
+            logger.error(f"Base image validation failed: {e}")
+            raise HPCManagerError(f"Base image validation failed: {e}") from e
 
         # Validate base image format using qemu-img
         try:

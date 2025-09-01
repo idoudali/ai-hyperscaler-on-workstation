@@ -8,7 +8,9 @@ global: {}
 clusters:
   hpc:
     name: "hpc-cluster"
-    base_image_path: "/home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation/build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    # Base image path - can be absolute or relative to the current working directory
+    # Relative paths will be resolved from the directory where the CLI is executed
+    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
     network:
       subnet: "192.168.100.0/24"
       bridge: "virbr100"
@@ -86,7 +88,9 @@ clusters:
 
   cloud:
     name: "cloud-cluster"
-    base_image_path: "/home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation/build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    # Base image path - can be absolute or relative to the current working directory
+    # Relative paths will be resolved from the directory where the CLI is executed
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
     network:
       subnet: "192.168.200.0/24"
       bridge: "virbr200"

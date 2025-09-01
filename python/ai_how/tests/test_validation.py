@@ -43,7 +43,14 @@ def cluster_schema_file(tmp_path: Path) -> Path:
                         "type": "object",
                         "properties": {
                             "name": {"type": "string"},
-                            "base_image_path": {"type": "string"},
+                            "base_image_path": {
+                                "type": "string",
+                                "description": (
+                                    "Path to the base qcow2 image file. Can be absolute or "
+                                    "relative to the current working directory."
+                                ),
+                                "pattern": ".*\\.qcow2$",
+                            },
                             "network": {
                                 "type": "object",
                                 "properties": {
@@ -59,7 +66,14 @@ def cluster_schema_file(tmp_path: Path) -> Path:
                         "type": "object",
                         "properties": {
                             "name": {"type": "string"},
-                            "base_image_path": {"type": "string"},
+                            "base_image_path": {
+                                "type": "string",
+                                "description": (
+                                    "Path to the base qcow2 image file. Can be absolute or "
+                                    "relative to the current working directory."
+                                ),
+                                "pattern": ".*\\.qcow2$",
+                            },
                             "network": {
                                 "type": "object",
                                 "properties": {
@@ -151,11 +165,43 @@ def test_validate_cluster_config_with_base_image_path(cluster_schema_file: Path,
                 "name": "hpc-cluster",
                 "base_image_path": "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2",
                 "network": {"subnet": "192.168.100.0/24", "bridge": "virbr100"},
+                "controller": {
+                    "cpu_cores": 4,
+                    "memory_gb": 8,
+                    "disk_gb": 100,
+                    "ip_address": "192.168.100.10",
+                },
+                "compute_nodes": [
+                    {"cpu_cores": 8, "memory_gb": 16, "disk_gb": 200, "ip": "192.168.100.11"}
+                ],
+                "slurm_config": {"partitions": ["gpu"], "default_partition": "gpu"},
             },
             "cloud": {
                 "name": "cloud-cluster",
                 "base_image_path": "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2",
                 "network": {"subnet": "192.168.200.0/24", "bridge": "virbr200"},
+                "control_plane": {
+                    "cpu_cores": 4,
+                    "memory_gb": 8,
+                    "disk_gb": 100,
+                    "ip_address": "192.168.200.10",
+                },
+                "worker_nodes": {
+                    "cpu": [
+                        {
+                            "worker_type": "cpu",
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ]
+                },
+                "kubernetes_config": {
+                    "cni": "calico",
+                    "ingress": "nginx",
+                    "storage_class": "local-path",
+                },
             },
         },
     }
@@ -185,6 +231,126 @@ def test_validate_cluster_config_missing_base_image_path(cluster_schema_file: Pa
     config_path.write_text(yaml.dump(invalid_cluster_config))
 
     assert validate_config(config_path, cluster_schema_file) is False
+
+
+def test_validate_cluster_config_base_image_path_wrong_extension(
+    cluster_schema_file: Path, tmp_path: Path
+):
+    """Test that a cluster configuration with wrong file extension fails validation."""
+    invalid_cluster_config = {
+        "version": "1.0",
+        "metadata": {"name": "test-hyperscaler", "description": "Test cluster configuration"},
+        "clusters": {
+            "hpc": {
+                "name": "hpc-cluster",
+                "base_image_path": (
+                    "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.img"  # Wrong extension
+                ),
+                "network": {"subnet": "192.168.100.0/24", "bridge": "virbr100"},
+                "controller": {
+                    "cpu_cores": 4,
+                    "memory_gb": 8,
+                    "disk_gb": 100,
+                    "ip_address": "192.168.100.10",
+                },
+                "compute_nodes": [
+                    {"cpu_cores": 8, "memory_gb": 16, "disk_gb": 200, "ip": "192.168.100.11"}
+                ],
+                "slurm_config": {"partitions": ["gpu"], "default_partition": "gpu"},
+            },
+            "cloud": {
+                "name": "cloud-cluster",
+                "base_image_path": "/var/lib/libvirt/images/ubuntu-22.04-server-amd64.qcow2",
+                "network": {"subnet": "192.168.200.0/24", "bridge": "virbr200"},
+                "control_plane": {
+                    "cpu_cores": 4,
+                    "memory_gb": 8,
+                    "disk_gb": 100,
+                    "ip_address": "192.168.200.10",
+                },
+                "worker_nodes": {
+                    "cpu": [
+                        {
+                            "worker_type": "cpu",
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ]
+                },
+                "kubernetes_config": {
+                    "cni": "calico",
+                    "ingress": "nginx",
+                    "storage_class": "local-path",
+                },
+            },
+        },
+    }
+    config_path = tmp_path / "cluster_config.yaml"
+    config_path.write_text(yaml.dump(invalid_cluster_config))
+
+    assert validate_config(config_path, cluster_schema_file) is False
+
+
+def test_validate_cluster_config_relative_base_image_path(
+    cluster_schema_file: Path, tmp_path: Path
+):
+    """Test that a cluster configuration with relative base_image_path passes validation."""
+    valid_cluster_config = {
+        "version": "1.0",
+        "metadata": {"name": "test-hyperscaler", "description": "Test cluster configuration"},
+        "clusters": {
+            "hpc": {
+                "name": "hpc-cluster",
+                "base_image_path": "build/packer/hpc-base/hpc-base/hpc-base.qcow2",  # Relative path
+                "network": {"subnet": "192.168.100.0/24", "bridge": "virbr100"},
+                "controller": {
+                    "cpu_cores": 4,
+                    "memory_gb": 8,
+                    "disk_gb": 100,
+                    "ip_address": "192.168.100.10",
+                },
+                "compute_nodes": [
+                    {"cpu_cores": 8, "memory_gb": 16, "disk_gb": 200, "ip": "192.168.100.11"}
+                ],
+                "slurm_config": {"partitions": ["gpu"], "default_partition": "gpu"},
+            },
+            "cloud": {
+                "name": "cloud-cluster",
+                "base_image_path": (
+                    "build/packer/cloud-base/cloud-base/cloud-base.qcow2"  # Relative path
+                ),
+                "network": {"subnet": "192.168.200.0/24", "bridge": "virbr200"},
+                "control_plane": {
+                    "cpu_cores": 4,
+                    "memory_gb": 8,
+                    "disk_gb": 100,
+                    "ip_address": "192.168.200.10",
+                },
+                "worker_nodes": {
+                    "cpu": [
+                        {
+                            "worker_type": "cpu",
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ]
+                },
+                "kubernetes_config": {
+                    "cni": "calico",
+                    "ingress": "nginx",
+                    "storage_class": "local-path",
+                },
+            },
+        },
+    }
+    config_path = tmp_path / "cluster_config.yaml"
+    config_path.write_text(yaml.dump(valid_cluster_config))
+
+    assert validate_config(config_path, cluster_schema_file) is True
 
 
 def test_validate_cluster_config_base_image_path_wrong_type(
