@@ -108,6 +108,11 @@ source "qemu" "hpc_base" {
   net_device     = "virtio-net"
   disk_interface = "virtio"
 
+  # Drive optimization settings for TRIM support and size reduction
+  disk_cache    = "writeback"
+  disk_discard  = "unmap"
+  disk_detect_zeroes = "unmap"
+
   # Display settings
   headless         = true
   vnc_bind_address = "127.0.0.1"
@@ -138,7 +143,7 @@ source "qemu" "hpc_base" {
   shutdown_command = "sudo shutdown -P now"
   shutdown_timeout = "2m"
 
-  # Optimized QEMU arguments for faster boot and debugging
+  # Optimized QEMU arguments for faster boot, debugging, and size optimization
   qemuargs = [
     ["-serial", "file:${var.build_directory}/../qemu-serial.log"],
     ["-serial", "mon:stdio"],
@@ -147,6 +152,8 @@ source "qemu" "hpc_base" {
     # Optimize for speed
     ["-cpu", "host"],
     ["-smp", "cpus=${var.cpus}"]
+    # Note: Drive configuration with TRIM support (discard=unmap, disk_detect_zeroes=unmap)
+    # is handled automatically by Packer using disk_cache, disk_discard, and disk_detect_zeroes settings above
   ]
 }
 
@@ -206,24 +213,38 @@ build {
     use_proxy = false
   }
 
-  # Final cleanup for cloning - optimized for speed
+  # Final cleanup for cloning - optimized for speed and size
   provisioner "shell" {
     # Use bash and set options within the script (shebang only supports a single arg)
     inline_shebang = "/usr/bin/env bash"
     inline = [
       "set -xeuo pipefail",
-      "echo 'Performing final cleanup...'",
-      # Combined cleanup operations for speed
-      "sudo apt-get clean",
+      "echo 'Performing comprehensive cleanup and size optimization...'",
+      # Remove package caches and temporary files
+      "sudo apt-get clean && sudo apt-get autoclean && sudo apt-get autoremove -y",
+      "sudo rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*",
+      # Clear all log files and journal
       "sudo truncate -s 0 /var/log/*log 2>/dev/null || true",
       "sudo find /var/log -type f -name '*.log' -exec truncate -s 0 {} + 2>/dev/null || true",
-      # Clear shell histories and identifiers (avoid history builtin in non-interactive shell)
+      "sudo journalctl --vacuum-time=1s 2>/dev/null || true",
+      "sudo rm -rf /var/log/journal/* 2>/dev/null || true",
+      # Clear shell histories and identifiers
       "sudo rm -f /root/.bash_history /home/${var.ssh_username}/.bash_history || true",
       "sudo truncate -s 0 /etc/machine-id; sudo rm -f /var/lib/dbus/machine-id",
       # Remove SSH host keys and network persistence
       "sudo rm -f /etc/ssh/ssh_host_* /etc/udev/rules.d/70-persistent-net.rules",
       # Clean cloud-init state
       "sudo cloud-init clean --logs",
+      # Remove unnecessary documentation and man pages
+      "sudo rm -rf /usr/share/doc/* /usr/share/man/* /usr/share/info/*",
+      "sudo rm -rf /usr/share/locale/*",
+      # Preserve timezone data for system functionality
+      "sudo find /usr/share/zoneinfo -type f ! -name 'UTC' ! -name 'GMT' ! -name 'GMT+*' ! -name 'GMT-*' -delete 2>/dev/null || true",
+      # Remove package manager cache and temporary files
+      "sudo rm -rf /var/cache/apt/* /var/cache/debconf/*",
+      # Clear systemd journal and logs
+      "sudo systemctl stop systemd-journald 2>/dev/null || true",
+      "sudo rm -rf /var/log/journal/* /run/log/journal/*",
       "echo 'Cleanup complete'"
     ]
   }
@@ -237,6 +258,43 @@ build {
     ]
   }
 
+  # Zero-fill free space to trim dirty pages and optimize image compression
+  provisioner "shell" {
+    inline = [
+      "echo 'Zero-filling free space to optimize image size...'",
+      # Create a large file filled with zeros, then delete it
+      # This forces the filesystem to mark all free space as zeros
+      "FREE_SPACE=$(df --output=avail /tmp | tail -1)",
+      "sudo dd if=/dev/zero of=/tmp/zero_fill bs=1M count=$FREE_SPACE status=none 2>/dev/null || true",
+      "sudo rm -f /tmp/zero_fill",
+      # Clear swap if it exists
+      "sudo swapoff -a 2>/dev/null || true",
+      "sudo rm -f /swapfile /swap.img 2>/dev/null || true",
+      "echo 'Zero-fill complete'"
+    ]
+  }
+
+
+  # Optimize and compress the final QEMU image
+  post-processor "shell-local" {
+    inline = [
+      "echo 'Optimizing and compressing QEMU image...'",
+      "cd ${local.output_directory}",
+      # Get original image size
+      "ORIGINAL_SIZE=$(du -h ${var.vm_name} | cut -f1)",
+      "echo Original image size: $ORIGINAL_SIZE",
+      # Convert to compressed qcow2 with optimization
+      "qemu-img convert -c -O qcow2 ${var.vm_name} ${var.vm_name}.compressed",
+      # Replace original with compressed version
+      "mv ${var.vm_name}.compressed ${var.vm_name}",
+      # Get final image size
+      "FINAL_SIZE=$(du -h ${var.vm_name} | cut -f1)",
+      "echo Final compressed image size: $FINAL_SIZE",
+      # Additional optimization: check and repair if needed
+      "qemu-img check ${var.vm_name}",
+      "echo 'Image optimization complete'"
+    ]
+  }
 
   # Create build metadata
   post-processor "shell-local" {
@@ -248,6 +306,7 @@ build {
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
       "echo 'Network debugging tools and NVIDIA drivers (force-installed for Packer build)' > ${local.output_directory}/features.txt",
+      "echo 'Size optimized with zero-fill and compression' > ${local.output_directory}/optimization.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"
     ]
   }

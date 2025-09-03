@@ -25,9 +25,9 @@ command_exists() {
 log "Updating package lists..."
 apt-get update -qq
 
-# Install essential networking and debugging packages
-log "Installing networking and debugging packages..."
-apt-get install -y -qq \
+# Install essential networking and debugging packages (minimal set)
+log "Installing essential networking and debugging packages..."
+apt-get install -y -qq --no-install-recommends \
     acl \
     net-tools \
     ifupdown \
@@ -39,6 +39,11 @@ apt-get install -y -qq \
     procps \
     network-manager \
     systemd-resolved
+
+# Remove unnecessary packages and clean up
+log "Cleaning up unnecessary packages..."
+apt-get autoremove -y -qq
+apt-get autoclean -qq
 
 # Ensure ACL support is properly configured
 log "Configuring ACL support for Ansible..."
@@ -97,5 +102,14 @@ chmod 600 /etc/NetworkManager/system-connections/default-ethernet.nmconnection
 # log "Verifying network configuration..."
 # ip addr show
 # nmcli connection show
+
+# Final size optimization
+log "Performing final size optimization..."
+# Remove unnecessary files that might have been created during setup
+rm -rf /tmp/* /var/tmp/* 2>/dev/null || true
+# Clear package cache
+apt-get clean 2>/dev/null || true
+# Remove any log files created during setup
+find /var/log -name "*.log" -type f -exec truncate -s 0 {} + 2>/dev/null || true
 
 log "=== HPC Base Image Setup Completed ==="
