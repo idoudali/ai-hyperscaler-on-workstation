@@ -26,13 +26,14 @@ production-ready solution for managing virtualized HPC infrastructure.
 - ✅ Boot waiting and shutdown timeout handling
 - ✅ Storage cleanup integration
 
-#### 3. **Disk Manager** (`vm_management/disk_manager.py`)
+#### 3. **Volume Manager** (`vm_management/volume_manager.py`)
 
-- ✅ Copy-on-write qcow2 disk creation from base images
-- ✅ Disk resizing and space management
+- ✅ Copy-on-write qcow2 volume creation from base images using libvirt storage pools
+- ✅ Volume resizing and space management
 - ✅ Base image validation and integrity checking
 - ✅ Space availability checking and estimation
-- ✅ Safe disk cleanup with backup options
+- ✅ Safe volume cleanup with backup options
+- ✅ Libvirt-native storage pool and volume management
 
 ### 🗃️ State Management System
 
@@ -103,7 +104,7 @@ production-ready solution for managing virtualized HPC infrastructure.
 
 ### 🚀 Performance Features
 
-- **Copy-on-Write Disks**: Minimal storage overhead for VM disks
+- **Copy-on-Write Volumes**: Minimal storage overhead for VM volumes using libvirt storage pools
 - **Parallel Operations**: Concurrent VM creation and management
 - **Connection Reuse**: Persistent libvirt connections
 - **Lazy Loading**: On-demand resource initialization
@@ -167,21 +168,30 @@ python/ai_how/src/ai_how/
 │   ├── __init__.py
 │   ├── libvirt_client.py      # libvirt connection wrapper
 │   ├── vm_lifecycle.py        # VM CRUD operations
-│   ├── disk_manager.py        # qcow2 disk management
+│   ├── volume_manager.py      # libvirt storage pool/volume management
+│   ├── network_manager.py     # libvirt network management
 │   ├── hpc_manager.py         # HPC cluster orchestration
+│   ├── xml_tracer.py          # XML tracing system
 │   └── templates/
 │       ├── controller.xml.j2   # Controller VM template
-│       └── compute_node.xml.j2 # Compute node VM template
+│       ├── compute_node.xml.j2 # Compute node VM template
+│       └── cluster_network.xml.j2 # Network template
 ├── state/
 │   ├── __init__.py
 │   ├── models.py              # State data models
-│   └── cluster_state.py       # State persistence
+│   ├── cluster_state.py       # Legacy state persistence
+│   ├── manager.py             # New modular state management
+│   └── persistence.py         # State persistence utilities
+├── utils/
+│   ├── __init__.py
+│   ├── logging.py             # Logging utilities and subprocess wrapper
+│   └── path_utils.py          # Path utility functions
 └── cli.py                     # Updated CLI commands
 ```
 
 ## Performance Optimizations
 
-- **Copy-on-Write Disks**: Minimal storage overhead for VM disks
+- **Copy-on-Write Volumes**: Minimal storage overhead for VM volumes using libvirt storage pools
 - **Parallel Operations**: Concurrent VM creation and management
 - **Connection Reuse**: Persistent libvirt connections
 - **Lazy Loading**: On-demand resource initialization
