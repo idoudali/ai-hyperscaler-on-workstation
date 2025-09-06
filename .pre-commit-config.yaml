@@ -19,6 +19,11 @@ repos:
       - id: check-merge-conflict
       - id: check-symlinks
       - id: detect-private-key
+        exclude: |
+          (?x)^(
+            tests/.*\.py$|
+            tests/.*\.sh$
+          )$
       - id: mixed-line-ending
         args: ['--fix=lf']
 
@@ -73,7 +78,7 @@ repos:
         files: ^python/ai_how/
         types: [python]
         pass_filenames: false
-        stages: [commit]
+        stages: [pre-commit]
         additional_dependencies: []
         require_serial: true
         verbose: true
@@ -89,7 +94,7 @@ repos:
         files: ^python/ai_how/
         types: [python]
         pass_filenames: false
-        stages: [commit]
+        stages: [pre-commit]
         additional_dependencies: []
         require_serial: true
         verbose: true
