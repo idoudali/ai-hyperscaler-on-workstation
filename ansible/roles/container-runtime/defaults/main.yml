@@ -3,19 +3,83 @@
 # This file contains default variables for the container runtime role
 # These can be overridden in playbooks or inventory
 
-# Container runtime type (singularity or apptainer)
-container_runtime_type: "singularity"
+# Container runtime type (apptainer only)
+# Note: Apptainer is the successor to Singularity, moved to Linux Foundation
+# See: https://github.com/apptainer/
+container_runtime_type: "apptainer"
 
-# Container runtime version
-container_runtime_version: "latest"
+# Container runtime version (using GitHub release version)
+# Using pre-built Debian packages from GitHub releases
+# For Debian 13 (trixie) and later, uses trixie+ packages with libfuse3 support
+container_runtime_version: "1.4.2"
+
+# Binary paths and names
+container_runtime_binary: "apptainer"
+container_runtime_binary_path: "/usr/bin/apptainer"
+
+# Installation method (direct GitHub download)
+container_runtime_install_method: "github"
+
+# Required packages for Apptainer
+container_runtime_required_packages:
+  - wget                    # For downloading Apptainer packages
+  - fuse                    # FUSE filesystem support
+  - squashfs-tools         # SquashFS utilities
+  - uidmap                 # User namespace mapping
+  - libfuse2               # FUSE runtime libraries
+  - libseccomp2            # Seccomp security support
+
+# Configuration paths
+container_runtime_config_dir: "/etc/{{ container_runtime_type }}"
+container_runtime_config_file: "{{ container_runtime_config_dir }}/{{ container_runtime_type }}.conf"
+
+# Security policy file
+container_runtime_security_policy_file: "{{ container_runtime_config_dir }}/security-policy.conf"
 
 # Security settings
-container_security_policies:
-  allow_suid: false
-  allow_pid_namespace: true
-  mount_home: true
-  mount_tmp: true
-  mount_hostfs: false
+container_runtime_allow_execution: true
+container_runtime_allow_suid: false
+container_runtime_allow_pid_namespace: true
+container_runtime_mount_home: true
+container_runtime_mount_tmp: true
+container_runtime_mount_hostfs: false
+container_runtime_allow_networking: true
+container_runtime_allowed_networks: []
+
+# Resource limits
+container_runtime_max_size: "2G"
+container_runtime_max_memory: "4G"
+
+# Security directories
+container_runtime_security_directories:
+  - "{{ container_runtime_config_dir }}/security"
+  - "{{ container_runtime_config_dir }}/certs"
+  - "{{ container_runtime_config_dir }}/keys"
+
+# Container runtime directories
+container_runtime_directories:
+  - "/opt/containers"
+  - "/var/lib/{{ container_runtime_type }}"
+  - "/var/log/{{ container_runtime_type }}"
+  - "{{ container_runtime_config_dir }}"
+
+# FUSE device paths
+container_runtime_fuse_devices:
+  - "/dev/fuse"
+
+# Sysctl settings for user namespaces
+# Only include parameters that exist on the target system
+container_runtime_sysctl_settings:
+  - name: "kernel.unprivileged_userns_clone"
+    value: "1"
+  # Note: kernel.user_namespaces is not available on all systems
+  # The security.yml task will check for parameter existence before setting
+
+# Feature flags
+container_runtime_enable_user_namespaces: true
+container_runtime_enable_fuse: true
+container_runtime_enable_squashfs: true
+container_runtime_enable_service: true
 
 # Container registry settings
 container_registry_path: "/opt/containers"

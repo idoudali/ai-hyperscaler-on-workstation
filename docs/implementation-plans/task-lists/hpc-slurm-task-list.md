@@ -1045,13 +1045,13 @@ find ansible/roles -name "main.yml" | grep -E "(tasks|defaults)"
 - **Estimated Time**: 4 hours
 - **Difficulty**: Junior-Intermediate
 
-**Description:** Implement Singularity/Apptainer container runtime installation
-with proper dependency management.
+**Description:** Implement Apptainer container runtime installation with proper
+dependency management using Debian packages and official repositories.
 
 **Deliverables:**
 
 - `ansible/roles/container-runtime/tasks/main.yml` - Main orchestration
-- `ansible/roles/container-runtime/tasks/singularity.yml` - Singularity
+- `ansible/roles/container-runtime/tasks/singularity.yml` - Apptainer/Singularity
   installation
 - `ansible/roles/container-runtime/tasks/security.yml` - Security policies
 - `ansible/roles/container-runtime/defaults/main.yml` - Default variables
@@ -1059,6 +1059,11 @@ with proper dependency management.
 **Implementation Details:**
 
 ```yaml
+# Primary installation method: Debian packages
+container_runtime_type: "apptainer"  # Apptainer is the successor to Singularity
+container_runtime_install_method: "debian"
+container_runtime_version: "4.1.5+ds4-1"  # From Debian unstable
+
 # Key packages to install
 required_packages:
   - fuse                    # FUSE filesystem support
@@ -1066,34 +1071,50 @@ required_packages:
   - uidmap                 # User namespace mapping
   - wget                   # Download utilities
   - build-essential        # Compilation tools
+  - libfuse2               # FUSE runtime libraries
+  - libseccomp2            # Seccomp security support
 ```
+
+**Apptainer Installation Sources:**
+
+- **Primary**: Debian `singularity-container` package (4.1.5+ds4-1)
+- **Alternative**: Official Apptainer repository setup
+- **Fallback**: GitHub releases for both Apptainer and Singularity
 
 **Validation Criteria:**
 
-- [ ] Singularity/Apptainer binary installed and functional
-- [ ] All dependencies (fuse, squashfs-tools, uidmap) installed
+- [ ] Apptainer binary installed and functional
+- [ ] All dependencies (fuse, squashfs-tools, uidmap, libfuse2, libseccomp2) installed
 - [ ] Container can execute simple commands
 - [ ] Version check returns expected output
+- [ ] Security configuration properly applied
 
 **Test Commands:**
 
 ```bash
-# Check installation
-singularity --version
+# Check Apptainer installation
 apptainer --version
 
+# Check Singularity compatibility (if using singularity-container package)
+singularity --version
+
 # Test basic functionality
-singularity exec docker://hello-world echo "Container runtime working"
+apptainer exec docker://hello-world echo "Container runtime working"
 
 # Verify dependencies
-dpkg -l | grep -E "(fuse|squashfs-tools|uidmap)"
+dpkg -l | grep -E "(fuse|squashfs-tools|uidmap|libfuse2|libseccomp2)"
+
+# Test security configuration
+apptainer config validate
 ```
 
 **Success Criteria:**
 
-- Singularity/Apptainer version >= 1.2.0
+- Apptainer version >= 4.1.5 (or Singularity >= 4.1.5 if using singularity-container)
 - Can pull and execute Docker containers
 - No permission errors during container execution
+- Security policies properly configured
+- Debian package installation method working
 
 **Testing Requirements:**
 
