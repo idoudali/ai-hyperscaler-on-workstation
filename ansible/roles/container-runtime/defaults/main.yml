@@ -1,0 +1,22 @@
+---
+# Container Runtime Role - Default Variables
+# This file contains default variables for the container runtime role
+# These can be overridden in playbooks or inventory
+
+# Container runtime type (singularity or apptainer)
+container_runtime_type: "singularity"
+
+# Container runtime version
+container_runtime_version: "latest"
+
+# Security settings
+container_security_policies:
+  allow_suid: false
+  allow_pid_namespace: true
+  mount_home: true
+  mount_tmp: true
+  mount_hostfs: false
+
+# Container registry settings
+container_registry_path: "/opt/containers"
+container_registry_permissions: "755"

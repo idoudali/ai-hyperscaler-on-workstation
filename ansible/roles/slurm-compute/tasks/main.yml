@@ -1,0 +1,8 @@
+---
+# SLURM Compute Role - Main Tasks
+# This file will contain the main orchestration tasks for SLURM compute node setup
+# including package installation, service configuration, and node registration
+
+- name: SLURM Compute Role - Main Tasks
+  debug:
+    msg: "SLURM Compute role main tasks will be implemented here"

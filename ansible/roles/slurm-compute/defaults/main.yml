@@ -1,0 +1,28 @@
+---
+# SLURM Compute Role - Default Variables
+# This file contains default variables for the SLURM compute role
+# These can be overridden in playbooks or inventory
+
+# Compute node configuration
+slurm_compute_node_name: "{{ inventory_hostname }}"
+slurm_compute_node_state: "idle"
+
+# Resource configuration
+slurm_cpu_cores: 4
+slurm_memory_gb: 8
+slurm_disk_gb: 50
+
+# GPU configuration
+slurm_gpu_enabled: false
+slurm_gpu_type: "nvidia"
+slurm_gpu_count: 0
+
+# Cgroup configuration
+slurm_cgroup_enabled: true
+slurm_cgroup_constrain_cores: true
+slurm_cgroup_constrain_memory: true
+slurm_cgroup_constrain_devices: true
+
+# Container runtime integration
+slurm_container_enabled: true
+slurm_container_runtime: "singularity"

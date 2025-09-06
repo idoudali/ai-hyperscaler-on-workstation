@@ -1,0 +1,28 @@
+---
+# ML Container Images Role - Default Variables
+# This file contains default variables for the ML container images role
+# These can be overridden in playbooks or inventory
+
+# Container image configuration
+container_image_base: "nvidia/cuda:12.1-devel-ubuntu22.04"
+container_image_python_version: "3.10"
+
+# PyTorch configuration
+pytorch_version: "2.0.0"
+pytorch_cuda_version: "cu121"
+
+# MPI configuration
+mpi_type: "openmpi"
+mpi_version: "4.1.4"
+mpi_pmix_enabled: true
+
+# Container registry configuration
+container_registry_path: "/opt/containers"
+container_registry_permissions: "755"
+container_registry_owner: "root"
+container_registry_group: "slurm"
+
+# Build configuration
+container_build_cache: true
+container_build_parallel: true
+container_build_timeout: 3600

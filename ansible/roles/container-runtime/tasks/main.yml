@@ -1,0 +1,8 @@
+---
+# Container Runtime Role - Main Tasks
+# This file will contain the main orchestration tasks for container runtime setup
+# including Singularity/Apptainer installation, security policies, and configuration
+
+- name: Container Runtime Role - Main Tasks
+  debug:
+    msg: "Container Runtime role main tasks will be implemented here"

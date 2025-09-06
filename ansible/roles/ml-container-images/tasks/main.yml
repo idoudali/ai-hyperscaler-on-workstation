@@ -1,0 +1,8 @@
+---
+# ML Container Images Role - Main Tasks
+# This file will contain the main orchestration tasks for ML container image management
+# including image building, registry setup, and container validation
+
+- name: ML Container Images Role - Main Tasks
+  debug:
+    msg: "ML Container Images role main tasks will be implemented here"

@@ -1,0 +1,28 @@
+---
+# SLURM Controller Role - Default Variables
+# This file contains default variables for the SLURM controller role
+# These can be overridden in playbooks or inventory
+
+# SLURM version
+slurm_version: "21.08"
+
+# Controller configuration
+slurm_controller_name: "controller"
+slurm_controller_port: 6817
+
+# Database configuration
+slurm_database_host: "localhost"
+slurm_database_port: 3306
+slurm_database_name: "slurm_acct_db"
+slurm_database_user: "slurm"
+
+# MUNGE configuration
+munge_key_path: "/etc/munge/munge.key"
+
+# PMIx configuration
+pmix_enabled: true
+pmix_ports: "12000-12999"
+
+# Resource management
+gres_types: "gpu"
+select_type: "select/cons_tres"
