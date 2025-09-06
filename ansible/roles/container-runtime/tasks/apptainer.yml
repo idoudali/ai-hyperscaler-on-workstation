@@ -1,0 +1,122 @@
+---
+# Apptainer Installation Tasks
+# This file handles the installation of Apptainer container runtime
+# following the official installation instructions for pre-built Debian packages
+
+- name: Update package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  tags: [container-runtime, apptainer, packages]
+
+- name: Install required packages for Apptainer
+  apt:
+    name: "{{ container_runtime_required_packages }}"
+    state: present
+  tags: [container-runtime, apptainer, packages]
+
+- name: Check if Apptainer is already installed
+  command: "{{ container_runtime_binary }} --version"
+  register: container_runtime_check
+  changed_when: false
+  failed_when: false
+  tags: [container-runtime, apptainer, installation]
+
+- name: Set package suffix based on Debian version
+  set_fact:
+    package_suffix: "{{ '-trixie+_amd64.deb' if ansible_distribution_release == 'trixie' else '_amd64.deb' }}"
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+  # Note: For Debian 13 (trixie) and later, use the trixie+ packages that support libfuse3
+  # For older Debian versions, use the standard packages
+
+- name: Display package variant being used
+  debug:
+    msg: "Using Apptainer package variant: {{ package_suffix }} for Debian {{ ansible_distribution_release }}"
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Download Apptainer base package
+  shell: |
+    wget -q -O "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}" \
+         "https://github.com/apptainer/apptainer/releases/download/v{{ container_runtime_version }}/apptainer_{{ container_runtime_version }}{{ package_suffix }}" && \
+    echo "Successfully downloaded Apptainer base package"
+  args:
+    creates: "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Install Apptainer base package
+  apt:
+    deb: "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+    state: present
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Download Apptainer SUID package
+  shell: |
+    wget -q -O "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}" \
+         "https://github.com/apptainer/apptainer/releases/download/v{{ container_runtime_version }}/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}" && \
+    echo "Successfully downloaded Apptainer SUID package"
+  args:
+    creates: "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Set downloaded package permissions
+  file:
+    path: "{{ item }}"
+    mode: '0644'
+    owner: root
+    group: root
+  loop:
+    - "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+    - "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Install Apptainer SUID package
+  apt:
+    deb: "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+    state: present
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Clean up downloaded packages
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+    - "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+  when: container_runtime_check.rc != 0
+  tags: [container-runtime, apptainer, installation]
+
+- name: Verify Apptainer installation
+  command: "{{ container_runtime_binary }} --version"
+  register: container_runtime_installed_version
+  changed_when: false
+  tags: [container-runtime, apptainer, verification]
+
+- name: Display installed Apptainer version
+  debug:
+    msg: "Apptainer {{ container_runtime_installed_version.stdout }} installed successfully"
+  tags: [container-runtime, apptainer, verification]
+
+- name: Create container runtime directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop: "{{ container_runtime_directories }}"
+  tags: [container-runtime, apptainer, directories]
+
+- name: Set container runtime binary permissions
+  file:
+    path: "{{ container_runtime_binary_path }}"
+    mode: '0755'
+    owner: root
+    group: root
+  tags: [container-runtime, apptainer, permissions]

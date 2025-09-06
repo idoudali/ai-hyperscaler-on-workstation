@@ -1,0 +1,19 @@
+---
+# Container Runtime Role - Handlers
+# This file contains handlers for the container runtime role
+
+- name: restart container runtime services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  loop:
+    - "{{ container_runtime_type }}"
+  when: container_runtime_enable_service | bool
+  ignore_errors: yes
+
+- name: reload container runtime configuration
+  command: "{{ container_runtime_binary }} config reload"
+  changed_when: false
+  failed_when: false
+  when: container_runtime_enable_service | bool

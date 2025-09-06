@@ -1,8 +1,25 @@
 ---
-# Container Runtime Role - Main Tasks
-# This file will contain the main orchestration tasks for container runtime setup
-# including Singularity/Apptainer installation, security policies, and configuration
+# Container Runtime Role - Main Orchestration
+# This file orchestrates the complete container runtime setup including
+# Apptainer installation, security policies, and configuration
 
-- name: Container Runtime Role - Main Tasks
+- name: Include Apptainer installation tasks
+  include_tasks: apptainer.yml
+  tags: [container-runtime, apptainer, installation]
+
+- name: Include security policy tasks
+  include_tasks: security.yml
+  tags: [container-runtime, security, policies]
+
+- name: Verify container runtime installation
+  command: "{{ container_runtime_binary }} --version"
+  register: container_runtime_version
+  changed_when: false
+  failed_when: false
+  tags: [container-runtime, verification]
+
+- name: Display container runtime version
   debug:
-    msg: "Container Runtime role main tasks will be implemented here"
+    msg: "{{ container_runtime_binary }} version: {{ container_runtime_version.stdout }}"
+  when: container_runtime_version.rc == 0
+  tags: [container-runtime, verification]

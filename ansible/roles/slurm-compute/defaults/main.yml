@@ -25,4 +25,4 @@ slurm_cgroup_constrain_devices: true
 
 # Container runtime integration
 slurm_container_enabled: true
-slurm_container_runtime: "singularity"
+slurm_container_runtime: "apptainer"

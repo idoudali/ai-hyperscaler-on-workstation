@@ -17,12 +17,17 @@ set -euo pipefail
 
 # Default configuration
 TARGET_HOST="${1:-localhost}"
+ROLE="${2:-all}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANSIBLE_DIR="${REPO_DIR}/ansible"
 SSH_USERNAME="${SSH_USERNAME:-debian}"
 SSH_PORT="${SSH_PORT:-22}"
 SSH_KEY="${SSH_KEY:-${REPO_DIR}/build/shared/ssh-keys/id_rsa}"
 VERBOSE="${VERBOSE:-true}"
+LOGGING_LEVEL="${LOGGING_LEVEL:--vvv}"
+
+# Available roles
+AVAILABLE_ROLES=("hpc-base-packages" "container-runtime" "nvidia-gpu-drivers")
 
 # Colors for output
 RED='\033[0;31m'
@@ -81,6 +86,23 @@ check_requirements() {
         exit 1
     fi
 
+    # Check if role is valid
+    if [[ "$ROLE" != "all" ]]; then
+        local valid_role=false
+        for available_role in "${AVAILABLE_ROLES[@]}"; do
+            if [[ "$ROLE" == "$available_role" ]]; then
+                valid_role=true
+                break
+            fi
+        done
+
+        if [[ "$valid_role" == false ]]; then
+            log_error "Invalid role: $ROLE"
+            log_error "Available roles: all, ${AVAILABLE_ROLES[*]}"
+            exit 1
+        fi
+    fi
+
     log_success "Requirements check passed"
 }
 
@@ -105,6 +127,7 @@ run_ansible_playbook() {
 
     log_info "Running Ansible playbook with Packer configuration..."
     log_info "Target host: $TARGET_HOST"
+    log_info "Role: $ROLE"
     log_info "SSH user: $SSH_USERNAME"
     log_info "SSH port: $SSH_PORT"
     log_info "SSH key: $SSH_KEY"
@@ -131,11 +154,15 @@ run_ansible_playbook() {
         --extra-vars "target_hosts=all"
         --become
         --become-user=root
+        "${LOGGING_LEVEL}"
     )
 
-    # Add verbose flag if requested
-    if [[ "$VERBOSE" == "true" ]]; then
-        ansible_cmd+=(-v)
+    # Add role selection if specific role is requested
+    if [[ "$ROLE" != "all" ]]; then
+        ansible_cmd+=(--tags "$ROLE")
+        log_info "Running only role: $ROLE"
+    else
+        log_info "Running all roles: ${AVAILABLE_ROLES[*]}"
     fi
 
     # Execute the playbook
@@ -162,10 +189,12 @@ cleanup() {
 
 show_usage() {
     cat << EOF
-Usage: $0 [target_host] [options]
+Usage: $0 [target_host] [role] [options]
 
 ARGUMENTS:
   target_host    Target host to run Ansible against (default: localhost)
+  role           Role to execute (default: all)
+                 Available roles: all, hpc-base-packages, container-runtime, nvidia-gpu-drivers
 
 OPTIONS:
   SSH_USERNAME   SSH username to use (default: debian)
@@ -174,32 +203,36 @@ OPTIONS:
   VERBOSE        Enable verbose output (default: true)
 
 EXAMPLES:
-  $0                                    # Run on localhost
-  $0 localhost                          # Run on localhost explicitly
-  $0 192.168.1.100                     # Run on specific IP
-  $0 vm-host                           # Run on specific hostname
-  SSH_USERNAME=ubuntu $0 localhost     # Use different SSH user
-  SSH_PORT=2222 $0 localhost           # Use custom SSH port
-  SSH_KEY=/path/to/key $0 localhost    # Use custom SSH key
-  SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/key $0 192.168.1.100  # Use custom user, port, and key
-  VERBOSE=false $0 localhost           # Disable verbose output
+  $0                                    # Run all roles on localhost
+  $0 localhost                          # Run all roles on localhost explicitly
+  $0 localhost hpc-base-packages        # Run only hpc-base-packages role on localhost
+  $0 localhost container-runtime        # Run only container-runtime role on localhost
+  $0 localhost nvidia-gpu-drivers       # Run only nvidia-gpu-drivers role on localhost
+  $0 192.168.1.100 hpc-base-packages   # Run specific role on specific IP
+  $0 vm-host container-runtime          # Run specific role on specific hostname
+  SSH_USERNAME=ubuntu $0 localhost hpc-base-packages     # Use different SSH user
+  SSH_PORT=2222 $0 localhost nvidia-gpu-drivers          # Use custom SSH port
+  SSH_KEY=/path/to/key $0 localhost container-runtime    # Use custom SSH key
+  SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/key $0 192.168.1.100 hpc-base-packages  # Use custom user, port, and key
+  VERBOSE=false $0 localhost all        # Disable verbose output
 
 DESCRIPTION:
   This script replicates the Ansible execution that happens during Packer builds
   for the HPC base image. It runs the same playbook with the same configuration
   that Packer uses, allowing you to test or apply the same changes to a live VM.
 
-  The script will:
-  1. Install HPC base packages (tmux, htop, vim, curl, wget)
-  2. Install Apptainer container runtime
-  3. Install NVIDIA GPU drivers (without CUDA)
-  4. Configure all components with Packer build settings
+  The script can run all roles or a specific role:
+  - hpc-base-packages: Install HPC base packages (tmux, htop, vim, curl, wget)
+  - container-runtime: Install Apptainer container runtime
+  - nvidia-gpu-drivers: Install NVIDIA GPU drivers (without CUDA)
+  - all: Run all roles (default behavior)
 
   This is useful for:
-  - Testing changes before rebuilding Packer images
-  - Applying the same configuration to existing VMs
-  - Debugging Ansible playbook issues
-  - Updating VMs with the same packages as Packer builds
+  - Testing specific role changes before rebuilding Packer images
+  - Applying only specific components to existing VMs
+  - Debugging individual Ansible role issues
+  - Updating VMs with specific packages without running everything
+  - Testing role dependencies and interactions
 
 EOF
 }
@@ -219,6 +252,7 @@ main() {
     log_info "Repository directory: $REPO_DIR"
     log_info "Ansible directory: $ANSIBLE_DIR"
     log_info "Target: $TARGET_HOST:$SSH_PORT (user: $SSH_USERNAME, key: $SSH_KEY)"
+    log_info "Role: $ROLE"
 
     # Change to ansible directory
     cd "$ANSIBLE_DIR"
@@ -238,9 +272,17 @@ main() {
 
     # Run the playbook
     if run_ansible_playbook "$inventory_file"; then
-        log_success "Packer Ansible replication completed successfully!"
-        log_info "The VM now has the same packages and configuration as a Packer-built image"
-        log_info "Note: A reboot may be required for NVIDIA drivers to become active"
+        if [[ "$ROLE" == "all" ]]; then
+            log_success "Packer Ansible replication completed successfully!"
+            log_info "The VM now has the same packages and configuration as a Packer-built image"
+            log_info "Note: A reboot may be required for NVIDIA drivers to become active"
+        else
+            log_success "Role '$ROLE' executed successfully!"
+            log_info "The VM now has the '$ROLE' role applied with Packer build settings"
+            if [[ "$ROLE" == "nvidia-gpu-drivers" ]]; then
+                log_info "Note: A reboot may be required for NVIDIA drivers to become active"
+            fi
+        fi
     else
         log_error "Packer Ansible replication failed"
         exit 1
