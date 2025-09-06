@@ -1,16 +1,18 @@
 # HPC SLURM Deployment - Individual Task List
 
-**Objective:** Break down HPC SLURM deployment into granular, self-contained tasks for individual execution and testing.
+**Objective:** Break down HPC SLURM deployment into granular, self-contained
+tasks for individual execution and testing.
 
 **Status:** Task Breakdown Complete  
 **Updated:** 2025-01-27  
-**Total Tasks:** 20 individual tasks across 4 phases
+**Total Tasks:** 30 individual tasks across 4 phases
 
 ## Overview
 
-This document provides a detailed breakdown of the HPC SLURM deployment implementation plan into individual,
-testable tasks that can be executed independently by junior software engineers or coding agents. Each task
-includes specific deliverables, validation criteria, and clear dependencies.
+This document provides a detailed breakdown of the HPC SLURM deployment
+implementation plan into individual, testable tasks that can be executed
+independently by junior software engineers or coding agents. Each task includes
+specific deliverables, validation criteria, and clear dependencies.
 
 ## Task Execution Principles
 
@@ -20,20 +22,825 @@ includes specific deliverables, validation criteria, and clear dependencies.
 - **Incremental Progress**: System functionality builds progressively
 - **Rollback Safety**: Failed tasks don't break previous working components
 
-## Phase 1: Core Infrastructure Setup (Tasks 001-012)
+## Phase 0: Test Infrastructure Setup (Tasks 001-006)
+
+### Test Environment Foundation
+
+#### Task 001: Build HPC Base Images with Packer
+
+- **ID**: TASK-001
+- **Phase**: 0 - Test Infrastructure
+- **Dependencies**: None
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate
+
+**Description:** Build HPC and Cloud base images using the existing Packer
+infrastructure to create consistent, tested base images for cluster deployment
+validation.
+
+**Deliverables:**
+
+- Built HPC base image (`hpc-base.qcow2`)
+- Built Cloud base image (`cloud-base.qcow2`)
+- Verified base image functionality
+- Updated `template-cluster.yaml` with correct image paths
+
+**Packer Build Process:**
+
+```bash
+# Build HPC base image
+cd packer
+make build-hpc-image
+
+# Build Cloud base image  
+make build-cloud-image
+
+# Verify images are created
+ls -la build/packer/hpc-base/hpc-base/hpc-base.qcow2
+ls -la build/packer/cloud-base/cloud-base/cloud-base.qcow2
+```
+
+**Base Image Features:**
+
+- **HPC Image**: Debian 13 (trixie) with networking tools, SSH access, and
+  HPC-optimized configuration
+- **Cloud Image**: Debian 13 (trixie) minimal base for Kubernetes workloads
+- **Security**: Proper SSH key management, disabled root login, firewall
+  configuration
+- **Size Optimization**: Compressed QCOW2 format with zero-fill optimization
+
+**Validation Criteria:**
+
+- [ ] HPC base image builds without errors
+- [ ] Cloud base image builds without errors  
+- [ ] Images boot successfully in libvirt/QEMU
+- [ ] SSH access works with generated keys
+- [ ] Base system packages are properly installed
+
+**Test Commands:**
+
+```bash
+# Test HPC image boot
+qemu-system-x86_64 -enable-kvm -m 2G -hda build/packer/hpc-base/hpc-base/hpc-base.qcow2 -nographic
+
+# Test Cloud image boot
+qemu-system-x86_64 -enable-kvm -m 2G -hda build/packer/cloud-base/cloud-base/cloud-base.qcow2 -nographic
+
+# Check image info
+qemu-img info build/packer/hpc-base/hpc-base/hpc-base.qcow2
+qemu-img info build/packer/cloud-base/cloud-base/cloud-base.qcow2
+```
+
+**Success Criteria:**
+
+- Both images build successfully within reasonable time (<30 minutes each)
+- Images boot to login prompt without errors
+- SSH connectivity functional with generated keys
+- Image sizes are reasonable (<2GB compressed)
+
+---
+
+#### Task 002: Install and Configure AI-HOW CLI
+
+- **ID**: TASK-002
+- **Phase**: 0 - Test Infrastructure
+- **Dependencies**: TASK-001
+- **Estimated Time**: 3 hours
+- **Difficulty**: Junior-Intermediate
+
+**Description:** Install and configure the AI-HOW Python CLI tool for cluster
+lifecycle management and validation testing.
+
+**Deliverables:**
+
+- AI-HOW CLI installed in development environment
+- Configuration validation working
+- PCIe passthrough validation functional
+- Test cluster configuration files prepared
+
+**Installation Process:**
+
+```bash
+# Install AI-HOW CLI in development mode
+cd python/ai_how
+uv sync --dev
+uv run ai-how --help
+
+# Verify installation
+uv run ai-how validate --help
+uv run ai-how hpc --help
+```
+
+**CLI Features Available:**
+
+- **Configuration Validation**: JSON schema validation with detailed error
+  reporting
+- **PCIe Passthrough Validation**: System readiness checks for GPU passthrough
+- **HPC Cluster Lifecycle**: Full start/stop/destroy cluster management
+- **VM Management**: libvirt integration for VM lifecycle operations
+- **Network Management**: Virtual network creation and IP allocation
+- **Storage Management**: Volume and storage pool management
+
+**Validation Criteria:**
+
+- [ ] AI-HOW CLI installs without errors
+- [ ] Help commands display correctly
+- [ ] Configuration validation works on sample files
+- [ ] PCIe validation detects system capabilities
+- [ ] Logging configuration functional
+
+**Test Commands:**
+
+```bash
+# Test configuration validation
+uv run ai-how validate config/template-cluster.yaml
+
+# Test PCIe validation (with simulation)
+uv run ai-how validate --skip-pcie-validation config/template-cluster.yaml
+
+# Test inventory commands
+uv run ai-how inventory pcie
+
+# Test cluster management commands (dry run)
+uv run ai-how hpc --help
+```
+
+**Success Criteria:**
+
+- CLI installation completes without dependency issues
+- Configuration validation passes on template-cluster.yaml
+- PCIe inventory command works (even if no GPUs present)
+- All CLI subcommands are accessible and show help text
+
+---
+
+#### Task 003: Create Test Cluster Configurations
+
+- **ID**: TASK-003
+- **Phase**: 0 - Test Infrastructure
+- **Dependencies**: TASK-002
+- **Estimated Time**: 3 hours
+- **Difficulty**: Junior-Intermediate
+
+**Description:** Create specialized test cluster configurations based on
+template-cluster.yaml for different validation scenarios.
+
+**Deliverables:**
+
+- `test-infra/configs/test-minimal.yaml` - Minimal test cluster (no GPU)
+- `test-infra/configs/test-gpu-simulation.yaml` - GPU passthrough simulation
+- `test-infra/configs/test-full-stack.yaml` - Complete HPC + Cloud setup
+- Updated base image paths in configurations
+
+**Test Configuration Variants:**
+
+```yaml
+# test-minimal.yaml - Basic functionality testing
+clusters:
+  hpc:
+    name: "test-hpc-minimal"
+    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+  controller:
+    cpu_cores: 2
+    memory_gb: 4
+      disk_gb: 20
+    compute_nodes:
+      - cpu_cores: 2
+        memory_gb: 4
+        disk_gb: 20
+        # No PCIe passthrough for minimal testing
+
+# test-gpu-simulation.yaml - GPU simulation testing  
+clusters:
+  hpc:
+    compute_nodes:
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 30
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:01:00.0" 
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2684"
+```
+
+**Configuration Features:**
+
+- **Resource Scaling**: Smaller resource allocations suitable for development/CI
+  environments
+- **Network Isolation**: Dedicated test subnets to avoid conflicts
+- **Flexible GPU Config**: Support for both real GPU passthrough and simulation
+- **Base Image Integration**: Proper paths to Packer-built images
+
+**Validation Criteria:**
+
+- [ ] All test configurations validate against schema
+- [ ] Base image paths correctly reference Packer outputs
+- [ ] Network configurations are non-conflicting
+- [ ] Resource allocations are realistic for test environments
+
+**Test Commands:**
+
+```bash
+# Validate test configurations
+uv run ai-how validate test-infra/configs/test-minimal.yaml
+uv run ai-how validate test-infra/configs/test-gpu-simulation.yaml
+uv run ai-how validate test-infra/configs/test-full-stack.yaml
+
+# Verify base image paths exist
+ls -la build/packer/hpc-base/hpc-base/hpc-base.qcow2
+ls -la build/packer/cloud-base/cloud-base/cloud-base.qcow2
+
+# Check configuration schema compliance
+python3 -c "import yaml; print('Valid YAML') if yaml.safe_load(open('test-infra/configs/test-minimal.yaml')) else print('Invalid')"
+```
+
+**Success Criteria:**
+
+- All test configurations pass AI-HOW schema validation
+- Base image paths resolve correctly
+- Network subnets don't conflict with host networking
+- Resource requirements are achievable on test hardware
+
+---
+
+#### Task 004: Configure PCIe Passthrough Testing Environment (OPTIONAL)
+
+- **ID**: TASK-004
+- **Phase**: 0 - Test Infrastructure
+- **Dependencies**: TASK-001
+- **Estimated Time**: 4 hours
+- **Difficulty**: Advanced
+- **⚠️ OPTIONAL**: Requires sudo access to modify host system `/sys` filesystem
+  entries
+
+**Description:** Set up PCIe passthrough testing environment that works with
+AI-HOW CLI validation, supporting both real GPU testing and simulation modes.
+
+**⚠️ WARNING - Host System Modification:** This task creates mock sysfs entries
+in `/sys/` which could interfere with real hardware detection and is difficult
+to clean up properly. Consider using the bypass approach instead.
+
+**Deliverables:**
+
+- PCIe device simulation scripts compatible with AI-HOW validation
+- VFIO module configuration for testing
+- Mock sysfs entries for PCIe validation
+- Integration with AI-HOW inventory commands
+
+**Simulation Environment Setup:**
+
+```bash
+# Create mock PCIe device entries
+sudo mkdir -p /sys/bus/pci/devices/0000:01:00.0
+sudo mkdir -p /sys/bus/pci/devices/0000:01:00.1
+sudo mkdir -p /sys/kernel/iommu_groups/17/devices
+
+# Create mock device properties
+echo "0x030000" | sudo tee /sys/bus/pci/devices/0000:01:00.0/class
+echo "0x040300" | sudo tee /sys/bus/pci/devices/0000:01:00.1/class
+
+# Link devices to IOMMU group
+sudo ln -sf /sys/bus/pci/devices/0000:01:00.0 /sys/kernel/iommu_groups/17/devices/
+sudo ln -sf /sys/bus/pci/devices/0000:01:00.1 /sys/kernel/iommu_groups/17/devices/
+```
+
+**AI-HOW Integration:**
+
+- **PCIe Inventory**: Mock devices appear in `ai-how inventory pcie`
+- **Validation Bypass**: Support for `--skip-pcie-validation` flag
+- **Test Configurations**: GPU simulation configs that pass validation
+- **Clean Separation**: Simulation doesn't interfere with real hardware
+
+**Mock VFIO Setup:**
+
+```bash
+# Create mock VFIO driver directory
+sudo mkdir -p /sys/bus/pci/drivers/vfio-pci
+
+# Create mock driver binding files  
+sudo touch /sys/bus/pci/drivers/vfio-pci/bind
+sudo touch /sys/bus/pci/drivers/vfio-pci/unbind
+
+# Set appropriate permissions
+sudo chmod 666 /sys/bus/pci/drivers/vfio-pci/bind
+sudo chmod 666 /sys/bus/pci/drivers/vfio-pci/unbind
+```
+
+**Validation Criteria:**
+
+- [ ] AI-HOW PCIe inventory detects simulated devices
+- [ ] Mock IOMMU groups are properly structured
+- [ ] VFIO binding simulation works
+- [ ] Test configurations validate successfully
+
+**Test Commands:**
+
+```bash
+# Test PCIe device detection with AI-HOW
+uv run ai-how inventory pcie
+
+# Test validation with GPU simulation config
+uv run ai-how validate test-infra/configs/test-gpu-simulation.yaml
+
+# Test validation bypass for environments without real GPUs
+uv run ai-how validate --skip-pcie-validation test-infra/configs/test-full-stack.yaml
+
+# Verify mock sysfs structure
+ls -la /sys/bus/pci/devices/
+ls -la /sys/kernel/iommu_groups/17/devices/
+```
+
+**Success Criteria:**
+
+- AI-HOW inventory commands work with simulated devices
+- PCIe validation passes with properly configured simulation
+- Test configurations validate against AI-HOW schema
+- Simulation environment is easily teardown/setup for CI
+
+**🔄 SAFER ALTERNATIVE - No Host Modification:** Instead of creating mock sysfs
+entries, use AI-HOW's built-in bypass capabilities:
+
+```bash
+# Test configurations without PCIe simulation
+uv run ai-how validate --skip-pcie-validation test-infra/configs/test-gpu-simulation.yaml
+uv run ai-how validate --skip-pcie-validation test-infra/configs/test-full-stack.yaml
+
+# Create test configs that don't require PCIe passthrough
+# Focus on SLURM functionality, networking, and container execution testing
+# Use schema validation only for GPU configurations
+```
+
+This approach avoids host system modification while still validating
+configuration schemas and core functionality.
+
+---
+
+#### Task 005: Create Cluster Validation Integration Test Scripts
+
+- **ID**: TASK-005
+- **Phase**: 0 - Test Infrastructure
+- **Dependencies**: TASK-003
+- **Estimated Time**: 4 hours  
+- **Difficulty**: Intermediate
+- **Test Type**: Integration Tests
+
+**Description:** Create comprehensive integration test scripts that validate
+deployed clusters using AI-HOW CLI, testing end-to-end functionality across VM
+lifecycle, networking, and service deployment.
+
+**Deliverables:**
+
+- `test-infra/validation/` directory structure for integration tests
+- End-to-end cluster deployment integration tests
+- Cross-service validation integration scripts  
+- Multi-component integration test suites
+
+**Integration Test Structure:**
+
+```text
+test-infra/validation/
+├── cluster_lifecycle/              # Integration tests for VM lifecycle management
+│   ├── test_cluster_start.py      # Integration: AI-HOW + libvirt + networking setup
+│   ├── test_cluster_stop.py       # Integration: Graceful multi-service shutdown  
+│   ├── test_cluster_destroy.py    # Integration: Complete cleanup validation
+│   └── test_cluster_status.py     # Integration: Cross-service status reporting
+├── service_validation/             # Integration tests for service interactions
+│   ├── test_ssh_connectivity.py   # Integration: SSH + networking + authentication
+│   ├── test_network_connectivity.py # Integration: Multi-node communication
+│   ├── test_storage_access.py     # Integration: Storage + filesystem + permissions
+│   └── test_gpu_assignment.py     # Integration: GPU passthrough + SLURM + containers
+├── integration_tests/              # End-to-end workflow integration tests
+│   ├── test_slurm_basic.py        # Integration: SLURM + containers + networking
+│   ├── test_container_execution.py # Integration: Container runtime + scheduling + storage
+│   └── test_multi_node_jobs.py    # Integration: Distributed computing workflow
+└── fixtures/
+   ├── test_jobs/                 # Sample integration test workloads
+   ├── expected_outputs/          # Integration test validation data
+   └── test_data/                 # Small test datasets for integration tests
+```
+
+**Sample Test Implementation:**
+
+```python
+# test_cluster_start.py - Integration Test
+#!/usr/bin/env python3
+import subprocess
+import time
+import yaml
+import pytest
+
+class TestClusterIntegration:
+    """Integration tests for end-to-end cluster deployment."""
+    
+    def test_cluster_deployment_integration(self):
+        """Integration test: AI-HOW CLI + libvirt + VM networking + service startup."""
+        
+        # Integration test: Deploy test cluster (tests AI-HOW + Packer images + libvirt)
+        result = subprocess.run([
+            "uv", "run", "ai-how", "hpc", "start", 
+            "test-infra/configs/test-minimal.yaml"
+        ], capture_output=True, text=True, cwd="python/ai_how")
+        
+        assert result.returncode == 0, f"Integration test failed - Cluster start: {result.stderr}"
+        
+        # Integration test: Verify cluster status (tests cross-service status reporting)
+        status_result = subprocess.run([
+            "uv", "run", "ai-how", "hpc", "status",
+            "test-infra/configs/test-minimal.yaml"  
+        ], capture_output=True, text=True, cwd="python/ai_how")
+        
+        assert "running" in status_result.stdout.lower(), "Integration test failed - Status check"
+        
+        # Integration test: Verify network connectivity between components
+        self._test_network_integration()
+        
+        return True
+    
+    def _test_network_integration(self):
+        """Helper integration test for network connectivity."""
+        # Test inter-node networking integration
+        pass
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+    print("✅ Integration test suite completed")
+```
+
+**Integration Test Validation Criteria:**
+
+- [ ] All integration test scripts are executable and syntactically correct
+- [ ] Integration tests cover complete cluster lifecycle across multiple
+  services
+- [ ] Cross-service validation integration tests are comprehensive
+- [ ] End-to-end integration tests verify multi-component functionality
+- [ ] Integration tests validate VM + networking + storage + application
+  interactions
+
+**Integration Test Commands:**
+
+```bash
+# Run cluster lifecycle integration tests
+pytest test-infra/validation/cluster_lifecycle/ -v --tb=short -k "integration"
+
+# Run service validation integration tests  
+pytest test-infra/validation/service_validation/ -v --tb=short -k "integration"
+
+# Run end-to-end integration tests
+pytest test-infra/validation/integration_tests/ -v --tb=short
+
+# Run complete integration test suite
+pytest test-infra/validation/ -v --tb=short --junit-xml=integration-test-results.xml
+
+# Run integration tests with coverage reporting
+pytest test-infra/validation/ -v --cov=ai_how --cov-report=html --cov-report=term
+```
+
+**Integration Test Success Criteria:**
+
+- All integration tests pass on successfully deployed clusters
+- Integration test scripts properly handle cross-service failure scenarios
+- Performance integration tests establish baseline metrics for multi-component
+  workflows
+- End-to-end integration tests verify complete system functionality
+- Integration tests demonstrate interoperability between AI-HOW CLI, libvirt,
+  networking, and SLURM
+
+---
+
+#### Task 006: Implement Comprehensive CI/CD Integration Testing Pipeline (OPTIONAL)
+
+- **ID**: TASK-006
+- **Phase**: 0 - Test Infrastructure
+- **Dependencies**: TASK-002, TASK-005
+- **Estimated Time**: 5 hours
+- **Difficulty**: Intermediate-Advanced
+- **⚠️ OPTIONAL**: Requires sudo access to install system packages and modify
+  user groups
+- **Test Type**: Integration Tests (CI/CD)
+
+**Description:** Create a comprehensive CI/CD pipeline that builds base images,
+validates configurations, and runs integration tests for cluster deployment
+using AI-HOW CLI.
+
+**⚠️ WARNING - Host System Modification:** The CI/CD pipeline installs system
+packages (`qemu-kvm`, `libvirt-daemon-system`) and modifies user groups, which
+could affect the host system configuration.
+
+**Deliverables:**
+
+- `.github/workflows/hpc-slurm-integration-tests.yml` - Main integration testing
+  pipeline
+- `.github/workflows/build-base-images.yml` - Packer image build pipeline for
+  integration tests
+- Docker-based integration test environment for CI runners
+- Automated integration test reporting and metrics
+
+**CI/CD Integration Testing Pipeline Structure:**
+
+```yaml
+# .github/workflows/hpc-slurm-integration-tests.yml
+name: HPC SLURM Integration Testing Pipeline
+
+on:
+  push:
+    paths: ['ansible/**', 'packer/**', 'python/ai_how/**', 'config/**']
+  pull_request:
+    paths: ['ansible/**', 'packer/**', 'python/ai_how/**', 'config/**']
+
+jobs:
+  build-base-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Packer
+        run: |
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+          sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+          sudo apt-get update && sudo apt-get install packer
+      
+      - name: Build HPC base image
+        run: |
+          cd packer
+          make build-hpc-image
+          
+      - name: Build Cloud base image
+        run: |
+          cd packer  
+          make build-cloud-image
+          
+      - name: Archive built images
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-images
+          path: |
+            build/packer/hpc-base/hpc-base/hpc-base.qcow2
+            build/packer/cloud-base/cloud-base/cloud-base.qcow2
+
+  validate-configurations:
+    needs: build-base-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: base-images
+          path: build/packer/
+          
+      - name: Setup AI-HOW CLI
+        run: |
+          cd python/ai_how
+          pip install uv
+          uv sync --dev
+          
+      - name: Validate cluster configurations
+        run: |
+          cd python/ai_how
+          uv run ai-how validate ../../test-infra/configs/test-minimal.yaml
+          uv run ai-how validate --skip-pcie-validation ../../test-infra/configs/test-gpu-simulation.yaml
+          uv run ai-how validate --skip-pcie-validation ../../config/template-cluster.yaml
+
+  run-integration-tests:
+    needs: [build-base-images, validate-configurations]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup libvirt for integration testing
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients
+          sudo usermod -a -G libvirt $USER
+          
+      - name: Run cluster lifecycle integration tests
+        run: |
+          pytest test-infra/validation/cluster_lifecycle/ -v -k "integration" --junitxml=lifecycle-results.xml
+          
+      - name: Run service validation integration tests
+        run: |
+          pytest test-infra/validation/service_validation/ -v -k "integration" --junitxml=service-results.xml
+          
+      - name: Run end-to-end integration tests
+        run: |
+          pytest test-infra/validation/integration_tests/ -v --junitxml=integration-results.xml
+          
+      - name: Publish integration test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: HPC SLURM Integration Test Suite
+          path: '*-results.xml'
+          reporter: java-junit
+```
+
+**Integration Testing Pipeline Features:**
+
+- **Parallel Execution**: Image building, validation, and integration testing
+  run in parallel where possible
+- **Artifact Management**: Built images cached and reused across integration
+  testing stages  
+- **Comprehensive Integration Testing**: Configuration validation, cluster
+  lifecycle, service interactions, and end-to-end integration tests
+- **Failure Isolation**: Each integration testing stage can fail independently
+  with clear error reporting
+- **Performance Tracking**: Integration test execution times and resource usage
+  monitoring
+- **Cross-Service Validation**: Tests verify interactions between AI-HOW CLI,
+  libvirt, networking, and SLURM components
+
+**Integration Testing Pipeline Validation Criteria:**
+
+- [ ] Pipeline builds base images successfully for integration testing
+- [ ] Configuration validation passes for all integration test configs
+- [ ] Cluster lifecycle integration tests complete without errors
+- [ ] End-to-end integration tests verify multi-component functionality
+- [ ] Cross-service integration test results published with clear pass/fail
+  status
+- [ ] Integration tests demonstrate interoperability between all system
+  components
+
+**Integration Testing Pipeline Commands:**
+
+```bash
+# Test integration testing pipeline locally with Act
+act -j build-base-images
+act -j validate-configurations  
+act -j run-integration-tests
+
+# Validate integration testing workflow syntax
+yamllint .github/workflows/hpc-slurm-integration-tests.yml
+yamllint .github/workflows/build-base-images.yml
+
+# Test individual integration testing pipeline components
+cd packer && make build-hpc-image
+cd python/ai_how && uv run ai-how validate ../../config/template-cluster.yaml
+pytest test-infra/validation/ -v -k "integration" --junitxml=integration-results.xml
+
+# Run full integration test suite locally
+pytest test-infra/validation/integration_tests/ -v --tb=short
+```
+
+**Integration Testing Pipeline Success Criteria:**
+
+- Complete integration testing pipeline executes within 45 minutes
+- All integration tests pass on clean checkout
+- Integration test failures provide actionable debugging information
+- Pipeline scales to handle multiple concurrent PRs with integration testing
+- Integration test results integrate with GitHub PR status checks
+- Cross-service integration is validated across all system components
+
+**🔄 SAFER ALTERNATIVE - No Host Modification:** Create a limited CI/CD
+integration testing pipeline that avoids system package installation:
+
+```yaml
+# .github/workflows/hpc-slurm-integration-tests-safe.yml
+name: HPC SLURM Safe Integration Testing Pipeline
+
+jobs:
+  build-base-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images (Packer may work without libvirt)
+        run: |
+          cd packer
+          make validate-packer  # Validation only
+          
+  validate-configurations:
+    runs-on: ubuntu-latest  
+    steps:
+      - name: Setup AI-HOW CLI
+        run: |
+          cd python/ai_how
+          pip install uv
+          uv sync --dev
+          
+      - name: Validate configurations (schema only)
+        run: |
+          cd python/ai_how
+          uv run ai-how validate --skip-pcie-validation ../../config/template-cluster.yaml
+          uv run ai-how validate --skip-pcie-validation ../../test-infra/configs/test-minimal.yaml
+          
+  syntax-and-lint-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate YAML syntax
+        run: find . -name "*.yaml" -o -name "*.yml" | xargs yamllint
+      - name: Python linting
+        run: |
+          cd python/ai_how
+          uv sync --dev
+          uv run ruff check src/
+```
+
+This safer approach focuses on configuration validation, syntax checking, and
+basic integration testing without requiring system modifications or full VM
+orchestration.
+
+---
+
+## Test Infrastructure Integration Summary
+
+### Leveraged Components
+
+**Packer Infrastructure (Tasks 001)**
+
+- Uses existing `packer/hpc-base/` and `packer/cloud-base/` configurations
+- Builds consistent, tested base images with proper provisioning
+- Integrates with CMake build system for reproducible image creation
+- Provides optimized QCOW2 images with size and performance optimizations
+
+**AI-HOW Python CLI (Tasks 002, 005, 006)**
+
+- Leverages comprehensive cluster lifecycle management (`ai-how hpc
+  start/stop/destroy`)
+- Uses built-in configuration validation with JSON schema support
+- Integrates PCIe passthrough validation for GPU testing scenarios
+- Provides VM management through libvirt with proper state tracking
+- Includes network and storage management for complete infrastructure handling
+
+**Template Configuration System (Tasks 003)**
+
+- Builds on `template-cluster.yaml` as baseline configuration
+- Creates test-specific variants with reduced resource requirements
+- Maintains compatibility with production deployment patterns
+- Supports both GPU simulation and real hardware testing modes
+
+### Integration Testing Approach Benefits
+
+1. **Production Alignment**: Integration test infrastructure uses the same tools
+   (AI-HOW CLI, Packer) as production deployment
+2. **Real System Integration Testing**: Deploys actual VMs with real networking
+   and storage for cross-service validation
+3. **Comprehensive Integration Validation**: Tests complete cluster lifecycle
+   integration from image building through service deployment
+4. **CI/CD Integration Testing**: Automated pipeline validates cross-component
+   interactions (with safe alternatives for host-constrained environments)
+5. **Scalable Integration Testing**: Supports both minimal integration test
+   configs and full production-like integration deployments
+6. **Hardware Flexibility**: Works with or without actual GPU hardware through
+   integration test bypass modes
+7. **Host System Safety**: Optional integration test tasks are clearly marked,
+   with safer alternatives that avoid sudo requirements
+
+### Integration Test Coverage
+
+- **Image Building Integration**: Validates Packer templates and base image
+  functionality within the deployment pipeline
+- **Configuration Schema Integration**: Ensures cluster configs integrate
+  properly with AI-HOW CLI validation
+- **Cluster Lifecycle Integration**: Tests complete deployment, status
+  monitoring, and cleanup across all services
+- **Cross-Service Integration**: Validates SSH connectivity, networking, and
+  storage access between components
+- **PCIe Passthrough Integration**: Tests GPU configuration and VFIO driver
+  binding with container orchestration
+- **End-to-End Integration Workflows**: Verifies complete system functionality
+  from infrastructure through application layer
+
+This integration test infrastructure provides robust cross-service validation
+capabilities that closely mirror production deployment scenarios while
+maintaining efficiency for development and CI/CD workflows.
+
+### Host System Safety Summary
+
+**Safe Integration Test Tasks (No sudo required):**
+
+- TASK-001: Packer image building for integration testing (creates files in
+  build directory)
+- TASK-002: AI-HOW CLI installation for integration testing (user-space Python
+  environment)
+- TASK-003: Integration test configuration file creation (project directory
+  only)
+- TASK-005: Integration test script creation (project directory only)
+
+**Optional Integration Test Tasks (Require sudo):**
+
+- TASK-004: PCIe simulation integration testing (modifies `/sys` filesystem) -
+  **Use `--skip-pcie-validation` instead**
+- TASK-006: Full CI/CD integration testing pipeline (installs system packages) -
+  **Use safe integration testing pipeline alternative**
+
+The core integration test validation functionality can be achieved using only
+the safe tasks, with PCIe and full system integration testing available as
+optional enhancements for environments where host modification is acceptable.
+
+---
+
+## Phase 1: Core Infrastructure Setup (Tasks 007-018)
 
 ### Container Runtime Foundation
 
-#### Task 001: Extend Ansible Role Structure for Container Support
+#### Task 007: Extend Ansible Role Structure for Container Support
 
-- **ID**: TASK-001
+- **ID**: TASK-007
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: None
+- **Dependencies**: TASK-006
 - **Estimated Time**: 2 hours
 - **Difficulty**: Junior
 
-**Description:**
-Create the extended Ansible role directory structure to support container-based HPC deployment.
+**Description:** Create the extended Ansible role directory structure to support
+container-based HPC deployment.
 
 **Deliverables:**
 
@@ -41,7 +848,8 @@ Create the extended Ansible role directory structure to support container-based 
 - `ansible/roles/slurm-controller/` directory structure  
 - `ansible/roles/slurm-compute/` directory structure
 - `ansible/roles/ml-container-images/` directory structure
-- Proper subdirectories: `tasks/`, `templates/`, `defaults/`, `handlers/`, `vars/`, `files/`
+- Proper subdirectories: `tasks/`, `templates/`, `defaults/`, `handlers/`,
+  `vars/`, `files/`
 
 **Validation Criteria:**
 
@@ -67,7 +875,8 @@ find ansible/roles -name "main.yml" | grep -E "(tasks|defaults)"
 
 **Success Criteria:**
 
-- [x] Directory structure matches the specification in hpc-slurm-deployment.md section 2.1
+- [x] Directory structure matches the specification in hpc-slurm-deployment.md
+  section 2.1
 - [x] All placeholder files are syntactically valid YAML
 - [x] Ansible can discover and list the new roles
 
@@ -75,21 +884,22 @@ find ansible/roles -name "main.yml" | grep -E "(tasks|defaults)"
 
 ---
 
-#### Task 002: Create Container Runtime Ansible Role
+#### Task 008: Create Container Runtime Ansible Role
 
-- **ID**: TASK-002
+- **ID**: TASK-008
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-001
+- **Dependencies**: TASK-007
 - **Estimated Time**: 4 hours
 - **Difficulty**: Junior-Intermediate
 
-**Description:**
-Implement Singularity/Apptainer container runtime installation with proper dependency management.
+**Description:** Implement Singularity/Apptainer container runtime installation
+with proper dependency management.
 
 **Deliverables:**
 
 - `ansible/roles/container-runtime/tasks/main.yml` - Main orchestration
-- `ansible/roles/container-runtime/tasks/singularity.yml` - Singularity installation
+- `ansible/roles/container-runtime/tasks/singularity.yml` - Singularity
+  installation
 - `ansible/roles/container-runtime/tasks/security.yml` - Security policies
 - `ansible/roles/container-runtime/defaults/main.yml` - Default variables
 
@@ -134,16 +944,16 @@ dpkg -l | grep -E "(fuse|squashfs-tools|uidmap)"
 
 ---
 
-#### Task 003: Configure Container Security Policies
+#### Task 009: Configure Container Security Policies
 
-- **ID**: TASK-003
+- **ID**: TASK-009
 - **Phase**: 1 - Infrastructure  
-- **Dependencies**: TASK-002
+- **Dependencies**: TASK-008
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Create and deploy container security configuration to prevent privilege escalation and ensure proper isolation.
+**Description:** Create and deploy container security configuration to prevent
+privilege escalation and ensure proper isolation.
 
 **Deliverables:**
 
@@ -215,16 +1025,16 @@ cat /etc/singularity/singularity.conf | grep -E "(allow suid|mount hostfs)"
 
 ### SLURM Controller Foundation
 
-#### Task 004: Create SLURM Controller Installation Task
+#### Task 010: Create SLURM Controller Installation Task
 
-- **ID**: TASK-004
+- **ID**: TASK-010
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-001
+- **Dependencies**: TASK-007
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Install SLURM controller packages with PMIx support and all required dependencies.
+**Description:** Install SLURM controller packages with PMIx support and all
+required dependencies.
 
 **Deliverables:**
 
@@ -284,16 +1094,16 @@ mungekey --version
 
 ---
 
-#### Task 005: Configure SLURM PMIx Integration
+#### Task 011: Configure SLURM PMIx Integration
 
-- **ID**: TASK-005
+- **ID**: TASK-011
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-004
+- **Dependencies**: TASK-010
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Create SLURM configuration template with PMIx integration and MPI support.
+**Description:** Create SLURM configuration template with PMIx integration and
+MPI support.
 
 **Deliverables:**
 
@@ -347,16 +1157,16 @@ grep -E "(MpiDefault|MpiParams|GresTypes)" /etc/slurm/slurm.conf
 
 ---
 
-#### Task 006: Set Up MUNGE Authentication
+#### Task 012: Set Up MUNGE Authentication
 
-- **ID**: TASK-006
+- **ID**: TASK-012
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-004
+- **Dependencies**: TASK-010
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Configure MUNGE authentication system for secure SLURM communication across cluster nodes.
+**Description:** Configure MUNGE authentication system for secure SLURM
+communication across cluster nodes.
 
 **Deliverables:**
 
@@ -400,16 +1210,16 @@ ls -la /etc/munge/munge.key
 
 ---
 
-#### Task 007: Configure SLURM Container Plugin
+#### Task 013: Configure SLURM Container Plugin
 
-- **ID**: TASK-007
+- **ID**: TASK-013
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-003, TASK-005
+- **Dependencies**: TASK-009, TASK-011
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Set up SLURM container plugin integration for Singularity/Apptainer container execution.
+**Description:** Set up SLURM container plugin integration for
+Singularity/Apptainer container execution.
 
 **Deliverables:**
 
@@ -469,16 +1279,16 @@ grep -i "container" /var/log/slurm/slurmctld.log
 
 ### Infrastructure Enhancement
 
-#### Task 008: Enhance Inventory Generator for GPU Detection
+#### Task 014: Enhance Inventory Generator for GPU Detection
 
-- **ID**: TASK-008
+- **ID**: TASK-014
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-001
+- **Dependencies**: TASK-007
 - **Estimated Time**: 6 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Extend the Python inventory generator to detect PCIe passthrough GPUs and generate proper SLURM GRES configuration.
+**Description:** Extend the Python inventory generator to detect PCIe
+passthrough GPUs and generate proper SLURM GRES configuration.
 
 **Deliverables:**
 
@@ -546,16 +1356,16 @@ python3 -c "import yaml; yaml.safe_load(open('inventories/hpc/hosts.yml'))"
 
 ### Monitoring Infrastructure
 
-#### Task 009: Install Prometheus Monitoring Stack
+#### Task 015: Install Prometheus Monitoring Stack
 
-- **ID**: TASK-009
+- **ID**: TASK-015
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-001
+- **Dependencies**: TASK-007
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Install and configure Prometheus monitoring system for HPC cluster metrics collection.
+**Description:** Install and configure Prometheus monitoring system for HPC
+cluster metrics collection.
 
 **Deliverables:**
 
@@ -604,16 +1414,16 @@ curl http://localhost:9090/api/v1/query?query=node_cpu_seconds_total
 
 ---
 
-#### Task 010: Set Up Grafana Dashboard Platform
+#### Task 016: Set Up Grafana Dashboard Platform
 
-- **ID**: TASK-010
+- **ID**: TASK-016
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-009
+- **Dependencies**: TASK-015
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Install Grafana and create basic system monitoring dashboard for HPC cluster visualization.
+**Description:** Install Grafana and create basic system monitoring dashboard
+for HPC cluster visualization.
 
 **Deliverables:**
 
@@ -660,16 +1470,16 @@ curl -u admin:admin http://localhost:3000/api/dashboards/home
 
 ---
 
-#### Task 011: Configure SLURM Job Accounting
+#### Task 017: Configure SLURM Job Accounting
 
-- **ID**: TASK-011
+- **ID**: TASK-017
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-004, TASK-006
+- **Dependencies**: TASK-010, TASK-012
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Set up SLURM job accounting with MariaDB backend for comprehensive job metrics and resource usage tracking.
+**Description:** Set up SLURM job accounting with MariaDB backend for
+comprehensive job metrics and resource usage tracking.
 
 **Deliverables:**
 
@@ -728,16 +1538,16 @@ scontrol show config | grep -i accounting
 
 ---
 
-#### Task 012: Deploy DCGM GPU Monitoring
+#### Task 018: Deploy DCGM GPU Monitoring
 
-- **ID**: TASK-012
+- **ID**: TASK-018
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-009
+- **Dependencies**: TASK-015
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Install and configure NVIDIA DCGM (Data Center GPU Manager) for GPU metrics collection and Prometheus integration.
+**Description:** Install and configure NVIDIA DCGM (Data Center GPU Manager) for
+GPU metrics collection and Prometheus integration.
 
 **Deliverables:**
 
@@ -788,20 +1598,20 @@ curl http://localhost:9090/api/v1/query?query=dcgm_gpu_utilization
 
 ---
 
-## Phase 2: Container Images & Compute Integration (Tasks 013-020)
+## Phase 2: Container Images & Compute Integration (Tasks 019-026)
 
 ### Container Image Development
 
-#### Task 013: Create PyTorch Container Definition
+#### Task 019: Create PyTorch Container Definition
 
-- **ID**: TASK-013
+- **ID**: TASK-019
 - **Phase**: 2 - Container Development
-- **Dependencies**: TASK-003
+- **Dependencies**: TASK-009
 - **Estimated Time**: 6 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Write Singularity definition file for PyTorch+MPI container with CUDA support and monitoring tools.
+**Description:** Write Singularity definition file for PyTorch+MPI container
+with CUDA support and monitoring tools.
 
 **Deliverables:**
 
@@ -856,16 +1666,16 @@ grep -E "(pytorch|openmpi|cuda)" pytorch-mpi.def
 
 ---
 
-#### Task 014: Automate Container Image Building
+#### Task 020: Automate Container Image Building
 
-- **ID**: TASK-014
+- **ID**: TASK-020
 - **Phase**: 2 - Container Development
-- **Dependencies**: TASK-013
+- **Dependencies**: TASK-019
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Create Ansible tasks to automatically build Singularity container images from definition files with validation.
+**Description:** Create Ansible tasks to automatically build Singularity
+container images from definition files with validation.
 
 **Deliverables:**
 
@@ -911,16 +1721,16 @@ singularity exec /opt/containers/pytorch-mpi-*.sif mpirun --version
 
 ---
 
-#### Task 015: Set Up Container Image Registry
+#### Task 021: Set Up Container Image Registry
 
-- **ID**: TASK-015
+- **ID**: TASK-021
 - **Phase**: 2 - Container Development
-- **Dependencies**: TASK-014
+- **Dependencies**: TASK-020
 - **Estimated Time**: 3 hours
 - **Difficulty**: Junior-Intermediate
 
-**Description:**
-Create shared directory structure and permissions system for container image distribution across cluster.
+**Description:** Create shared directory structure and permissions system for
+container image distribution across cluster.
 
 **Deliverables:**
 
@@ -974,16 +1784,16 @@ singularity exec /opt/containers/pytorch-mpi-*.sif echo "Registry access working
 
 ### Compute Node Integration
 
-#### Task 016: Create SLURM Compute Node Installation
+#### Task 022: Create SLURM Compute Node Installation
 
-- **ID**: TASK-016
+- **ID**: TASK-022
 - **Phase**: 2 - Compute Integration
-- **Dependencies**: TASK-002, TASK-006
+- **Dependencies**: TASK-008, TASK-012
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
 
-**Description:**
-Install SLURM compute node components with container runtime integration.
+**Description:** Install SLURM compute node components with container runtime
+integration.
 
 **Deliverables:**
 
@@ -1036,16 +1846,16 @@ singularity --version
 
 ---
 
-#### Task 017: Configure GPU Resources (GRES)
+#### Task 023: Configure GPU Resources (GRES)
 
-- **ID**: TASK-017
+- **ID**: TASK-023
 - **Phase**: 2 - Compute Integration
-- **Dependencies**: TASK-008, TASK-016
+- **Dependencies**: TASK-014, TASK-022
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Create GRES configuration for GPU resource management and scheduling in SLURM.
+**Description:** Create GRES configuration for GPU resource management and
+scheduling in SLURM.
 
 **Deliverables:**
 
@@ -1097,16 +1907,16 @@ scontrol show node compute-01 | grep -i gres
 
 ---
 
-#### Task 018: Set Up Cgroup Resource Isolation
+#### Task 024: Set Up Cgroup Resource Isolation
 
-- **ID**: TASK-018
+- **ID**: TASK-024
 - **Phase**: 2 - Compute Integration
-- **Dependencies**: TASK-016
+- **Dependencies**: TASK-022
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Configure cgroup-based resource isolation for CPU, memory, and GPU device access control.
+**Description:** Configure cgroup-based resource isolation for CPU, memory, and
+GPU device access control.
 
 **Deliverables:**
 
@@ -1160,16 +1970,16 @@ srun --gres=gpu:1 nvidia-smi -L | wc -l  # Should show 1 GPU
 
 ---
 
-#### Task 019: Create Failure Detection Scripts
+#### Task 025: Create Failure Detection Scripts
 
-- **ID**: TASK-019
+- **ID**: TASK-025
 - **Phase**: 2 - Compute Integration
-- **Dependencies**: TASK-011
+- **Dependencies**: TASK-017
 - **Estimated Time**: 6 hours
 - **Difficulty**: Advanced
 
-**Description:**
-Implement SLURM epilog/prolog scripts for job completion analysis and distributed training failure debugging.
+**Description:** Implement SLURM epilog/prolog scripts for job completion
+analysis and distributed training failure debugging.
 
 **Deliverables:**
 
@@ -1219,16 +2029,16 @@ ls -la /var/log/slurm/debug/
 
 ---
 
-#### Task 020: Create Container Validation Tests
+#### Task 026: Create Container Validation Tests
 
-- **ID**: TASK-020
+- **ID**: TASK-026
 - **Phase**: 2 - Integration Validation
-- **Dependencies**: TASK-015, TASK-017, TASK-018
+- **Dependencies**: TASK-021, TASK-023, TASK-024
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:**
-Implement comprehensive validation tests for PyTorch CUDA, MPI functionality, and GPU access within containers.
+**Description:** Implement comprehensive validation tests for PyTorch CUDA, MPI
+functionality, and GPU access within containers.
 
 **Deliverables:**
 
@@ -1296,30 +2106,289 @@ srun --nodes=2 --ntasks-per-node=1 --gres=gpu:1 \
 
 ---
 
+## Phase 3: Integration Testing & Validation (Tasks 027-030)
+
+### End-to-End Integration Testing
+
+#### Task 027: Deploy Test Environment with Full Stack
+
+- **ID**: TASK-027
+- **Phase**: 3 - Integration Testing
+- **Dependencies**: TASK-006, TASK-018, TASK-021
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate-Advanced
+
+**Description:** Deploy complete HPC SLURM stack to test environment and
+validate all components working together.
+
+**Deliverables:**
+
+- Complete test environment deployment playbook
+- Full-stack integration validation
+- End-to-end service verification
+- Performance baseline establishment
+
+**Integration Components:**
+
+- SLURM controller with all services (slurmctld, slurmdbd, munge)
+- Compute nodes with container runtime and GPU simulation
+- Container registry with ML images
+- Monitoring stack (Prometheus, Grafana, DCGM)
+- Test job execution and validation
+
+**Validation Criteria:**
+
+- [ ] All SLURM services running and communicating
+- [ ] Container jobs execute successfully
+- [ ] GPU resources properly allocated and utilized
+- [ ] Monitoring data collected and visible
+- [ ] Job accounting and logging functional
+
+**Test Commands:**
+
+```bash
+# Deploy full stack to test environment
+ansible-playbook -i test-infra/ansible/test-inventory.yml deploy-full-stack.yml
+
+# Validate SLURM cluster status
+sinfo -Nel
+scontrol show nodes
+squeue
+
+# Test container job execution
+sbatch test-infra/fixtures/slurm-jobs/container-pytorch-job.sh
+
+# Verify monitoring integration
+curl http://test-controller:9090/api/v1/query?query=up
+curl http://test-controller:3000/api/health
+```
+
+**Success Criteria:**
+
+- All cluster nodes show as available in SLURM
+- Container jobs complete successfully with expected output
+- GPU allocation and monitoring working
+- No critical errors in any service logs
+
+---
+
+#### Task 028: Execute Comprehensive Validation Suite
+
+- **ID**: TASK-028
+- **Phase**: 3 - Integration Testing
+- **Dependencies**: TASK-027
+- **Estimated Time**: 6 hours
+- **Difficulty**: Advanced
+
+**Description:** Run comprehensive test suite validating all task
+implementations and system functionality.
+
+**Deliverables:**
+
+- Complete validation test execution
+- Test results report and analysis
+- Performance metrics collection
+- Failure scenario testing
+
+**Test Categories:**
+
+1. **Service Integration Tests**: All services communicate properly
+2. **Container Execution Tests**: Various container scenarios work
+3. **GPU Resource Tests**: GPU scheduling and utilization
+4. **MPI Communication Tests**: Multi-node distributed jobs
+5. **Monitoring Integration Tests**: Metrics collection and alerting
+6. **Failure Recovery Tests**: System behavior under failure conditions
+
+**Validation Criteria:**
+
+- [ ] All integration tests pass
+- [ ] Performance metrics within acceptable ranges
+- [ ] Failure scenarios handled gracefully
+- [ ] Resource utilization optimized
+
+**Test Commands:**
+
+```bash
+# Run comprehensive validation suite
+python3 test-infra/test-framework/test_runner.py --suite=comprehensive --report=detailed
+
+# Execute performance tests
+python3 test-infra/test-framework/test_runner.py --suite=performance --baseline
+
+# Test failure scenarios
+python3 test-infra/test-framework/test_runner.py --suite=failure-scenarios
+
+# Generate final report
+python3 test-infra/test-framework/test_runner.py --generate-final-report
+```
+
+**Success Criteria:**
+
+- >95% of tests pass
+- Performance within 20% of baseline expectations
+- All failure scenarios handled without system crash
+- Complete test coverage of all task deliverables
+
+---
+
+#### Task 029: Create Production Deployment Documentation
+
+- **ID**: TASK-029
+- **Phase**: 3 - Documentation
+- **Dependencies**: TASK-028
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate
+
+**Description:** Generate comprehensive documentation for production deployment
+based on validated test results.
+
+**Deliverables:**
+
+- Production deployment guide
+- Configuration templates and examples
+- Troubleshooting and maintenance procedures
+- Performance tuning recommendations
+
+**Documentation Components:**
+
+- Step-by-step deployment instructions
+- Hardware and software requirements
+- Network and security configuration
+- Monitoring and alerting setup
+- Backup and recovery procedures
+- Scaling and optimization guidelines
+
+**Validation Criteria:**
+
+- [ ] Documentation complete and accurate
+- [ ] All configuration examples tested
+- [ ] Troubleshooting procedures validated
+- [ ] Production readiness checklist created
+
+**Test Commands:**
+
+```bash
+# Validate documentation examples
+cd docs/deployment/
+bash validate-config-examples.sh
+
+# Test troubleshooting procedures
+python3 test-troubleshooting-scenarios.py
+
+# Check documentation completeness
+python3 validate-documentation-coverage.py
+```
+
+**Success Criteria:**
+
+- Documentation enables successful production deployment
+- All examples and procedures tested and working
+- Troubleshooting covers common scenarios
+- Clear migration path from test to production
+
+---
+
+#### Task 030: Conduct Final Integration Validation
+
+- **ID**: TASK-030
+- **Phase**: 3 - Final Validation
+- **Dependencies**: TASK-029
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+
+**Description:** Perform final validation of complete system against original
+requirements and success criteria.
+
+**Deliverables:**
+
+- Final system validation report
+- Requirements traceability matrix
+- Performance benchmark results
+- Production readiness assessment
+
+**Final Validation Areas:**
+
+- All original requirements satisfied
+- System performance meets specifications
+- Security and isolation working properly
+- Monitoring and observability complete
+- Documentation accurate and complete
+- Production deployment ready
+
+**Validation Criteria:**
+
+- [ ] All requirements met and verified
+- [ ] Performance benchmarks achieved
+- [ ] Security validation passed
+- [ ] Complete system traceability
+
+**Test Commands:**
+
+```bash
+# Final requirements validation
+python3 test-infra/validation/final-requirements-check.py
+
+# Performance benchmark validation
+python3 test-infra/validation/performance-benchmark.py
+
+# Security and isolation validation
+python3 test-infra/validation/security-validation.py
+
+# Generate final assessment report
+python3 test-infra/validation/final-assessment.py
+```
+
+**Success Criteria:**
+
+- 100% requirements coverage validated
+- Performance meets or exceeds specifications
+- Security model properly implemented
+- System ready for production deployment
+
+---
+
 ## Task Dependencies and Execution Order
+
+### Phase 0 Execution Flow
+
+```text
+TASK-001 → TASK-002 → TASK-003 → TASK-005 → TASK-006 (Optional)
+    ↓                                
+TASK-004 (Optional - requires sudo)
+```
+
+**Note**: TASK-004 and TASK-006 are marked as optional due to host system
+modification requirements. Core functionality can be tested using the safer
+alternatives provided in each task.
 
 ### Phase 1 Execution Flow
 
 ```text
-TASK-001 → TASK-002 → TASK-003
+TASK-007 → TASK-008 → TASK-009
     ↓         ↓
-TASK-004 → TASK-005 → TASK-006 → TASK-007
+TASK-010 → TASK-011 → TASK-012 → TASK-013
     ↓
-TASK-008
+TASK-014
     ↓
-TASK-009 → TASK-010
+TASK-015 → TASK-016
     ↓         ↓
-TASK-011   TASK-012
+TASK-017   TASK-018
 ```
 
 ### Phase 2 Execution Flow
 
 ```text
-TASK-013 → TASK-014 → TASK-015
+TASK-019 → TASK-020 → TASK-021
     ↓
-TASK-016 → TASK-017 → TASK-018 → TASK-019
+TASK-022 → TASK-023 → TASK-024 → TASK-025
     ↓                     ↓         ↓
-TASK-020 ←←←←←←←←←←←←←←←←←←←←←←←←←
+TASK-026 ←←←←←←←←←←←←←←←←←←←←←←←←←
+```
+
+### Phase 3 Execution Flow
+
+```text
+TASK-027 → TASK-028 → TASK-029 → TASK-030
 ```
 
 ## Success Metrics
@@ -1358,5 +2427,6 @@ For each completed task:
 - **Troubleshooting Guide**: Common issues and resolution steps
 - **Next Steps**: Recommendations for dependent tasks
 
-This task breakdown provides a comprehensive roadmap for implementing the HPC SLURM deployment with clear,
-testable milestones that can be executed independently by junior engineers or automated systems.
+This task breakdown provides a comprehensive roadmap for implementing the HPC
+SLURM deployment with clear, testable milestones that can be executed
+independently by junior engineers or automated systems.
