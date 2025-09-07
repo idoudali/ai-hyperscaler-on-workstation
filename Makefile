@@ -8,21 +8,8 @@ IMAGE_NAME := pharos-dev
 IMAGE_TAG  := latest
 FULL_IMAGE_NAME := $(IMAGE_NAME):$(IMAGE_TAG)
 
-# Get the current user's UID and GID
-USER_ID := $(shell id -u)
-GROUP_ID := $(shell id -g)
-
-# Get KVM and libvirt group IDs to pass to Docker for hardware acceleration.
-# The user running this Makefile must be in the 'kvm' and 'libvirt' groups on the host.
-KVM_GID := $(shell getent group kvm | cut -d: -f3)
-LIBVIRT_GID := $(shell getent group libvirt | cut -d: -f3)
-DOCKER_EXTRA_ARGS :=
-ifneq ($(KVM_GID),)
-	DOCKER_EXTRA_ARGS += --device /dev/kvm --group-add $(KVM_GID)
-endif
-ifneq ($(LIBVIRT_GID),)
-	DOCKER_EXTRA_ARGS += --group-add $(LIBVIRT_GID)
-endif
+# Helper script for running commands in development container
+DEV_CONTAINER_SCRIPT := ./scripts/run-in-dev-container.sh
 
 # Build system variables
 BUILD_DIR := build
@@ -49,19 +36,13 @@ build-docker:
 # Run an interactive shell in the development container
 shell-docker:
 	@echo "Starting interactive shell in Docker container..."
-	@docker run -it --rm \
-		-v /etc/passwd:/etc/passwd:ro \
-		-v /etc/group:/etc/group:ro \
-		-v /etc/shadow:/etc/shadow:ro \
-		-v /etc/sudoers:/etc/sudoers:ro \
-		-v /etc/sudoers.d:/etc/sudoers.d:ro \
-		-v "$(PWD)":/workspace \
-		-v "$(HOME)":"$(HOME)" \
-		-e HOME="$(HOME)" \
-		-w /workspace \
-		-u $(USER_ID):$(GROUP_ID) \
-		$(DOCKER_EXTRA_ARGS) \
-		$(FULL_IMAGE_NAME) /bin/bash
+	@$(DEV_CONTAINER_SCRIPT)
+
+# Run a command in the development container
+# Usage: make run-docker COMMAND="cmake --build build --target deploy"
+run-docker:
+	@echo "Running command in Docker container: $(COMMAND)"
+	@$(DEV_CONTAINER_SCRIPT) $(COMMAND)
 
 # Push the Docker image to a registry (uncomment and configure)
 # REGISTRY_URL := your-registry-url
@@ -90,7 +71,7 @@ lint-docker:
 # Configure the project with CMake
 config:
 	@echo "Configuring the project with CMake and Ninja..."
-	@cmake -G Ninja -S . -B $(BUILD_DIR)
+	@$(DEV_CONTAINER_SCRIPT) cmake -G Ninja -S . -B $(BUILD_DIR)
 
 # Build all targets (alias for deploy)
 build-project: deploy
@@ -98,33 +79,33 @@ build-project: deploy
 # Deploy the infrastructure
 deploy: config
 	@echo "Deploying the infrastructure..."
-	@cmake --build $(BUILD_DIR) --target deploy
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target deploy
 
 # Run integration tests
 test: config
 	@echo "Running integration tests..."
-	@cmake --build $(BUILD_DIR) --target test
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target test
 
 # Initialize Packer plugins
 init-packer: config
 	@echo "Initializing Packer plugins..."
-	@cmake --build $(BUILD_DIR) --target init-packer
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target init-packer
 
 # Validate Packer templates
 validate-packer: init-packer
 	@echo "Validating Packer templates..."
 	@rm -rf $(BUILD_DIR)/images/* || true
-	@cmake --build $(BUILD_DIR) --target validate-packer
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target validate-packer
 
 # Clean Packer output directories
 clean-packer: config
 	@echo "Cleaning Packer output directories..."
-	@cmake --build $(BUILD_DIR) --target clean-images
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target clean-images
 
 # Build the golden image artifact
 build-image: validate-packer
 	@echo "Building the golden image..."
-	@cmake --build $(BUILD_DIR) --target build-image
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target build-image
 
 # Clean the CMake build directory
 clean-build:
@@ -134,7 +115,7 @@ clean-build:
 # Destroy all provisioned infrastructure
 cleanup: config
 	@echo "Destroying all provisioned infrastructure..."
-	@cmake --build $(BUILD_DIR) --target cleanup
+	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target cleanup
 
 #==============================================================================
 # Python Virtual Environment Management (uv)
@@ -243,10 +224,13 @@ clean-ai-how: venv-install
 help:
 	@echo "Development Environment & Build System Makefile"
 	@echo "-----------------------------------------------"
+	@echo "Note: All build commands now run inside the development container"
+	@echo "for consistent environment and dependency management."
 	@echo ""
 	@echo "Docker Environment Commands:"
 	@echo "  make build-docker   - Build the development Docker image."
 	@echo "  make shell-docker   - Start an interactive shell in the container."
+	@echo "  make run-docker     - Run a command in the container (use COMMAND=\"...\")."
 	@echo "  make clean-docker   - Remove the Docker image and old containers."
 	@echo "  make push-docker    - (Optional) Push image to a registry."
 	@echo ""

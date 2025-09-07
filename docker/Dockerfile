@@ -67,3 +67,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Set the final working directory for the project
 WORKDIR /workspace
+
+# Set bash as the default shell for better command support
+SHELL ["/bin/bash", "-c"]
