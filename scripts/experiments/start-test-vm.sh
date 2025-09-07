@@ -73,10 +73,25 @@
 # - VM: Use host-phys-bits-limit=39 for 512GB address space support
 #
 # =============================================================================
-# VFIO AND IOMMU REQUIREMENTS
+# GPU PASSTHROUGH CONFIGURATION
 # =============================================================================
 #
-# HOST SYSTEM REQUIREMENTS:
+# GPU passthrough can be enabled or disabled using the ENABLE_GPU_PASSTHROUGH
+# environment variable:
+#
+# ENABLE_GPU_PASSTHROUGH=true   : Enable GPU passthrough (default)
+# ENABLE_GPU_PASSTHROUGH=false  : Disable GPU passthrough
+#
+# When disabled, the VM will start without GPU devices, useful for:
+# - Testing without GPU hardware
+# - Development environments
+# - Systems without proper VFIO setup
+#
+# =============================================================================
+# VFIO AND IOMMU REQUIREMENTS (GPU Passthrough Only)
+# =============================================================================
+#
+# HOST SYSTEM REQUIREMENTS (when ENABLE_GPU_PASSTHROUGH=true):
 # 1. IOMMU enabled in BIOS/UEFI (Intel VT-d or AMD IOMMU)
 # 2. Kernel parameters: intel_iommu=on iommu=pt (Intel) or amd_iommu=on (AMD)
 # 3. VFIO modules loaded: vfio, vfio_iommu_type1, vfio_pci
@@ -110,11 +125,17 @@
 # USAGE EXAMPLES
 # =============================================================================
 #
-# BASIC USAGE:
-#   ./start-gpu-passthrough-vm.sh
+# BASIC USAGE (with GPU passthrough enabled by default):
+#   ./start-test-vm.sh
+#
+# DISABLE GPU PASSTHROUGH:
+#   ENABLE_GPU_PASSTHROUGH=false ./start-test-vm.sh
 #
 # WITH CUSTOM CONFIGURATION:
-#   VM_MEMORY_GB=32 VM_CPUS=16 ./start-gpu-passthrough-vm.sh
+#   VM_MEMORY_GB=32 VM_CPUS=16 ./start-test-vm.sh
+#
+# CUSTOM CONFIGURATION WITHOUT GPU:
+#   ENABLE_GPU_PASSTHROUGH=false VM_MEMORY_GB=32 VM_CPUS=16 ./start-test-vm.sh
 #
 # DEBUG MODE (with set -x):
 #   The script includes set -x for debugging QEMU command execution
@@ -152,6 +173,10 @@ GPU_AUDIO_PCI_ADDRESS="0000:01:00.1"
 SSH_HOST_PORT="2222"
 QEMU_SYSTEM="/usr/bin/qemu-system-x86_64"
 
+# GPU Passthrough Configuration
+# Set to "true" to enable GPU passthrough, "false" to disable
+ENABLE_GPU_PASSTHROUGH="${ENABLE_GPU_PASSTHROUGH:-false}"
+
 # =============================================================================
 # Basic Checks
 # =============================================================================
@@ -175,24 +200,31 @@ if [[ ! -c /dev/kvm ]]; then
     exit 1
 fi
 
-# Check GPU is bound to vfio-pci
-gpu_driver_path="/sys/bus/pci/devices/$GPU_PCI_ADDRESS/driver"
-if [[ -L "$gpu_driver_path" ]]; then
-    current_driver=$(basename "$(readlink "$gpu_driver_path")")
-    if [[ "$current_driver" != "vfio-pci" ]]; then
-        echo "WARNING: GPU $GPU_PCI_ADDRESS is bound to '$current_driver' instead of vfio-pci"
-        echo "GPU passthrough may not work"
+# Check GPU is bound to vfio-pci (only if GPU passthrough is enabled)
+if [[ "$ENABLE_GPU_PASSTHROUGH" == "true" ]]; then
+    gpu_driver_path="/sys/bus/pci/devices/$GPU_PCI_ADDRESS/driver"
+    if [[ -L "$gpu_driver_path" ]]; then
+        current_driver=$(basename "$(readlink "$gpu_driver_path")")
+        if [[ "$current_driver" != "vfio-pci" ]]; then
+            echo "WARNING: GPU $GPU_PCI_ADDRESS is bound to '$current_driver' instead of vfio-pci"
+            echo "GPU passthrough may not work"
+        fi
+    else
+        echo "WARNING: GPU $GPU_PCI_ADDRESS is not bound to any driver"
     fi
-else
-    echo "WARNING: GPU $GPU_PCI_ADDRESS is not bound to any driver"
 fi
 
 # =============================================================================
 # Start VM
 # =============================================================================
 
-echo "Starting GPU Passthrough VM..."
-echo "Memory: ${VM_MEMORY_GB}G | CPUs: $VM_CPUS | GPU: $GPU_PCI_ADDRESS"
+echo "Starting VM..."
+echo "Memory: ${VM_MEMORY_GB}G | CPUs: $VM_CPUS"
+if [[ "$ENABLE_GPU_PASSTHROUGH" == "true" ]]; then
+    echo "GPU Passthrough: ENABLED | GPU: $GPU_PCI_ADDRESS"
+else
+    echo "GPU Passthrough: DISABLED"
+fi
 echo "SSH available on localhost:$SSH_HOST_PORT"
 echo "Press Ctrl+A then X to exit QEMU"
 echo "Note: QEMU will automatically create a snapshot to protect the base image"
@@ -201,17 +233,34 @@ echo
 # Enable debug mode to show QEMU command execution
 set -x
 
-"$QEMU_SYSTEM" \
-    -name "$VM_NAME" \
-    -drive "file=$BASE_DISK_IMAGE,format=qcow2,if=virtio,snapshot=on" \
-    -machine type=q35,accel=kvm \
-    -cpu host,host-phys-bits=on,host-phys-bits-limit=39 \
-    -smp "$VM_CPUS" \
-    -m "${VM_MEMORY_GB}G" \
-    -object memory-backend-memfd,id=ram,size="${VM_MEMORY_GB}G",share=on \
-    -machine memory-backend=ram \
-    -netdev "user,id=net0,hostfwd=tcp::$SSH_HOST_PORT-:22" \
-    -device "virtio-net-pci,netdev=net0" \
-    -device "vfio-pci,host=$GPU_PCI_ADDRESS,multifunction=on" \
-    -device "vfio-pci,host=$GPU_AUDIO_PCI_ADDRESS" \
-    -nographic -serial mon:stdio
+# Build QEMU command with conditional GPU passthrough
+QEMU_CMD=(
+    "$QEMU_SYSTEM"
+    -name "$VM_NAME"
+    -drive "file=$BASE_DISK_IMAGE,format=qcow2,if=virtio,snapshot=on"
+    -machine "type=q35,accel=kvm"
+    -cpu "host,host-phys-bits=on,host-phys-bits-limit=39"
+    -smp "$VM_CPUS"
+    -m "${VM_MEMORY_GB}G"
+    -object "memory-backend-memfd,id=ram,size=${VM_MEMORY_GB}G,share=on"
+    -machine "memory-backend=ram"
+    -netdev "user,id=net0,hostfwd=tcp::$SSH_HOST_PORT-:22"
+    -device "virtio-net-pci,netdev=net0"
+)
+
+# Add GPU passthrough devices only if enabled
+if [[ "$ENABLE_GPU_PASSTHROUGH" == "true" ]]; then
+    QEMU_CMD+=(
+        -device "vfio-pci,host=$GPU_PCI_ADDRESS,multifunction=on"
+        -device "vfio-pci,host=$GPU_AUDIO_PCI_ADDRESS"
+    )
+fi
+
+# Add common options
+QEMU_CMD+=(
+    -nographic
+    -serial mon:stdio
+)
+
+# Execute QEMU command
+"${QEMU_CMD[@]}"

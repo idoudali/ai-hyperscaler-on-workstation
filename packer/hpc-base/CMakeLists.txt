@@ -103,12 +103,24 @@ add_custom_target(format-hpc-packer
     COMMENT "Formatting HPC Packer template..."
 )
 
+# Packer build debug arguments
+# Uncomment to conserve the VM image after a failed build
+# do not enable this argument in a regular build as it causes
+# the build to hang on a failure
+set(PACKER_BUILD_DEBUG_ARGS -on-error run-cleanup-provisioner)
+
 # Build HPC base image
 add_custom_command(
     OUTPUT ${HPC_OUTPUT_DIR}/${VM_NAME}
     COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
-    COMMAND PACKER_LOG=1 packer build -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
+    COMMAND packer validate
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl
+            ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
+    COMMAND PACKER_LOG2=1 packer
+            build -force
+            ${PACKER_BUILD_DEBUG_ARGS}
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-base.pkrvars.hcl
+            ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-base.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Building HPC base image..."
     DEPENDS prepare-cloud-init-hpc-base
