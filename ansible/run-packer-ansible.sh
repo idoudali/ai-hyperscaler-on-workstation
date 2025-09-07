@@ -1,0 +1,251 @@
+#!/bin/bash
+#
+# Packer Ansible Replication Script
+# This script replicates the Ansible execution that happens during Packer builds
+# for the HPC base image, allowing you to run the same steps on a live VM
+#
+# Usage:
+#   ./run-packer-ansible.sh [target_host]
+#   ./run-packer-ansible.sh localhost
+#   ./run-packer-ansible.sh 192.168.1.100
+#
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+set -euo pipefail
+
+# Default configuration
+TARGET_HOST="${1:-localhost}"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ANSIBLE_DIR="${REPO_DIR}/ansible"
+SSH_USERNAME="${SSH_USERNAME:-debian}"
+SSH_PORT="${SSH_PORT:-22}"
+SSH_KEY="${SSH_KEY:-${REPO_DIR}/build/shared/ssh-keys/id_rsa}"
+VERBOSE="${VERBOSE:-true}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+check_requirements() {
+    log_info "Checking requirements..."
+
+    # Check if ansible is available
+    if ! command -v ansible-playbook &> /dev/null; then
+        log_error "ansible-playbook not found. Please install Ansible first:"
+        log_error "  pip install ansible"
+        exit 1
+    fi
+
+    # Check if target host is reachable
+    if [[ "$TARGET_HOST" != "localhost" ]]; then
+        if ! ping -c 1 -W 5 "$TARGET_HOST" &> /dev/null; then
+            log_warning "Cannot ping $TARGET_HOST. Continuing anyway..."
+        fi
+    fi
+
+    # Check if playbook exists
+    if [[ ! -f "${ANSIBLE_DIR}/playbooks/playbook-hpc.yml" ]]; then
+        log_error "HPC playbook not found: ${ANSIBLE_DIR}/playbooks/playbook-hpc.yml"
+        exit 1
+    fi
+
+    # Check if SSH key exists
+    if [[ ! -f "$SSH_KEY" ]]; then
+        log_error "SSH key not found: $SSH_KEY"
+        log_error "Please ensure the SSH key exists or set SSH_KEY environment variable"
+        exit 1
+    fi
+
+    log_success "Requirements check passed"
+}
+
+create_inventory() {
+    local inventory_file="${ANSIBLE_DIR}/inventories/temp_packer_inventory"
+
+    cat > "$inventory_file" << EOF
+[all]
+${TARGET_HOST} ansible_user=${SSH_USERNAME} ansible_port=${SSH_PORT} ansible_ssh_private_key_file=${SSH_KEY} ansible_python_interpreter=/usr/bin/python3
+
+[all:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+ansible_become=true
+ansible_become_method=sudo
+EOF
+
+    echo "$inventory_file"
+}
+
+run_ansible_playbook() {
+    local inventory_file="$1"
+
+    log_info "Running Ansible playbook with Packer configuration..."
+    log_info "Target host: $TARGET_HOST"
+    log_info "SSH user: $SSH_USERNAME"
+    log_info "SSH port: $SSH_PORT"
+    log_info "SSH key: $SSH_KEY"
+    log_info "Repository: $REPO_DIR"
+
+    # Set up environment variables (matching Packer configuration)
+    export ANSIBLE_HOST_KEY_CHECKING=False
+    export ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'
+    export ANSIBLE_ROLES_PATH="${ANSIBLE_DIR}/roles"
+    export ANSIBLE_BECOME_FLAGS='-H -S -n'
+    export ANSIBLE_SCP_IF_SSH=True
+    export ANSIBLE_SCP_EXTRA_ARGS='-O'
+    export ANSIBLE_REMOTE_TMP=/tmp
+
+    # Build ansible-playbook command
+    local ansible_cmd=(
+        ansible-playbook
+        -i "$inventory_file"
+        "${ANSIBLE_DIR}/playbooks/playbook-hpc.yml"
+        -u "$SSH_USERNAME"
+        --extra-vars "ansible_python_interpreter=/usr/bin/python3"
+        --extra-vars "packer_build=true"
+        --extra-vars "nvidia_install_cuda=false"
+        --extra-vars "target_hosts=all"
+        --become
+        --become-user=root
+    )
+
+    # Add verbose flag if requested
+    if [[ "$VERBOSE" == "true" ]]; then
+        ansible_cmd+=(-v)
+    fi
+
+    # Execute the playbook
+    log_info "Executing: ${ansible_cmd[*]}"
+    echo
+
+    if "${ansible_cmd[@]}"; then
+        log_success "Ansible playbook completed successfully"
+        return 0
+    else
+        log_error "Ansible playbook failed"
+        return 1
+    fi
+}
+
+cleanup() {
+    local inventory_file="$1"
+
+    if [[ -f "$inventory_file" ]]; then
+        log_info "Cleaning up temporary inventory file..."
+        rm -f "$inventory_file"
+    fi
+}
+
+show_usage() {
+    cat << EOF
+Usage: $0 [target_host] [options]
+
+ARGUMENTS:
+  target_host    Target host to run Ansible against (default: localhost)
+
+OPTIONS:
+  SSH_USERNAME   SSH username to use (default: debian)
+  SSH_PORT       SSH port to use (default: 22)
+  SSH_KEY        SSH private key file to use (default: REPO_DIR/build/shared/ssh-keys/id_rsa)
+  VERBOSE        Enable verbose output (default: true)
+
+EXAMPLES:
+  $0                                    # Run on localhost
+  $0 localhost                          # Run on localhost explicitly
+  $0 192.168.1.100                     # Run on specific IP
+  $0 vm-host                           # Run on specific hostname
+  SSH_USERNAME=ubuntu $0 localhost     # Use different SSH user
+  SSH_PORT=2222 $0 localhost           # Use custom SSH port
+  SSH_KEY=/path/to/key $0 localhost    # Use custom SSH key
+  SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/key $0 192.168.1.100  # Use custom user, port, and key
+  VERBOSE=false $0 localhost           # Disable verbose output
+
+DESCRIPTION:
+  This script replicates the Ansible execution that happens during Packer builds
+  for the HPC base image. It runs the same playbook with the same configuration
+  that Packer uses, allowing you to test or apply the same changes to a live VM.
+
+  The script will:
+  1. Install HPC base packages (tmux, htop, vim, curl, wget)
+  2. Install Apptainer container runtime
+  3. Install NVIDIA GPU drivers (without CUDA)
+  4. Configure all components with Packer build settings
+
+  This is useful for:
+  - Testing changes before rebuilding Packer images
+  - Applying the same configuration to existing VMs
+  - Debugging Ansible playbook issues
+  - Updating VMs with the same packages as Packer builds
+
+EOF
+}
+
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
+
+main() {
+    # Handle help flag
+    if [[ "${1:-}" == "-h" ]] || [[ "${1:-}" == "--help" ]]; then
+        show_usage
+        exit 0
+    fi
+
+    log_info "Starting Packer Ansible replication script"
+    log_info "Repository directory: $REPO_DIR"
+    log_info "Ansible directory: $ANSIBLE_DIR"
+    log_info "Target: $TARGET_HOST:$SSH_PORT (user: $SSH_USERNAME, key: $SSH_KEY)"
+
+    # Change to ansible directory
+    cd "$ANSIBLE_DIR"
+
+    # Check requirements
+    check_requirements
+
+    # Create temporary inventory
+    log_info "Creating temporary inventory file..."
+    local inventory_file
+    inventory_file=$(create_inventory)
+    log_info "Created temporary inventory file: $inventory_file"
+
+    # Set up cleanup trap
+    # shellcheck disable=SC2064
+    trap "cleanup ${inventory_file}" EXIT
+
+    # Run the playbook
+    if run_ansible_playbook "$inventory_file"; then
+        log_success "Packer Ansible replication completed successfully!"
+        log_info "The VM now has the same packages and configuration as a Packer-built image"
+        log_info "Note: A reboot may be required for NVIDIA drivers to become active"
+    else
+        log_error "Packer Ansible replication failed"
+        exit 1
+    fi
+}
+
+# Run main function
+main "$@"
