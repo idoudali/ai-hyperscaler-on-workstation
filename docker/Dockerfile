@@ -16,16 +16,20 @@ RUN apt-get update && \
     curl \
     git \
     gnupg \
+    gosu \
     libvirt-clients=9.0.0-4+deb12u2 \
+    libvirt-dev \
     lsb-release \
     ninja-build=1.11.1-2~deb12u1 \
+    pkg-config \
+    python3-dev \
     python3-pip=23.0.1+dfsg-1 \
     python3-venv=3.11.2-1+b1 \
     qemu-system-x86 \
     qemu-utils \
     screen=4.9.0-4 \
     software-properties-common \
-    sudo=1.9.13p3-1+deb12u1 \
+    sudo \
     tmux=3.3a-3 \
     xorriso \
   && rm -rf /var/lib/apt/lists/*
@@ -51,8 +55,9 @@ RUN apt-get update && \
 SHELL ["/bin/sh", "-c"]
 
 # Install uv - the new package manager and virtual environment tool
+# Install to /usr/local/bin for system-wide access
 # hadolint ignore=DL4006
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" INSTALLER_NO_MODIFY_PATH=1 sh
 
 # Set up a virtual environment for Python in a common location
 RUN python3 -m venv /opt/venv
@@ -70,3 +75,10 @@ WORKDIR /workspace
 
 # Set bash as the default shell for better command support
 SHELL ["/bin/bash", "-c"]
+
+# Copy and set up the entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/entrypoint.sh"]

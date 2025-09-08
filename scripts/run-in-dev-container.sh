@@ -17,14 +17,16 @@ FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 USER_ID="$(id -u)"
 GROUP_ID="$(id -g)"
 
-# Get KVM and libvirt group IDs for hardware acceleration
+# Get KVM, libvirt, and sudo group IDs for hardware acceleration and sudo access
 KVM_GID=""
 LIBVIRT_GID=""
+SUDO_GID=""
 DOCKER_EXTRA_ARGS=""
 
 if command -v getent >/dev/null 2>&1; then
     KVM_GID="$(getent group kvm 2>/dev/null | cut -d: -f3 || echo "")"
     LIBVIRT_GID="$(getent group libvirt 2>/dev/null | cut -d: -f3 || echo "")"
+    SUDO_GID="$(getent group sudo 2>/dev/null | cut -d: -f3 || echo "")"
 
     if [[ -n "$KVM_GID" && -c "/dev/kvm" ]]; then
         DOCKER_EXTRA_ARGS="$DOCKER_EXTRA_ARGS --device /dev/kvm --group-add $KVM_GID"
@@ -32,6 +34,10 @@ if command -v getent >/dev/null 2>&1; then
 
     if [[ -n "$LIBVIRT_GID" ]]; then
         DOCKER_EXTRA_ARGS="$DOCKER_EXTRA_ARGS --group-add $LIBVIRT_GID"
+    fi
+
+    if [[ -n "$SUDO_GID" ]]; then
+        DOCKER_EXTRA_ARGS="$DOCKER_EXTRA_ARGS --group-add $SUDO_GID"
     fi
 fi
 
@@ -93,6 +99,8 @@ elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "  - Isolated build environment"
     echo "  - KVM and libvirt access for virtualization"
     echo "  - All development tools and dependencies"
+    echo "  - Automatic user and home directory setup"
+    echo "  - Proper file permissions and ownership"
     echo ""
     exit 0
 else
@@ -100,10 +108,13 @@ else
     log_info "Running command in container: $COMMAND"
 fi
 
+# Enable debug output to show the Docker command being executed
+set -x
+
 # Run the container with the same setup as the Makefile
 # shellcheck disable=SC2086
 if [[ $# -eq 0 ]]; then
-    # For interactive shell, don't use /bin/bash -c
+    # For interactive shell, pass user info via environment variables
     exec docker run -it --rm \
         -v /etc/passwd:/etc/passwd:ro \
         -v /etc/group:/etc/group:ro \
@@ -111,17 +122,18 @@ if [[ $# -eq 0 ]]; then
         -v /etc/sudoers:/etc/sudoers:ro \
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
         -v "$PROJECT_ROOT":/workspace \
-        -v "$HOME":"$HOME" \
+        -v "$PROJECT_ROOT":$PROJECT_ROOT \
         -e HOME="$HOME" \
         -e USER="$USER" \
+        -e USER_ID="$USER_ID" \
+        -e GROUP_ID="$GROUP_ID" \
         -e DISPLAY="${DISPLAY:-}" \
         -w /workspace \
-        -u "$USER_ID:$GROUP_ID" \
         $DOCKER_EXTRA_ARGS \
         "$FULL_IMAGE_NAME" \
         /bin/bash
 else
-    # For commands, use /bin/bash -c to handle compound commands
+    # For commands, pass user info via environment variables and use /bin/bash -c to handle compound commands
     exec docker run -it --rm \
         -v /etc/passwd:/etc/passwd:ro \
         -v /etc/group:/etc/group:ro \
@@ -129,12 +141,13 @@ else
         -v /etc/sudoers:/etc/sudoers:ro \
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
         -v "$PROJECT_ROOT":/workspace \
-        -v "$HOME":"$HOME" \
+        -v "$PROJECT_ROOT":$PROJECT_ROOT \
         -e HOME="$HOME" \
         -e USER="$USER" \
+        -e USER_ID="$USER_ID" \
+        -e GROUP_ID="$GROUP_ID" \
         -e DISPLAY="${DISPLAY:-}" \
         -w /workspace \
-        -u "$USER_ID:$GROUP_ID" \
         $DOCKER_EXTRA_ARGS \
         "$FULL_IMAGE_NAME" \
         /bin/bash -c "${COMMAND}"
