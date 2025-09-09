@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-base-images test-ai-how test-config-validation test-pcie-validation clean
+.PHONY: help test test-base-images test-ai-how test-config-validation test-pcie-validation test-test-configs clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -12,11 +12,12 @@ help:
 	@echo "  test-ai-how          - Run AI-HOW CLI installation and configuration tests"
 	@echo "  test-config-validation - Run configuration validation tests"
 	@echo "  test-pcie-validation - Run PCIe validation tests"
+	@echo "  test-test-configs    - Run test configuration validation tests"
 	@echo "  clean               - Clean test artifacts"
 	@echo ""
 
 # Run all tests
-test: test-base-images test-ai-how
+test: test-base-images test-ai-how test-test-configs
 
 # Run base images test
 test-base-images:
@@ -34,6 +35,9 @@ test-config-validation:
 test-pcie-validation:
 	@./test_pcie_validation.sh
 
+# Run test configuration validation tests
+test-test-configs:
+	@./test_test_configs.sh
 
 # Clean artifacts
 clean:

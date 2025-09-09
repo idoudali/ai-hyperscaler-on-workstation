@@ -1,0 +1,84 @@
+version: "1.0"
+metadata:
+  name: "test-hpc-minimal"
+  description: "Minimal test cluster for basic functionality testing"
+
+global: {}
+
+clusters:
+  hpc:
+    name: "test-hpc-minimal"
+    # Base image path - can be absolute or relative to the current working directory
+    # Relative paths will be resolved from the directory where the CLI is executed
+    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    network:
+      subnet: 192.168.150.0/24
+      bridge: "virbr150"
+
+    # Hardware acceleration configuration (x86_64 only)
+    hardware:
+      acceleration:
+        enable_kvm: true           # Enable KVM hardware virtualization
+        enable_nested: false      # Enable nested virtualization
+        cpu_model: "host-passthrough"  # host, host-passthrough, host-model, qemu64
+        cpu_features:              # Additional CPU features
+          - "+vmx"                 # Intel VT-x virtualization
+          - "+svm"                 # AMD-V virtualization
+          - "+sse4.1"              # SSE 4.1 instructions
+          - "+sse4.2"              # SSE 4.2 instructions
+        numa_topology: null       # NUMA topology (auto-detect if null)
+        cpu_topology:             # CPU topology settings
+          sockets: 1
+          cores: 2
+          threads: 1
+        performance:
+          enable_hugepages: false  # Use hugepages for better memory performance
+          hugepage_size: "2M"      # 2M or 1G hugepages
+          cpu_pinning: false       # Pin vCPUs to physical CPUs
+          memory_backing: "default" # default, hugepages, memfd
+
+    controller:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+      ip_address: "192.168.150.10"
+
+    compute_nodes:
+      - cpu_cores: 2
+        memory_gb: 4
+        disk_gb: 20
+        ip: "192.168.150.11"
+        # No PCIe passthrough for minimal testing
+
+    slurm_config:
+      partitions: ["debug"]
+      default_partition: "debug"
+      max_job_time: "1:00:00"
+
+  cloud:
+    name: "test-cloud-minimal"
+    # Base image path - can be absolute or relative to the current working directory
+    # Relative paths will be resolved from the directory where the CLI is executed
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: 192.168.151.0/24
+      bridge: "virbr151"
+
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+      ip_address: "192.168.151.10"
+
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 2
+          memory_gb: 4
+          disk_gb: 20
+          ip: "192.168.151.11"
+
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
