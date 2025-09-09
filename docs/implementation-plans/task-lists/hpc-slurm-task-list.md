@@ -510,135 +510,148 @@ configuration schemas and core functionality.
 
 ---
 
-#### Task 005: Create Cluster Validation Integration Test Scripts
+#### Task 005: Create Basic Infrastructure Testing Suite
 
 - **ID**: TASK-005
 - **Phase**: 0 - Test Infrastructure
-- **Dependencies**: TASK-003
-- **Estimated Time**: 4 hours  
-- **Difficulty**: Intermediate
-- **Test Type**: Integration Tests
+- **Dependencies**: TASK-003, TASK-004
+- **Estimated Time**: 2 hours  
+- **Difficulty**: Junior-Intermediate
+- **Test Type**: Infrastructure Tests
 
-**Description:** Create comprehensive integration test scripts that validate
-deployed clusters using AI-HOW CLI, testing end-to-end functionality across VM
-lifecycle, networking, and service deployment.
+**Description:** Create basic infrastructure testing suite
+that validates currently available functionality: cluster lifecycle,
+VM networking, SSH connectivity, and configuration validation using Task 004's framework.
 
 **Deliverables:**
 
-- `test-infra/validation/` directory structure for integration tests
-- End-to-end cluster deployment integration tests
-- Cross-service validation integration scripts  
-- Multi-component integration test suites
+- Basic infrastructure test validation scripts using Task 004's framework
+- VM lifecycle and networking validation tests
+- Configuration schema validation extensions
+- SSH connectivity and basic cluster validation tests
 
-**Integration Test Structure:**
+**Basic Infrastructure Test Structure:**
 
 ```text
-test-infra/validation/
-├── cluster_lifecycle/              # Integration tests for VM lifecycle management
-│   ├── test_cluster_start.py      # Integration: AI-HOW + libvirt + networking setup
-│   ├── test_cluster_stop.py       # Integration: Graceful multi-service shutdown  
-│   ├── test_cluster_destroy.py    # Integration: Complete cleanup validation
-│   └── test_cluster_status.py     # Integration: Cross-service status reporting
-├── service_validation/             # Integration tests for service interactions
-│   ├── test_ssh_connectivity.py   # Integration: SSH + networking + authentication
-│   ├── test_network_connectivity.py # Integration: Multi-node communication
-│   ├── test_storage_access.py     # Integration: Storage + filesystem + permissions
-│   └── test_gpu_assignment.py     # Integration: GPU passthrough + SLURM + containers
-├── integration_tests/              # End-to-end workflow integration tests
-│   ├── test_slurm_basic.py        # Integration: SLURM + containers + networking
-│   ├── test_container_execution.py # Integration: Container runtime + scheduling + storage
-│   └── test_multi_node_jobs.py    # Integration: Distributed computing workflow
-└── fixtures/
-   ├── test_jobs/                 # Sample integration test workloads
-   ├── expected_outputs/          # Integration test validation data
-   └── test_data/                 # Small test datasets for integration tests
+test-infra/suites/                    # Leverages Task 004's framework
+├── infrastructure/                  # Basic infrastructure tests (AVAILABLE NOW)
+│   ├── test-infrastructure.yaml    # Basic VM deployment config
+│   └── scripts/validation/         # Infrastructure validation scripts
+│       ├── check-vm-lifecycle.sh   # VM start/stop/destroy
+│       ├── check-networking.sh     # VM networking and connectivity
+│       ├── check-ssh-access.sh     # SSH connectivity validation
+│       └── run-infrastructure-tests.sh
+├── configuration/                   # Configuration validation tests (AVAILABLE NOW)
+│   ├── test-configs/               # Test configuration files
+│   └── scripts/validation/         # Configuration validation scripts
+│       ├── validate-all-configs.sh
+│       └── run-config-tests.sh
+└── gpu-passthrough/                # GPU validation (uses Task 004 scripts - AVAILABLE)
+    ├── test-pcie-passthrough-minimal.yaml  # Already implemented
+    └── scripts/gpu-validation/      # Already implemented in Task 004
 ```
 
-**Sample Test Implementation:**
+**Note:** Container runtime and multi-node testing will be added to their respective implementation tasks in later phases.
 
-```python
-# test_cluster_start.py - Integration Test
-#!/usr/bin/env python3
-import subprocess
-import time
-import yaml
-import pytest
-
-class TestClusterIntegration:
-    """Integration tests for end-to-end cluster deployment."""
-    
-    def test_cluster_deployment_integration(self):
-        """Integration test: AI-HOW CLI + libvirt + VM networking + service startup."""
-        
-        # Integration test: Deploy test cluster (tests AI-HOW + Packer images + libvirt)
-        result = subprocess.run([
-            "uv", "run", "ai-how", "hpc", "start", 
-            "test-infra/configs/test-minimal.yaml"
-        ], capture_output=True, text=True, cwd="python/ai_how")
-        
-        assert result.returncode == 0, f"Integration test failed - Cluster start: {result.stderr}"
-        
-        # Integration test: Verify cluster status (tests cross-service status reporting)
-        status_result = subprocess.run([
-            "uv", "run", "ai-how", "hpc", "status",
-            "test-infra/configs/test-minimal.yaml"  
-        ], capture_output=True, text=True, cwd="python/ai_how")
-        
-        assert "running" in status_result.stdout.lower(), "Integration test failed - Status check"
-        
-        # Integration test: Verify network connectivity between components
-        self._test_network_integration()
-        
-        return True
-    
-    def _test_network_integration(self):
-        """Helper integration test for network connectivity."""
-        # Test inter-node networking integration
-        pass
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-    print("✅ Integration test suite completed")
-```
-
-**Integration Test Validation Criteria:**
-
-- [ ] All integration test scripts are executable and syntactically correct
-- [ ] Integration tests cover complete cluster lifecycle across multiple
-  services
-- [ ] Cross-service validation integration tests are comprehensive
-- [ ] End-to-end integration tests verify multi-component functionality
-- [ ] Integration tests validate VM + networking + storage + application
-  interactions
-
-**Integration Test Commands:**
+**Framework-Based Implementation Approach:**
 
 ```bash
-# Run cluster lifecycle integration tests
-pytest test-infra/validation/cluster_lifecycle/ -v --tb=short -k "integration"
+# Example: Basic infrastructure validation using Task 004 framework
+# File: test-infra/suites/infrastructure/scripts/validation/check-vm-lifecycle.sh
 
-# Run service validation integration tests  
-pytest test-infra/validation/service_validation/ -v --tb=short -k "integration"
+#!/bin/bash
+# VM lifecycle validation script (extends Task 004 pattern)
 
-# Run end-to-end integration tests
-pytest test-infra/validation/integration_tests/ -v --tb=short
+set -euo pipefail
 
-# Run complete integration test suite
-pytest test-infra/validation/ -v --tb=short --junit-xml=integration-test-results.xml
+echo "=== VM Lifecycle Validation ==="
 
-# Run integration tests with coverage reporting
-pytest test-infra/validation/ -v --cov=ai_how --cov-report=html --cov-report=term
+# Check if VMs are running
+if virsh list --state-running | grep -q "test-"; then
+    echo "✓ Test VMs are running"
+    virsh list --state-running
+else
+    echo "✗ No test VMs are running"
+    exit 1
+fi
+
+# Test SSH connectivity
+if ssh -i "$SSH_KEY_PATH" $SSH_OPTS "$SSH_USER@$VM_IP" "echo 'SSH working'"; then
+    echo "✓ SSH connectivity working"
+else
+    echo "✗ SSH connectivity failed"
+    exit 1
+fi
+
+# Check basic networking
+if ssh -i "$SSH_KEY_PATH" $SSH_OPTS "$SSH_USER@$VM_IP" "ping -c 1 8.8.8.8"; then
+    echo "✓ External networking working"
+else
+    echo "✓ External networking failed (expected in isolated environments)"
+fi
+
+echo "✅ Basic infrastructure validated successfully"
 ```
 
-**Integration Test Success Criteria:**
+**Usage with Task 004 Framework:**
 
-- All integration tests pass on successfully deployed clusters
-- Integration test scripts properly handle cross-service failure scenarios
-- Performance integration tests establish baseline metrics for multi-component
-  workflows
-- End-to-end integration tests verify complete system functionality
-- Integration tests demonstrate interoperability between AI-HOW CLI, libvirt,
-  networking, and SLURM
+```bash
+# Run basic infrastructure tests using established framework
+./test-infra/test-pcie-passthrough-framework.sh \
+  --config test-infra/suites/infrastructure/test-infrastructure.yaml \
+  --validation-suite infrastructure
+
+# Run configuration validation tests
+./test-infra/test-pcie-passthrough-framework.sh \
+  --config test-infra/suites/configuration/test-configuration.yaml \
+  --validation-suite configuration
+
+# Run GPU passthrough tests (already implemented)
+./test-infra/test-pcie-passthrough-framework.sh \
+  --config test-infra/suites/gpu-passthrough/test-pcie-passthrough-minimal.yaml \
+  --validation-suite gpu-passthrough
+```
+
+**Framework-Based Validation Criteria:**
+
+- [ ] Basic infrastructure test scripts follow Task 004's framework pattern
+- [ ] Test configurations validate against ai-how schema
+- [ ] VM lifecycle testing covers deployment, networking, and cleanup
+- [ ] SSH connectivity and basic networking validation working
+- [ ] Configuration validation covers all available test configs
+
+**Framework-Based Test Commands:**
+
+```bash
+# Run all basic infrastructure test suites using Task 004 framework
+for suite in infrastructure configuration gpu-passthrough; do
+    echo "=== Running $suite test suite ==="
+    ./test-infra/test-pcie-passthrough-framework.sh \
+        --config "test-infra/suites/$suite/test-$suite.yaml" \
+        --validation-suite "$suite"
+done
+
+# Run individual test suites  
+./test-infra/test-pcie-passthrough-framework.sh \
+    --config test-infra/suites/infrastructure/test-infrastructure.yaml \
+    --validation-suite infrastructure
+
+./test-infra/test-pcie-passthrough-framework.sh \
+    --config test-infra/suites/configuration/test-configuration.yaml \
+    --validation-suite configuration
+
+# Validate test configurations before running
+uv run ai-how validate test-infra/suites/infrastructure/test-infrastructure.yaml
+uv run ai-how validate test-infra/suites/configuration/test-configuration.yaml
+```
+
+**Framework-Based Success Criteria:**
+
+- Basic infrastructure test suites execute successfully using Task 004's framework
+- VM lifecycle validation covers deployment, networking, SSH connectivity
+- Configuration validation passes for all available test configurations
+- Framework extensions maintain consistency with Task 004's established patterns
+- Tests provide foundation for future functionality-specific testing
 
 ---
 
@@ -1082,6 +1095,17 @@ dpkg -l | grep -E "(fuse|squashfs-tools|uidmap)"
 - Can pull and execute Docker containers
 - No permission errors during container execution
 
+**Testing Requirements:**
+
+- **Test Suite**: Create `test-infra/suites/container-runtime/` using Task 004 framework
+- **Validation Scripts**:
+  - `check-singularity-install.sh` - Verify installation and version
+  - `check-container-execution.sh` - Test container pull and execution
+  - `check-container-security.sh` - Validate security policies
+  - `run-container-runtime-tests.sh` - Master test runner
+- **Test Configuration**: `test-container-runtime.yaml` with container-enabled nodes
+- **Integration**: Extend Task 004's framework to support container validation
+
 ---
 
 #### Task 009: Configure Container Security Policies
@@ -1160,6 +1184,15 @@ cat /etc/singularity/singularity.conf | grep -E "(allow suid|mount hostfs)"
 - Container cannot escalate privileges
 - Host filesystem properly isolated
 - Configuration passes security audit
+
+**Testing Requirements:**
+
+- **Security Validation**: Extend `test-infra/suites/container-runtime/` with security tests
+- **Test Scripts**:
+  - `check-privilege-escalation.sh` - Verify no privilege escalation possible
+  - `check-filesystem-isolation.sh` - Test host filesystem access restrictions
+  - `check-security-policies.sh` - Validate security configuration
+- **Integration Testing**: Security tests integrated with Task 008's container testing suite
 
 ---
 
@@ -1984,6 +2017,17 @@ singularity --version
 - Can execute simple jobs on compute nodes
 - Container runtime functional
 
+**Testing Requirements:**
+
+- **Multi-Node Test Suite**: Create `test-infra/suites/multi-node/` using Task 004 framework
+- **Validation Scripts**:
+  - `check-slurm-cluster.sh` - Verify all nodes available in SLURM
+  - `check-multi-node-communication.sh` - Test node-to-node connectivity
+  - `check-distributed-jobs.sh` - Validate multi-node job execution
+  - `run-multi-node-tests.sh` - Master test runner
+- **Test Configuration**: `test-multi-node.yaml` with multiple compute nodes
+- **Job Validation**: Multi-node test jobs for SLURM functionality verification
+
 ---
 
 #### Task 023: Configure GPU Resources (GRES)
@@ -2244,71 +2288,91 @@ srun --nodes=2 --ntasks-per-node=1 --gres=gpu:1 \
 - Distributed training environment variables set correctly
 - No container execution or permission errors
 
+**Testing Requirements:**
+
+- **Container Integration Test Suite**: Create `test-infra/suites/container-integration/` using Task 004 framework
+- **Advanced Validation Scripts**:
+  - `check-pytorch-cuda-integration.sh` - PyTorch + CUDA functionality
+  - `check-mpi-communication.sh` - MPI across container instances
+  - `check-distributed-training.sh` - Multi-node distributed training setup
+  - `check-container-slurm-integration.sh` - SLURM + container execution
+  - `run-container-integration-tests.sh` - Master test runner
+- **Full Integration Testing**: Combines container runtime, SLURM scheduling, and GPU resources
+
 ---
 
 ## Phase 3: Integration Testing & Validation (Tasks 027-030)
 
 ### End-to-End Integration Testing
 
-#### Task 027: Deploy Test Environment with Full Stack
+#### Task 027: Execute Full-Stack Integration Testing
 
 - **ID**: TASK-027
 - **Phase**: 3 - Integration Testing
-- **Dependencies**: TASK-006, TASK-018, TASK-021
-- **Estimated Time**: 4 hours
+- **Dependencies**: TASK-005, TASK-018, TASK-021
+- **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:** Deploy complete HPC SLURM stack to test environment and
-validate all components working together.
+**Description:** Execute comprehensive full-stack integration
+testing using the established Task 004/005 framework with
+complete HPC SLURM deployment validation.
 
 **Deliverables:**
 
-- Complete test environment deployment playbook
-- Full-stack integration validation
-- End-to-end service verification
-- Performance baseline establishment
+- Full-stack test configuration extending Task 005's framework
+- Production-scale test validation suite
+- Complete system integration test execution
+- Performance and reliability baseline documentation
 
-**Integration Components:**
+**Framework-Based Integration Testing:**
 
-- SLURM controller with all services (slurmctld, slurmdbd, munge)
-- Compute nodes with container runtime and GPU simulation
-- Container registry with ML images
-- Monitoring stack (Prometheus, Grafana, DCGM)
-- Test job execution and validation
+Using established framework to validate:
+
+- Complete HPC SLURM stack (controller + compute nodes)
+- Container runtime integration with SLURM scheduling
+- GPU resource management and allocation
+- Monitoring stack integration (Prometheus, Grafana, DCGM)
+- Multi-node distributed workload execution
 
 **Validation Criteria:**
 
-- [ ] All SLURM services running and communicating
-- [ ] Container jobs execute successfully
-- [ ] GPU resources properly allocated and utilized
-- [ ] Monitoring data collected and visible
-- [ ] Job accounting and logging functional
+- [ ] Full-stack deployment validates using established framework
+- [ ] All component test suites pass in integrated environment
+- [ ] Production-scale workloads execute successfully
+- [ ] Performance metrics meet baseline requirements
+- [ ] System resilience validated under load testing
 
-**Test Commands:**
+**Framework-Based Test Execution:**
 
 ```bash
-# Deploy full stack to test environment
-ansible-playbook -i test-infra/ansible/test-inventory.yml deploy-full-stack.yml
+# Execute full-stack integration testing using established framework
+# Production-scale test configuration
+./test-infra/test-pcie-passthrough-framework.sh \
+    --config test-infra/suites/full-stack/test-full-stack.yaml \
+    --validation-suite full-stack \
+    --verbose
 
-# Validate SLURM cluster status
-sinfo -Nel
-scontrol show nodes
-squeue
+# Run comprehensive test suite covering all components
+for suite in basic-cluster container-runtime gpu-passthrough multi-node full-stack; do
+    echo "=== Running $suite test suite ==="
+    ./test-infra/test-pcie-passthrough-framework.sh \
+        --config "test-infra/suites/$suite/test-$suite.yaml" \
+        --validation-suite "$suite"
+done
 
-# Test container job execution
-sbatch test-infra/fixtures/slurm-jobs/container-pytorch-job.sh
-
-# Verify monitoring integration
-curl http://test-controller:9090/api/v1/query?query=up
-curl http://test-controller:3000/api/health
+# Performance and load testing using framework
+./test-infra/test-pcie-passthrough-framework.sh \
+    --config test-infra/suites/performance/test-performance.yaml \
+    --validation-suite performance \
+    --no-cleanup  # For performance analysis
 ```
 
-**Success Criteria:**
+**Framework-Based Success Criteria:**
 
-- All cluster nodes show as available in SLURM
-- Container jobs complete successfully with expected output
-- GPU allocation and monitoring working
-- No critical errors in any service logs
+- All test suites pass using established framework pattern
+- Full-stack deployment completes within framework timeout limits
+- Performance test suite validates system under production-scale loads
+- Framework logging captures comprehensive system state for analysis
 
 ---
 
@@ -2492,14 +2556,58 @@ python3 test-infra/validation/final-assessment.py
 ### Phase 0 Execution Flow
 
 ```text
-TASK-001 → TASK-002 → TASK-003 → TASK-005 → TASK-006 (Optional)
-    ↓                                
-TASK-004 (Optional - requires sudo)
+TASK-001 → TASK-002 → TASK-003 → TASK-004 → TASK-005 → TASK-006 (Optional)
+                                     ↑
+                              ✅ COMPLETED - Framework Foundation
 ```
 
-**Note**: TASK-004 and TASK-006 are marked as optional due to host system
-modification requirements. Core functionality can be tested using the safer
-alternatives provided in each task.
+**Important Update**: TASK-004 is now **COMPLETED** and provides the
+foundational testing framework that subsequent tasks leverage. This
+eliminates the need for separate pytest-based testing infrastructure
+and provides a consistent, proven approach for all integration testing.
+
+**Framework Impact:**
+
+- **TASK-005**: Now leverages TASK-004's framework instead of creating separate infrastructure
+- **TASK-027**: Uses established framework pattern for full-stack testing
+- **Testing Consistency**: All integration tests use the same reliable framework
+- **Reduced Complexity**: Eliminates redundant testing infrastructure development
+
+### Testing Plan Evolution Summary
+
+**Before Task 004 Implementation:**
+
+- Separate pytest-based integration test infrastructure (Task 005)
+- Ansible playbook-based deployment testing (Task 027)
+- **Testing functionality before implementation** (logical inconsistency)
+- Multiple different testing approaches and patterns
+- Potential for testing inconsistencies and maintenance overhead
+
+**After Task 004 Implementation + Logical Restructuring:**
+
+- **Unified Framework**: Single, proven testing framework for all scenarios  
+- **Testing-at-Implementation**: Tests added to tasks that implement functionality
+- **Logical Dependencies**: No testing of unimplemented functionality
+- **Real Deployments**: All tests use actual ai-how cluster deployments
+- **Modular Test Suites**: Specialized validation scripts following consistent patterns
+- **Production Alignment**: Testing approach matches production deployment tools
+
+**Restructured Testing Approach:**
+
+- **Task 005**: Basic infrastructure testing (what's available in Phase 0)
+- **Task 008-009**: Container runtime testing (when containers implemented)  
+- **Task 022**: Multi-node testing (when SLURM compute nodes implemented)
+- **Task 026**: Container integration testing (when full stack available)
+- **Task 027**: Full-stack integration testing (leveraging all previous tests)
+
+**Key Benefits of Framework-Centric + Logic-First Approach:**
+
+1. **Logical Consistency**: Tests only what's implemented
+2. **Reduced Development Time**: Task 005 reduced from 4h to 2h  
+3. **Improved Reliability**: Proven framework with comprehensive error handling
+4. **Better Maintainability**: Single testing pattern, tests with implementation
+5. **Enhanced Consistency**: All tests follow the same execution and validation patterns
+6. **Real-World Validation**: Tests actual deployments rather than simulated environments
 
 ### Phase 1 Execution Flow
 
@@ -2550,12 +2658,35 @@ TASK-027 → TASK-028 → TASK-029 → TASK-030
 
 ## Testing Framework
 
-Each task includes:
+**Framework-Centric Approach (Based on Task 004 Implementation):**
 
-- **Unit Tests**: Individual component validation
-- **Integration Tests**: Cross-component functionality
-- **System Tests**: End-to-end workflow validation
-- **Performance Tests**: Resource utilization and scaling
+The testing strategy leverages the comprehensive automated testing framework
+established in Task 004, providing consistent, reliable, and scalable testing
+across all deployment scenarios.
+
+**Framework Components:**
+
+- **Automated Cluster Orchestration**: Real ai-how deployments for authentic testing
+- **Modular Test Suites**: Specialized validation scripts for different scenarios
+- **Comprehensive Logging**: Detailed test execution and debugging information
+- **Automated Cleanup**: Ensures no test artifacts remain after execution
+
+**Test Categories Using Framework:**
+
+- **Basic Functionality Tests**: Core SLURM service validation
+- **Container Integration Tests**: Singularity/container runtime validation  
+- **GPU Passthrough Tests**: PCIe device and driver validation (Task 004)
+- **Multi-Node Tests**: Distributed computing and MPI validation
+- **Full-Stack Tests**: Complete system integration validation
+- **Performance Tests**: Production-scale load and reliability testing
+
+**Benefits of Framework-Centric Approach:**
+
+- **Consistency**: All tests use the same proven framework pattern
+- **Reliability**: Automated cleanup and error handling
+- **Scalability**: Easy to add new test scenarios
+- **CI/CD Ready**: Framework designed for automated pipeline integration
+- **Real Testing**: Uses actual deployments, not mocks or simulations
 
 ## Documentation and Handoff
 
