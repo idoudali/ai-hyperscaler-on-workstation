@@ -140,8 +140,8 @@ test_invalid_config_handling() {
         return 1
     }
 
-    # Create a temporary invalid config file
-    local invalid_config="/tmp/invalid-config.yaml"
+    # Create a temporary invalid config file in current directory
+    local invalid_config="./invalid-config-$$.yaml"
     cat > "$invalid_config" << 'EOF'
 version: "1.0"
 metadata:

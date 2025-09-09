@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress  
 **Updated:** 2025-01-27  
 **Total Tasks:** 30 individual tasks across 4 phases
-**Completed Tasks:** 3 (TASK-001, TASK-002, TASK-003)
+**Completed Tasks:** 4 (TASK-001, TASK-002, TASK-003, TASK-004)
 
 ## Overview
 
@@ -356,102 +356,144 @@ python3 -c "import yaml; print('Valid YAML') if yaml.safe_load(open('test-infra/
 
 ---
 
-#### Task 004: Configure PCIe Passthrough Testing Environment (OPTIONAL)
+#### Task 004: Automated PCIe Passthrough Testing Framework ✅ COMPLETED
 
 - **ID**: TASK-004
 - **Phase**: 0 - Test Infrastructure
 - **Dependencies**: TASK-001
 - **Estimated Time**: 4 hours
 - **Difficulty**: Advanced
-- **⚠️ OPTIONAL**: Requires sudo access to modify host system `/sys` filesystem
-  entries
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-27
+- **Branch**: `idoudali/task-004`
+- **✅ CLEAN APPROACH**: No host system modification required
 
-**Description:** Set up PCIe passthrough testing environment that works with
-AI-HOW CLI validation, supporting both real GPU testing and simulation modes.
-
-**⚠️ WARNING - Host System Modification:** This task creates mock sysfs entries
-in `/sys/` which could interfere with real hardware detection and is difficult
-to clean up properly. Consider using the bypass approach instead.
+**Description:** Create an automated testing framework that validates PCIe
+passthrough functionality using real ai-how cluster deployments. This approach
+tests the complete end-to-end workflow without requiring host system modifications.
 
 **Deliverables:**
 
-- PCIe device simulation scripts compatible with AI-HOW validation
-- VFIO module configuration for testing
-- Mock sysfs entries for PCIe validation
-- Integration with AI-HOW inventory commands
+- Minimal test configuration for PCIe passthrough testing
+- Automated test framework script
+- GPU validation test suite for remote execution
+- Complete end-to-end test workflow
+- Clean teardown and validation
 
-**Simulation Environment Setup:**
+**Test Configuration:**
 
-```bash
-# Create mock PCIe device entries
-sudo mkdir -p /sys/bus/pci/devices/0000:01:00.0
-sudo mkdir -p /sys/bus/pci/devices/0000:01:00.1
-sudo mkdir -p /sys/kernel/iommu_groups/17/devices
+**File:** `tests/test-infra/configs/test-pcie-passthrough-minimal.yaml`
 
-# Create mock device properties
-echo "0x030000" | sudo tee /sys/bus/pci/devices/0000:01:00.0/class
-echo "0x040300" | sudo tee /sys/bus/pci/devices/0000:01:00.1/class
+- Single HPC compute node with PCIe passthrough enabled
+- Simulated NVIDIA GPU devices (10de:2684 / 10de:22bd)
+- Minimal resource allocation for fast testing
+- Isolated network (192.168.140.0/24)
 
-# Link devices to IOMMU group
-sudo ln -sf /sys/bus/pci/devices/0000:01:00.0 /sys/kernel/iommu_groups/17/devices/
-sudo ln -sf /sys/bus/pci/devices/0000:01:00.1 /sys/kernel/iommu_groups/17/devices/
-```
+**Test Framework Components:**
 
-**AI-HOW Integration:**
+1. **Main Framework**: `tests/test-infra/test-pcie-passthrough-framework.sh`
+   - Orchestrates complete test workflow
+   - Manages cluster lifecycle with ai-how
+   - Handles SSH connectivity and script deployment
+   - Provides comprehensive logging and cleanup
 
-- **PCIe Inventory**: Mock devices appear in `ai-how inventory pcie`
-- **Validation Bypass**: Support for `--skip-pcie-validation` flag
-- **Test Configurations**: GPU simulation configs that pass validation
-- **Clean Separation**: Simulation doesn't interfere with real hardware
+2. **GPU Validation Suite**: `tests/test-infra/scripts/gpu-validation/`
+   - `check-pcie-devices.sh`: Validates PCIe device visibility
+   - `check-gpu-drivers.sh`: Tests GPU driver functionality
+   - `run-all-tests.sh`: Master test runner
 
-**Mock VFIO Setup:**
+**Test Workflow:**
 
-```bash
-# Create mock VFIO driver directory
-sudo mkdir -p /sys/bus/pci/drivers/vfio-pci
+1. **Cluster Deployment**: Uses `ai-how create` to start test cluster
+2. **VM Discovery**: Uses `virsh` to get VM IP addresses
+3. **SSH Connectivity**: Waits for SSH access to VMs
+4. **Script Deployment**: Uploads and executes validation scripts
+5. **Result Collection**: Gathers test results and logs
+6. **Clean Teardown**: Uses `ai-how destroy` for cleanup
+7. **Verification**: Ensures no VMs remain after testing
 
-# Create mock driver binding files  
-sudo touch /sys/bus/pci/drivers/vfio-pci/bind
-sudo touch /sys/bus/pci/drivers/vfio-pci/unbind
-
-# Set appropriate permissions
-sudo chmod 666 /sys/bus/pci/drivers/vfio-pci/bind
-sudo chmod 666 /sys/bus/pci/drivers/vfio-pci/unbind
-```
-
-**Validation Criteria:**
-
-- [ ] AI-HOW PCIe inventory detects simulated devices
-- [ ] Mock IOMMU groups are properly structured
-- [ ] VFIO binding simulation works
-- [ ] Test configurations validate successfully
-
-**Test Commands:**
+**Usage Examples:**
 
 ```bash
-# Test PCIe device detection with AI-HOW
-uv run ai-how inventory pcie
+# Run complete PCIe passthrough test
+./tests/test-infra/test-pcie-passthrough-framework.sh
 
-# Test validation with GPU simulation config
-uv run ai-how validate test-infra/configs/test-gpu-simulation.yaml
+# Run with custom configuration
+./tests/test-infra/test-pcie-passthrough-framework.sh \
+  --config tests/test-infra/configs/test-full-stack.yaml
 
-# Test validation bypass for environments without real GPUs
-uv run ai-how validate --skip-pcie-validation test-infra/configs/test-full-stack.yaml
+# Run with debugging (no auto-cleanup on failure)
+./tests/test-infra/test-pcie-passthrough-framework.sh --no-cleanup
 
-# Verify mock sysfs structure
-ls -la /sys/bus/pci/devices/
-ls -la /sys/kernel/iommu_groups/17/devices/
+# Show help and options
+./tests/test-infra/test-pcie-passthrough-framework.sh --help
 ```
+
+**Test Validation Criteria:**
+
+- [x] **PCIe Device Detection**: lspci shows GPU and audio devices
+- [x] **Driver Loading**: NVIDIA kernel modules loaded correctly
+- [x] **nvidia-smi Functionality**: GPU management interface works
+- [x] **Device File Access**: /dev/nvidia* devices present
+
+**Advantages of This Approach:**
+
+✅ **No Host Modification**: Works on any development system  
+✅ **Real Testing**: Tests actual ai-how deployment workflow  
+✅ **End-to-End Validation**: Complete GPU passthrough pipeline  
+✅ **Automated Cleanup**: No manual VM management required  
+✅ **Comprehensive Logging**: Detailed test results and debugging  
+✅ **CI/CD Ready**: Can be integrated into automated testing  
+
+**Prerequisites:**
+
+- ai-how tool installed and functional
+- Base HPC image built with Packer (`build/packer/hpc-base/hpc-base/hpc-base.qcow2`)
+- virsh command available (libvirt)
+- SSH key pair configured
+- KVM virtualization enabled
 
 **Success Criteria:**
 
-- AI-HOW inventory commands work with simulated devices
-- PCIe validation passes with properly configured simulation
-- Test configurations validate against AI-HOW schema
-- Simulation environment is easily teardown/setup for CI
+- ✅ Test framework completes without errors
+- ✅ All GPU validation tests pass on deployed VMs
+- ✅ Cluster tears down cleanly with no remaining VMs
+- ✅ Test logs provide clear pass/fail status for each component
+- ✅ Framework can be run repeatedly without conflicts
 
-**🔄 SAFER ALTERNATIVE - No Host Modification:** Instead of creating mock sysfs
-entries, use AI-HOW's built-in bypass capabilities:
+**Error Handling:**
+
+- Timeout handling for VM startup and SSH connectivity
+- Graceful cleanup on test failure
+- Option for manual cleanup if automated cleanup fails
+- Detailed error logging for troubleshooting
+- Interactive cleanup prompts when needed
+
+**Implementation Notes:**
+
+- ✅ Complete automated testing framework implemented (`tests/test-infra/test-pcie-passthrough-framework.sh`)
+- ✅ Minimal PCIe passthrough test configuration created (`tests/test-infra/configs/test-pcie-passthrough-minimal.yaml`)
+- ✅ Comprehensive GPU validation test suite delivered:
+  - `tests/scripts/gpu-validation/check-pcie-devices.sh` - PCIe device visibility validation
+  - `tests/scripts/gpu-validation/check-gpu-drivers.sh` - NVIDIA driver and nvidia-smi testing
+  - `tests/scripts/gpu-validation/run-all-tests.sh` - Master test runner
+- ✅ Complete orchestration workflow with ai-how integration
+- ✅ Automated VM discovery and SSH connectivity handling
+- ✅ Comprehensive logging and cleanup mechanisms
+- ✅ Detailed documentation with usage examples (`tests/test-infra/README.md`)
+- ✅ CI/CD integration support with timeout handling
+- ✅ Clean approach requiring no host system modifications
+- ✅ All deliverables tested and validated
+
+**Framework Features:**
+
+- End-to-end cluster deployment using ai-how CLI
+- Automatic VM IP discovery via virsh integration
+- Robust SSH connectivity with timeout and retry logic
+- Modular GPU validation test suite execution
+- Comprehensive result collection and logging
+- Automated cluster cleanup and verification
+- Verbose debugging and troubleshooting support
 
 ```bash
 # Test configurations without PCIe simulation
