@@ -1,44 +1,134 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-base-images test-ai-how test-config-validation test-pcie-validation test-test-configs clean
+.PHONY: help test test-all test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax clean
 
 help:
 	@echo "HPC SLURM Test Suite"
 	@echo "==================="
 	@echo ""
 	@echo "Available targets:"
-	@echo "  test                 - Run all tests"
-	@echo "  test-base-images     - Run base images build tests"
-	@echo "  test-ai-how          - Run AI-HOW CLI installation and configuration tests"
+	@echo "  test                   - Run core infrastructure tests"
+	@echo "  test-all               - Run comprehensive test suite including builds"
+	@echo "  test-base-images       - Run base images build tests"
+	@echo "  test-container-runtime - Run container runtime tests"
+	@echo "  test-ansible-roles     - Run Ansible roles validation"
+	@echo "  test-integration       - Run integration tests"
+	@echo "  test-ai-how            - Run AI-HOW CLI installation and configuration tests"
 	@echo "  test-config-validation - Run configuration validation tests"
-	@echo "  test-pcie-validation - Run PCIe validation tests"
-	@echo "  test-test-configs    - Run test configuration validation tests"
-	@echo "  clean               - Clean test artifacts"
+	@echo "  test-pcie-validation   - Run PCIe validation tests"
+	@echo "  test-test-configs      - Run test infrastructure configuration validation"
+	@echo "  test-container-comprehensive - Run comprehensive container runtime validation"
+	@echo "  clean                  - Clean test artifacts"
+	@echo ""
+	@echo "Quick options:"
+	@echo "  test-quick             - Run quick validation tests only"
+	@echo "  test-verbose           - Run tests with verbose output"
+	@echo "  test-fail-fast         - Run tests with fail-fast mode (stop on first error)"
+	@echo ""
+	@echo "Pre-commit validation (basic syntax/linting):"
+	@echo "  test-precommit         - Run all pre-commit hooks"
+	@echo "  test-ansible-syntax    - Run Ansible syntax/lint validation"
 	@echo ""
 
-# Run all tests
-test: test-base-images test-ai-how test-test-configs
+# Run core infrastructure tests (fast, essential components)
+test: test-integration test-ansible-roles test-container-runtime
+
+# Run comprehensive test suite including builds and CLI validation
+test-all: test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs
 
 # Run base images test
 test-base-images:
-	@./run_base_images_test.sh
+	@echo "Running base images build tests..."
+	@./test_base_images.sh
+
+# Run container runtime tests
+test-container-runtime:
+	@echo "Running container runtime tests..."
+	@./test_container_runtime.sh
+
+# Run Ansible roles integration tests
+test-ansible-roles:
+	@echo "Running Ansible roles integration tests..."
+	@echo "Note: Basic syntax/linting handled by pre-commit hooks"
+	@./test_ansible_roles.sh
+
+# Run integration tests
+test-integration:
+	@echo "Running infrastructure integration tests..."
+	@./test_integration.sh
 
 # Run AI-HOW CLI tests
 test-ai-how:
+	@echo "Running AI-HOW CLI installation and configuration tests..."
 	@./test_ai_how_cli.sh
 
 # Run configuration validation tests
 test-config-validation:
+	@echo "Running configuration validation tests..."
 	@./test_config_validation.sh
 
 # Run PCIe validation tests
 test-pcie-validation:
+	@echo "Running PCIe validation tests..."
 	@./test_pcie_validation.sh
 
 # Run test configuration validation tests
 test-test-configs:
+	@echo "Running test configuration validation tests..."
 	@./test_test_configs.sh
+
+# Quick validation tests (no building)
+test-quick:
+	@echo "Running quick validation tests..."
+	@./test_ansible_roles.sh --integration-only
+	@./test_container_runtime.sh --skip-build
+	@./test_integration.sh --quick
+
+# Verbose test execution
+test-verbose:
+	@echo "Running tests with verbose output..."
+	@./test_integration.sh --verbose
+	@./test_ansible_roles.sh --verbose
+	@./test_container_runtime.sh --verbose
+
+# Fail-fast test execution
+test-fail-fast:
+	@echo "Running tests with fail-fast mode (stop on first error)..."
+	@./test_integration.sh --verbose
+	@./test_ansible_roles.sh --fail-fast --verbose
+	@./test_container_runtime.sh --verbose
+
+# Test specific role
+test-role:
+ifndef ROLE
+	@echo "Usage: make test-role ROLE=role-name"
+	@echo "Available roles:"
+	@ls -1 ../ansible/roles/ | sed 's/^/  /'
+else
+	@echo "Testing role: $(ROLE)"
+	@./test_ansible_roles.sh --role $(ROLE) --verbose
+endif
+
+# Test container runtime comprehensively
+test-container-comprehensive:
+	@echo "Running comprehensive container runtime validation..."
+	@./test_container_runtime.sh --verbose
+	@./test_ansible_roles.sh --role container-runtime --verbose
+
+# Pre-commit validation targets
+test-precommit:
+	@echo "Running all pre-commit hooks for validation..."
+	@cd .. && pre-commit run --all-files
+
+test-ansible-syntax:
+	@echo "Running Ansible syntax and linting validation..."
+	@cd .. && pre-commit run --all-files check-yaml
+	@cd .. && pre-commit run --all-files ansible-lint
+	@cd .. && pre-commit run --all-files ansible-playbook-syntax-check
 
 # Clean artifacts
 clean:
+	@echo "Cleaning test artifacts..."
 	@rm -f *.log
+	@rm -rf logs/
+	@echo "Note: Individual test LOG_DIR directories cleaned up automatically by tests"

@@ -1,0 +1,109 @@
+# Ansible Lint Configuration for HPC SLURM Infrastructure
+# See https://ansible-lint.readthedocs.io/configuring/ for more information
+
+# Profile defines rules set to use
+profile: production  # ansible >= 2.12
+
+# Additional paths to search for rules and collections
+rulesdir: []
+
+# List of additional modules to search for
+library: []
+
+# List of modules to trust
+trusted:
+  - shell  # Allow shell module for legitimate system operations
+  - command  # Allow command module for specific operations
+
+# Skip certain rules
+skip_list:
+  # Skip rules that may not apply to infrastructure provisioning
+  - yaml[line-length]       # Allow longer lines for readability
+  - risky-shell-pipe        # Infrastructure scripts often use pipes
+  - package-latest          # Allow latest packages in infrastructure setup
+  - fqcn[action-core]       # Allow core ansible modules without FQCN
+  - name[casing]           # Allow flexible task naming
+  - jinja[spacing]         # Allow flexible jinja spacing
+
+# Warnings only (don't fail on these)
+warn_list:
+  - experimental            # Warn about experimental features
+  - ignore-errors          # Warn about ignore_errors usage
+  - deprecated-module      # Warn about deprecated modules
+
+# Use default rules except for skipped ones
+use_default_rules: true
+
+# Enable offline mode (don't check for newer versions)
+offline: false
+
+# Define file patterns for different types of files
+kinds:
+  playbook:
+    - "**/playbooks/*.yml"
+    - "**/playbooks/*.yaml"
+    - "playbook*.yml"
+    - "playbook*.yaml"
+  tasks:
+    - "**/tasks/*.yml"
+    - "**/tasks/*.yaml"
+  handlers:
+    - "**/handlers/*.yml"
+    - "**/handlers/*.yaml"
+  vars:
+    - "**/vars/*.yml"
+    - "**/vars/*.yaml"
+    - "**/defaults/*.yml"
+    - "**/defaults/*.yaml"
+  meta:
+    - "**/meta/*.yml"
+    - "**/meta/*.yaml"
+  group_vars:
+    - "**/group_vars/*.yml"
+    - "**/group_vars/*.yaml"
+  host_vars:
+    - "**/host_vars/*.yml"
+    - "**/host_vars/*.yaml"
+
+# Exclude certain directories/files
+exclude_paths:
+  - .cache/
+  - .github/
+  - .tox/
+  - docs/
+  - tests/
+  - molecule/
+
+# Enable colored output
+colored: true
+
+# Set verbosity level
+verbosity: 1
+
+# Write fixes to files
+write_list:
+  - all
+
+# Mock certain modules that may not be available during linting
+mock_modules:
+  - community.general.filesystem
+  - community.general.lvol
+  - community.general.lvg
+  - community.crypto.x509_certificate
+  - kubernetes.core.k8s
+  - kubernetes.core.k8s_info
+
+# Mock certain roles that may not be available
+mock_roles:
+  - name: community.general
+  - name: ansible.posix
+  - name: kubernetes.core
+
+# Loop detection
+loop_var_prefix: "ansible_loop"
+
+# Sarif format output
+sarif_file: .ansible-lint-sarif.json
+
+# Enable progressive mode (only new issues)
+progressive: false
