@@ -30,7 +30,7 @@ real ai-how cluster deployments to validate end-to-end functionality.
 ### Test Framework
 
 - **`test-pcie-passthrough-framework.sh`**: Main orchestration script that manages the complete test workflow
-- **`scripts/gpu-validation/`**: GPU validation test suite executed on remote VMs
+- **`../suites/gpu-validation/`**: GPU validation test suite executed on remote VMs
 
 ### GPU Validation Suite
 
@@ -113,7 +113,7 @@ virsh domifaddr test-hpc-pcie-minimal-compute-0
 ssh -i build/shared/ssh-keys/id_rsa admin@<vm-ip> "echo 'SSH working'"
 
 # Upload and run tests manually
-scp -i build/shared/ssh-keys/id_rsa tests/scripts/gpu-validation/*.sh admin@<vm-ip>:~/gpu-tests/
+scp -i build/shared/ssh-keys/id_rsa tests/suites/gpu-validation/*.sh admin@<vm-ip>:~/gpu-tests/
 ssh -i build/shared/ssh-keys/id_rsa admin@<vm-ip> "chmod +x ~/gpu-tests/*.sh && ~/gpu-tests/run-all-tests.sh"
 
 # Cleanup
@@ -205,9 +205,9 @@ uv run ai-how destroy tests/test-infra/configs/test-pcie-passthrough-minimal.yam
 
 To add new validation tests:
 
-1. Create test script in `scripts/gpu-validation/`
+1. Create test script in `suites/gpu-validation/`
 2. Make it executable: `chmod +x script.sh`
-3. Add call to `scripts/gpu-validation/run-all-tests.sh`
+3. Add call to `suites/gpu-validation/run-all-tests.sh`
 4. Test the individual script manually first
 
 ### Modifying Configurations
