@@ -16,5 +16,28 @@
       - vim
       - curl
       - wget
+      - net-tools
+      - iproute2
+      - iputils-ping
+      - dnsutils
+      - netcat-openbsd
     state: present
   become: true
+
+- name: Packer build detection
+  set_fact:
+    is_packer_build: "{{ packer_build | default(false) | bool }}"
+
+- name: Display Packer build detection result
+  debug:
+    msg: "Packer build detected: {{ is_packer_build }} (from packer_build variable: {{ packer_build | default('not_set') }})"
+
+- name: Display Packer build status
+  debug:
+    msg: "Running in Packer build mode - network setup handled by setup-hpc-base.sh"
+  when: is_packer_build
+
+- name: Display runtime build status
+  debug:
+    msg: "Running in normal mode - full network configuration will be applied"
+  when: not is_packer_build

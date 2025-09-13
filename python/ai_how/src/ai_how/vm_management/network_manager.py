@@ -20,6 +20,10 @@ from ai_how.vm_management.libvirt_client import LibvirtClient
 
 logger = logging.getLogger(__name__)
 
+# Network configuration constants
+DEFAULT_PUBLIC_DNS_SERVERS = ["8.8.8.8", "1.1.1.1"]
+DEFAULT_LIBVIRT_BRIDGE_IP = "192.168.122.1"
+
 
 class NetworkManagerError(Exception):
     """Raised when network management operations fail."""
@@ -114,6 +118,7 @@ class NetworkManager:
                 "dns_servers": dns_config["dns_servers"],
                 "static_leases": static_leases,
                 "vm_macs": vm_macs,
+                "network_range": network_range,
             }
 
             # Generate network XML
@@ -485,8 +490,13 @@ class NetworkManager:
         log_function_entry(logger, "validate_network_config", config=network_config)
 
         try:
-            # Validate network range
-            network_range = network_config.get("network_range", "192.168.100.0/24")
+            # Validate network range (support both 'subnet' and 'network_range')
+            # For backwards compatibility, support both 'subnet' (preferred) and 'network_range'.
+            # If both are present, 'subnet' takes precedence. If neither is present, use default
+            # '192.168.100.0/24'.
+            network_range = network_config.get("subnet") or network_config.get(
+                "network_range", "192.168.100.0/24"
+            )
             try:
                 network = ipaddress.IPv4Network(network_range, strict=False)
                 logger.debug(f"Network range validation passed: {network}")
@@ -496,7 +506,10 @@ class NetworkManager:
             # Validate bridge name using regex for clearer intent
             import re
 
-            bridge_name = network_config.get("bridge_name", "")
+            # For backwards compatibility, support both 'bridge' (preferred) and 'bridge_name'.
+            # If both are present, 'bridge' takes precedence. If neither is present, use empty
+            # string.
+            bridge_name = network_config.get("bridge") or network_config.get("bridge_name", "")
             if bridge_name and not re.match(r"^[a-zA-Z0-9._-]+$", bridge_name):
                 raise NetworkManagerError(
                     f"Invalid bridge name '{bridge_name}': must be alphanumeric with "
@@ -512,6 +525,32 @@ class NetworkManager:
                         logger.debug(f"{ip_field} validation passed: {ip_value}")
                     except ValueError as e:
                         raise NetworkManagerError(f"Invalid {ip_field} '{ip_value}': {e}") from e
+
+            # Validate DNS servers if provided
+            dns_servers = network_config.get("dns_servers", [])
+            if dns_servers:
+                for i, dns_server in enumerate(dns_servers):
+                    try:
+                        ipaddress.IPv4Address(dns_server)
+                        logger.debug(f"DNS server {i + 1} validation passed: {dns_server}")
+                    except ValueError as e:
+                        raise NetworkManagerError(f"Invalid DNS server '{dns_server}': {e}") from e
+
+            # Validate that gateway IP is within the network range
+            gateway_ip = network_config.get("gateway_ip")
+            if gateway_ip:
+                try:
+                    gateway_addr = ipaddress.IPv4Address(gateway_ip)
+                    if gateway_addr not in network:
+                        raise NetworkManagerError(
+                            f"Gateway IP '{gateway_ip}' is not within network range "
+                            f"'{network_range}'"
+                        )
+                    logger.debug(
+                        f"Gateway IP validation passed: {gateway_ip} is within {network_range}"
+                    )
+                except ValueError as e:
+                    raise NetworkManagerError(f"Invalid gateway IP '{gateway_ip}': {e}") from e
 
             logger.debug("Network configuration validation passed")
             log_function_exit(logger, "validate_network_config", result=True)
@@ -594,29 +633,43 @@ class NetworkManager:
         log_function_entry(logger, "configure_dns_mode", cluster_name=cluster_name)
 
         dns_mode = network_config.get("dns_mode", "isolated")
-        dns_config = {"dns_servers": network_config.get("dns_servers", ["8.8.8.8", "1.1.1.1"])}
+
+        # Get gateway IP for DNS configuration
+        gateway_ip = network_config.get("gateway_ip", "192.168.100.1")
+
+        # Default DNS servers - use gateway as primary, then public DNS
+        dns_config = {
+            "dns_servers": network_config.get(
+                "dns_servers", [gateway_ip] + DEFAULT_PUBLIC_DNS_SERVERS
+            )
+        }
 
         logger.debug(f"Configuring DNS mode: {dns_mode}")
 
         if dns_mode == "isolated":
-            # Default isolated mode - no changes needed
-            logger.debug("Using isolated DNS mode")
+            # Default isolated mode - use gateway and public DNS
+            logger.debug("Using isolated DNS mode with gateway and public DNS")
 
         elif dns_mode == "shared_dns":
             # Use host system DNS for cross-cluster resolution
-            dns_config["dns_servers"] = ["192.168.122.1"]  # libvirt default bridge
+            dns_config["dns_servers"] = [
+                gateway_ip,
+                DEFAULT_LIBVIRT_BRIDGE_IP,
+            ]  # gateway + libvirt default bridge
             self._configure_host_dns_integration(cluster_name, network_config)
 
         elif dns_mode == "routed":
             # Enable routing between cluster networks
-            dns_config["dns_servers"] = ["192.168.122.1"]
+            dns_config["dns_servers"] = [gateway_ip, DEFAULT_LIBVIRT_BRIDGE_IP]
             self._enable_cluster_routing(cluster_name, network_config)
 
         elif dns_mode == "service_discovery":
             # Configure external service discovery
             service_config = network_config.get("service_discovery", {})
-            consul_ip = service_config.get("address", "192.168.122.1:8600").split(":")[0]
-            dns_config["dns_servers"] = [consul_ip]
+            consul_ip = service_config.get("address", f"{DEFAULT_LIBVIRT_BRIDGE_IP}:8600").split(
+                ":"
+            )[0]
+            dns_config["dns_servers"] = [gateway_ip, consul_ip]
             self._configure_service_discovery(cluster_name, service_config)
 
         logger.debug(f"DNS configuration: {dns_config}")
@@ -984,7 +1037,45 @@ local=/{domain}/
         logger.debug(f"Configuring service discovery for {cluster_name}")
 
         service_type = service_config.get("type", "consul")
-        service_address = service_config.get("address", "192.168.122.1:8600")
+        service_address = service_config.get("address", f"{DEFAULT_LIBVIRT_BRIDGE_IP}:8600")
 
         logger.info(f"Service discovery integration: {service_type} at {service_address}")
         # Note: Actual service discovery integration would be implemented here
+
+    def get_network_configuration_help(self) -> dict[str, Any]:
+        """Get help information for network configuration.
+
+        Returns:
+            Dictionary with network configuration help and examples
+        """
+        return {
+            "description": "Network configuration for HPC clusters",
+            "required_fields": {
+                "subnet": "Network subnet in CIDR notation (e.g., '192.168.100.0/24')",
+                "bridge": "Bridge name for the virtual network (e.g., 'br-hpc-cluster')",
+            },
+            "optional_fields": {
+                "gateway_ip": "Gateway IP address (defaults to first IP in subnet)",
+                "dhcp_start": "DHCP range start IP (defaults to subnet + 10)",
+                "dhcp_end": "DHCP range end IP (defaults to subnet + 254)",
+                "dns_servers": "List of DNS servers (defaults to gateway + public DNS)",
+                "dns_mode": "DNS mode: 'isolated', 'shared_dns', 'routed', 'service_discovery'",
+            },
+            "examples": {
+                "basic": {"subnet": "192.168.100.0/24", "bridge": "br-hpc-cluster"},
+                "advanced": {
+                    "subnet": "192.168.100.0/24",
+                    "bridge": "br-hpc-cluster",
+                    "gateway_ip": "192.168.100.1",
+                    "dhcp_start": "192.168.100.10",
+                    "dhcp_end": "192.168.100.254",
+                    "dns_servers": ["192.168.100.1"] + DEFAULT_PUBLIC_DNS_SERVERS,
+                    "dns_mode": "isolated",
+                },
+            },
+            "troubleshooting": {
+                "no_internet": "Ensure 'dns_mode' is set to 'isolated' or 'shared_dns'",
+                "no_dhcp": "Check that 'dhcp_start' and 'dhcp_end' are within the subnet range",
+                "dns_issues": "Verify 'dns_servers' includes the gateway IP and public DNS servers",
+            },
+        }

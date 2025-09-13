@@ -512,6 +512,11 @@ class HPCClusterManager:
             logger.debug("Validating network configuration parameters")
             self.network_manager.validate_network_config(network_config)
             logger.debug("Network configuration validation passed")
+
+            # Log network configuration help for debugging
+            help_info = self.network_manager.get_network_configuration_help()
+            logger.debug(f"Network configuration help: {help_info['description']}")
+
         except NetworkManagerError as e:
             logger.error(f"Network configuration validation failed: {e}")
             raise HPCManagerError(f"Invalid network configuration: {e}") from e
