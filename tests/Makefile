@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax clean
+.PHONY: help test test-all test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -13,11 +13,11 @@ help:
 	@echo "  test-container-runtime - Run container runtime tests"
 	@echo "  test-ansible-roles     - Run Ansible roles validation"
 	@echo "  test-integration       - Run integration tests"
-	@echo "  test-ai-how            - Run AI-HOW CLI installation and configuration tests"
-	@echo "  test-config-validation - Run configuration validation tests"
 	@echo "  test-pcie-validation   - Run PCIe validation tests"
 	@echo "  test-test-configs      - Run test infrastructure configuration validation"
 	@echo "  test-container-comprehensive - Run comprehensive container runtime validation"
+	@echo "  test-infrastructure    - Run basic infrastructure tests (VM lifecycle, networking, SSH)"
+	@echo "  test-configuration     - Run configuration validation tests (YAML, schema, network)"
 	@echo "  clean                  - Clean test artifacts"
 	@echo ""
 	@echo "Quick options:"
@@ -34,7 +34,7 @@ help:
 test: test-integration test-ansible-roles test-container-runtime
 
 # Run comprehensive test suite including builds and CLI validation
-test-all: test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs
+test-all: test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
 
 # Run base images test
 test-base-images:
@@ -125,6 +125,14 @@ test-ansible-syntax:
 	@cd .. && pre-commit run --all-files check-yaml
 	@cd .. && pre-commit run --all-files ansible-lint
 	@cd .. && pre-commit run --all-files ansible-playbook-syntax-check
+
+# Run basic infrastructure tests (Task 005 - leveraging existing framework)
+test-infrastructure:
+	@./test_run_basic_infrastructure.sh
+
+# Run configuration validation tests (Task 005 - enhanced validation)
+test-configuration:
+	@./tests/test_config_validation.sh --all-configs --enhanced
 
 # Clean artifacts
 clean:

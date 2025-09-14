@@ -123,34 +123,53 @@ run_test_framework() {
         return 1
     fi
 
-    # Step 6: Test each VM
+    # Step 6: Run tests
     local overall_success=true
-    for i in "${!VM_IPS[@]}"; do
-        local vm_ip="${VM_IPS[$i]}"
-        local vm_name="${VM_NAMES[$i]}"
 
-        log "Testing VM: $vm_name ($vm_ip)"
+    # Check if this is a basic infrastructure test (run on host)
+    if [[ "$test_scripts_dir" == *"basic-infrastructure"* ]]; then
+        log "Running basic infrastructure tests on host system..."
 
-        # Wait for SSH
-        if ! wait_for_vm_ssh "$vm_ip" "$vm_name"; then
-            log_error "SSH connectivity failed for $vm_name"
-            overall_success=false
-            continue
-        fi
-
-        # Upload test scripts
-        if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir"; then
-            log_error "Failed to upload test scripts to $vm_name"
-            overall_success=false
-            continue
-        fi
-
-        # Run tests
-        if ! execute_script_on_vm "$vm_ip" "$vm_name" "$master_test_script"; then
-            log_warning "Tests failed on $vm_name"
+        # Run the master test script on the host
+        if [[ -f "$test_scripts_dir/$master_test_script" ]]; then
+            log "Executing: $test_scripts_dir/$master_test_script"
+            if ! bash "$test_scripts_dir/$master_test_script"; then
+                log_warning "Basic infrastructure tests failed"
+                overall_success=false
+            fi
+        else
+            log_error "Master test script not found: $test_scripts_dir/$master_test_script"
             overall_success=false
         fi
-    done
+    else
+        # For other test types, run on VMs as before
+        for i in "${!VM_IPS[@]}"; do
+            local vm_ip="${VM_IPS[$i]}"
+            local vm_name="${VM_NAMES[$i]}"
+
+            log "Testing VM: $vm_name ($vm_ip)"
+
+            # Wait for SSH
+            if ! wait_for_vm_ssh "$vm_ip" "$vm_name"; then
+                log_error "SSH connectivity failed for $vm_name"
+                overall_success=false
+                continue
+            fi
+
+            # Upload test scripts
+            if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir"; then
+                log_error "Failed to upload test scripts to $vm_name"
+                overall_success=false
+                continue
+            fi
+
+            # Run tests
+            if ! execute_script_on_vm "$vm_ip" "$vm_name" "$master_test_script"; then
+                log_warning "Tests failed on $vm_name"
+                overall_success=false
+            fi
+        done
+    fi
 
     # Step 7: Cleanup
     if ! destroy_cluster "$test_config" "$cluster_name"; then

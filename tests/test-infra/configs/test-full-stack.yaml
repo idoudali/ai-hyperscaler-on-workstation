@@ -12,8 +12,8 @@ clusters:
     # Relative paths will be resolved from the directory where the CLI is executed
     base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
     network:
-      subnet: 192.168.170.0/24
-      bridge: "virbr170"
+      subnet: 192.168.180.0/24
+      bridge: "virbr180"
 
     # Hardware acceleration configuration (x86_64 only)
     hardware:
@@ -43,13 +43,13 @@ clusters:
       cpu_cores: 4
       memory_gb: 8
       disk_gb: 50
-      ip_address: "192.168.170.10"
+      ip_address: "192.168.180.10"
 
     compute_nodes:
       - cpu_cores: 4
         memory_gb: 8
         disk_gb: 30
-        ip: "192.168.170.11"
+        ip: "192.168.180.11"
         pcie_passthrough:
           enabled: true
           devices:
@@ -75,14 +75,14 @@ clusters:
     # Relative paths will be resolved from the directory where the CLI is executed
     base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
     network:
-      subnet: 192.168.180.0/24
-      bridge: "virbr180"
+      subnet: 192.168.181.0/24
+      bridge: "virbr181"
 
     control_plane:
       cpu_cores: 2
       memory_gb: 4
       disk_gb: 30
-      ip_address: "192.168.180.10"
+      ip_address: "192.168.181.10"
 
     worker_nodes:
       cpu:
@@ -90,13 +90,13 @@ clusters:
           cpu_cores: 2
           memory_gb: 4
           disk_gb: 30
-          ip: "192.168.180.11"
+          ip: "192.168.181.11"
       gpu:
         - worker_type: "gpu"
           cpu_cores: 4
           memory_gb: 8
           disk_gb: 50
-          ip: "192.168.180.12"
+          ip: "192.168.181.12"
           pcie_passthrough:
             enabled: true
             devices:

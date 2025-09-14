@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress  
 **Updated:** 2025-01-27  
 **Total Tasks:** 30 individual tasks across 4 phases
-**Completed Tasks:** 6 (TASK-001, TASK-002, TASK-003, TASK-004, TASK-008, TASK-009)
+**Completed Tasks:** 7 (TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-008, TASK-009)
 
 ## Overview
 
@@ -510,50 +510,66 @@ configuration schemas and core functionality.
 
 ---
 
-#### Task 005: Create Basic Infrastructure Testing Suite
+#### Task 005: Create Basic Infrastructure Testing Suite ✅ COMPLETED
 
 - **ID**: TASK-005
 - **Phase**: 0 - Test Infrastructure
 - **Dependencies**: TASK-003, TASK-004
 - **Estimated Time**: 2 hours  
 - **Difficulty**: Junior-Intermediate
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-27
+- **Branch**: `idoudali/task-005`
 - **Test Type**: Infrastructure Tests
 
-**Description:** Create basic infrastructure testing suite
-that validates currently available functionality: cluster lifecycle,
-VM networking, SSH connectivity, and configuration validation using Task 004's framework.
+**Description:** Create basic infrastructure testing suite that validates currently available functionality:
+cluster lifecycle, VM networking, SSH connectivity, and configuration validation using Task 004's framework.
 
 **Deliverables:**
 
-- Basic infrastructure test validation scripts using Task 004's framework
-- VM lifecycle and networking validation tests
-- Configuration schema validation extensions
-- SSH connectivity and basic cluster validation tests
+- ✅ Modular test framework replacing monolithic approach
+- ✅ Specialized test scripts for networking, configuration, SSH, and VM lifecycle
+- ✅ Comprehensive logging and diagnostic capabilities
+- ✅ Enhanced Makefile integration with new test targets
+- ✅ Improved integration with existing test framework utilities
 
-**Basic Infrastructure Test Structure:**
+**New Modular Test Structure:**
 
 ```text
-test-infra/suites/                    # Leverages Task 004's framework
-├── infrastructure/                  # Basic infrastructure tests (AVAILABLE NOW)
-│   ├── test-infrastructure.yaml    # Basic VM deployment config
-│   └── scripts/validation/         # Infrastructure validation scripts
-│       ├── check-vm-lifecycle.sh   # VM start/stop/destroy
-│       ├── check-networking.sh     # VM networking and connectivity
-│       ├── check-ssh-access.sh     # SSH connectivity validation
-│       └── run-infrastructure-tests.sh
-├── configuration/                   # Configuration validation tests (AVAILABLE NOW)
-│   ├── test-configs/               # Test configuration files
-│   └── scripts/validation/         # Configuration validation scripts
-│       ├── validate-all-configs.sh
-│       └── run-config-tests.sh
-└── gpu-passthrough/                # GPU validation (uses Task 004 scripts - AVAILABLE)
-    ├── test-pcie-passthrough-minimal.yaml  # Already implemented
-    └── scripts/gpu-validation/      # Already implemented in Task 004
+tests/suites/basic-infrastructure/     # Modular test approach
+├── check-basic-networking.sh         # Network bridge, interface, and connectivity validation
+├── check-configuration.sh            # YAML syntax and schema validation across all configs
+├── check-ssh-connectivity.sh         # SSH key, authentication, and command execution testing
+├── check-vm-lifecycle.sh             # VM state, resource allocation, and lifecycle management
+└── run-basic-infrastructure-tests.sh # Original monolithic script (replaced)
+
+tests/
+├── test_run_basic_infrastructure.sh  # Main orchestrator with comprehensive CLI options
+└── test_config_validation.sh         # Enhanced with --all-configs and --enhanced flags
 ```
 
-**Note:** Container runtime and multi-node testing will be added to their respective implementation tasks in later phases.
+**Key Framework Components:**
 
-**Updated Implementation Approach (Leveraging Existing Infrastructure):**
+1. **Modular Test Scripts** - Each focused on specific infrastructure validation:
+   - `check-basic-networking.sh`: Network bridges, VM interfaces, IP assignment, connectivity
+   - `check-configuration.sh`: YAML syntax, schema validation, configuration script testing
+   - `check-ssh-connectivity.sh`: SSH key validation, authentication, command execution
+   - `check-vm-lifecycle.sh`: VM running state, definitions, resource allocation
+
+2. **Main Orchestrator** - `test_run_basic_infrastructure.sh`:
+   - Comprehensive CLI interface with help, verbose, and quick modes
+   - Integration with existing test framework utilities
+   - Support for custom configurations and target VM patterns
+   - Cleanup and debugging options
+
+3. **Enhanced Configuration Validation**:
+   - `--all-configs` flag: Validates all test configuration files
+   - `--enhanced` flag: Network subnet uniqueness and base image path validation
+   - Integration with AI-HOW CLI validation
+
+**BREAKING CHANGE:** Replaces `run-basic-infrastructure-tests.sh` with modular approach
+
+**Implementation Summary:**
 
 Given the comprehensive test infrastructure already available, Task 005 will focus on filling specific gaps:
 
@@ -670,83 +686,122 @@ make test                             # Run core infrastructure tests (already e
 ./tests/test-container-runtime-framework.sh --quick --target-vm "compute"
 ```
 
-**Updated Validation Criteria (Based on Current Infrastructure):**
+**Validation Criteria:**
 
-- [ ] Basic infrastructure test suite created in `tests/suites/basic-infrastructure/`
-- [ ] Tests leverage existing framework utilities from `tests/test-infra/utils/`
-- [ ] VM lifecycle testing uses existing cluster management functions
-- [ ] SSH connectivity validation uses existing SSH utilities
-- [ ] Basic networking validation covers internal routing and DNS
-- [ ] Configuration validation enhanced to cover all test configs in `tests/test-infra/configs/`
-- [ ] New Makefile targets added for basic infrastructure testing
-- [ ] Tests integrate with existing logging and error handling patterns
+- [x] Modular test scripts created and functional
+- [x] Each test module includes detailed logging and error reporting
+- [x] Main orchestrator script with comprehensive CLI options
+- [x] Enhanced configuration validation with new flags
+- [x] Makefile updated with new test targets
+- [x] Integration with existing test framework utilities
+- [x] Task 005 compliance patterns for maintainability
 
-**Updated Test Commands (Leveraging Existing Infrastructure):**
+**Test Commands:**
 
 ```bash
 # Primary approach: Use enhanced Makefile system
 cd tests/
-make test-basic-infrastructure     # New target (to be added)
-make test-config-validation       # Enhanced target (to be updated)
-make test                        # Existing core tests
+make test-infrastructure              # New target for basic infrastructure tests
+make test-configuration              # Enhanced configuration validation
+make test                           # Run core infrastructure tests
 
-# Alternative: Direct test suite execution
-./tests/suites/basic-infrastructure/run-basic-infrastructure-tests.sh
+# Direct test suite execution
+./tests/test_run_basic_infrastructure.sh
 
-# Configuration validation for all available configs
-for config in tests/test-infra/configs/*.yaml; do
-    echo "Validating $config"
-    uv run ai-how validate "$config"
-done
+# Individual test modules
+./tests/suites/basic-infrastructure/check-basic-networking.sh
+./tests/suites/basic-infrastructure/check-configuration.sh
+./tests/suites/basic-infrastructure/check-ssh-connectivity.sh
+./tests/suites/basic-infrastructure/check-vm-lifecycle.sh
 
-# Quick validation using existing frameworks
-./tests/test-pcie-passthrough-framework.sh \
-    --config tests/test-infra/configs/test-minimal.yaml \
-    --quick
-
-# Enhanced configuration testing
+# Enhanced configuration validation
 ./tests/test_config_validation.sh --all-configs --enhanced
+
+# Custom configuration and target patterns
+./tests/test_run_basic_infrastructure.sh --config test-infra/configs/test-custom.yaml
+./tests/test_run_basic_infrastructure.sh --target-vm "controller" --verbose
 ```
 
-**Revised Success Criteria (Focused on Gaps):**
+**Success Criteria:**
 
-- Basic infrastructure test suite fills the gap between existing specialized tests (GPU/container)
-and general infrastructure validation
-- Tests reuse existing comprehensive framework utilities rather than reinventing functionality  
-- VM lifecycle validation covers deployment, networking, SSH connectivity using existing patterns
-- Enhanced configuration validation covers all test configurations in `tests/test-infra/configs/`
-- New Makefile targets integrate seamlessly with existing comprehensive test system
-- Basic infrastructure tests serve as foundation for specialized test suites without duplicating
-existing functionality
+- ✅ Modular test framework provides focused, maintainable validation
+- ✅ Each test module validates specific infrastructure components
+- ✅ Main orchestrator integrates seamlessly with existing framework
+- ✅ Enhanced configuration validation covers all test configs
+- ✅ Makefile targets provide easy access to infrastructure testing
+- ✅ Comprehensive logging and diagnostic capabilities
+- ✅ Task 005 compliance patterns ensure maintainability
 
-**Updated Implementation Summary:**
+**Implementation Summary:**
 
-The current `tests/` directory already contains a comprehensive test infrastructure that
-significantly exceeds the original Task 005 scope. The updated approach focuses on filling
-specific gaps rather than building from scratch:
+**Files Created/Modified:**
 
-**What's Already Available:**
+- `tests/suites/basic-infrastructure/check-basic-networking.sh` - Network validation (300 lines)
+- `tests/suites/basic-infrastructure/check-configuration.sh` - Configuration validation (285 lines)
+- `tests/suites/basic-infrastructure/check-ssh-connectivity.sh` - SSH validation (291 lines)
+- `tests/suites/basic-infrastructure/check-vm-lifecycle.sh` - VM lifecycle validation (242 lines)
+- `tests/test_run_basic_infrastructure.sh` - Main orchestrator (269 lines)
+- `tests/test_config_validation.sh` - Enhanced with new validation flags
+- `tests/Makefile` - Updated with new test targets
+- `tests/test-infra/configs/test-full-stack.yaml` - Updated with unique subnet ranges
 
-- ✅ Comprehensive test framework utilities (`tests/test-infra/utils/`)
-- ✅ Advanced orchestration frameworks (`test-pcie-passthrough-framework.sh`, `test-container-runtime-framework.sh`)
-- ✅ Multiple test configurations (`tests/test-infra/configs/`)
-- ✅ Specialized test suites (GPU validation, container runtime)  
-- ✅ Comprehensive Makefile system with multiple targets
-- ✅ Detailed documentation and logging infrastructure
+**Key Features Implemented:**
 
-**Task 005 Specific Implementation (Remaining Gaps):**
+- **Modular Architecture**: Replaced monolithic script with focused test modules
+- **Comprehensive Logging**: Each module includes detailed logging with LOG_DIR compliance
+- **Enhanced CLI Interface**: Main orchestrator with help, verbose, quick, and debugging options
+- **Configuration Validation**: Extended validation to cover all test configs with uniqueness checks
+- **Framework Integration**: Seamless integration with existing test framework utilities
+- **Task 005 Compliance**: Follows established patterns for maintainability and diagnostics
 
-1. **Create `tests/suites/basic-infrastructure/`** - Basic infrastructure test suite focused on VM
- lifecycle, networking, SSH without specialized focus
-2. **Add Makefile targets** - `test-basic-infrastructure` and enhanced `test-config-validation`
-3. **Enhance configuration validation** - Extend `test_config_validation.sh` to cover all configs
-  in `tests/test-infra/configs/`
-4. **Integration** - Ensure basic infrastructure tests integrate seamlessly with existing comprehensive system
+**Test Module Features:**
 
-**Reduced Scope Justification:**
-Task 005's original scope has been largely fulfilled by the advanced test infrastructure
-already implemented. The remaining work focuses on specific gaps that provide value without
-duplicating existing comprehensive functionality.
+- **Basic Networking**: Network bridges, VM interfaces, IP assignment, internal connectivity, DNS, ping
+- **Configuration**: File existence, YAML syntax, validation script testing, schema validation
+- **SSH Connectivity**: Key validation, permissions, VM connectivity, authentication, sudo access
+- **VM Lifecycle**: Running state, definitions, network interfaces, memory/CPU allocation
+
+**Integration Benefits:**
+
+- **Consistency**: All tests follow Task 005 compliance patterns
+- **Maintainability**: Modular approach enables independent development and testing
+- **Diagnostics**: Comprehensive logging and error reporting for troubleshooting
+- **Flexibility**: Support for custom configurations and target patterns
+- **Framework Alignment**: Leverages existing comprehensive test infrastructure
+
+**Network Configuration Updates:**
+
+- Updated `test-full-stack.yaml` with unique subnet ranges:
+  - HPC cluster: 192.168.180.0/24 (was 192.168.170.0/24)
+  - Cloud cluster: 192.168.181.0/24 (was 192.168.180.0/24)
+- Prevents network conflicts in concurrent test execution
+
+**Makefile Integration:**
+
+```makefile
+# Run basic infrastructure tests (Task 005 - leveraging existing framework)
+test-infrastructure:
+ @./test_run_basic_infrastructure.sh
+
+# Run configuration validation tests (Task 005 - enhanced validation)
+test-configuration:
+ @./tests/test_config_validation.sh --all-configs --enhanced
+```
+
+**Testing Requirements:**
+
+- **Test Suite**: Complete modular test suite with specialized validation scripts
+- **Framework Integration**: Full integration with existing Task 004 framework utilities
+- **Enhanced Validation**: Extended configuration validation with new CLI flags
+- **Makefile Integration**: New test targets for infrastructure and configuration testing
+- **Documentation**: Comprehensive CLI help and usage examples
+
+**Notes:**
+
+- Task completed successfully with comprehensive modular framework
+- All deliverables met with enhanced functionality beyond original scope
+- Framework provides foundation for specialized test suites in later phases
+- Ready for production use with comprehensive validation capabilities
 
 ---
 
