@@ -553,105 +553,200 @@ test-infra/suites/                    # Leverages Task 004's framework
 
 **Note:** Container runtime and multi-node testing will be added to their respective implementation tasks in later phases.
 
-**Framework-Based Implementation Approach:**
+**Updated Implementation Approach (Leveraging Existing Infrastructure):**
+
+Given the comprehensive test infrastructure already available, Task 005 will focus on filling specific gaps:
 
 ```bash
-# Example: Basic infrastructure validation using Task 004 framework
-# File: test-infra/suites/infrastructure/scripts/validation/check-vm-lifecycle.sh
+# Create basic infrastructure test suite using existing framework utilities
+# File: tests/suites/basic-infrastructure/run-basic-infrastructure-tests.sh
 
 #!/bin/bash
-# VM lifecycle validation script (extends Task 004 pattern)
+# Basic Infrastructure Test Suite
+# Leverages existing test-framework-utils.sh for VM orchestration
 
 set -euo pipefail
 
-echo "=== VM Lifecycle Validation ==="
+# Source existing framework utilities
+source "$(dirname "$0")/../../test-infra/utils/test-framework-utils.sh"
 
-# Check if VMs are running
-if virsh list --state-running | grep -q "test-"; then
-    echo "✓ Test VMs are running"
-    virsh list --state-running
-else
-    echo "✗ No test VMs are running"
-    exit 1
+# Test configuration
+TEST_CONFIG="tests/test-infra/configs/test-minimal.yaml"  # Already exists
+TEST_SUITE_NAME="Basic Infrastructure Validation"
+
+echo "=== $TEST_SUITE_NAME ==="
+
+# VM lifecycle validation (using existing patterns)
+test_vm_lifecycle() {
+    log_info "Testing VM lifecycle management..."
+    
+    # Start cluster using existing utilities
+    start_cluster "$TEST_CONFIG" "test-basic-infra"
+    
+    # Wait for VMs using existing utilities  
+    wait_for_cluster_vms "test-basic-infra"
+    
+    # Get VM IPs using existing utilities
+    get_cluster_vm_ips "test-basic-infra"
+    
+    log_success "VM lifecycle test passed"
+}
+
+# SSH connectivity validation (using existing patterns)
+test_ssh_connectivity() {
+    log_info "Testing SSH connectivity..."
+    
+    for vm_ip in "${VM_IPS[@]}"; do
+        wait_for_ssh "$vm_ip" "basic-infra-vm"
+        test_ssh_command "$vm_ip" "echo 'SSH working'" 
+    done
+    
+    log_success "SSH connectivity test passed"
+}
+
+# Basic networking validation
+test_basic_networking() {
+    log_info "Testing basic networking..."
+    
+    for vm_ip in "${VM_IPS[@]}"; do
+        # Test internal connectivity
+        if ssh_execute "$vm_ip" "ip route show"; then
+            log_success "Internal routing working on $vm_ip"
+        else
+            log_error "Internal routing failed on $vm_ip"
+            return 1
+        fi
+        
+        # Test DNS resolution (expected to work)
+        if ssh_execute "$vm_ip" "nslookup localhost"; then
+            log_success "DNS resolution working on $vm_ip"
+        else
+            log_warning "DNS resolution issues on $vm_ip (may be expected)"
+        fi
+    done
+    
+    log_success "Basic networking test passed"
+}
+
+# Execute test suite using existing framework patterns
+main() {
+    init_logging "$(date '+%Y-%m-%d_%H-%M-%S')" "tests/logs" "basic-infrastructure"
+    
+    run_test "VM Lifecycle" test_vm_lifecycle
+    run_test "SSH Connectivity" test_ssh_connectivity  
+    run_test "Basic Networking" test_basic_networking
+    
+    # Cleanup using existing utilities
+    cleanup_cluster_on_exit "$TEST_CONFIG"
+    
+    print_test_summary
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
 fi
-
-# Test SSH connectivity
-if ssh -i "$SSH_KEY_PATH" $SSH_OPTS "$SSH_USER@$VM_IP" "echo 'SSH working'"; then
-    echo "✓ SSH connectivity working"
-else
-    echo "✗ SSH connectivity failed"
-    exit 1
-fi
-
-# Check basic networking
-if ssh -i "$SSH_KEY_PATH" $SSH_OPTS "$SSH_USER@$VM_IP" "ping -c 1 8.8.8.8"; then
-    echo "✓ External networking working"
-else
-    echo "✓ External networking failed (expected in isolated environments)"
-fi
-
-echo "✅ Basic infrastructure validated successfully"
 ```
 
-**Usage with Task 004 Framework:**
+**Updated Usage with Existing Comprehensive Test Infrastructure:**
 
 ```bash
-# Run basic infrastructure tests using established framework
-./test-infra/test-pcie-passthrough-framework.sh \
-  --config test-infra/suites/infrastructure/test-infrastructure.yaml \
-  --validation-suite infrastructure
+# Option 1: Use existing Makefile system (RECOMMENDED)
+cd tests/
+make test-basic-infrastructure          # New target to be added
+make test-config-validation            # Enhanced configuration validation
+make test                             # Run core infrastructure tests (already exists)
 
-# Run configuration validation tests
-./test-infra/test-pcie-passthrough-framework.sh \
-  --config test-infra/suites/configuration/test-configuration.yaml \
-  --validation-suite configuration
+# Option 2: Use individual test runners (leveraging existing patterns)
+./tests/suites/basic-infrastructure/run-basic-infrastructure-tests.sh
 
-# Run GPU passthrough tests (already implemented)
-./test-infra/test-pcie-passthrough-framework.sh \
-  --config test-infra/suites/gpu-passthrough/test-pcie-passthrough-minimal.yaml \
-  --validation-suite gpu-passthrough
+# Option 3: Use existing framework runners with basic config
+./tests/test-pcie-passthrough-framework.sh \
+  --config tests/test-infra/configs/test-minimal.yaml
+
+# Option 4: Enhanced configuration validation (extending existing)
+./tests/test_config_validation.sh --enhanced  # To be enhanced
+
+# Option 5: Use container runtime framework for basic validation
+./tests/test-container-runtime-framework.sh --quick --target-vm "compute"
 ```
 
-**Framework-Based Validation Criteria:**
+**Updated Validation Criteria (Based on Current Infrastructure):**
 
-- [ ] Basic infrastructure test scripts follow Task 004's framework pattern
-- [ ] Test configurations validate against ai-how schema
-- [ ] VM lifecycle testing covers deployment, networking, and cleanup
-- [ ] SSH connectivity and basic networking validation working
-- [ ] Configuration validation covers all available test configs
+- [ ] Basic infrastructure test suite created in `tests/suites/basic-infrastructure/`
+- [ ] Tests leverage existing framework utilities from `tests/test-infra/utils/`
+- [ ] VM lifecycle testing uses existing cluster management functions
+- [ ] SSH connectivity validation uses existing SSH utilities
+- [ ] Basic networking validation covers internal routing and DNS
+- [ ] Configuration validation enhanced to cover all test configs in `tests/test-infra/configs/`
+- [ ] New Makefile targets added for basic infrastructure testing
+- [ ] Tests integrate with existing logging and error handling patterns
 
-**Framework-Based Test Commands:**
+**Updated Test Commands (Leveraging Existing Infrastructure):**
 
 ```bash
-# Run all basic infrastructure test suites using Task 004 framework
-for suite in infrastructure configuration gpu-passthrough; do
-    echo "=== Running $suite test suite ==="
-    ./test-infra/test-pcie-passthrough-framework.sh \
-        --config "test-infra/suites/$suite/test-$suite.yaml" \
-        --validation-suite "$suite"
+# Primary approach: Use enhanced Makefile system
+cd tests/
+make test-basic-infrastructure     # New target (to be added)
+make test-config-validation       # Enhanced target (to be updated)
+make test                        # Existing core tests
+
+# Alternative: Direct test suite execution
+./tests/suites/basic-infrastructure/run-basic-infrastructure-tests.sh
+
+# Configuration validation for all available configs
+for config in tests/test-infra/configs/*.yaml; do
+    echo "Validating $config"
+    uv run ai-how validate "$config"
 done
 
-# Run individual test suites  
-./test-infra/test-pcie-passthrough-framework.sh \
-    --config test-infra/suites/infrastructure/test-infrastructure.yaml \
-    --validation-suite infrastructure
+# Quick validation using existing frameworks
+./tests/test-pcie-passthrough-framework.sh \
+    --config tests/test-infra/configs/test-minimal.yaml \
+    --quick
 
-./test-infra/test-pcie-passthrough-framework.sh \
-    --config test-infra/suites/configuration/test-configuration.yaml \
-    --validation-suite configuration
-
-# Validate test configurations before running
-uv run ai-how validate test-infra/suites/infrastructure/test-infrastructure.yaml
-uv run ai-how validate test-infra/suites/configuration/test-configuration.yaml
+# Enhanced configuration testing
+./tests/test_config_validation.sh --all-configs --enhanced
 ```
 
-**Framework-Based Success Criteria:**
+**Revised Success Criteria (Focused on Gaps):**
 
-- Basic infrastructure test suites execute successfully using Task 004's framework
-- VM lifecycle validation covers deployment, networking, SSH connectivity
-- Configuration validation passes for all available test configurations
-- Framework extensions maintain consistency with Task 004's established patterns
-- Tests provide foundation for future functionality-specific testing
+- Basic infrastructure test suite fills the gap between existing specialized tests (GPU/container)
+and general infrastructure validation
+- Tests reuse existing comprehensive framework utilities rather than reinventing functionality  
+- VM lifecycle validation covers deployment, networking, SSH connectivity using existing patterns
+- Enhanced configuration validation covers all test configurations in `tests/test-infra/configs/`
+- New Makefile targets integrate seamlessly with existing comprehensive test system
+- Basic infrastructure tests serve as foundation for specialized test suites without duplicating
+existing functionality
+
+**Updated Implementation Summary:**
+
+The current `tests/` directory already contains a comprehensive test infrastructure that
+significantly exceeds the original Task 005 scope. The updated approach focuses on filling
+specific gaps rather than building from scratch:
+
+**What's Already Available:**
+
+- ✅ Comprehensive test framework utilities (`tests/test-infra/utils/`)
+- ✅ Advanced orchestration frameworks (`test-pcie-passthrough-framework.sh`, `test-container-runtime-framework.sh`)
+- ✅ Multiple test configurations (`tests/test-infra/configs/`)
+- ✅ Specialized test suites (GPU validation, container runtime)  
+- ✅ Comprehensive Makefile system with multiple targets
+- ✅ Detailed documentation and logging infrastructure
+
+**Task 005 Specific Implementation (Remaining Gaps):**
+
+1. **Create `tests/suites/basic-infrastructure/`** - Basic infrastructure test suite focused on VM
+ lifecycle, networking, SSH without specialized focus
+2. **Add Makefile targets** - `test-basic-infrastructure` and enhanced `test-config-validation`
+3. **Enhance configuration validation** - Extend `test_config_validation.sh` to cover all configs
+  in `tests/test-infra/configs/`
+4. **Integration** - Ensure basic infrastructure tests integrate seamlessly with existing comprehensive system
+
+**Reduced Scope Justification:**
+Task 005's original scope has been largely fulfilled by the advanced test infrastructure
+already implemented. The remaining work focuses on specific gaps that provide value without
+duplicating existing comprehensive functionality.
 
 ---
 
