@@ -140,3 +140,7 @@ mlartifacts/
 # Oumi cache and logs
 .oumi/
 oumi.log
+
+# build related files
+output
+traces
