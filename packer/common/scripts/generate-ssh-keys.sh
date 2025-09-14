@@ -3,21 +3,21 @@ set -e
 
 # Generic script to generate SSH keys and prepare cloud-init configuration
 # This script is called from CMake to ensure proper out-of-source builds
-# and supports both cloud-base and hpc-base image types
+# and supports all image types: cloud-base, hpc-base, hpc-controller, and hpc-compute
 
 SSH_KEYS_DIR="$1"
 CLOUD_INIT_BUILD_DIR="$2"
-IMAGE_TYPE="$3"  # "cloud-base" or "hpc-base"
+IMAGE_TYPE="$3"  # "cloud-base", "hpc-base", "hpc-controller", or "hpc-compute"
 
 if [ $# -ne 3 ]; then
     echo "Usage: $0 <ssh_keys_dir> <cloud_init_build_dir> <image_type>"
-    echo "  image_type: cloud-base or hpc-base"
+    echo "  image_type: cloud-base, hpc-base, hpc-controller, or hpc-compute"
     exit 1
 fi
 
 # Validate image type
-if [ "$IMAGE_TYPE" != "cloud-base" ] && [ "$IMAGE_TYPE" != "hpc-base" ]; then
-    echo "Error: image_type must be 'cloud-base' or 'hpc-base'"
+if [ "$IMAGE_TYPE" != "cloud-base" ] && [ "$IMAGE_TYPE" != "hpc-base" ] && [ "$IMAGE_TYPE" != "hpc-controller" ] && [ "$IMAGE_TYPE" != "hpc-compute" ]; then
+    echo "Error: image_type must be 'cloud-base', 'hpc-base', 'hpc-controller', or 'hpc-compute'"
     exit 1
 fi
 

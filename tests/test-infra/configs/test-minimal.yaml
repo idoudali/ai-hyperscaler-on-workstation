@@ -8,9 +8,9 @@ global: {}
 clusters:
   hpc:
     name: "test-hpc-minimal"
-    # Base image path - can be absolute or relative to the current working directory
+    # Default cluster-level base image path (nodes can override with specialized images)
     # Relative paths will be resolved from the directory where the CLI is executed
-    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
     network:
       subnet: 192.168.150.0/24
       bridge: "virbr150"
@@ -42,12 +42,16 @@ clusters:
       memory_gb: 4
       disk_gb: 20
       ip_address: "192.168.150.10"
+      # Use specialized controller image
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
 
     compute_nodes:
       - cpu_cores: 2
         memory_gb: 4
         disk_gb: 20
         ip: "192.168.150.11"
+        # Use specialized compute image
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
         # No PCIe passthrough for minimal testing
 
     slurm_config:

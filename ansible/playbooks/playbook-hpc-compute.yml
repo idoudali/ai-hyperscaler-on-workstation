@@ -1,0 +1,24 @@
+---
+# HPC Compute Playbook (Simplified)
+# Standard HPC packages WITH NVIDIA GPU drivers for compute nodes
+
+- name: Deploy HPC Base Packages and NVIDIA Drivers for Compute Node
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: "{{ packer_build | default(false) }}"
+    nvidia_install_cuda: "{{ nvidia_install_cuda | default(false) }}"
+    nvidia_packer_build: "{{ packer_build | default(false) }}"
+    container_runtime_enable_service: false  # Don't start services in Packer builds
+
+  roles:
+    - hpc-base-packages
+    - container-runtime
+    - nvidia-gpu-drivers  # This is the key difference for compute nodes
+
+  tasks:
+    - name: Display deployment summary
+      debug:
+        msg: "HPC compute image configured with base packages, container runtime, and NVIDIA GPU drivers"

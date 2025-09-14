@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress  
 **Updated:** 2025-01-27  
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 6 (TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-008, TASK-009)
+**Completed Tasks:** 7 (TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-008, TASK-009, TASK-010.1)
 
 ## Overview
 
@@ -1444,14 +1444,16 @@ cat /etc/apptainer/apptainer.conf | grep -E "(allow suid|mount hostfs)"
 
 ### SLURM Controller Foundation
 
-#### Task 010.1: Create Separate HPC Controller and Compute Images
+#### Task 010.1: Create Separate HPC Controller and Compute Images ✅ COMPLETED
 
 - **ID**: TASK-010.1
 - **Phase**: 1 - Infrastructure  
 - **Dependencies**: TASK-007
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
-- **Status**: PENDING
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-27
+- **Branch**: `feature/task-010-1-separate-images`
 
 **Description:** Split the current `hpc-base` Packer image into two specialized images: `hpc-controller` for
 controller nodes (without NVIDIA drivers) and `hpc-compute` for compute nodes (with NVIDIA GPU drivers).
@@ -1459,12 +1461,15 @@ Both images contain the same base HPC packages and container runtime - the only 
 
 **Deliverables:**
 
-- `packer/hpc-controller/hpc-controller.pkr.hcl` - Controller-specific Packer template
-- `packer/hpc-compute/hpc-compute.pkr.hcl` - Compute-specific Packer template  
-- `packer/hpc-controller/setup-hpc-controller.sh` - Controller setup script
-- `packer/hpc-compute/setup-hpc-compute.sh` - Compute setup script
-- `ansible/playbooks/playbook-hpc-controller.yml` - Controller-specific playbook
-- `ansible/playbooks/playbook-hpc-compute.yml` - Compute-specific playbook
+- ✅ `packer/hpc-controller/hpc-controller.pkr.hcl` - Controller-specific Packer template
+- ✅ `packer/hpc-compute/hpc-compute.pkr.hcl` - Compute-specific Packer template  
+- ✅ `packer/hpc-controller/setup-hpc-controller.sh` - Controller setup script
+- ✅ `packer/hpc-compute/setup-hpc-compute.sh` - Compute setup script
+- ✅ `ansible/playbooks/playbook-hpc-controller.yml` - Controller-specific playbook
+- ✅ `ansible/playbooks/playbook-hpc-compute.yml` - Compute-specific playbook
+- ✅ Updated Python schema to support image path specification per VM/group
+- ✅ Updated CMakeLists.txt for new image builds
+- ✅ Updated template-cluster.yaml and test configurations
 
 **Simplified Image Strategy:**
 
@@ -1521,14 +1526,14 @@ provisioner "ansible" {
 
 **Simplified Validation Criteria:**
 
-- [ ] Controller image builds successfully with base packages (no GPU drivers)
-- [ ] Compute image builds successfully with base packages + GPU drivers
-- [ ] Controller image size optimized (<2GB compressed)
-- [ ] Compute image size optimized (<2.5GB compressed)
-- [ ] Both images boot successfully in test environment
-- [ ] Controller image: nvidia-smi command should fail/not exist
-- [ ] Compute image: nvidia-smi command should work (may show no GPU in VM)
-- [ ] Both images have identical base functionality except GPU support
+- [x] Controller image builds successfully with base packages (no GPU drivers)
+- [x] Compute image builds successfully with base packages + GPU drivers
+- [x] Controller image size optimized (<2GB compressed)
+- [x] Compute image size optimized (<2.5GB compressed)
+- [x] Both images boot successfully in test environment
+- [x] Controller image: nvidia-smi command should fail/not exist
+- [x] Compute image: nvidia-smi command should work (may show no GPU in VM)
+- [x] Both images have identical base functionality except GPU support
 
 **Test Commands:**
 
@@ -1556,12 +1561,12 @@ ls -lh build/packer/hpc-compute/hpc-compute.qcow2
 
 **Simplified Success Criteria:**
 
-- Both images build without errors within 30 minutes each
-- Controller image contains base HPC packages + container runtime (no GPU)
-- Compute image contains base HPC packages + container runtime + GPU drivers
-- Images boot to login prompt and core packages are available
-- Size difference between images is minimal (~400MB for GPU drivers)
-- Clear separation: only GPU support differentiates the images
+- ✅ Both images build without errors within 30 minutes each
+- ✅ Controller image contains base HPC packages + container runtime (no GPU)
+- ✅ Compute image contains base HPC packages + container runtime + GPU drivers
+- ✅ Images boot to login prompt and core packages are available
+- ✅ Size difference between images is minimal (~400MB for GPU drivers)
+- ✅ Clear separation: only GPU support differentiates the images
 
 **Integration with ai-how CLI:**
 
@@ -1569,22 +1574,47 @@ ls -lh build/packer/hpc-compute/hpc-compute.qcow2
 # Updated template-cluster.yaml structure
 clusters:
   hpc:
+    # Default cluster-level base image path (nodes can override)
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
     controller:
-      base_image_path: "build/packer/hpc-controller/hpc-controller.qcow2"
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
       node_type: "controller"
     compute_nodes:
-      - base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"
+      - base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
         node_type: "compute"
 ```
 
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+- ✅ `packer/hpc-controller/` - Complete controller image build system
+- ✅ `packer/hpc-compute/` - Complete compute image build system
+- ✅ `ansible/playbooks/playbook-hpc-controller.yml` - Controller provisioning
+- ✅ `ansible/playbooks/playbook-hpc-compute.yml` - Compute provisioning
+- ✅ `python/ai_how/src/ai_how/schemas/cluster.schema.json` - Schema updates
+- ✅ `config/template-cluster.yaml` - Updated with new image paths
+- ✅ `tests/test-infra/configs/*.yaml` - All test configs updated
+- ✅ `packer/CMakeLists.txt` - Build system integration
+- ✅ `packer/README.md` - Updated documentation
+
+**Key Implementation Features:**
+
+- **Simplified Architecture**: Both images use same base packages + container runtime
+- **Single Differentiation**: Only GPU drivers distinguish compute from controller
+- **Schema Flexibility**: Multi-level image path specification (cluster/node/VM)
+- **Build System Integration**: CMake targets for both image types
+- **Test Configuration Updates**: All test configs use correct image paths
+- **Cloud-init Support**: Specialized cloud-init configs for each image type
+
 **Testing Requirements:**
 
-- **Test Suite**: Extend `test-infra/suites/base-images/` to validate both specialized images
-- **Validation Scripts**:
+- ✅ **Test Suite**: Extended `test-infra/suites/base-images/` to validate both specialized images
+- ✅ **Validation Scripts**:
   - `check-hpc-controller-image.sh` - Verify controller-specific components
   - `check-hpc-compute-image.sh` - Verify compute-specific components  
   - `check-image-specialization.sh` - Validate image size and component optimization
-- **Integration**: Update existing test framework to support dual-image validation
+- ✅ **Integration**: Updated existing test framework to support dual-image validation
 
 ---
 

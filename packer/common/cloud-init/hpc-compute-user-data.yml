@@ -1,0 +1,75 @@
+#cloud-config
+# Cloud-init configuration for HPC Compute Image
+# This configures the admin user with SSH access and compute-specific setup
+
+# User configuration
+users:
+  - name: admin
+    groups: [sudo]
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: /bin/bash
+    lock_passwd: true
+    # Uncomment to set a password for the admin user for debugging reasons
+    # plain_text_passwd: hpc-cloud
+    ssh_authorized_keys:
+      - REPLACE_SSH_KEY
+
+# System configuration
+hostname: hpc-compute
+fqdn: hpc-compute.local
+
+# SSH configuration
+ssh_pwauth: false
+disable_root: true
+
+# System updates
+package_update: true
+package_upgrade: false
+
+# Basic packages (minimal set only)
+packages:
+  - curl
+  - wget
+  - vim
+  - htop
+  - network-manager
+  - systemd-resolved
+
+# Timezone
+timezone: UTC
+
+# Runcmd for post-boot setup
+runcmd:
+  # Enable SSH service
+  - systemctl enable ssh
+  - systemctl start ssh
+
+  # Set hostname properly
+  - hostnamectl set-hostname hpc-compute
+
+  # Update /etc/hosts
+  - echo "127.0.0.1 localhost" > /etc/hosts
+  - echo "127.0.1.1 hpc-compute hpc-compute.local" >> /etc/hosts
+
+  # Configure basic limits for HPC workloads
+  - echo "* soft nofile 65536" >> /etc/security/limits.conf
+  - echo "* hard nofile 65536" >> /etc/security/limits.conf
+  - echo "* soft nproc 32768" >> /etc/security/limits.conf
+  - echo "* hard nproc 32768" >> /etc/security/limits.conf
+
+  # Create compute-specific directories for SLURM and containers
+  - mkdir -p /opt/hpc/compute
+  - mkdir -p /opt/slurm
+  - mkdir -p /var/log/slurm
+  - mkdir -p /opt/apptainer
+  - mkdir -p /var/cache/apptainer
+  - chown admin:admin /opt/hpc/compute
+  - chown admin:admin /opt/slurm
+  - chown admin:admin /opt/apptainer
+
+  # Ensure NetworkManager is running and configured
+  - systemctl enable NetworkManager
+  - systemctl enable systemd-resolved
+
+# Final message
+final_message: "HPC compute cloud image setup complete. Login with admin user (root access disabled for security). The system is ready for SLURM compute node configuration."

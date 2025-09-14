@@ -8,9 +8,9 @@ global: {}
 clusters:
   hpc:
     name: "test-hpc-pcie-minimal"
-    # Base image path - can be absolute or relative to the current working directory
+    # Default cluster-level base image path (nodes can override)
     # Relative paths will be resolved from the directory where the CLI is executed
-    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
     network:
       subnet: "192.168.140.0/24"
       bridge: "virbr140"
@@ -42,12 +42,16 @@ clusters:
       memory_gb: 4
       disk_gb: 30
       ip_address: "192.168.140.10"
+      # Use specialized controller image for PCIe passthrough testing
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
 
     compute_nodes:
       - cpu_cores: 4
         memory_gb: 8
         disk_gb: 30
         ip: "192.168.140.11"
+        # Use specialized compute image with GPU support for PCIe passthrough testing
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
         pcie_passthrough:
           enabled: true
           devices:
@@ -61,3 +65,36 @@ clusters:
               device_type: "audio"
               vendor_id: "10de"
               device_id: "22bd"
+
+    slurm_config:
+      partitions: ["gpu", "debug"]
+      default_partition: "gpu"
+      max_job_time: "2:00:00"
+
+  cloud:
+    name: "test-cloud-pcie-minimal"
+    # Base image path - can be absolute or relative to the current working directory
+    # Relative paths will be resolved from the directory where the CLI is executed
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: 192.168.141.0/24
+      bridge: "virbr141"
+
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+      ip_address: "192.168.141.10"
+
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 2
+          memory_gb: 4
+          disk_gb: 20
+          ip: "192.168.141.11"
+
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"

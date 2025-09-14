@@ -8,9 +8,9 @@ global: {}
 clusters:
   hpc:
     name: "test-hpc-full-stack"
-    # Base image path - can be absolute or relative to the current working directory
+    # Default cluster-level base image path (nodes can override with specialized images)
     # Relative paths will be resolved from the directory where the CLI is executed
-    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
     network:
       subnet: 192.168.180.0/24
       bridge: "virbr180"
@@ -44,12 +44,16 @@ clusters:
       memory_gb: 8
       disk_gb: 50
       ip_address: "192.168.180.10"
+      # Use specialized controller image for full-stack testing
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
 
     compute_nodes:
       - cpu_cores: 4
         memory_gb: 8
         disk_gb: 30
         ip: "192.168.180.11"
+        # Use specialized compute image for full-stack testing with container runtime and GPU support
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
         pcie_passthrough:
           enabled: true
           devices:

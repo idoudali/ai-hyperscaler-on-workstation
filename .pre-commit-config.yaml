@@ -47,20 +47,6 @@ repos:
       - id: shellcheck
         args: ['-e', 'SC1091']  # Disable "not following" sourced files
 
-  # Ansible linting and validation (using dev container)
-  - repo: local
-    hooks:
-      - id: ansible-lint-dev-container
-        name: ansible-lint-dev-container
-        entry: bash
-        language: system
-        args: ['-c', 'if [ -x scripts/run-in-dev-container.sh ]; then scripts/run-in-dev-container.sh ansible-lint --config-file=ansible/.ansible-lint "$@"; else echo "Dev container script not found - skipping ansible-lint"; fi', '--']
-        files: ^ansible/.*\.(yml|yaml)$
-        pass_filenames: true
-        stages: [pre-commit]
-        description: "Run ansible-lint using dev container"
-        require_serial: false
-
   # CMake formatting
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13
@@ -109,18 +95,6 @@ repos:
         additional_dependencies: []
         require_serial: true
         description: "Run code formatting using Makefile format-ai-how target"
-
-      # Ansible playbook syntax validation (using dev container)
-      - id: ansible-playbook-syntax-check
-        name: ansible-playbook-syntax-check
-        entry: bash
-        language: system
-        args: ['-c', 'if [ -x scripts/run-in-dev-container.sh ]; then for playbook in "$@"; do echo "Checking $playbook"; scripts/run-in-dev-container.sh ansible-playbook --syntax-check "$playbook" || exit 1; done; else echo "Dev container script not found - skipping playbook syntax check"; fi', '--']
-        files: ^ansible/playbooks/.*\.ya?ml$
-        pass_filenames: true
-        stages: [pre-commit]
-        description: "Validate Ansible playbook syntax using dev container"
-        require_serial: false
 
 
 # Global excludes

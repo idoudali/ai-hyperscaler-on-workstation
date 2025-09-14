@@ -8,9 +8,10 @@ global: {}
 clusters:
   hpc:
     name: "test-hpc-container-runtime"
-    # Base image path - can be absolute or relative to the current working directory
+    # Default base image path - can be absolute or relative to the current working directory
+    # For container runtime testing, compute nodes will override with specialized image
     # Relative paths will be resolved from the directory where the CLI is executed
-    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"  # Cluster-level default base image path (used by controller and any node not overriding)
     network:
       subnet: 192.168.155.0/24
       bridge: "virbr155"
@@ -42,6 +43,7 @@ clusters:
       memory_gb: 8
       disk_gb: 50
       ip_address: "192.168.155.10"
+      # Controller uses cluster default (controller image)
 
     compute_nodes:
       # Container-enabled compute node for testing
@@ -49,6 +51,8 @@ clusters:
         memory_gb: 8
         disk_gb: 40
         ip: "192.168.155.11"
+        # Override with compute image that has pre-installed container runtime
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
         # Container runtime specific configuration
         container_runtime:
           enabled: true

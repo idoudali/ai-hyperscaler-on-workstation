@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.18)
 
 # Create build output directories for images
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images)
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/hpc-base)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/hpc-controller)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/hpc-compute)
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/cloud-base)
 
 # Set up shared SSH keys directory (shared between all Packer images)
@@ -52,31 +53,56 @@ add_custom_target(prepare-debian-checksum
 )
 
 # Add subdirectories for each image type
-add_subdirectory(hpc-base)
+add_subdirectory(hpc-controller)
+add_subdirectory(hpc-compute)
 add_subdirectory(cloud-base)
 
 # Create aggregate targets that depend on subdirectory targets
 
 # Initialize all Packer plugins
 add_custom_target(init-packer
-    DEPENDS init-hpc-packer init-cloud-packer
+    DEPENDS init-hpc-controller-packer init-hpc-compute-packer init-cloud-packer
     COMMENT "Initializing all Packer plugins..."
+)
+
+# Initialize HPC Packer plugins (both controller and compute)
+add_custom_target(init-hpc-packer
+    DEPENDS init-hpc-controller-packer init-hpc-compute-packer
+    COMMENT "Initializing HPC Packer plugins..."
 )
 
 # Validate all Packer templates
 add_custom_target(validate-packer
-    DEPENDS validate-hpc-packer validate-cloud-packer
+    DEPENDS validate-hpc-controller-packer validate-hpc-compute-packer validate-cloud-packer
     COMMENT "Validating all Packer templates..."
+)
+
+# Validate HPC Packer templates (both controller and compute)
+add_custom_target(validate-hpc-packer
+    DEPENDS validate-hpc-controller-packer validate-hpc-compute-packer
+    COMMENT "Validating HPC Packer templates..."
 )
 
 # Format all Packer templates
 add_custom_target(format-packer
-    DEPENDS format-hpc-packer format-cloud-packer
+    DEPENDS format-hpc-controller-packer format-hpc-compute-packer format-cloud-packer
     COMMENT "Formatting all Packer templates..."
+)
+
+# Format HPC Packer templates (both controller and compute)
+add_custom_target(format-hpc-packer
+    DEPENDS format-hpc-controller-packer format-hpc-compute-packer
+    COMMENT "Formatting HPC Packer templates..."
 )
 
 # Build all base images
 add_custom_target(build-packer-images
-    DEPENDS build-hpc-image build-cloud-image
+    DEPENDS build-hpc-controller-image build-hpc-compute-image build-cloud-image
     COMMENT "Building all base images..."
+)
+
+# Build HPC images (both controller and compute)
+add_custom_target(build-hpc-images
+    DEPENDS build-hpc-controller-image build-hpc-compute-image
+    COMMENT "Building HPC images..."
 )

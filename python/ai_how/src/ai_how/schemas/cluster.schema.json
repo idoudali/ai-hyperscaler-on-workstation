@@ -33,6 +33,11 @@
   },
   "required": ["version", "metadata", "clusters"],
   "definitions": {
+    "baseImagePath": {
+      "type": "string",
+      "description": "Path to the base qcow2 image file. Can be absolute or relative to the current working directory.",
+      "pattern": ".*\\.qcow2$"
+    },
     "network": {
       "type": "object",
       "properties": {
@@ -118,9 +123,8 @@
       "properties": {
         "name": { "type": "string" },
         "base_image_path": {
-          "type": "string",
-          "description": "Path to the base qcow2 image file. Can be absolute or relative to the current working directory.",
-          "pattern": ".*\\.qcow2$"
+          "$ref": "#/definitions/baseImagePath",
+          "description": "Default base image path for all nodes in the cluster (can be overridden at node level)"
         },
         "network": { "$ref": "#/definitions/network" },
         "hardware": { "$ref": "#/definitions/hardwareConfig" },
@@ -136,16 +140,15 @@
           "required": ["partitions", "default_partition"]
         }
       },
-      "required": ["base_image_path", "network", "controller", "compute_nodes", "slurm_config", "name"]
+      "required": ["network", "controller", "compute_nodes", "slurm_config", "name"]
     },
     "cloudCluster": {
       "type": "object",
       "properties": {
         "name": { "type": "string" },
         "base_image_path": {
-          "type": "string",
-          "description": "Path to the base qcow2 image file. Can be absolute or relative to the current working directory.",
-          "pattern": ".*\\.qcow2$"
+          "$ref": "#/definitions/baseImagePath",
+          "description": "Default base image path for all nodes in the cluster (can be overridden at node level)"
         },
         "network": { "$ref": "#/definitions/network" },
         "hardware": { "$ref": "#/definitions/hardwareConfig" },
@@ -169,7 +172,7 @@
           "required": ["cni", "ingress", "storage_class"]
         }
       },
-      "required": ["base_image_path", "network", "control_plane", "worker_nodes", "kubernetes_config", "name"]
+      "required": ["network", "control_plane", "worker_nodes", "kubernetes_config", "name"]
     },
     "controllerNode": {
       "type": "object",
@@ -177,7 +180,11 @@
         "cpu_cores": { "type": "integer", "minimum": 1 },
         "memory_gb": { "type": "integer", "minimum": 1 },
         "disk_gb": { "type": "integer", "minimum": 10 },
-        "ip_address": { "type": "string", "format": "ipv4" }
+        "ip_address": { "type": "string", "format": "ipv4" },
+        "base_image_path": {
+          "$ref": "#/definitions/baseImagePath",
+          "description": "Override the cluster default base image path for this controller node"
+        }
       },
       "required": ["cpu_cores", "memory_gb", "disk_gb", "ip_address"]
     },
@@ -187,7 +194,11 @@
         "cpu_cores": { "type": "integer", "minimum": 1 },
         "memory_gb": { "type": "integer", "minimum": 1 },
         "disk_gb": { "type": "integer", "minimum": 10 },
-        "pcie_passthrough": { "$ref": "#/definitions/pciePassthrough" }
+        "pcie_passthrough": { "$ref": "#/definitions/pciePassthrough" },
+        "base_image_path": {
+          "$ref": "#/definitions/baseImagePath",
+          "description": "Override the cluster default base image path for this VM"
+        }
       },
       "required": ["cpu_cores", "memory_gb", "disk_gb"]
     },

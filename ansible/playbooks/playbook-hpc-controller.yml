@@ -1,0 +1,22 @@
+---
+# HPC Controller Playbook (Simplified)
+# Standard HPC packages without NVIDIA GPU drivers for controller nodes
+
+- name: Deploy HPC Base Packages for Controller Node
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: "{{ packer_build | default(false) }}"
+    container_runtime_enable_service: false  # Don't start services in Packer builds
+
+  roles:
+    - hpc-base-packages
+    - container-runtime
+    # Note: Controller nodes do NOT get nvidia-gpu-drivers role
+
+  tasks:
+    - name: Display deployment summary
+      debug:
+        msg: "HPC controller image configured with base packages and container runtime (no GPU drivers)"

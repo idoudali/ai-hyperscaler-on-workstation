@@ -8,9 +8,10 @@ global: {}
 clusters:
   hpc:
     name: "hpc-cluster"
-    # Base image path - can be absolute or relative to the current working directory
+    # Default base image path for HPC cluster - can be absolute or relative to the current working directory
+    # This provides a fallback if individual nodes don't specify their own images
     # Relative paths will be resolved from the directory where the CLI is executed
-    base_image_path: "build/packer/hpc-base/hpc-base/hpc-base.qcow2"
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
     network:
       subnet: "192.168.100.0/24"
       bridge: "virbr100"
@@ -43,12 +44,16 @@ clusters:
       memory_gb: 8
       disk_gb: 100
       ip_address: "192.168.100.10"
+      # Controller-specific image with SLURM management, database, and monitoring components
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
 
     compute_nodes:
       - cpu_cores: 8
         memory_gb: 16
         disk_gb: 200
         ip: "192.168.100.11"
+        # Compute-specific image with SLURM daemon, container runtime, and GPU support
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
         pcie_passthrough:
           enabled: true
           devices:
@@ -66,6 +71,8 @@ clusters:
         memory_gb: 16
         disk_gb: 200
         ip: "192.168.100.12"
+        # This node will use the cluster default image (fallback demonstration)
+        # base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"  # Could override here if needed
         pcie_passthrough:
           enabled: true
           devices:
@@ -88,7 +95,8 @@ clusters:
 
   cloud:
     name: "cloud-cluster"
-    # Base image path - can be absolute or relative to the current working directory
+    # Default base image path for cloud cluster - can be absolute or relative to the current working directory
+    # This will be used by all nodes unless they specify their own base_image_path
     # Relative paths will be resolved from the directory where the CLI is executed
     base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
     network:
@@ -99,6 +107,8 @@ clusters:
       memory_gb: 8
       disk_gb: 100
       ip_address: "192.168.200.10"
+      # Control plane uses cluster default image
+      # base_image_path: "build/packer/cloud-controller/cloud-controller.qcow2"  # Could override here
 
     worker_nodes:
       cpu:
@@ -107,12 +117,16 @@ clusters:
           memory_gb: 8
           disk_gb: 100
           ip: "192.168.200.11"
+          # CPU worker uses cluster default image
+          # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
       gpu:
         - worker_type: "gpu"
           cpu_cores: 8
           memory_gb: 16
           disk_gb: 200
           ip: "192.168.200.12"
+          # GPU worker could use specialized image with GPU drivers pre-installed
+          # base_image_path: "build/packer/cloud-gpu-worker/cloud-gpu-worker.qcow2"  # Could override here
           pcie_passthrough:
             enabled: true
             devices:
@@ -133,6 +147,7 @@ clusters:
           memory_gb: 16
           disk_gb: 200
           ip: "192.168.200.13"
+          # This GPU worker uses cluster default (demonstrates fallback)
           pcie_passthrough:
             enabled: true
             devices:

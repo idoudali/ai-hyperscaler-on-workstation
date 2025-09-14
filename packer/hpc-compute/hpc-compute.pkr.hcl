@@ -1,6 +1,19 @@
-# HPC Base Image Packer Template
-# This template creates a minimal Debian 13 (trixie) base image optimized for HPC workloads
-# using Debian cloud image as base with cloud-init configuration
+# HPC Compute Image Packer Template
+# This template creates a Debian 13 (trixie) compute image optimized for HPC workload execution
+# with container runtime and GPU support using Debian cloud image as base with cloud-init configuration
+
+# Include common Ansible variables
+locals {
+  ansible_env_vars = [
+    "ANSIBLE_HOST_KEY_CHECKING=False",
+    "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
+    "ANSIBLE_ROLES_PATH=${var.repo_tot_dir}/ansible/roles",
+    "ANSIBLE_BECOME_FLAGS='-H -S -n'",
+    "ANSIBLE_SCP_IF_SSH=True",
+    "ANSIBLE_SCP_EXTRA_ARGS='-O'",
+    "ANSIBLE_REMOTE_TMP=/tmp"
+  ]
+}
 
 packer {
   required_plugins {
@@ -18,7 +31,7 @@ packer {
 # Variables for customization
 variable "disk_size" {
   type        = string
-  description = "Disk size for the HPC base image"
+  description = "Disk size for the HPC compute image"
 }
 
 variable "memory" {
@@ -59,7 +72,7 @@ variable "build_directory" {
 
 variable "image_name" {
   type        = string
-  description = "Name identifier for the image (e.g., 'hpc-base')"
+  description = "Name identifier for the image (e.g., 'hpc-compute')"
 }
 
 variable "vm_name" {
@@ -88,7 +101,7 @@ locals {
 }
 
 # QEMU builder configuration
-source "qemu" "hpc_base" {
+source "qemu" "hpc_compute" {
   # Basic VM configuration
   vm_name          = var.vm_name
   output_directory = local.output_directory
@@ -157,10 +170,10 @@ source "qemu" "hpc_base" {
   ]
 }
 
-# Build configuration with minimal provisioning
+# Build configuration with compute provisioning
 build {
-  name    = "hpc-base-image"
-  sources = ["source.qemu.hpc_base"]
+  name    = "hpc-compute-image"
+  sources = ["source.qemu.hpc_compute"]
 
   # Wait for cloud-init to complete and verify SSH setup
   provisioner "shell" {
@@ -173,38 +186,37 @@ build {
 
   # System preparation with networking and debugging tools
   provisioner "file" {
-    source = "${var.source_directory}/setup-hpc-base.sh"
-    destination = "/tmp/setup-hpc-base.sh"
+    source = "${var.source_directory}/setup-hpc-compute.sh"
+    destination = "/tmp/setup-hpc-compute.sh"
   }
 
   provisioner "shell" {
     inline = [
-      "echo 'Running HPC base setup script...'",
-      "chmod +x /tmp/setup-hpc-base.sh",
-      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-hpc-base.sh",
-      "rm -f /tmp/setup-hpc-base.sh",
-      "echo 'HPC base setup script completed'"
+      "echo 'Running HPC compute setup script...'",
+      "chmod +x /tmp/setup-hpc-compute.sh",
+      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-hpc-compute.sh",
+      "rm -f /tmp/setup-hpc-compute.sh",
+      "echo 'HPC compute setup script completed'"
     ]
   }
 
 
 
-  # Install HPC base packages and NVIDIA drivers using consolidated Ansible playbook
+  # Install HPC compute packages using specialized Ansible playbook
   provisioner "ansible" {
-    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc.yml"
-    ansible_env_vars = [
-      "ANSIBLE_HOST_KEY_CHECKING=False",
-      "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
-      "ANSIBLE_ROLES_PATH=${var.repo_tot_dir}/ansible/roles",
-      "ANSIBLE_BECOME_FLAGS='-H -S -n'",
-      "ANSIBLE_SCP_IF_SSH=True",
-      "ANSIBLE_SCP_EXTRA_ARGS='-O'",
-      "ANSIBLE_REMOTE_TMP=/tmp"
-    ]
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-compute.yml"
+    ansible_env_vars = local.ansible_env_vars
     extra_arguments = [
       "-u", var.ssh_username,
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
       "--extra-vars", "packer_build=true",
+      "--extra-vars", "hpc_node_type=compute",
+      # The following features may not be fully implemented yet in the Ansible roles/playbook.
+      # These variables are included for future compatibility. If the roles do not exist,
+      # they will be ignored or may cause errors.
+      "--extra-vars", "install_slurm_compute=true",
+      "--extra-vars", "install_container_runtime=true",
+      "--extra-vars", "install_gpu_support=true",
       "--extra-vars", "nvidia_install_cuda=false",
       "--become",
       "--become-user=root",
@@ -302,10 +314,10 @@ build {
       "echo 'Creating build metadata...'",
       "mkdir -p ${local.output_directory}",
       "date > ${local.output_directory}/build_timestamp.txt",
-      "echo 'HPC Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
+      "echo 'HPC Compute Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
-      "echo 'Network debugging tools and NVIDIA drivers (force-installed for Packer build)' > ${local.output_directory}/features.txt",
+      "echo 'SLURM compute daemon, container runtime, GPU drivers, and MPI libraries' > ${local.output_directory}/features.txt",
       "echo 'Size optimized with zero-fill and compression' > ${local.output_directory}/optimization.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"
     ]
