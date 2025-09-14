@@ -5,8 +5,8 @@ tasks for individual execution and testing.
 
 **Status:** Task Breakdown Complete - Implementation In Progress  
 **Updated:** 2025-01-27  
-**Total Tasks:** 30 individual tasks across 4 phases
-**Completed Tasks:** 7 (TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-008, TASK-009)
+**Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
+**Completed Tasks:** 6 (TASK-001, TASK-002, TASK-003, TASK-004, TASK-005, TASK-008, TASK-009)
 
 ## Overview
 
@@ -1183,7 +1183,7 @@ find ansible/roles -name "main.yml" | grep -E "(tasks|defaults)"
 - Created comprehensive default variables for each role
 - All 4 roles now have complete directory structure with proper permissions
 - 12 main.yml files created (tasks/ and defaults/ for each role)
-- Ready for dependent tasks: TASK-010, TASK-014, TASK-015
+- Ready for dependent tasks: TASK-010.1, TASK-014, TASK-015
 - TASK-008: ✅ COMPLETED - Container runtime implementation ready
 
 ---
@@ -1444,22 +1444,170 @@ cat /etc/apptainer/apptainer.conf | grep -E "(allow suid|mount hostfs)"
 
 ### SLURM Controller Foundation
 
-#### Task 010: Create SLURM Controller Installation Task
+#### Task 010.1: Create Separate HPC Controller and Compute Images
 
-- **ID**: TASK-010
-- **Phase**: 1 - Infrastructure
+- **ID**: TASK-010.1
+- **Phase**: 1 - Infrastructure  
 - **Dependencies**: TASK-007
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
+- **Status**: PENDING
+
+**Description:** Split the current `hpc-base` Packer image into two specialized images: `hpc-controller` for
+controller nodes (without NVIDIA drivers) and `hpc-compute` for compute nodes (with NVIDIA GPU drivers).
+Both images contain the same base HPC packages and container runtime - the only difference is GPU support.
+
+**Deliverables:**
+
+- `packer/hpc-controller/hpc-controller.pkr.hcl` - Controller-specific Packer template
+- `packer/hpc-compute/hpc-compute.pkr.hcl` - Compute-specific Packer template  
+- `packer/hpc-controller/setup-hpc-controller.sh` - Controller setup script
+- `packer/hpc-compute/setup-hpc-compute.sh` - Compute setup script
+- `ansible/playbooks/playbook-hpc-controller.yml` - Controller-specific playbook
+- `ansible/playbooks/playbook-hpc-compute.yml` - Compute-specific playbook
+
+**Simplified Image Strategy:**
+
+```yaml
+# Both images contain the same base packages from existing Ansible roles:
+# - hpc-base-packages role: System tools, networking, development tools
+# - container-runtime role: Apptainer/Singularity container runtime
+
+# HPC Controller Image Components
+hpc_controller_image:
+  roles:
+    - hpc-base-packages      # Standard HPC base packages
+    - container-runtime      # Container runtime (Apptainer)
+    # NO nvidia-gpu-drivers role
+
+# HPC Compute Image Components  
+hpc_compute_image:
+  roles:
+    - hpc-base-packages      # Standard HPC base packages (same as controller)
+    - container-runtime      # Container runtime (Apptainer) (same as controller)
+    - nvidia-gpu-drivers     # ONLY DIFFERENCE: GPU drivers and tools
+```
+
+**Simplified Image Benefits:**
+
+- **Controller Image (~1.8GB)**: Base HPC packages + container runtime (no GPU drivers)
+- **Compute Image (~2.2GB)**: Base HPC packages + container runtime + NVIDIA GPU drivers  
+- **Simplicity**: Minimal difference between images reduces complexity
+- **Maintainability**: Single difference point (GPU drivers) makes maintenance easier
+- **Flexibility**: Both images have same capabilities except GPU support
+
+**Simplified Packer Template Structure:**
+
+```hcl
+# hpc-controller.pkr.hcl (no GPU drivers)
+provisioner "ansible" {
+  playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-controller.yml"
+  extra_arguments = [
+    "--extra-vars", "packer_build=true"
+    # Uses: hpc-base-packages + container-runtime roles
+  ]
+}
+
+# hpc-compute.pkr.hcl (with GPU drivers)
+provisioner "ansible" {
+  playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-compute.yml"
+  extra_arguments = [
+    "--extra-vars", "packer_build=true",
+    "--extra-vars", "nvidia_install_cuda=false"
+    # Uses: hpc-base-packages + container-runtime + nvidia-gpu-drivers roles
+  ]
+}
+```
+
+**Simplified Validation Criteria:**
+
+- [ ] Controller image builds successfully with base packages (no GPU drivers)
+- [ ] Compute image builds successfully with base packages + GPU drivers
+- [ ] Controller image size optimized (<2GB compressed)
+- [ ] Compute image size optimized (<2.5GB compressed)
+- [ ] Both images boot successfully in test environment
+- [ ] Controller image: nvidia-smi command should fail/not exist
+- [ ] Compute image: nvidia-smi command should work (may show no GPU in VM)
+- [ ] Both images have identical base functionality except GPU support
+
+**Test Commands:**
+
+```bash
+# Build controller image
+cd packer/hpc-controller
+make build-hpc-controller-image
+
+# Build compute image  
+cd packer/hpc-compute
+make build-hpc-compute-image
+
+# Verify controller image components
+qemu-system-x86_64 -enable-kvm -m 4G -hda build/packer/hpc-controller/hpc-controller.qcow2 -nographic
+# Test: apptainer --version (should work), nvidia-smi (should fail)
+
+# Verify compute image components
+qemu-system-x86_64 -enable-kvm -m 4G -hda build/packer/hpc-compute/hpc-compute.qcow2 -nographic  
+# Test: apptainer --version (should work), nvidia-smi (should work but show no devices)
+
+# Check image sizes
+ls -lh build/packer/hpc-controller/hpc-controller.qcow2
+ls -lh build/packer/hpc-compute/hpc-compute.qcow2
+```
+
+**Simplified Success Criteria:**
+
+- Both images build without errors within 30 minutes each
+- Controller image contains base HPC packages + container runtime (no GPU)
+- Compute image contains base HPC packages + container runtime + GPU drivers
+- Images boot to login prompt and core packages are available
+- Size difference between images is minimal (~400MB for GPU drivers)
+- Clear separation: only GPU support differentiates the images
+
+**Integration with ai-how CLI:**
+
+```yaml
+# Updated template-cluster.yaml structure
+clusters:
+  hpc:
+    controller:
+      base_image_path: "build/packer/hpc-controller/hpc-controller.qcow2"
+      node_type: "controller"
+    compute_nodes:
+      - base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"
+        node_type: "compute"
+```
+
+**Testing Requirements:**
+
+- **Test Suite**: Extend `test-infra/suites/base-images/` to validate both specialized images
+- **Validation Scripts**:
+  - `check-hpc-controller-image.sh` - Verify controller-specific components
+  - `check-hpc-compute-image.sh` - Verify compute-specific components  
+  - `check-image-specialization.sh` - Validate image size and component optimization
+- **Integration**: Update existing test framework to support dual-image validation
+
+---
+
+#### Task 010.2: Create SLURM Controller Installation Task
+
+- **ID**: TASK-010.2
+- **Phase**: 1 - Infrastructure
+- **Dependencies**: TASK-010.1
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate
+- **Status**: PENDING
 
 **Description:** Install SLURM controller packages with PMIx support and all
 required dependencies.
 
 **Deliverables:**
 
-- `ansible/roles/slurm-controller/tasks/install.yml`
-- `ansible/roles/slurm-controller/defaults/main.yml`
-- Package installation validation
+- `ansible/roles/slurm-controller/tasks/install.yml` - SLURM package installation
+- `ansible/roles/slurm-controller/defaults/main.yml` - Updated with package definitions
+- `ansible/roles/slurm-controller/handlers/main.yml` - Service restart handlers
+- `ansible/roles/slurm-controller/tasks/main.yml` - Updated to include install tasks
+- `tests/suites/slurm-controller/` - Comprehensive test suite
+- Package installation validation and testing framework
 
 **Required Packages:**
 
@@ -1487,7 +1635,13 @@ slurm_controller_packages:
 **Test Commands:**
 
 ```bash
-# Verify SLURM installation
+# Run SLURM controller test suite
+cd tests && make test-slurm-controller
+
+# Run individual test scripts
+./tests/suites/slurm-controller/run-slurm-controller-tests.sh
+
+# Verify SLURM installation (after packages installed)
 slurmctld -V
 slurmdbd -V
 sinfo --version
@@ -1511,13 +1665,23 @@ mungekey --version
 - MariaDB service active and running
 - All package dependencies resolved
 
+**Testing Requirements:**
+
+- **Test Suite**: Create `test-infra/suites/slurm-controller/` using Task 004 framework
+- **Validation Scripts**:
+  - `check-slurm-installation.sh` - Verify SLURM packages and installation
+  - `check-slurm-functionality.sh` - Test SLURM commands and configuration
+  - `check-pmix-integration.sh` - Validate PMIx library integration
+  - `run-slurm-controller-tests.sh` - Master test runner
+- **Integration**: Extend Task 004's framework to support SLURM validation
+
 ---
 
 #### Task 011: Configure SLURM PMIx Integration
 
 - **ID**: TASK-011
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-010
+- **Dependencies**: TASK-010.2
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
 
@@ -1580,7 +1744,7 @@ grep -E "(MpiDefault|MpiParams|GresTypes)" /etc/slurm/slurm.conf
 
 - **ID**: TASK-012
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-010
+- **Dependencies**: TASK-010.2
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
 
@@ -1893,7 +2057,7 @@ curl -u admin:admin http://localhost:3000/api/dashboards/home
 
 - **ID**: TASK-017
 - **Phase**: 1 - Infrastructure
-- **Dependencies**: TASK-010, TASK-012
+- **Dependencies**: TASK-010.2, TASK-012
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
 
@@ -2860,9 +3024,9 @@ and provides a consistent, proven approach for all integration testing.
 ```text
 TASK-007 → TASK-008 ✅ → TASK-009
     ↓         ↓
-TASK-010 → TASK-011 → TASK-012 → TASK-013
-    ↓
-TASK-014
+TASK-010.1 → TASK-010.2 → TASK-011 → TASK-013
+    ↓          ↓           ↓
+TASK-014      TASK-012 ←←←←
     ↓
 TASK-015 → TASK-016
     ↓         ↓
