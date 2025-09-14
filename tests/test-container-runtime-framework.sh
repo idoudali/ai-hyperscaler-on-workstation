@@ -64,11 +64,14 @@ DESCRIPTION:
     framework patterns. Tests container runtime installation, execution, and
     security on ai-how deployed clusters.
 
-    This framework validates Task 008 requirements:
-    • Apptainer binary installed and functional (>= 4.1.5)
+    This framework validates Task 008 and Task 009 requirements:
+    • Apptainer binary installed and functional (>= 1.4.2)
     • All dependencies installed (fuse, squashfs-tools, uidmap, libfuse2, libseccomp2)
     • Container execution capabilities (pull, run, bind mounts)
     • Security configuration properly applied
+    • Privilege escalation prevention
+    • Host filesystem access restrictions
+    • Security policies validation
     • Integration with SLURM scheduling
 
 OPTIONS:
@@ -102,11 +105,14 @@ PREREQUISITES:
     - Container runtime role deployed in Ansible
 
 TEST VALIDATION:
-    The framework validates these Task 008 components:
+    The framework validates these Task 008 and Task 009 components:
     ✓ Container runtime installation and version
     ✓ Required dependencies installed
     ✓ Container execution capabilities
     ✓ Security policy enforcement
+    ✓ Privilege escalation prevention
+    ✓ Host filesystem access restrictions
+    ✓ Security policies validation
     ✓ SLURM integration (if available)
 
 LOG FILES:
@@ -127,13 +133,14 @@ FRAMEWORK INTEGRATION:
     • Following Task 004 logging patterns
     • Providing consistent VM orchestration
     • Supporting ai-how cluster deployment workflow
+    • Including comprehensive Task 009 security validation
 
 EOF
 }
 
 # Container runtime specific test execution
 run_container_runtime_tests() {
-    log "Starting Container Runtime Test Framework (Task 008 Validation)"
+    log "Starting Container Runtime Test Framework (Task 008 & Task 009 Validation)"
     log "Configuration: $TEST_CONFIG"
     log "Target VM Pattern: $TARGET_VM_PATTERN"
     log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
@@ -143,11 +150,11 @@ run_container_runtime_tests() {
     # Use the shared test framework utilities
     if run_test_framework "$TESTS_DIR/$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "run-container-runtime-tests.sh"; then
         log_success "Container Runtime Test Framework: ALL TESTS PASSED"
-        log_success "Task 008 validation completed successfully"
+        log_success "Task 008 and Task 009 validation completed successfully"
         return 0
     else
         log_warning "Container Runtime Test Framework: TESTS FAILED"
-        log_warning "Task 008 validation failed - check logs for details"
+        log_warning "Task 008 and Task 009 validation failed - check logs for details"
         return 1
     fi
 }

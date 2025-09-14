@@ -22,11 +22,14 @@ TEST_SUITE_DIR="$(cd "$SCRIPT_DIR" && pwd)"
 : "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
 mkdir -p "$LOG_DIR"
 
-# Individual test scripts per Task 008 specification
+# Streamlined test scripts per Task 008 and Task 009 specification
+# Reduced redundancy while maintaining comprehensive coverage
 TEST_SCRIPTS=(
-    "check-singularity-install.sh"    # Verify installation and version
-    "check-container-execution.sh"    # Test container pull and execution
-    "check-container-security.sh"     # Validate security policies
+    "check-singularity-install.sh"           # Task 008: Verify installation and version
+    "check-container-execution.sh"           # Task 008: Test container pull and execution
+    "check-comprehensive-security.sh"        # Task 009: Comprehensive security validation
+                                             # Consolidates: privilege escalation, filesystem isolation,
+                                             #               security policies, and container security tests
 )
 
 # Colors for output
@@ -155,14 +158,14 @@ collect_system_info() {
     } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
 }
 
-# Main test execution
+# Main test execution - streamlined for reduced redundancy
 run_all_tests() {
-    log "Starting Container Runtime Test Suite execution..."
+    log "Starting Container Runtime Test Suite execution (streamlined)..."
 
-    # Run all individual test scripts
-    run_test_script "check-singularity-install.sh" "Installation and Version Verification"
-    run_test_script "check-container-execution.sh" "Container Execution Capabilities"
-    run_test_script "check-container-security.sh" "Security Policy Validation"
+    # Run streamlined test scripts with comprehensive coverage
+    run_test_script "check-singularity-install.sh" "Installation and Version Verification (Task 008)"
+    run_test_script "check-container-execution.sh" "Container Execution Capabilities (Task 008)"
+    run_test_script "check-comprehensive-security.sh" "Comprehensive Security Validation (Task 009)"
 }
 
 # Comprehensive summary report
@@ -196,7 +199,7 @@ print_final_summary() {
         if [[ $PARTIAL_TESTS -eq 0 ]]; then
             {
                 echo "🎉 OVERALL STATUS: ALL TESTS PASSED"
-                echo "   Container runtime is working correctly per Task 008 requirements"
+                echo "   Container runtime is working correctly per Task 008 and Task 009 requirements"
                 echo ""
                 echo "TASK 008 VALIDATION CRITERIA VERIFIED:"
                 echo "  ✅ Apptainer binary installed and functional"
@@ -204,6 +207,13 @@ print_final_summary() {
                 echo "  ✅ Container can execute simple commands"
                 echo "  ✅ Version check returns expected output (>= 1.4.2)"
                 echo "  ✅ Security configuration properly applied"
+                echo ""
+                echo "TASK 009 VALIDATION CRITERIA VERIFIED:"
+                echo "  ✅ Privilege escalation prevention working"
+                echo "  ✅ Host filesystem access restrictions enforced"
+                echo "  ✅ Security policies properly configured"
+                echo "  ✅ SUID execution prevention active"
+                echo "  ✅ Container isolation functional"
                 echo ""
                 echo "ADDITIONAL VALIDATIONS COMPLETED:"
                 echo "  ✅ Container pull and execution functionality"
@@ -262,15 +272,15 @@ USAGE:
     $0 [OPTIONS]
 
 DESCRIPTION:
-    Master test runner that executes all container runtime validation tests
-    as specified in Task 008. Tests are run in sequence and results are
-    collected for comprehensive validation reporting.
+    Streamlined master test runner that executes all container runtime validation tests
+    as specified in Task 008 and Task 009. Tests are run in sequence with reduced
+    redundancy while maintaining comprehensive validation coverage.
 
-    This test suite validates:
-    • Container runtime installation and version compliance
-    • Container execution capabilities (pull, run, bind mounts)
-    • Security policy validation and enforcement
-    • Dependency installation verification
+    This streamlined test suite validates:
+    • Container runtime installation and version compliance (Task 008)
+    • Container execution capabilities (pull, run, bind mounts) (Task 008)
+    • Comprehensive security validation and enforcement (Task 009)
+    • All required dependencies and security policies
 
 OPTIONS:
     --help, -h          Show this help message
@@ -291,9 +301,9 @@ EOF
 LOG FILES:
     All test results are saved to timestamped directories under LOG_DIR:
     • run-container-runtime-tests.log: Master runner output
-    • check-singularity-install.log: Installation validation
-    • check-container-execution.log: Execution capabilities
-    • check-container-security.log: Security validation
+    • check-singularity-install.log: Installation validation (Task 008)
+    • check-container-execution.log: Execution capabilities (Task 008)
+    • check-comprehensive-security.log: Comprehensive security validation (Task 009)
 
 EXIT CODES:
     0: All tests passed successfully

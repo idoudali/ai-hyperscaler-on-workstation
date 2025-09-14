@@ -61,7 +61,7 @@ clusters:
             - "uidmap"
             - "libfuse2"
             - "libseccomp2"
-          # Security configuration per Task 008
+          # Security configuration per Task 008 and Task 009
           security_config:
             allow_suid: false
             allow_pid_namespace: true
@@ -69,6 +69,22 @@ clusters:
             mount_hostfs: false
             config_passwd: true
             config_group: true
+            config_resolv_conf: true
+            mount_proc: true
+            mount_sys: true
+            mount_dev: true
+            mount_tmp: true
+            user_bind_control: true
+            enable_overlay: true
+            enable_underlay: false
+            mount_slave: true
+            sessiondir_max_size: 16
+            allow_container_squashfs: true
+            allow_container_extfs: true
+            allow_container_dir: true
+            allow_container_encrypted: true
+            always_use_nv: false
+            root_default_capabilities: "full"
 
     slurm_config:
       partitions: ["container", "debug"]

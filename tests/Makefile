@@ -44,7 +44,7 @@ test-base-images:
 # Run container runtime tests
 test-container-runtime:
 	@echo "Running container runtime tests..."
-	@./test_container_runtime.sh
+	@./test-container-runtime-framework.sh
 
 # Run Ansible roles integration tests
 test-ansible-roles:
@@ -81,7 +81,7 @@ test-test-configs:
 test-quick:
 	@echo "Running quick validation tests..."
 	@./test_ansible_roles.sh --integration-only
-	@./test_container_runtime.sh --skip-build
+	@./test-container-runtime-framework.sh --quick
 	@./test_integration.sh --quick
 
 # Verbose test execution
@@ -89,14 +89,14 @@ test-verbose:
 	@echo "Running tests with verbose output..."
 	@./test_integration.sh --verbose
 	@./test_ansible_roles.sh --verbose
-	@./test_container_runtime.sh --verbose
+	@./test-container-runtime-framework.sh --verbose
 
 # Fail-fast test execution
 test-fail-fast:
 	@echo "Running tests with fail-fast mode (stop on first error)..."
 	@./test_integration.sh --verbose
 	@./test_ansible_roles.sh --fail-fast --verbose
-	@./test_container_runtime.sh --verbose
+	@./test-container-runtime-framework.sh --verbose
 
 # Test specific role
 test-role:
@@ -112,7 +112,7 @@ endif
 # Test container runtime comprehensively
 test-container-comprehensive:
 	@echo "Running comprehensive container runtime validation..."
-	@./test_container_runtime.sh --verbose
+	@./test-container-runtime-framework.sh --verbose
 	@./test_ansible_roles.sh --role container-runtime --verbose
 
 # Pre-commit validation targets
