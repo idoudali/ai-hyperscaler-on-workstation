@@ -27,7 +27,7 @@ VERBOSE="${VERBOSE:-true}"
 LOGGING_LEVEL="${LOGGING_LEVEL:--vvv}"
 
 # Available roles
-AVAILABLE_ROLES=("hpc-base-packages" "container-runtime" "nvidia-gpu-drivers")
+AVAILABLE_ROLES=("hpc-base-packages" "container-runtime" "nvidia-gpu-drivers" "slurm-controller")
 
 # Colors for output
 RED='\033[0;31m'
@@ -194,7 +194,7 @@ Usage: $0 [target_host] [role] [options]
 ARGUMENTS:
   target_host    Target host to run Ansible against (default: localhost)
   role           Role to execute (default: all)
-                 Available roles: all, hpc-base-packages, container-runtime, nvidia-gpu-drivers
+                 Available roles: all, hpc-base-packages, container-runtime, nvidia-gpu-drivers, slurm-controller
 
 OPTIONS:
   SSH_USERNAME   SSH username to use (default: debian)
@@ -208,8 +208,9 @@ EXAMPLES:
   $0 localhost hpc-base-packages        # Run only hpc-base-packages role on localhost
   $0 localhost container-runtime        # Run only container-runtime role on localhost
   $0 localhost nvidia-gpu-drivers       # Run only nvidia-gpu-drivers role on localhost
+  $0 localhost slurm-controller         # Run only slurm-controller role on localhost
   $0 192.168.1.100 hpc-base-packages   # Run specific role on specific IP
-  $0 vm-host container-runtime          # Run specific role on specific hostname
+  $0 vm-host slurm-controller           # Run specific role on specific hostname
   SSH_USERNAME=ubuntu $0 localhost hpc-base-packages     # Use different SSH user
   SSH_PORT=2222 $0 localhost nvidia-gpu-drivers          # Use custom SSH port
   SSH_KEY=/path/to/key $0 localhost container-runtime    # Use custom SSH key
@@ -225,6 +226,7 @@ DESCRIPTION:
   - hpc-base-packages: Install HPC base packages (tmux, htop, vim, curl, wget)
   - container-runtime: Install Apptainer container runtime
   - nvidia-gpu-drivers: Install NVIDIA GPU drivers (without CUDA)
+  - slurm-controller: Install SLURM controller packages (slurm-wlm, slurmdbd, munge, mariadb, pmix)
   - all: Run all roles (default behavior)
 
   This is useful for:
@@ -275,12 +277,18 @@ main() {
         if [[ "$ROLE" == "all" ]]; then
             log_success "Packer Ansible replication completed successfully!"
             log_info "The VM now has the same packages and configuration as a Packer-built image"
+            log_info "Installed components: HPC packages, container runtime, NVIDIA drivers, SLURM controller"
+            log_info "Run validation tests: cd tests && make test test-slurm-controller"
             log_info "Note: A reboot may be required for NVIDIA drivers to become active"
         else
             log_success "Role '$ROLE' executed successfully!"
             log_info "The VM now has the '$ROLE' role applied with Packer build settings"
             if [[ "$ROLE" == "nvidia-gpu-drivers" ]]; then
                 log_info "Note: A reboot may be required for NVIDIA drivers to become active"
+            elif [[ "$ROLE" == "slurm-controller" ]]; then
+                log_info "SLURM controller packages installed: slurm-wlm, slurmdbd, munge, mariadb, pmix"
+                log_info "Run validation tests: cd tests && make test-slurm-controller"
+                log_info "Note: Additional configuration (TASK-011, TASK-012, TASK-013) needed for full SLURM setup"
             fi
         fi
     else

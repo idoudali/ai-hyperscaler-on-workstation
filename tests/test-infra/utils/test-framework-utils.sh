@@ -84,6 +84,8 @@ run_test_framework() {
     echo
 
     # Setup cleanup handler
+    # Export test_config so it's available to the trap
+    export test_config
     trap 'cleanup_test_framework "$test_config"' EXIT INT TERM
 
     # Step 1: Prerequisites
@@ -110,14 +112,16 @@ run_test_framework() {
     export CLEANUP_REQUIRED
 
     # Step 4: Wait for VMs
-    local cluster_pattern
-    cluster_pattern=$(basename "${cluster_name}" | tr '_' '-')
-    if ! wait_for_cluster_vms "$cluster_pattern"; then
+    if ! wait_for_cluster_vms "$test_config" "hpc" "300"; then
         log_error "VMs failed to start properly"
         return 1
     fi
 
     # Step 5: Get VM IPs
+    # Extract cluster pattern resolution to avoid duplication
+    local resolved_test_config cluster_pattern
+    resolved_test_config=$(resolve_test_config_path "$test_config")
+    cluster_pattern=$(parse_cluster_name "$resolved_test_config" "hpc" | tr '_' '-')
     if ! get_vm_ips_for_cluster "$cluster_pattern" "$target_vm_pattern"; then
         log_error "Failed to get VM IP addresses"
         return 1

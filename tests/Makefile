@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -11,6 +11,7 @@ help:
 	@echo "  test-all               - Run comprehensive test suite including builds"
 	@echo "  test-base-images       - Run base images build tests"
 	@echo "  test-container-runtime - Run container runtime tests"
+	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
 	@echo "  test-ansible-roles     - Run Ansible roles validation"
 	@echo "  test-integration       - Run integration tests"
 	@echo "  test-pcie-validation   - Run PCIe validation tests"
@@ -31,10 +32,10 @@ help:
 	@echo ""
 
 # Run core infrastructure tests (fast, essential components)
-test: test-integration test-ansible-roles test-container-runtime
+test: test-integration test-ansible-roles test-container-runtime test-slurm-controller
 
 # Run comprehensive test suite including builds and CLI validation
-test-all: test-base-images test-container-runtime test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
+test-all: test-base-images test-container-runtime test-slurm-controller test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
 
 # Run base images test
 test-base-images:
@@ -45,6 +46,11 @@ test-base-images:
 test-container-runtime:
 	@echo "Running container runtime tests..."
 	@./test-container-runtime-framework.sh
+
+# Run SLURM controller tests
+test-slurm-controller:
+	@echo "Running SLURM controller tests..."
+	@./test-slurm-controller-framework.sh
 
 # Run Ansible roles integration tests
 test-ansible-roles:

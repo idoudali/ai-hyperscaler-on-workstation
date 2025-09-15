@@ -1,0 +1,67 @@
+---
+# SLURM Controller Package Installation
+# Task 010: Install SLURM controller packages with PMIx support
+
+- name: Update package cache
+  apt:
+    update_cache: "{{ slurm_update_cache }}"
+    cache_valid_time: "{{ slurm_cache_valid_time }}"
+  become: true
+
+- name: Install SLURM controller packages
+  apt:
+    name: "{{ slurm_controller_packages }}"
+    state: "{{ slurm_package_state }}"
+  become: true
+  register: slurm_package_install
+  notify:
+    - restart slurm services
+
+- name: Verify SLURM installation
+  command: "{{ item }}"
+  loop:
+    - slurmctld -V
+    - slurmdbd -V
+    - sinfo --version
+  register: slurm_version_check
+  changed_when: false
+  failed_when: slurm_version_check.rc != 0
+  when: not (packer_build | default(false))
+
+- name: Verify PMIx libraries installation
+  stat:
+    path: "/usr/lib/x86_64-linux-gnu/libpmix.so.2"
+  register: pmix_library_check
+  when: not (packer_build | default(false))
+
+- name: Verify MariaDB installation
+  service:
+    name: mariadb
+    state: started
+  become: true
+  register: mariadb_service_check
+  when:
+    - install_database | default(true)
+    - not (packer_build | default(false))
+
+- name: Verify MUNGE installation
+  command: mungekey --version
+  register: munge_version_check
+  changed_when: false
+  failed_when: munge_version_check.rc != 0
+  when: not (packer_build | default(false))
+
+- name: Display installation results
+  debug:
+    msg: |
+      SLURM Controller installation completed:
+      - Packages installed: {{ slurm_controller_packages }}
+      - Build mode: {{ 'Packer' if packer_build | default(false) else 'Live deployment' }}
+      {% if not (packer_build | default(false)) %}
+      - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if slurm_version_check is defined and slurm_version_check.results[0].rc == 0 else 'Version check failed' }}
+      - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
+      - MariaDB service: {{ 'Running' if mariadb_service_check is defined and mariadb_service_check.state == 'started' else 'Installed' if install_database | default(true) else 'Not installed' }}
+      - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
+      {% else %}
+      - Note: Detailed verification skipped during Packer build (packages installed only)
+      {% endif %}

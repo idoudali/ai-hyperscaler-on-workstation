@@ -1,0 +1,38 @@
+---
+# SLURM Controller Role - Handlers
+# Service restart handlers for SLURM controller components
+
+- name: restart slurm services
+  service:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - slurmctld
+    - slurmdbd
+    - munge
+  become: true
+  listen: restart slurm services
+
+- name: restart slurmctld
+  service:
+    name: slurmctld
+    state: restarted
+  become: true
+
+- name: restart slurmdbd
+  service:
+    name: slurmdbd
+    state: restarted
+  become: true
+
+- name: restart munge
+  service:
+    name: munge
+    state: restarted
+  become: true
+
+- name: restart mariadb
+  service:
+    name: mariadb
+    state: restarted
+  become: true

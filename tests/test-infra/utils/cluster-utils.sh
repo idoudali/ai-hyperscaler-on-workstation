@@ -243,41 +243,167 @@ show_cleanup_instructions() {
 }
 
 wait_for_cluster_vms() {
-    local cluster_name="$1"
-    local timeout="${2:-300}"
+    local config_file="$1"
+    local cluster_type="${2:-hpc}"  # "hpc" or "cloud"
+    local timeout="${3:-300}"
 
-    [[ -z "$cluster_name" ]] && {
-        log_error "wait_for_cluster_vms: cluster_name parameter required"
+    [[ -z "$config_file" ]] && {
+        log_error "wait_for_cluster_vms: config_file parameter required"
         return 1
     }
 
-    log "Waiting for compute VMs for cluster ($cluster_name) to be created and running..."
+    # Check if yq is available
+    if ! command -v yq >/dev/null 2>&1; then
+        log_error "yq command not found. Please install yq (https://github.com/mikefarah/yq) to parse YAML configurations."
+        log_error "Install with: 'apt install yq', 'brew install yq', 'snap install yq', or download from https://github.com/mikefarah/yq/releases"
+        return 1
+    fi
+
+    # Resolve the config file path
+    local resolved_config
+    if ! resolved_config=$(resolve_test_config_path "$config_file"); then
+        return 1
+    fi
+
+    [[ ! -f "$resolved_config" ]] && {
+        log_error "Configuration file not found: $resolved_config"
+        return 1
+    }
+
+    # Parse the YAML configuration to get cluster name and expected VMs
+    local cluster_name expected_vms
+    if ! cluster_name=$(parse_cluster_name "$resolved_config" "$cluster_type"); then
+        log_error "Failed to parse cluster name from configuration"
+        return 1
+    fi
+
+    if ! expected_vms=$(parse_expected_vms "$resolved_config" "$cluster_type"); then
+        log_error "Failed to parse expected VMs from configuration"
+        return 1
+    fi
+
+    [[ -z "$cluster_name" ]] && {
+        log_error "Cluster name not found in configuration for cluster type: $cluster_type"
+        return 1
+    }
+
+    [[ -z "$expected_vms" ]] && {
+        log_warning "No VMs expected for cluster ($cluster_name) - configuration may be empty"
+        return 0
+    }
+
+    log "Waiting for VMs for cluster ($cluster_name) to be created and running..."
+    log "Expected VMs: $(echo "$expected_vms" | tr '\n' ' ')"
 
     local elapsed=0
     local check_interval=10
+    local expected_vm_count
+    expected_vm_count=$(echo "$expected_vms" | wc -w)
 
     while [[ $elapsed -lt $timeout ]]; do
-        # Check for compute VMs matching the cluster name pattern
-        local running_compute_vms
-        running_compute_vms=$(virsh list --name --state-running 2>/dev/null | grep "^${cluster_name}-compute" || true)
+        # Get all running VMs matching the cluster name pattern
+        local all_running_vms
+        all_running_vms=$(virsh list --name --state-running 2>/dev/null | grep "^${cluster_name}-" || true)
 
-        if [[ -n "$running_compute_vms" ]]; then
-            local compute_count
-            compute_count=$(echo "$running_compute_vms" | wc -l)
-            log_success "Found $compute_count compute VM(s) running for cluster ($cluster_name):"
-            echo "$running_compute_vms" | while read -r vm; do
-                log "  - $vm"
+        if [[ -n "$all_running_vms" ]]; then
+            # Check if all expected VMs are running
+            local found_vms=()
+            local missing_vms=()
+
+            for expected_vm in $expected_vms; do
+                if echo "$all_running_vms" | grep -q "^${expected_vm}$"; then
+                    found_vms+=("$expected_vm")
+                else
+                    missing_vms+=("$expected_vm")
+                fi
             done
-            return 0
+
+            if [[ ${#missing_vms[@]} -eq 0 ]]; then
+                log_success "All ${#found_vms[@]} expected VM(s) are running for cluster ($cluster_name):"
+                for vm in "${found_vms[@]}"; do
+                    log "  ✓ $vm"
+                done
+                return 0
+            else
+                log "Found ${#found_vms[@]}/${expected_vm_count} expected VMs. Missing: $(echo "${missing_vms[@]}" | tr ' ' ',')"
+            fi
+        else
+            log "No VMs found yet for cluster ($cluster_name)"
         fi
 
-        log "Compute VMs not ready yet... waiting (${elapsed}s/${timeout}s)"
+        log "VMs not ready yet... waiting (${elapsed}s/${timeout}s)"
         sleep $check_interval
         elapsed=$((elapsed + check_interval))
     done
 
-    log_error "Timeout waiting for compute VMs for cluster ($cluster_name) to start"
+    log_error "Timeout waiting for VMs for cluster ($cluster_name) to start"
+    log_error "Expected VMs: $(echo "$expected_vms" | tr '\n' ' ')"
     return 1
+}
+
+# Helper function to parse cluster name from YAML configuration
+parse_cluster_name() {
+    local config_file="$1"
+    local cluster_type="$2"
+
+    yq ".clusters.${cluster_type}.name" "$config_file" 2>/dev/null | tr -d '"'
+}
+
+# Helper function to parse expected VMs from YAML configuration
+parse_expected_vms() {
+    local config_file="$1"
+    local cluster_type="$2"
+    local cluster_name
+
+    cluster_name=$(parse_cluster_name "$config_file" "$cluster_type")
+    [[ -z "$cluster_name" ]] && return 1
+
+    local expected_vms=""
+
+    if [[ "$cluster_type" == "hpc" ]]; then
+        # Check if controller exists
+        local has_controller
+        has_controller=$(yq ".clusters.hpc.controller" "$config_file" 2>/dev/null)
+        if [[ "$has_controller" != "null" && -n "$has_controller" ]]; then
+            expected_vms+="${cluster_name}-controller "
+        fi
+
+        # Check compute nodes
+        local compute_nodes
+        compute_nodes=$(yq ".clusters.hpc.compute_nodes | length" "$config_file" 2>/dev/null)
+        if [[ "$compute_nodes" != "null" && "$compute_nodes" -gt 0 ]]; then
+            for ((i=0; i<compute_nodes; i++)); do
+                expected_vms+="${cluster_name}-compute$((i+1)) "
+            done
+        fi
+
+    elif [[ "$cluster_type" == "cloud" ]]; then
+        # Check if control plane exists
+        local has_control_plane
+        has_control_plane=$(yq ".clusters.cloud.control_plane" "$config_file" 2>/dev/null)
+        if [[ "$has_control_plane" != "null" && -n "$has_control_plane" ]]; then
+            expected_vms+="${cluster_name}-control-plane "
+        fi
+
+        # Check worker nodes
+        local cpu_workers gpu_workers
+        cpu_workers=$(yq ".clusters.cloud.worker_nodes.cpu | length" "$config_file" 2>/dev/null)
+        gpu_workers=$(yq ".clusters.cloud.worker_nodes.gpu | length" "$config_file" 2>/dev/null)
+
+        if [[ "$cpu_workers" != "null" && "$cpu_workers" -gt 0 ]]; then
+            for ((i=0; i<cpu_workers; i++)); do
+                expected_vms+="${cluster_name}-worker-cpu$((i+1)) "
+            done
+        fi
+
+        if [[ "$gpu_workers" != "null" && "$gpu_workers" -gt 0 ]]; then
+            for ((i=0; i<gpu_workers; i++)); do
+                expected_vms+="${cluster_name}-worker-gpu$((i+1)) "
+            done
+        fi
+    fi
+
+    echo "$expected_vms" | xargs  # Trim whitespace
 }
 
 # Cleanup handler for use with trap

@@ -1,0 +1,119 @@
+version: "1.0"
+metadata:
+  name: "test-slurm-controller"
+  description: "SLURM Controller Test Configuration for Task 010 validation"
+
+global: {}
+
+clusters:
+  hpc:
+    name: "test-hpc-slurm-controller"
+    # Use the specialized controller image
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    network:
+      subnet: "192.168.156.0/24"
+      bridge: "virbr156"
+
+    # Hardware acceleration configuration
+    hardware:
+      acceleration:
+        enable_kvm: true
+        enable_nested: false
+        cpu_model: "host-passthrough"
+        cpu_features:
+          - "+vmx"
+          - "+svm"
+          - "+sse4.1"
+          - "+sse4.2"
+          - "+avx"
+          - "+avx2"
+        numa_topology: null
+        cpu_topology:
+          sockets: 1
+          cores: 4
+          threads: 1
+        performance:
+          enable_hugepages: false
+          hugepage_size: "2M"
+          cpu_pinning: false
+          memory_backing: "default"
+
+    # Controller node - focus of SLURM controller testing
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 50
+      ip_address: "192.168.156.10"
+      # Use specialized controller image
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    # No compute nodes for controller-only testing
+    compute_nodes: []
+
+    # SLURM configuration
+    slurm_config:
+      partitions: ["debug"]
+      default_partition: "debug"
+      max_job_time: "4:00:00"
+
+  # Empty cloud cluster (required by schema)
+  cloud:
+    name: "test-cloud-empty"
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: "192.168.157.0/24"
+      bridge: "virbr157"
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 30
+      ip_address: "192.168.157.10"
+    worker_nodes:
+      cpu: []
+      gpu: []
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+
+# Test-specific configuration (for test framework)
+test:
+  # Target only the controller for testing
+  target_pattern: "controller"
+
+  # Test suite configuration
+  test_suite: "slurm-controller"
+  test_timeout: 600  # 10 minutes for SLURM tests
+
+  # Test categories to run
+  test_categories:
+    - "installation"      # SLURM package installation
+    - "functionality"     # Basic SLURM command functionality
+    - "dependencies"      # PMIx, MUNGE, MariaDB validation
+    - "configuration"     # Configuration file validation
+
+  # Test environment variables
+  environment:
+    SLURM_VERSION: "23.11.4"
+    TEST_SLURM_CONTROLLER: "true"
+    TEST_DATABASE: "true"
+    TEST_PMIX: "true"
+    TEST_MUNGE: "true"
+
+# Build configuration (if building images is needed)
+build:
+  enabled: false  # Tests assume pre-built controller image
+  image_type: "hpc-controller"
+
+# Performance and timeout settings
+timeouts:
+  vm_start: 300      # 5 minutes to start VM
+  ssh_ready: 120     # 2 minutes for SSH to be ready
+  test_execution: 600 # 10 minutes for test execution
+
+# Logging configuration
+logging:
+  level: "INFO"
+  capture_vm_logs: true
+  save_test_artifacts: true

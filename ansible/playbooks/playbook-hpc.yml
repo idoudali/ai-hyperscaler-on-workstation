@@ -29,6 +29,7 @@
     - hpc-base-packages
     - container-runtime
     - nvidia-gpu-drivers
+    - slurm-controller
 
   tasks:
     - name: Verify HPC base packages installation
@@ -56,6 +57,32 @@
       debug:
         msg: "Container runtime dependencies installed: {{ container_dependencies.stdout_lines }}"
 
+    - name: Verify SLURM controller installation
+      command: "{{ item }}"
+      register: slurm_version_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - "slurmctld -V"
+        - "slurmdbd -V"
+        - "sinfo --version"
+
+    - name: Display SLURM controller version
+      debug:
+        msg: "SLURM component {{ item.item }} version: {{ item.stdout.split('\n')[0] }}"
+      loop: "{{ slurm_version_check.results }}"
+      when: item.rc == 0
+
+    - name: Verify SLURM controller dependencies
+      shell: "dpkg -l | grep -E '(slurm-wlm|munge|mariadb-server|libpmix)'"
+      register: slurm_dependencies
+      changed_when: false
+      failed_when: false
+
+    - name: Display SLURM controller dependencies
+      debug:
+        msg: "SLURM controller dependencies installed: {{ slurm_dependencies.stdout_lines }}"
+
     - name: Display deployment context
       debug:
         msg: |
@@ -63,6 +90,7 @@
           - Packer Build: {{ packer_build }}
           - NVIDIA CUDA: {{ nvidia_install_cuda }}
           - Container Runtime: {{ container_runtime_type | default('singularity') }}
+          - SLURM Version: {{ slurm_version }}
           - Target Hosts: {{ target_hosts | default('all') }}
 
     - name: Gather installed package facts
@@ -71,4 +99,4 @@
 
     - name: Display relevant installed packages
       debug:
-        msg: "{{ ansible_facts.packages | dict2items | selectattr('key', 'in', ['tmux', 'htop', 'vim', 'curl', 'wget', 'nvidia-driver', 'fuse', 'squashfs-tools', 'uidmap']) | list }}"
+        msg: "{{ ansible_facts.packages | dict2items | selectattr('key', 'in', ['tmux', 'htop', 'vim', 'curl', 'wget', 'nvidia-driver', 'fuse', 'squashfs-tools', 'uidmap', 'slurm-wlm', 'slurmdbd', 'munge', 'mariadb-server', 'libpmix2']) | list }}"

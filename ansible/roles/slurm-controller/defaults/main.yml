@@ -26,3 +26,27 @@ pmix_ports: "12000-12999"
 # Resource management
 gres_types: "gpu"
 select_type: "select/cons_tres"
+
+# SLURM Controller Package Installation
+slurm_controller_packages:
+  - slurm-wlm              # Core SLURM workload manager
+  - slurm-wlm-doc          # Documentation
+  - slurmdbd               # Database daemon for accounting
+  - slurm-client           # Client tools
+  - munge                  # Authentication daemon
+  - libmunge-dev           # Development libraries
+  - mariadb-server         # Database backend
+  - libmariadb-dev         # Database client libraries
+  - libpmix2               # PMIx for MPI integration
+  - libpmix-dev            # PMIx development headers
+
+# Package installation settings
+slurm_package_state: "present"
+slurm_update_cache: true
+slurm_cache_valid_time: 3600
+
+# Build and deployment settings
+packer_build: false
+install_database: true
+install_monitoring_stack: true
+hpc_node_type: "controller"

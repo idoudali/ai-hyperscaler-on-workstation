@@ -1,8 +1,16 @@
 ---
 # SLURM Controller Role - Main Tasks
-# This file will contain the main orchestration tasks for SLURM controller setup
+# This file orchestrates the main tasks for SLURM controller setup
 # including package installation, configuration, MUNGE setup, and service management
 
-- name: SLURM Controller Role - Main Tasks
-  debug:
-    msg: "SLURM Controller role main tasks will be implemented here"
+- name: Include SLURM controller installation tasks
+  include_tasks: install.yml
+  tags:
+    - slurm
+    - slurm-controller
+    - install
+
+# Future tasks will be added here:
+# - include_tasks: configure.yml
+# - include_tasks: munge.yml
+# - include_tasks: accounting.yml

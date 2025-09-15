@@ -1,22 +1,106 @@
 ---
-# HPC Controller Playbook (Simplified)
-# Standard HPC packages without NVIDIA GPU drivers for controller nodes
+# HPC Controller Playbook
+# Specialized playbook for SLURM controller nodes with database and monitoring
+# Usage:
+#   Packer: ansible-playbook -e packer_build=true -e hpc_node_type=controller playbook-hpc-controller.yml
+#   Live:   ansible-playbook -i inventory playbook-hpc-controller.yml
 
-- name: Deploy HPC Base Packages for Controller Node
+- name: Deploy HPC Controller with SLURM Management Stack
   hosts: "{{ target_hosts | default('all') }}"
   become: true
   gather_facts: true
 
   vars:
+    # Packer build detection and configuration
     packer_build: "{{ packer_build | default(false) }}"
-    container_runtime_enable_service: false  # Don't start services in Packer builds
+    hpc_node_type: "{{ hpc_node_type | default('controller') }}"
+
+    # Controller-specific installation flags
+    install_slurm_controller: "{{ install_slurm_controller | default(true) }}"
+    install_monitoring_stack: "{{ install_monitoring_stack | default(true) }}"
+    install_database: "{{ install_database | default(true) }}"
+
+    # SLURM Configuration
+    slurm_version: "23.11.4"
+
+    # Container Runtime Configuration
+    container_runtime_type: "apptainer"  # Apptainer is the successor to Singularity
+    container_runtime_version: "1.4.2"
+    container_runtime_install_method: "github"  # Use GitHub releases
+    container_runtime_enable_service: false  # Don't start service in Packer builds
 
   roles:
     - hpc-base-packages
     - container-runtime
-    # Note: Controller nodes do NOT get nvidia-gpu-drivers role
+    - slurm-controller
+    # Note: Controller nodes do NOT get nvidia-gpu-drivers role by default
 
   tasks:
-    - name: Display deployment summary
+    - name: Verify HPC base packages installation
       debug:
-        msg: "HPC controller image configured with base packages and container runtime (no GPU drivers)"
+        msg: "HPC base packages have been installed successfully"
+
+    - name: Verify container runtime installation
+      command: "{{ container_runtime_binary | default('apptainer') }} --version"
+      register: container_runtime_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display container runtime version
+      debug:
+        msg: "Container runtime {{ container_runtime_binary | default('apptainer') }} version: {{ container_runtime_version_check.stdout }}"
+      when: container_runtime_version_check.rc == 0
+
+    - name: Verify SLURM controller installation
+      command: "{{ item }}"
+      register: slurm_version_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - "slurmctld -V"
+        - "slurmdbd -V"
+        - "sinfo --version"
+      when: install_slurm_controller | bool
+
+    - name: Display SLURM controller version
+      debug:
+        msg: "SLURM component {{ item.item }} version: {{ item.stdout.split('\n')[0] }}"
+      loop: "{{ slurm_version_check.results }}"
+      when:
+        - install_slurm_controller | bool
+        - item.rc == 0
+
+    - name: Verify SLURM controller dependencies
+      shell: "dpkg -l | grep -E '(slurm-wlm|munge|mariadb-server|libpmix)'"
+      register: slurm_dependencies
+      changed_when: false
+      failed_when: false
+      when: install_slurm_controller | bool
+
+    - name: Display SLURM controller dependencies
+      debug:
+        msg: "SLURM controller dependencies installed: {{ slurm_dependencies.stdout_lines }}"
+      when:
+        - install_slurm_controller | bool
+        - slurm_dependencies.stdout_lines is defined
+
+    - name: Display deployment context
+      debug:
+        msg: |
+          HPC Controller Deployment Context:
+          - Packer Build: {{ packer_build }}
+          - Node Type: {{ hpc_node_type }}
+          - SLURM Controller: {{ install_slurm_controller }}
+          - Monitoring Stack: {{ install_monitoring_stack }}
+          - Database Support: {{ install_database }}
+          - SLURM Version: {{ slurm_version }}
+          - Container Runtime: {{ container_runtime_type | default('apptainer') }}
+          - Target Hosts: {{ target_hosts | default('all') }}
+
+    - name: Gather installed package facts
+      package_facts:
+        manager: auto
+
+    - name: Display relevant installed packages
+      debug:
+        msg: "{{ ansible_facts.packages | dict2items | selectattr('key', 'in', ['tmux', 'htop', 'vim', 'curl', 'wget', 'fuse', 'squashfs-tools', 'uidmap', 'slurm-wlm', 'slurmdbd', 'munge', 'mariadb-server', 'libpmix2']) | list }}"
