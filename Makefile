@@ -14,6 +14,17 @@ DEV_CONTAINER_SCRIPT := ./scripts/run-in-dev-container.sh
 # Build system variables
 BUILD_DIR := build
 
+#==============================================================================
+# Build Configuration Helper
+#==============================================================================
+.PHONY: config
+
+# Configure the project with CMake
+config:
+	@echo "Configuring the project with CMake and Ninja..."
+	@$(DEV_CONTAINER_SCRIPT) cmake -G Ninja -S . -B $(BUILD_DIR)
+
+#==============================================================================
 # Python virtual environment settings
 PYTHON_DIR := python
 VENV_NAME := .venv
@@ -63,128 +74,62 @@ lint-docker:
 	@echo "Linting Dockerfile..."
 	@echo "--> No linter configured. Please add one (e.g., hadolint)."
 
-#==============================================================================
-# Project Build System (CMake)
-#==============================================================================
-.PHONY: config build-project deploy test clean-build cleanup build-image init-packer validate-packer clean-packer
-
-# Configure the project with CMake
-config:
-	@echo "Configuring the project with CMake and Ninja..."
-	@$(DEV_CONTAINER_SCRIPT) cmake -G Ninja -S . -B $(BUILD_DIR)
-
-# Build all targets (alias for deploy)
-build-project: deploy
-
-# Deploy the infrastructure
-deploy: config
-	@echo "Deploying the infrastructure..."
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target deploy
-
-# Run integration tests
-test: config
-	@echo "Running integration tests..."
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target test
-
-# Initialize Packer plugins
-init-packer: config
-	@echo "Initializing Packer plugins..."
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target init-packer
-
-# Validate Packer templates
-validate-packer: init-packer
-	@echo "Validating Packer templates..."
-	@rm -rf $(BUILD_DIR)/images/* || true
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target validate-packer
-
-# Clean Packer output directories
-clean-packer: config
-	@echo "Cleaning Packer output directories..."
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target clean-images
-
-# Build the golden image artifact
-build-image: validate-packer
-	@echo "Building the golden image..."
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target build-image
-
-# Clean the CMake build directory
-clean-build:
-	@echo "Cleaning the build directory..."
-	@rm -rf $(BUILD_DIR)
-
-# Destroy all provisioned infrastructure
-cleanup: config
-	@echo "Destroying all provisioned infrastructure..."
-	@$(DEV_CONTAINER_SCRIPT) cmake --build $(BUILD_DIR) --target cleanup
 
 #==============================================================================
 # Python Virtual Environment Management (uv)
 #==============================================================================
-.PHONY: venv-create venv-install venv-activate venv-update venv-clean venv-lint venv-test
+.PHONY: venv-create pre-commit-install pre-commit-run pre-commit-run-all
 
-# Create a new Python virtual environment using uv
+# Create Python virtual environment and install all dependencies
 venv-create:
 	@echo "Creating Python virtual environment using uv..."
 	@uv venv --clear $(VENV_NAME)
 	@echo "Virtual environment created at $(VENV_PATH)"
-
-# Force recreation of the virtual environment
-venv-recreate:
-	@echo "Force recreating Python virtual environment using uv..."
-	@rm -rf $(VENV_NAME) && uv venv $(VENV_NAME)
-	@echo "Virtual environment recreated at $(VENV_PATH)"
-
-# Quick reset: clean and reinstall everything
-venv-reset: venv-clean venv-install
-	@echo "Virtual environment reset complete"
-
-# Install all workspace packages from pyproject.toml in editable mode
-venv-install: venv-create
 	@echo "Installing workspace packages in editable mode..."
 	@uv pip install --reinstall -e $(PYTHON_DIR)/ai_how
 	@echo "Installing Ansible and dependencies..."
 	@uv pip install -r ansible/requirements.txt
 	@echo "Installing Ansible collections..."
 	@uv run ansible-galaxy collection install -r ansible/collections/requirements.yml
-	@echo "Workspace packages and Ansible installation complete"
+	@echo "Installing MkDocs and plugins..."
+	@uv pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin mkdocs-include-markdown-plugin "mkdocstrings[python]"
+	@echo "Virtual environment setup complete"
 
-# Activate the virtual environment (prints activation command)
-venv-activate:
-	@echo "To activate the virtual environment, run:"
-	@echo "  source $(VENV_NAME)/bin/activate"
-	@echo "Or use uv directly:"
-	@echo "  uv run python"
 
-# Update all workspace packages
-venv-update:
-	@echo "Updating all workspace packages..."
-	@uv pip install --upgrade -e $(PYTHON_DIR)/ai_how
-
-# Clean the virtual environment
-venv-clean:
-	@echo "Removing Python virtual environment..."
-	@rm -rf $(VENV_PATH)
-	@echo "Virtual environment removed"
-
-# Run linting tools on Python code
-venv-lint:
-	@echo "Running linting tools on Python code..."
-	@uv run pre-commit run --all-files
 
 # Run pre-commit hooks using nox-based configuration
-venv-pre-commit:
-	@echo "Running pre-commit hooks with nox-based configuration..."
-	@uv run pre-commit run --all-files
-
 # Install pre-commit hooks
-venv-install-hooks:
+pre-commit-install:
 	@echo "Installing pre-commit hooks..."
 	@uv run pre-commit install
 
-# Run tests in the virtual environment
-venv-test:
-	@echo "Running tests in virtual environment..."
-	@uv run pytest
+pre-commit-run:
+	@echo "Running pre-commit hooks with nox-based configuration..."
+	@uv run pre-commit run
+
+pre-commit-run-all:
+	@echo "Running pre-commit hooks with nox-based configuration..."
+	@uv run pre-commit run --all-files
+
+#==============================================================================
+# MkDocs Documentation Management
+#==============================================================================
+.PHONY: docs-build docs-serve docs-clean
+
+# Build the documentation site
+docs-build: venv-create
+	@echo "Building documentation with MkDocs..."
+	@uv run mkdocs build
+
+# Serve the documentation locally for development
+docs-serve: venv-create
+	@echo "Serving documentation locally at http://localhost:8000..."
+	@uv run mkdocs serve
+
+# Clean the documentation build artifacts
+docs-clean:
+	@echo "Cleaning documentation build artifacts..."
+	@rm -rf site/
 
 #==============================================================================
 # AI-HOW Python Package Management (Nox)
@@ -192,27 +137,27 @@ venv-test:
 .PHONY: test-ai-how lint-ai-how format-ai-how docs-ai-how clean-ai-how
 
 # Run tests for the ai-how package using Nox
-test-ai-how: venv-install
+test-ai-how: venv-create
 	@echo "Running tests for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s test
 
 # Run linting for the ai-how package using Nox
-lint-ai-how: venv-install
+lint-ai-how: venv-create
 	@echo "Running linting for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s lint
 
 # Format the code for the ai-how package using Nox
-format-ai-how: venv-install
+format-ai-how: venv-create
 	@echo "Formatting code for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s format
 
 # Build the documentation for the ai-how package using Nox
-docs-ai-how: venv-install
+docs-ai-how: venv-create
 	@echo "Building documentation for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s docs
 
 # Clean the ai-how package build artifacts using Nox
-clean-ai-how: venv-install
+clean-ai-how: venv-create
 	@echo "Cleaning ai-how package build artifacts..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s clean
 
@@ -234,29 +179,21 @@ help:
 	@echo "  make clean-docker   - Remove the Docker image and old containers."
 	@echo "  make push-docker    - (Optional) Push image to a registry."
 	@echo ""
-	@echo "Project Build Commands:"
+	@echo "Build Configuration:"
 	@echo "  make config         - Configure the CMake project."
-	@echo "  make init-packer    - Initialize Packer plugins."
-	@echo "  make validate-packer - Validate Packer templates."
-	@echo "  make build-image    - Build the golden VM image."
-	@echo "  make clean-packer   - Clean Packer output directories."
-	@echo "  make deploy         - Deploy the full infrastructure."
-	@echo "  make test           - Run integration tests on deployed infrastructure."
-	@echo "  make clean-build    - Remove the CMake build directory."
-	@echo "  make cleanup        - Destroy all deployed infrastructure."
 	@echo ""
 	@echo "Python Virtual Environment Commands (uv):"
-	@echo "  make venv-create    - Create a new Python virtual environment."
-	@echo "  make venv-recreate  - Force recreate the Python virtual environment."
-	@echo "  make venv-reset     - Clean and reinstall the virtual environment."
-	@echo "  make venv-install   - Install all workspace packages in editable mode."
-	@echo "  make venv-activate  - Show how to activate the virtual environment."
-	@echo "  make venv-update    - Update all packages in the virtual environment."
-	@echo "  make venv-clean     - Remove the virtual environment."
-	@echo "  make venv-lint      - Run linting tools on Python code."
-	@echo "  make venv-pre-commit - Run pre-commit hooks with nox-based configuration."
-	@echo "  make venv-install-hooks - Install pre-commit hooks."
-	@echo "  make venv-test      - Run tests in the virtual environment."
+	@echo "  make venv-create    - Create virtual environment and install all dependencies."
+	@echo ""
+	@echo "Pre-commit Hooks Commands (pre-commit):"
+	@echo "  make pre-commit-install - Install pre-commit hooks."
+	@echo "  make pre-commit-run - Run pre-commit hooks on staged files."
+	@echo "  make pre-commit-run-all - Run pre-commit hooks on all files."
+	@echo ""
+	@echo "Documentation Commands (MkDocs):"
+	@echo "  make docs-build     - Build the documentation site."
+	@echo "  make docs-serve     - Serve documentation locally at http://localhost:8000."
+	@echo "  make docs-clean     - Clean documentation build artifacts."
 	@echo ""
 	@echo "AI-HOW Python Package Commands (Nox):"
 	@echo "  make test-ai-how    - Run tests for the ai-how package."

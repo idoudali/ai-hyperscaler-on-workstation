@@ -1,0 +1,182 @@
+site_name: Pharos.ai Hyperscaler on Workstation
+site_description: High-performance computing (HPC) hyperscaler infrastructure on workstation hardware
+site_author: Pharos.ai Team
+site_url: https://pharos-ai.github.io/hyperscaler-on-workstation
+
+# Repository information
+repo_name: pharos.ai/hyperscaler-on-workstation
+repo_url: https://github.com/pharos-ai/hyperscaler-on-workstation
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2024 Pharos.ai
+
+# Configuration
+theme:
+  name: material
+  language: en
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - header.autohide
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  icon:
+    repo: fontawesome/brands/github
+
+# Plugins
+plugins:
+  - search:
+      lang: en
+  - awesome-pages
+  - include-markdown
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            show_source: false
+            show_root_heading: true
+            show_root_toc_entry: true
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Page tree
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: python-dependencies-setup.md
+  - Design Documents:
+      - Project Plan: design-docs/project-plan.md
+      - Hyperscaler on Workstation: design-docs/hyperscaler-on-workstation.md
+      - Open Source Solutions: design-docs/open-source-solutions.md
+      - Task 0.1 Implementation: design-docs/task-0.1-implementation-plan.md
+      - Task 0.2 Implementation: design-docs/task-0.2-implementation-plan.md
+  - Implementation Plans:
+      - HPC SLURM Deployment: implementation-plans/hpc-slurm-deployment.md
+      - HPC VM Management Plan: implementation-plans/hpc-vm-management-plan.md
+      - HPC Implementation Complete: implementation-plans/hpc-implementation-complete.md
+      - Logging Enhancement Summary: implementation-plans/logging-enhancement-summary.md
+      - Enhanced Logging Guide: implementation-plans/enhanced-logging-guide.md
+      - Subprocess Logging Improvements: implementation-plans/subprocess-logging-improvements.md
+      - Absolute Imports Migration: implementation-plans/absolute-imports-migration.md
+      - Task Lists:
+          - HPC SLURM Task List: implementation-plans/task-lists/hpc-slurm-task-list.md
+  - Components:
+      - Ansible:
+          - Overview: components/ansible/README.md
+          - Packer Ansible Integration: components/ansible/README-packer-ansible.md
+          - NVIDIA GPU Drivers: components/ansible/roles/nvidia-gpu-drivers/README.md
+      - Packer:
+          - Overview: components/packer/README.md
+      - Docker:
+          - Overview: components/docker/README.md
+      - Configuration:
+          - Overview: components/config/README.md
+      - Scripts:
+          - Experiments: components/scripts/experiments/README.md
+  - AI-HOW Python Package:
+      - Overview: ai-how/README.md
+      - Getting Started: ai-how/docs/index.md
+      - Examples: ai-how/docs/examples.md
+      - Development: ai-how/docs/development.md
+      - Network Configuration: ai-how/docs/network_configuration.md
+      - PCIe Passthrough Validation: ai-how/docs/pcie-passthrough-validation.md
+      - API Reference:
+          - AI HOW Module: ai-how/docs/api/ai_how.md
+      - Schemas: ai-how/src/ai-how/schemas/README.md
+  - Testing:
+      - Overview: testing/README.md
+      - Test Infrastructure: testing/test-infra/README.md
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pharos-ai
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/ai-how/
+  generator: false
+
+# Analytics (uncomment if needed)
+# extra:
+#   analytics:
+#     provider: google
+#     property: G-XXXXXXXXXX
+
+# Custom CSS (uncomment if needed)
+# extra_css:
+#   - stylesheets/extra.css
+
+# Custom JavaScript (uncomment if needed)
+# extra_javascript:
+#   - javascripts/mathjax.js
+#   - https://polyfill.io/v3/polyfill.min.js?features=es6
+#   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
