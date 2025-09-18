@@ -16,6 +16,12 @@ FRAMEWORK_NAME="SLURM Controller Test Framework"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Validate PROJECT_ROOT before setting up environment variables
+if [[ ! -d "$PROJECT_ROOT" ]]; then
+    echo "Error: Invalid PROJECT_ROOT directory: $PROJECT_ROOT"
+    exit 1
+fi
+
 # Source shared utilities
 UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
 if [[ ! -f "$UTILS_DIR/test-framework-utils.sh" ]]; then
@@ -23,20 +29,7 @@ if [[ ! -f "$UTILS_DIR/test-framework-utils.sh" ]]; then
     exit 1
 fi
 
-# shellcheck source=./test-infra/utils/test-framework-utils.sh
-source "$UTILS_DIR/test-framework-utils.sh"
-
-# Test configuration
-TEST_CONFIG="test-infra/configs/test-slurm-controller.yaml"
-TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/slurm-controller"
-TARGET_VM_PATTERN="controller"
-MASTER_TEST_SCRIPT="run-slurm-controller-tests.sh"
-
-# Initialize logging
-TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-init_logging "$TIMESTAMP" "logs" "slurm-controller"
-
-# Set up environment variables for shared utilities
+# Set up environment variables for shared utilities AFTER validation
 export PROJECT_ROOT
 export TESTS_DIR="$PROJECT_ROOT/tests"
 export SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa"
@@ -44,6 +37,19 @@ export SSH_USER="admin"
 export CLEANUP_REQUIRED=false
 export INTERACTIVE_CLEANUP=false
 export TEST_NAME="slurm-controller"
+
+# shellcheck source=./test-infra/utils/test-framework-utils.sh
+source "$UTILS_DIR/test-framework-utils.sh"
+
+# Test configuration
+TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-slurm-controller.yaml"
+TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/slurm-controller"
+TARGET_VM_PATTERN="controller"
+MASTER_TEST_SCRIPT="run-slurm-controller-tests.sh"
+
+# Initialize logging
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+init_logging "$TIMESTAMP" "logs" "slurm-controller"
 
 # Main execution function
 main() {

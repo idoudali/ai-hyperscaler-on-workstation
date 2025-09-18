@@ -10,7 +10,13 @@
     - slurm-controller
     - install
 
+- name: Include SLURM controller configuration tasks
+  include_tasks: configure.yml
+  tags:
+    - slurm
+    - slurm-controller
+    - configure
+
 # Future tasks will be added here:
-# - include_tasks: configure.yml
 # - include_tasks: munge.yml
 # - include_tasks: accounting.yml

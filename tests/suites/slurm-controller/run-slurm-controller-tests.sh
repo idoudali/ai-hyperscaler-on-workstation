@@ -11,7 +11,7 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 
 # Script configuration
 SCRIPT_NAME="run-slurm-controller-tests.sh"
-TEST_SUITE_NAME="SLURM Controller Test Suite (Task 010)"
+TEST_SUITE_NAME="SLURM Controller Test Suite (Tasks 010-011)"
 
 # Get script directory and test suite directory
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
@@ -21,10 +21,11 @@ TEST_SUITE_DIR="$(cd "$SCRIPT_DIR" && pwd)"
 : "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
 mkdir -p "$LOG_DIR"
 
-# Test scripts for Task 010 SLURM Controller Installation validation
+# Test scripts for SLURM Controller validation
 TEST_SCRIPTS=(
     "check-slurm-installation.sh"      # Task 010: Verify package installation and dependencies
     "check-slurm-functionality.sh"     # Task 010: Test basic SLURM functionality and configuration
+    "check-pmix-integration.sh"        # Task 011: Validate PMIx integration and configuration
 )
 
 # Colors for output

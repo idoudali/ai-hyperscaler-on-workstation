@@ -1,0 +1,166 @@
+---
+# SLURM Configuration Deployment
+# Task 011: Configure SLURM PMIx Integration
+
+- name: Create SLURM configuration directory
+  file:
+    path: /etc/slurm
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Create SLURM log directory
+  file:
+    path: /var/log/slurm
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user | default('slurm') }}"
+    group: "{{ slurm_user | default('slurm') }}"
+  become: true
+
+- name: Create SLURM state directory
+  file:
+    path: "{{ slurm_state_save_location | default('/var/lib/slurm') }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user | default('slurm') }}"
+    group: "{{ slurm_user | default('slurm') }}"
+  become: true
+
+- name: Create SLURM spool directory
+  file:
+    path: "{{ slurm_spool_dir | default('/var/spool/slurmd') }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user | default('slurm') }}"
+    group: "{{ slurm_user | default('slurm') }}"
+  become: true
+
+- name: Deploy SLURM configuration template
+  template:
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  register: slurm_config_deployed
+  notify:
+    - restart slurm services
+
+- name: Deploy PMIx configuration template
+  template:
+    src: pmix.conf.j2
+    dest: /etc/slurm/pmix.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  register: pmix_config_deployed
+  when: pmix_enabled | default(true)
+  notify:
+    - restart slurm services
+
+- name: Validate SLURM configuration syntax
+  command: slurmctld -t
+  register: slurm_config_validation
+  changed_when: false
+  failed_when: slurm_config_validation.rc != 0
+  when: not (packer_build | default(false))
+
+- name: Check PMIx library availability
+  stat:
+    path: "{{ item }}"
+  loop:
+    - /usr/lib/x86_64-linux-gnu/libpmix.so.2
+    - /usr/lib/libpmix.so.2
+  register: pmix_library_paths
+  when: not (packer_build | default(false))
+
+- name: Verify PMIx integration in SLURM
+  command: srun --mpi=list
+  register: slurm_mpi_list
+  changed_when: false
+  when: not (packer_build | default(false))
+
+- name: Check SLURM configuration values
+  command: grep -E "{{ item }}" /etc/slurm/slurm.conf
+  loop:
+    - "MpiDefault"
+    - "MpiParams"
+    - "GresTypes"
+    - "SelectType"
+    - "ProctrackType"
+  register: slurm_config_check
+  changed_when: false
+  when: not (packer_build | default(false))
+
+- name: Validate PMIx configuration file
+  command: grep -E "{{ item }}" /etc/slurm/pmix.conf
+  loop:
+    - "pmix_server_addr"
+    - "pmix_server_port"
+    - "pmix_client_addr"
+    - "pmix_client_port"
+  register: pmix_config_check
+  changed_when: false
+  when:
+    - not (packer_build | default(false))
+    - pmix_enabled | default(true)
+
+- name: Test PMIx library functionality
+  command: pmix_info --version
+  register: pmix_version_check
+  changed_when: false
+  when: not (packer_build | default(false))
+
+- name: Verify MPI port range configuration
+  command: grep "MpiParams.*ports=" /etc/slurm/slurm.conf
+  register: mpi_ports_check
+  changed_when: false
+  when: not (packer_build | default(false))
+
+- name: Check PMIx library paths
+  find:
+    paths:
+      - /usr/lib
+      - /usr/lib/x86_64-linux-gnu
+    patterns:
+      - "libpmix*"
+    file_type: file
+  register: pmix_libraries_found
+  when: not (packer_build | default(false))
+
+- name: Display SLURM configuration deployment results
+  debug:
+    msg: |
+      SLURM Configuration deployed successfully:
+      - Configuration file: /etc/slurm/slurm.conf
+      - PMIx configuration file: {{ '/etc/slurm/pmix.conf' if pmix_enabled | default(true) else 'Not deployed' }}
+      - PMIx enabled: {{ pmix_enabled | default(true) }}
+      - MPI default: {{ slurm_mpi_default | default('pmix') }}
+      - MPI ports: {{ pmix_ports | default('12000-12999') }}
+      - GRES types: {{ gres_types | default('gpu') }}
+      - Select type: {{ select_type | default('select/cons_tres') }}
+      {% if not (packer_build | default(false)) %}
+      - Configuration validation: {{ 'PASSED' if slurm_config_validation.rc == 0 else 'FAILED' }}
+      - PMIx libraries found: {{ pmix_libraries_found.files | length if pmix_libraries_found is defined else 'Not checked' }}
+      - PMIx libraries paths: {{ pmix_library_paths.results | selectattr('stat.exists') | list | length > 0 }}
+      - Available MPI types: {{ slurm_mpi_list.stdout_lines if slurm_mpi_list is defined else 'Not checked' }}
+      - PMIx version: {{ pmix_version_check.stdout if pmix_version_check is defined and pmix_version_check.rc == 0 else 'Not available' }}
+      - MPI ports configuration: {{ mpi_ports_check.stdout if mpi_ports_check is defined else 'Not checked' }}
+      - PMIx config validation: {{ 'PASSED' if pmix_config_check is defined and pmix_config_check.results | selectattr('rc', 'equalto', 0) | list | length > 0 else 'FAILED' if pmix_config_check is defined else 'Not checked' }}
+      {% else %}
+      - Note: Detailed validation skipped during Packer build
+      {% endif %}
+
+- name: Fail if SLURM configuration validation failed
+  fail:
+    msg: "SLURM configuration validation failed. Check the configuration syntax."
+  when:
+    - not (packer_build | default(false))
+    - slurm_config_validation.rc != 0
