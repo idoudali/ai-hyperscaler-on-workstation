@@ -1,0 +1,124 @@
+# SLURM Container Configuration
+# Task 013: Configure SLURM Container Plugin
+# This file configures container runtime integration for SLURM
+# Primary support for Singularity/Apptainer containers
+
+# Container plugin library
+{% if slurm_container_enabled | default(true) %}
+# Note: Using general container plugin as container_singularity.so is not available in standard SLURM packages
+required={{ slurm_container_plugin_path | default('/usr/lib/x86_64-linux-gnu/slurm-wlm/job_container_tmpfs.so') }}
+
+# Container Configuration Section
+# Note: This configuration is for general container support
+# Singularity/Apptainer specific configuration would require additional setup
+[container]
+
+# Runtime configuration
+runtime_path={{ singularity_runtime_path | default('/usr/bin/singularity') }}
+
+# Container features
+enable_overlay={{ singularity_enable_overlay | default('true') }}
+enable_gpu={{ singularity_enable_gpu | default('true') }}
+enable_nv={{ singularity_enable_nv | default('true') }}
+
+# Mount points
+mount_home={{ singularity_mount_home | default('true') }}
+mount_tmp={{ singularity_mount_tmp | default('true') }}
+{% if singularity_mount_sys | default('false') %}
+mount_sys=true
+{% endif %}
+{% if singularity_mount_proc | default('false') %}
+mount_proc=true
+{% endif %}
+{% if singularity_mount_dev | default('false') %}
+mount_dev=true
+{% endif %}
+
+# Additional mount directories
+{% if singularity_bind_paths | default([]) | length > 0 %}
+{% for bind_path in singularity_bind_paths %}
+bind={{ bind_path }}
+{% endfor %}
+{% endif %}
+
+# Container images path
+image_path={{ singularity_image_path | default('/opt/containers') }}
+
+# Security settings
+allow_suid={{ singularity_allow_suid | default('false') }}
+contain={{ singularity_contain | default('true') }}
+writable={{ singularity_writable | default('false') }}
+
+# Resource constraints
+{% if singularity_max_memory | default('') != '' %}
+max_memory={{ singularity_max_memory }}
+{% endif %}
+{% if singularity_max_cpus | default('') != '' %}
+max_cpus={{ singularity_max_cpus }}
+{% endif %}
+
+# Environment configuration
+{% if singularity_env_vars | default([]) | length > 0 %}
+{% for env_var in singularity_env_vars %}
+env={{ env_var }}
+{% endfor %}
+{% endif %}
+
+# Working directory
+{% if singularity_workdir | default('') != '' %}
+workdir={{ singularity_workdir }}
+{% endif %}
+
+# User namespace settings
+userns={{ singularity_userns | default('false') }}
+
+# Networking
+network={{ singularity_network | default('none') }}
+{% if singularity_dns | default([]) | length > 0 %}
+{% for dns in singularity_dns %}
+dns={{ dns }}
+{% endfor %}
+{% endif %}
+
+# Temporary directories
+tmpfs={{ singularity_tmpfs | default('true') }}
+
+# Container execution timeout (in seconds)
+{% if singularity_timeout | default('') != '' %}
+timeout={{ singularity_timeout }}
+{% endif %}
+
+# GPU resource configuration
+{% if singularity_enable_gpu | default('true') == 'true' %}
+# GPU device access
+gpu_device_access={{ singularity_gpu_device_access | default('yes') }}
+
+# CUDA configuration
+{% if singularity_cuda_version | default('') != '' %}
+cuda_version={{ singularity_cuda_version }}
+{% endif %}
+
+# GPU isolation
+gpu_isolation={{ singularity_gpu_isolation | default('auto') }}
+{% endif %}
+
+# Container registry configuration
+{% if singularity_registries | default([]) | length > 0 %}
+{% for registry in singularity_registries %}
+registry={{ registry }}
+{% endfor %}
+{% endif %}
+
+# Logging configuration
+debug={{ singularity_debug | default('false') }}
+verbose={{ singularity_verbose | default('false') }}
+
+# Cleanup settings
+cleanup={{ singularity_cleanup | default('true') }}
+
+{% else %}
+# Container plugin disabled
+# To enable container support, set slurm_container_enabled: true
+{% endif %}
+
+# End of container configuration

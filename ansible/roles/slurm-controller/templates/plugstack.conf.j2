@@ -1,0 +1,40 @@
+# SLURM Plugin Stack Configuration
+# Task 013: Configure SLURM Container Plugin
+# This file defines the plugin stack configuration for SLURM
+# It includes container plugin integration for Singularity/Apptainer
+
+# Container plugin inclusion
+{% if slurm_container_enabled | default(true) %}
+include /etc/slurm/container.conf
+{% endif %}
+
+# Additional plugin configurations can be added here
+# Format: plugin_type:/path/to/plugin.so
+
+# Job submit plugins
+{% if slurm_job_submit_plugins | default([]) | length > 0 %}
+{% for plugin in slurm_job_submit_plugins %}
+job_submit:{{ plugin }}
+{% endfor %}
+{% endif %}
+
+# Site factor plugins
+{% if slurm_site_factor_plugins | default([]) | length > 0 %}
+{% for plugin in slurm_site_factor_plugins %}
+site_factor:{{ plugin }}
+{% endfor %}
+{% endif %}
+
+# Authentication plugins (additional)
+{% if slurm_auth_alt_plugins | default([]) | length > 0 %}
+{% for plugin in slurm_auth_alt_plugins %}
+auth_alt:{{ plugin }}
+{% endfor %}
+{% endif %}
+
+# Cred plugins
+{% if slurm_cred_plugins | default([]) | length > 0 %}
+{% for plugin in slurm_cred_plugins %}
+cred:{{ plugin }}
+{% endfor %}
+{% endif %}

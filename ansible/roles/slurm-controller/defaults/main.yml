@@ -79,7 +79,6 @@ slurm_task_plugin_param: "Sched"
 # Cluster configuration
 slurm_cluster_name: "hpc-cluster"
 slurm_controller_addr: "127.0.0.1"
-slurm_controller_port: 6817
 slurm_compute_port: 6818
 
 # Authentication and security
@@ -146,6 +145,59 @@ slurm_constrain_ram_space: "yes"
 slurm_constrain_swap_space: "no"
 slurm_constrain_cores: "yes"
 
+# Task 013: Container plugin configuration
+slurm_container_enabled: true
+# Note: container_singularity.so is not available in standard SLURM packages
+# Using general container plugins that are actually available
+slurm_container_plugin_path: "/usr/lib/x86_64-linux-gnu/slurm-wlm/job_container_tmpfs.so"
+
+# Singularity/Apptainer configuration
+singularity_runtime_path: "/usr/bin/apptainer"
+singularity_enable_overlay: "true"
+singularity_enable_gpu: "true"
+singularity_enable_nv: "true"
+singularity_mount_home: "true"
+singularity_mount_tmp: "true"
+singularity_mount_sys: "false"
+singularity_mount_proc: "false"
+singularity_mount_dev: "false"
+singularity_image_path: "/opt/containers"
+singularity_allow_suid: "false"
+singularity_contain: "true"
+singularity_writable: "false"
+singularity_userns: "false"
+singularity_network: "none"
+singularity_tmpfs: "true"
+singularity_debug: "false"
+singularity_verbose: "false"
+singularity_cleanup: "true"
+singularity_gpu_device_access: "yes"
+singularity_gpu_isolation: "auto"
+
+# Container bind paths (additional mounts)
+singularity_bind_paths: []
+  # Example:
+  # - "/data:/data:ro"
+  # - "/scratch:/scratch"
+
+# Container environment variables
+singularity_env_vars: []
+  # Example:
+  # - "CUDA_VISIBLE_DEVICES=0,1"
+  # - "OMP_NUM_THREADS=4"
+
+# Container registries
+singularity_registries: []
+  # Example:
+  # - "docker://registry.hub.docker.com"
+  # - "shub://singularity-hub.org"
+
+# Plugin stack configuration
+slurm_job_submit_plugins: []
+slurm_site_factor_plugins: []
+slurm_auth_alt_plugins: []
+slurm_cred_plugins: []
+
 # Power management
 slurm_power_management: false
 slurm_power_plugin: "power/none"
@@ -167,6 +219,23 @@ slurm_controller_packages:
   - libmariadb-dev         # Database client libraries
   - libpmix2               # PMIx for MPI integration
   - libpmix-dev            # PMIx development headers
+
+# Task 013: Container runtime packages
+# Note: Container runtime may need to be installed from external repositories
+# Common package names: singularity, apptainer, singularity-ce
+slurm_controller_container_packages:
+  - squashfs-tools         # Required for container image creation
+  - cryptsetup-bin         # Required for encryption support
+  - fuse                   # Required for overlay filesystems
+
+# Container runtime installation method
+# Options: "package" (from repo), "external" (from external source), "skip" (manual installation)
+container_install_method: "skip"
+
+# Alternative container runtime packages to try (uncomment as needed)
+# slurm_controller_container_runtime_packages:
+#   - apptainer            # Apptainer (if available in repos)
+#   - singularity          # Singularity (if available in repos)
 
 # Package installation settings
 slurm_package_state: "present"

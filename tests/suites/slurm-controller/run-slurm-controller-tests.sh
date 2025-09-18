@@ -11,7 +11,7 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 
 # Script configuration
 SCRIPT_NAME="run-slurm-controller-tests.sh"
-TEST_SUITE_NAME="SLURM Controller Test Suite (Tasks 010-012)"
+TEST_SUITE_NAME="SLURM Controller Test Suite (Tasks 010-013)"
 
 # Get script directory and test suite directory
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
@@ -27,6 +27,7 @@ TEST_SCRIPTS=(
     "check-slurm-functionality.sh"     # Task 010: Test basic SLURM functionality and configuration
     "check-pmix-integration.sh"        # Task 011: Validate PMIx integration and configuration
     "check-munge-authentication.sh"    # Task 012: Validate MUNGE authentication system
+    "check-container-plugin.sh"        # Task 013: Validate container plugin configuration and integration
 )
 
 # Colors for output
@@ -180,7 +181,7 @@ show_environment_info() {
 
     if [ -f /proc/version ]; then
         local kernel_info
-        kernel_info=$(cut -d' ' -f1-3 /proc/version)
+        kernel_info=$(cut -d' ' -f1-3 < /proc/version)
         log_info "- Kernel: $kernel_info"
     fi
 }

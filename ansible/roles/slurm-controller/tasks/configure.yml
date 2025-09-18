@@ -65,6 +65,45 @@
   notify:
     - restart slurm services
 
+# Task 013: Container plugin configuration deployment
+- name: Deploy SLURM plugin stack configuration template
+  template:
+    src: plugstack.conf.j2
+    dest: /etc/slurm/plugstack.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  register: plugstack_config_deployed
+  when: slurm_container_enabled | default(true)
+  notify:
+    - restart slurm services
+
+- name: Deploy SLURM container plugin configuration template
+  template:
+    src: container.conf.j2
+    dest: /etc/slurm/container.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  register: container_config_deployed
+  when: slurm_container_enabled | default(true)
+  notify:
+    - restart slurm services
+
+- name: Create container images directory
+  file:
+    path: "{{ singularity_image_path | default('/opt/containers') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  when: slurm_container_enabled | default(true)
+
 - name: Validate SLURM configuration syntax
   command: slurmctld -t
   register: slurm_config_validation
@@ -135,17 +174,81 @@
   register: pmix_libraries_found
   when: not (packer_build | default(false))
 
+# Task 013: Container plugin validation
+- name: Check container plugin library exists
+  stat:
+    path: "{{ slurm_container_plugin_path | default('/usr/lib/x86_64-linux-gnu/slurm-wlm/container_singularity.so') }}"
+  register: container_plugin_library
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
+- name: Verify Singularity/Apptainer runtime exists
+  stat:
+    path: "{{ singularity_runtime_path | default('/usr/bin/singularity') }}"
+  register: singularity_runtime
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
+- name: Check SLURM container plugin loading
+  command: grep -i "container" /var/log/slurm/slurmctld.log
+  register: container_plugin_log_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
+- name: Validate plugin stack configuration
+  command: grep -E "{{ item }}" /etc/slurm/plugstack.conf
+  loop:
+    - "include /etc/slurm/container.conf"
+  register: plugstack_config_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
+- name: Validate container configuration file
+  command: grep -E "{{ item }}" /etc/slurm/container.conf
+  loop:
+    - "required="
+    - "runtime_path="
+    - "enable_gpu="
+    - "enable_overlay="
+  register: container_config_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
+- name: Check container images directory
+  stat:
+    path: "{{ singularity_image_path | default('/opt/containers') }}"
+  register: container_images_dir
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
 - name: Display SLURM configuration deployment results
   debug:
     msg: |
       SLURM Configuration deployed successfully:
       - Configuration file: /etc/slurm/slurm.conf
       - PMIx configuration file: {{ '/etc/slurm/pmix.conf' if pmix_enabled | default(true) else 'Not deployed' }}
+      - Plugin stack configuration: {{ '/etc/slurm/plugstack.conf' if slurm_container_enabled | default(true) else 'Not deployed' }}
+      - Container configuration: {{ '/etc/slurm/container.conf' if slurm_container_enabled | default(true) else 'Not deployed' }}
       - PMIx enabled: {{ pmix_enabled | default(true) }}
+      - Container plugin enabled: {{ slurm_container_enabled | default(true) }}
       - MPI default: {{ slurm_mpi_default | default('pmix') }}
       - MPI ports: {{ pmix_ports | default('12000-12999') }}
       - GRES types: {{ gres_types | default('gpu') }}
       - Select type: {{ select_type | default('select/cons_tres') }}
+      - Container runtime: {{ singularity_runtime_path | default('/usr/bin/singularity') }}
+      - Container images path: {{ singularity_image_path | default('/opt/containers') }}
       {% if not (packer_build | default(false)) %}
       - Configuration validation: {{ 'PASSED' if (slurm_config_validation is defined and slurm_config_validation.rc == 0) else 'FAILED' }}
       - PMIx libraries found: {{ pmix_libraries_found.files | length if pmix_libraries_found is defined else 'Not checked' }}
@@ -154,6 +257,13 @@
       - PMIx version: {{ pmix_version_check.stdout if (pmix_version_check is defined and pmix_version_check.rc == 0) else 'Not available' }}
       - MPI ports configuration: {{ mpi_ports_check.stdout if mpi_ports_check is defined else 'Not checked' }}
       - PMIx config validation: {{ 'PASSED' if pmix_config_check is defined and pmix_config_check.results | selectattr('rc', 'equalto', 0) | list | length > 0 else 'FAILED' if pmix_config_check is defined else 'Not checked' }}
+      {% if slurm_container_enabled | default(true) %}
+      - Container plugin library exists: {{ 'YES' if container_plugin_library is defined and container_plugin_library.stat.exists else 'NO' if container_plugin_library is defined else 'Not checked' }}
+      - Singularity runtime exists: {{ 'YES' if singularity_runtime is defined and singularity_runtime.stat.exists else 'NO' if singularity_runtime is defined else 'Not checked' }}
+      - Container images directory: {{ 'CREATED' if container_images_dir is defined and container_images_dir.stat.exists else 'MISSING' if container_images_dir is defined else 'Not checked' }}
+      - Plugin stack config valid: {{ 'PASSED' if plugstack_config_check is defined and plugstack_config_check.results | selectattr('rc', 'equalto', 0) | list | length > 0 else 'FAILED' if plugstack_config_check is defined else 'Not checked' }}
+      - Container config valid: {{ 'PASSED' if container_config_check is defined and container_config_check.results | selectattr('rc', 'equalto', 0) | list | length > 0 else 'FAILED' if container_config_check is defined else 'Not checked' }}
+      {% endif %}
       {% else %}
       - Note: Detailed validation skipped during Packer build
       {% endif %}

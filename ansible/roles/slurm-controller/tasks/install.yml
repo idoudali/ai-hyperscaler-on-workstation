@@ -17,6 +17,34 @@
   notify:
     - restart slurm services
 
+# Task 013: Install container runtime support packages
+- name: Install SLURM container runtime support packages
+  apt:
+    name: "{{ slurm_controller_container_packages }}"
+    state: "{{ slurm_package_state }}"
+  become: true
+  register: slurm_container_package_install
+  when:
+    - slurm_container_enabled | default(true)
+    - container_install_method | default("skip") != "skip"
+  notify:
+    - restart slurm services
+
+- name: Display container runtime installation note
+  debug:
+    msg: |
+      Container runtime installation skipped (container_install_method: {{ container_install_method | default('skip') }})
+
+      To enable container runtime, you can:
+      1. Install manually: apt install apptainer (or singularity)
+      2. Set container_install_method: "package" and uncomment runtime packages in defaults
+      3. Use external installation method for specific container runtime versions
+
+      Supported runtimes: Apptainer, Singularity
+  when:
+    - slurm_container_enabled | default(true)
+    - container_install_method | default("skip") == "skip"
+
 - name: Verify SLURM installation
   command: "{{ item }}"
   loop:
@@ -51,17 +79,54 @@
   failed_when: munge_version_check.rc != 0
   when: not (packer_build | default(false))
 
+# Task 013: Verify container runtime installation
+- name: Check for available container runtime
+  shell: |
+    if command -v apptainer >/dev/null 2>&1; then
+      echo "apptainer"
+      apptainer --version
+    elif command -v singularity >/dev/null 2>&1; then
+      echo "singularity"
+      singularity --version
+    else
+      echo "none"
+      echo "No container runtime found"
+    fi
+  register: container_runtime_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
+- name: Verify SLURM container plugin library exists
+  stat:
+    path: "/usr/lib/x86_64-linux-gnu/slurm-wlm/container_singularity.so"
+  register: container_plugin_lib_check
+  when:
+    - not (packer_build | default(false))
+    - slurm_container_enabled | default(true)
+
 - name: Display installation results
   debug:
     msg: |
       SLURM Controller installation completed:
-      - Packages installed: {{ slurm_controller_packages }}
+      - Core packages installed: {{ slurm_controller_packages }}
+      {% if slurm_container_enabled | default(true) %}
+      - Container support packages installed: {{ slurm_controller_container_packages }}
+      - Container runtime installation: {{ container_install_method | default('skip') }}
+      {% endif %}
       - Build mode: {{ 'Packer' if packer_build | default(false) else 'Live deployment' }}
       {% if not (packer_build | default(false)) %}
       - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if (slurm_version_check is defined and slurm_version_check.results[0].rc == 0) else 'Version check failed' }}
       - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
       - MariaDB service: {{ 'Running' if mariadb_service_check is defined and mariadb_service_check.state == 'started' else 'Installed' if install_database | default(true) else 'Not installed' }}
       - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
+      {% if slurm_container_enabled | default(true) %}
+      - Container runtime detected: {{ container_runtime_check.stdout.split('\n')[0] if container_runtime_check is defined else 'Not checked' }}
+      - Container runtime version: {{ container_runtime_check.stdout.split('\n')[1] if container_runtime_check is defined and container_runtime_check.stdout.split('\n')|length > 1 else 'Not available' }}
+      - Container plugin library: {{ 'Present' if container_plugin_lib_check is defined and container_plugin_lib_check.stat.exists else 'Missing' if container_plugin_lib_check is defined else 'Not checked' }}
+      {% endif %}
       {% else %}
       - Note: Detailed verification skipped during Packer build (packages installed only)
       {% endif %}
