@@ -11,7 +11,7 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 
 # Script configuration
 SCRIPT_NAME="run-slurm-controller-tests.sh"
-TEST_SUITE_NAME="SLURM Controller Test Suite (Tasks 010-011)"
+TEST_SUITE_NAME="SLURM Controller Test Suite (Tasks 010-012)"
 
 # Get script directory and test suite directory
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
@@ -26,6 +26,7 @@ TEST_SCRIPTS=(
     "check-slurm-installation.sh"      # Task 010: Verify package installation and dependencies
     "check-slurm-functionality.sh"     # Task 010: Test basic SLURM functionality and configuration
     "check-pmix-integration.sh"        # Task 011: Validate PMIx integration and configuration
+    "check-munge-authentication.sh"    # Task 012: Validate MUNGE authentication system
 )
 
 # Colors for output
@@ -39,7 +40,7 @@ NC='\033[0m'
 TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
-PARTIAL_TESTS=0
+# TODO: Add support for tracking partial test results if/when partial test states are implemented
 FAILED_SCRIPTS=()
 
 # Logging functions with LOG_DIR compliance
@@ -104,17 +105,20 @@ run_test_script() {
     export TEST_SUITE_DIR="$TEST_SUITE_DIR"
 
     # Execute test script and capture result
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
 
     if "$script_path"; then
-        local end_time=$(date +%s)
+        local end_time
+        end_time=$(date +%s)
         local duration=$((end_time - start_time))
 
         log_info "✓ Test script passed: $script_name (${duration}s)"
         PASSED_TESTS=$((PASSED_TESTS + 1))
         return 0
     else
-        local end_time=$(date +%s)
+        local end_time
+        end_time=$(date +%s)
         local duration=$((end_time - start_time))
 
         log_error "✗ Test script failed: $script_name (${duration}s)"
@@ -169,12 +173,14 @@ show_environment_info() {
 
     # Show system info
     if command -v lsb_release >/dev/null 2>&1; then
-        local os_info=$(lsb_release -d | cut -f2-)
+        local os_info
+        os_info=$(lsb_release -d | cut -f2-)
         log_info "- Operating System: $os_info"
     fi
 
     if [ -f /proc/version ]; then
-        local kernel_info=$(cat /proc/version | cut -d' ' -f1-3)
+        local kernel_info
+        kernel_info=$(cut -d' ' -f1-3 /proc/version)
         log_info "- Kernel: $kernel_info"
     fi
 }
@@ -240,7 +246,8 @@ generate_test_report() {
 
 # Main execution function
 main() {
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
 
     echo ""
     echo -e "${BLUE}=====================================${NC}"
@@ -269,7 +276,8 @@ main() {
     cleanup_test_environment
 
     # Generate final report
-    local end_time=$(date +%s)
+    local end_time
+    end_time=$(date +%s)
     local total_duration=$((end_time - start_time))
 
     generate_test_report

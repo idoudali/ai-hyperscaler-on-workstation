@@ -147,11 +147,11 @@
       - GRES types: {{ gres_types | default('gpu') }}
       - Select type: {{ select_type | default('select/cons_tres') }}
       {% if not (packer_build | default(false)) %}
-      - Configuration validation: {{ 'PASSED' if slurm_config_validation.rc == 0 else 'FAILED' }}
+      - Configuration validation: {{ 'PASSED' if (slurm_config_validation is defined and slurm_config_validation.rc == 0) else 'FAILED' }}
       - PMIx libraries found: {{ pmix_libraries_found.files | length if pmix_libraries_found is defined else 'Not checked' }}
       - PMIx libraries paths: {{ pmix_library_paths.results | selectattr('stat.exists') | list | length > 0 }}
       - Available MPI types: {{ slurm_mpi_list.stdout_lines if slurm_mpi_list is defined else 'Not checked' }}
-      - PMIx version: {{ pmix_version_check.stdout if pmix_version_check is defined and pmix_version_check.rc == 0 else 'Not available' }}
+      - PMIx version: {{ pmix_version_check.stdout if (pmix_version_check is defined and pmix_version_check.rc == 0) else 'Not available' }}
       - MPI ports configuration: {{ mpi_ports_check.stdout if mpi_ports_check is defined else 'Not checked' }}
       - PMIx config validation: {{ 'PASSED' if pmix_config_check is defined and pmix_config_check.results | selectattr('rc', 'equalto', 0) | list | length > 0 else 'FAILED' if pmix_config_check is defined else 'Not checked' }}
       {% else %}

@@ -17,6 +17,13 @@
     - slurm-controller
     - configure
 
+- name: Include MUNGE authentication setup tasks
+  include_tasks: munge.yml
+  tags:
+    - slurm
+    - slurm-controller
+    - munge
+    - auth
+
 # Future tasks will be added here:
-# - include_tasks: munge.yml
 # - include_tasks: accounting.yml

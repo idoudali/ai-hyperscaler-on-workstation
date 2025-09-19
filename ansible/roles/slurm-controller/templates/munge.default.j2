@@ -1,0 +1,53 @@
+# MUNGE daemon configuration
+# {{ ansible_managed }}
+#
+# This file contains default configuration for the MUNGE authentication daemon
+# Used by SLURM for secure authentication across cluster nodes
+
+# MUNGE daemon options
+OPTIONS="--force"
+
+# Key file location
+MUNGE_KEYFILE="{{ munge_key_path }}"
+
+# Socket location
+MUNGE_SOCKET="{{ munge_socket_path | default('/var/run/munge/munge.socket.2') }}"
+
+# Log file location
+MUNGE_LOGFILE="{{ munge_log_file | default('/var/log/munge/munged.log') }}"
+
+# PID file location
+MUNGE_PIDFILE="{{ munge_pid_file | default('/var/run/munge/munged.pid') }}"
+
+# MUNGE user and group
+MUNGE_USER="{{ munge_user | default('munge') }}"
+MUNGE_GROUP="{{ munge_group | default('munge') }}"
+
+# Network configuration
+{% if munge_bind_address is defined %}
+MUNGE_BIND_ADDR="{{ munge_bind_address }}"
+{% endif %}
+
+{% if munge_port is defined %}
+MUNGE_PORT="{{ munge_port }}"
+{% endif %}
+
+# Security settings
+{% if munge_cipher is defined %}
+MUNGE_CIPHER="{{ munge_cipher }}"
+{% endif %}
+
+{% if munge_mac is defined %}
+MUNGE_MAC="{{ munge_mac }}"
+{% endif %}
+
+# Logging level (0=none, 1=fatal, 2=error, 3=warning, 4=info, 5=debug)
+MUNGE_LOG_LEVEL="{{ munge_log_level | default('3') }}"
+
+# TTL for credentials in seconds
+MUNGE_TTL="{{ munge_credential_ttl | default('300') }}"
+
+# Additional daemon options
+{% if munge_additional_options is defined %}
+ADDITIONAL_OPTIONS="{{ munge_additional_options }}"
+{% endif %}

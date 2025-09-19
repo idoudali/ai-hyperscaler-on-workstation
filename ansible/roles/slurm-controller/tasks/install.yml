@@ -58,7 +58,7 @@
       - Packages installed: {{ slurm_controller_packages }}
       - Build mode: {{ 'Packer' if packer_build | default(false) else 'Live deployment' }}
       {% if not (packer_build | default(false)) %}
-      - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if slurm_version_check is defined and slurm_version_check.results[0].rc == 0 else 'Version check failed' }}
+      - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if (slurm_version_check is defined and slurm_version_check.results[0].rc == 0) else 'Version check failed' }}
       - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
       - MariaDB service: {{ 'Running' if mariadb_service_check is defined and mariadb_service_check.state == 'started' else 'Installed' if install_database | default(true) else 'Not installed' }}
       - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}

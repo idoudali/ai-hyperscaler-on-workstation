@@ -72,7 +72,7 @@
 
 - name: Display user namespace support status
   debug:
-    msg: "User namespace support: {{ 'Available' if userns_test.rc == 0 else 'Not available or restricted' }}"
+    msg: "User namespace support: {{ 'Available' if (userns_test is defined and userns_test.rc == 0) else 'Not available or restricted' }}"
   when: container_runtime_enable_user_namespaces | bool
   tags: [container-runtime, security, validation]
 

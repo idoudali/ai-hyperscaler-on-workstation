@@ -8,7 +8,6 @@ slurm_version: "21.08"
 
 # Controller configuration
 slurm_controller_name: "controller"
-slurm_controller_port: 6817
 
 # Database configuration
 slurm_database_host: "localhost"
@@ -18,6 +17,18 @@ slurm_database_user: "slurm"
 
 # MUNGE configuration
 munge_key_path: "/etc/munge/munge.key"
+munge_socket_path: "/var/run/munge/munge.socket.2"
+munge_log_file: "/var/log/munge/munged.log"
+munge_pid_file: "/var/run/munge/munged.pid"
+munge_user: "munge"
+munge_group: "munge"
+munge_log_level: "3"
+munge_credential_ttl: "300"
+munge_port: 6818
+munge_force_regenerate_key: false
+munge_store_key_for_distribution: false
+munge_create_key_backup: false
+munge_key_backup_dir: "/opt/slurm/backup"
 
 # PMIx configuration
 pmix_enabled: true
@@ -150,6 +161,7 @@ slurm_controller_packages:
   - slurmdbd               # Database daemon for accounting
   - slurm-client           # Client tools
   - munge                  # Authentication daemon
+  - libmunge2              # MUNGE runtime library
   - libmunge-dev           # Development libraries
   - mariadb-server         # Database backend
   - libmariadb-dev         # Database client libraries
