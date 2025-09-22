@@ -37,6 +37,7 @@ def configure_logging(
     log_file: Union[Path, None] = None,
     console_output: bool = True,
     include_timestamps: bool = True,
+    silent: bool = False,
 ) -> None:
     """Configure logging for the application.
 
@@ -45,6 +46,7 @@ def configure_logging(
         log_file: Optional file to write logs to
         console_output: Whether to output logs to console
         include_timestamps: Whether to include timestamps in log format
+        silent: Whether to suppress the configuration log message
     """
     # Convert level string to logging constant
     numeric_level = getattr(logging, level.upper(), logging.INFO)
@@ -93,9 +95,10 @@ def configure_logging(
     # Set specific logger levels
     logging.getLogger("ai_how").setLevel(numeric_level)
 
-    # Log the configuration
-    logger = logging.getLogger(__name__)
-    logger.info(f"Logging configured: level={level}, console={console_output}, file={log_file}")
+    # Log the configuration (unless silent)
+    if not silent:
+        logger = logging.getLogger(__name__)
+        logger.info(f"Logging configured: level={level}, console={console_output}, file={log_file}")
 
 
 class SubprocessResult:

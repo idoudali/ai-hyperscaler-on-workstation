@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.resources
+import json
 import logging
 import sys
 from pathlib import Path
@@ -71,16 +72,30 @@ def main(
     if actual_log_level == "DEBUG" and log_file is None:
         actual_log_file = Path("output/ai-how.log")
 
+    # Check if this is a JSON output command by examining sys.argv
+    is_json_output = False
+    import sys
+
+    if (
+        len(sys.argv) >= 3
+        and "plan" in sys.argv
+        and "clusters" in sys.argv
+        and ("--format json" in " ".join(sys.argv) or "-f json" in " ".join(sys.argv))
+    ):
+        is_json_output = True
+
     configure_logging(
         level=actual_log_level,
         log_file=actual_log_file,
-        console_output=True,
+        console_output=not is_json_output,  # Disable console output for JSON commands
         include_timestamps=(actual_log_level == "DEBUG"),
+        silent=is_json_output,  # Silent for JSON output
     )
 
     # Get logger for this module
     logger = logging.getLogger(__name__)
-    logger.debug(f"CLI initialized with state={state}, log_level={actual_log_level}")
+    if not is_json_output:
+        logger.debug(f"CLI initialized with state={state}, log_level={actual_log_level}")
 
     ctx.obj = {
         "state": state,
@@ -430,6 +445,88 @@ def plan_show(ctx: typer.Context) -> None:  # noqa: ARG001
     abort_not_implemented("plan show")
 
 
+@plan_app.command("clusters")
+def plan_clusters(
+    ctx: typer.Context,  # noqa: ARG001
+    config: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to cluster.yaml configuration file",
+        ),
+    ] = DEFAULT_CONFIG,
+    output_format: Annotated[
+        str,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: text, json, or markdown",
+        ),
+    ] = "text",
+) -> None:
+    """Show planned clusters and VMs from configuration file.
+
+    This command parses the cluster configuration and displays:
+    - All clusters (HPC and Cloud) that will be created
+    - All VMs within each cluster with their specifications
+    - Network configuration and resource allocation
+
+    Output formats:
+    - text: Human-readable formatted output (default)
+    - json: Machine-readable JSON output
+    - markdown: Markdown table format
+    """
+    # Get logger for this module
+    logger = logging.getLogger(__name__)
+
+    # Log info for non-JSON output
+    if output_format.lower() != "json":
+        logger.info(f"Planning clusters from config: {config}, format: {output_format}")
+
+    try:
+        # Load configuration
+        with open(config, encoding="utf-8") as f:
+            config_data = yaml.safe_load(f)
+
+        # Parse cluster configuration
+        planned_data = _parse_cluster_config(config_data)
+
+        # Output based on format
+        if output_format.lower() == "json":
+            _output_json(planned_data)
+        elif output_format.lower() == "markdown":
+            _output_markdown(planned_data)
+        else:  # text format (default)
+            _output_text(planned_data)
+
+    except FileNotFoundError:
+        if output_format.lower() != "json":
+            logger.error(f"Configuration file not found: {config}")
+            console.print(f"[red]Error:[/red] Configuration file not found: {config}")
+        else:
+            # For JSON output, print error to stderr
+            print(f'{{"error": "Configuration file not found: {config}"}}', file=sys.stderr)
+        raise typer.Exit(code=1) from None
+    except yaml.YAMLError as e:
+        if output_format.lower() != "json":
+            logger.error(f"Invalid YAML in config file: {e}")
+            console.print(f"[red]Error:[/red] Invalid YAML in config file: {e}")
+        else:
+            # For JSON output, print error to stderr
+            print(f'{{"error": "Invalid YAML in config file: {e}"}}', file=sys.stderr)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        if output_format.lower() != "json":
+            logger.error(f"Unexpected error: {e}")
+            console.print(f"[red]Unexpected error:[/red] {e}")
+        else:
+            # For JSON output, print error to stderr
+            print(f'{{"error": "Unexpected error: {e}"}}', file=sys.stderr)
+        raise typer.Exit(code=1) from e
+
+
 inventory = typer.Typer(help="Host and device inventory")
 app.add_typer(inventory, name="inventory")
 
@@ -667,6 +764,264 @@ def _display_pcie_validation_summary(
     system_table.add_row("KVM", kvm_status)
 
     console.print(system_table)
+
+
+def _parse_cluster_config(config_data: dict) -> dict:
+    """Parse cluster configuration and extract planned VMs and clusters.
+
+    Args:
+        config_data: Loaded YAML configuration data
+
+    Returns:
+        Dictionary containing parsed cluster and VM information
+    """
+    planned_data = {"metadata": config_data.get("metadata", {}), "clusters": {}}
+
+    clusters_config = config_data.get("clusters", {})
+
+    # Parse HPC cluster
+    if "hpc" in clusters_config:
+        hpc_config = clusters_config["hpc"]
+        planned_data["clusters"]["hpc"] = _parse_hpc_cluster(hpc_config)
+
+    # Parse Cloud cluster
+    if "cloud" in clusters_config:
+        cloud_config = clusters_config["cloud"]
+        planned_data["clusters"]["cloud"] = _parse_cloud_cluster(cloud_config)
+
+    return planned_data
+
+
+def _parse_hpc_cluster(hpc_config: dict) -> dict:
+    """Parse HPC cluster configuration.
+
+    Args:
+        hpc_config: HPC cluster configuration section
+
+    Returns:
+        Dictionary containing HPC cluster information
+    """
+    cluster_info = {
+        "name": hpc_config.get("name", "unknown"),
+        "type": "hpc",
+        "network": hpc_config.get("network", {}),
+        "base_image": hpc_config.get("base_image_path", "unknown"),
+        "vms": [],
+    }
+
+    # Add controller VM
+    controller_config = hpc_config.get("controller", {})
+    if controller_config:
+        controller_vm = {
+            "name": f"{cluster_info['name']}-controller",
+            "type": "controller",
+            "cpu_cores": controller_config.get("cpu_cores", 0),
+            "memory_gb": controller_config.get("memory_gb", 0),
+            "disk_gb": controller_config.get("disk_gb", 0),
+            "ip_address": controller_config.get("ip_address", "dhcp"),
+            "base_image": controller_config.get("base_image_path", cluster_info["base_image"]),
+            "gpu_assigned": None,
+            "pcie_passthrough": controller_config.get("pcie_passthrough", {}),
+        }
+        cluster_info["vms"].append(controller_vm)
+
+    # Add compute nodes
+    compute_nodes = hpc_config.get("compute_nodes", [])
+    for i, node_config in enumerate(compute_nodes):
+        compute_vm = {
+            "name": f"{cluster_info['name']}-compute-{i + 1:02d}",
+            "type": "compute",
+            "cpu_cores": node_config.get("cpu_cores", 0),
+            "memory_gb": node_config.get("memory_gb", 0),
+            "disk_gb": node_config.get("disk_gb", 0),
+            "ip_address": node_config.get("ip", "dhcp"),
+            "base_image": node_config.get("base_image_path", cluster_info["base_image"]),
+            "gpu_assigned": _extract_gpu_info(node_config.get("pcie_passthrough", {})),
+            "pcie_passthrough": node_config.get("pcie_passthrough", {}),
+        }
+        cluster_info["vms"].append(compute_vm)
+
+    return cluster_info
+
+
+def _parse_cloud_cluster(cloud_config: dict) -> dict:
+    """Parse Cloud cluster configuration.
+
+    Args:
+        cloud_config: Cloud cluster configuration section
+
+    Returns:
+        Dictionary containing Cloud cluster information
+    """
+    cluster_info = {
+        "name": cloud_config.get("name", "unknown"),
+        "type": "cloud",
+        "network": cloud_config.get("network", {}),
+        "base_image": cloud_config.get("base_image_path", "unknown"),
+        "vms": [],
+    }
+
+    # Add control plane VM
+    control_plane_config = cloud_config.get("control_plane", {})
+    if control_plane_config:
+        control_plane_vm = {
+            "name": f"{cluster_info['name']}-control-plane",
+            "type": "control_plane",
+            "cpu_cores": control_plane_config.get("cpu_cores", 0),
+            "memory_gb": control_plane_config.get("memory_gb", 0),
+            "disk_gb": control_plane_config.get("disk_gb", 0),
+            "ip_address": control_plane_config.get("ip_address", "dhcp"),
+            "base_image": control_plane_config.get("base_image_path", cluster_info["base_image"]),
+            "gpu_assigned": None,
+            "pcie_passthrough": control_plane_config.get("pcie_passthrough", {}),
+        }
+        cluster_info["vms"].append(control_plane_vm)
+
+    # Add worker nodes
+    worker_nodes = cloud_config.get("worker_nodes", {})
+    for worker_type, nodes in worker_nodes.items():
+        for i, node_config in enumerate(nodes):
+            worker_vm = {
+                "name": f"{cluster_info['name']}-{worker_type}-{i + 1:02d}",
+                "type": f"worker_{worker_type}",
+                "cpu_cores": node_config.get("cpu_cores", 0),
+                "memory_gb": node_config.get("memory_gb", 0),
+                "disk_gb": node_config.get("disk_gb", 0),
+                "ip_address": node_config.get("ip", "dhcp"),
+                "base_image": node_config.get("base_image_path", cluster_info["base_image"]),
+                "gpu_assigned": _extract_gpu_info(node_config.get("pcie_passthrough", {})),
+                "pcie_passthrough": node_config.get("pcie_passthrough", {}),
+            }
+            cluster_info["vms"].append(worker_vm)
+
+    return cluster_info
+
+
+def _extract_gpu_info(pcie_config: dict) -> str | None:
+    """Extract GPU information from PCIe passthrough configuration.
+
+    Args:
+        pcie_config: PCIe passthrough configuration
+
+    Returns:
+        GPU device information string or None
+    """
+    if not pcie_config.get("enabled", False):
+        return None
+
+    devices = pcie_config.get("devices", [])
+    gpu_devices = [d for d in devices if d.get("device_type") == "gpu"]
+
+    if not gpu_devices:
+        return None
+
+    # Return the first GPU device info
+    gpu = gpu_devices[0]
+    pci_addr = gpu.get("pci_address", "unknown")
+    vendor_id = gpu.get("vendor_id", "unknown")
+    device_id = gpu.get("device_id", "unknown")
+    return f"{pci_addr} ({vendor_id}:{device_id})"
+
+
+def _output_text(planned_data: dict) -> None:
+    """Output planned data in human-readable text format.
+
+    Args:
+        planned_data: Parsed cluster configuration data
+    """
+    console.print("\n[bold blue]Cluster Planning Report[/bold blue]")
+    console.print(f"Configuration: {planned_data['metadata'].get('name', 'Unknown')}")
+    console.print(f"Description: {planned_data['metadata'].get('description', 'No description')}")
+
+    total_clusters = len(planned_data["clusters"])
+    total_vms = sum(len(cluster["vms"]) for cluster in planned_data["clusters"].values())
+
+    console.print(f"\n[bold]Summary:[/bold] {total_clusters} cluster(s), {total_vms} VM(s)")
+
+    for cluster_name, cluster_info in planned_data["clusters"].items():
+        console.print(
+            f"\n[bold cyan]Cluster: {cluster_info['name']} ({cluster_name.upper()})[/bold cyan]"
+        )
+        console.print(f"  Type: {cluster_info['type'].upper()}")
+        subnet = cluster_info["network"].get("subnet", "unknown")
+        bridge = cluster_info["network"].get("bridge", "unknown")
+        console.print(f"  Network: {subnet} ({bridge})")
+        console.print(f"  Base Image: {cluster_info['base_image']}")
+        console.print(f"  VMs: {len(cluster_info['vms'])}")
+
+        # Create VM table
+        vm_table = Table(title=f"{cluster_info['name']} VMs")
+        vm_table.add_column("Name", style="cyan")
+        vm_table.add_column("Type", style="white")
+        vm_table.add_column("CPU", style="white")
+        vm_table.add_column("Memory (GB)", style="white")
+        vm_table.add_column("Disk (GB)", style="white")
+        vm_table.add_column("IP Address", style="white")
+        vm_table.add_column("GPU", style="white")
+
+        for vm in cluster_info["vms"]:
+            gpu_display = (
+                f"[green]{vm['gpu_assigned']}[/green]" if vm["gpu_assigned"] else "[dim]None[/dim]"
+            )
+            vm_table.add_row(
+                vm["name"],
+                vm["type"],
+                str(vm["cpu_cores"]),
+                str(vm["memory_gb"]),
+                str(vm["disk_gb"]),
+                vm["ip_address"],
+                gpu_display,
+            )
+
+        console.print(vm_table)
+
+
+def _output_json(planned_data: dict) -> None:
+    """Output planned data in JSON format.
+
+    Args:
+        planned_data: Parsed cluster configuration data
+    """
+    print(json.dumps(planned_data, indent=2))
+
+
+def _output_markdown(planned_data: dict) -> None:
+    """Output planned data in markdown table format.
+
+    Args:
+        planned_data: Parsed cluster configuration data
+    """
+    print("# Cluster Planning Report")
+    print(f"**Configuration:** {planned_data['metadata'].get('name', 'Unknown')}")
+    print(f"**Description:** {planned_data['metadata'].get('description', 'No description')}")
+
+    total_clusters = len(planned_data["clusters"])
+    total_vms = sum(len(cluster["vms"]) for cluster in planned_data["clusters"].values())
+    print(f"\n**Summary:** {total_clusters} cluster(s), {total_vms} VM(s)\n")
+
+    for cluster_name, cluster_info in planned_data["clusters"].items():
+        print(f"## {cluster_info['name']} ({cluster_name.upper()})")
+        print(f"- **Type:** {cluster_info['type'].upper()}")
+        subnet = cluster_info["network"].get("subnet", "unknown")
+        bridge = cluster_info["network"].get("bridge", "unknown")
+        print(f"- **Network:** {subnet} ({bridge})")
+        print(f"- **Base Image:** {cluster_info['base_image']}")
+        print(f"- **VMs:** {len(cluster_info['vms'])}")
+        print()
+
+        # Create markdown table
+        print("| Name | Type | CPU | Memory (GB) | Disk (GB) | IP Address | GPU |")
+        print("|------|------|-----|-------------|-----------|------------|-----|")
+
+        for vm in cluster_info["vms"]:
+            gpu_display = vm["gpu_assigned"] if vm["gpu_assigned"] else "None"
+            print(
+                f"| {vm['name']} | {vm['type']} | {vm['cpu_cores']} | "
+                f"{vm['memory_gb']} | {vm['disk_gb']} | {vm['ip_address']} | "
+                f"{gpu_display} |"
+            )
+
+        print()
 
 
 if __name__ == "__main__":
