@@ -285,7 +285,7 @@ test_munge_key_validation() {
         log_info "Attempting to generate MUNGE key..."
 
         # Try to generate MUNGE key
-        if sudo mungekey --create --force 2>/dev/null; then
+        if sudo mungekey --create 2>/dev/null; then
             log_success "MUNGE key generated successfully"
             # Restart MUNGE service to use new key
             if sudo systemctl restart munge 2>/dev/null; then

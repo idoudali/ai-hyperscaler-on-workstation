@@ -99,7 +99,6 @@ start_cluster() {
 destroy_cluster() {
     local test_config="$1"
     local cluster_name="${2:-$(basename "${test_config%.yaml}")}"
-    local force_flag="${3:-}"
 
     [[ -z "$test_config" ]] && {
         log_error "destroy_cluster: test_config parameter required"
@@ -123,10 +122,14 @@ destroy_cluster() {
     local destroy_log="${LOG_DIR:-./logs}/cluster-destroy-${cluster_name}.log"
     mkdir -p "$(dirname "$destroy_log")"
 
-    # Build destroy command
+    # Build destroy command - use --force by default for automated testing
+    # Can be overridden by setting AI_HOW_DESTROY_FORCE=false for manual runs
     local cmd="uv run ai-how hpc destroy $resolved_config"
-    if [[ -n "$force_flag" ]]; then
+    if [[ "${AI_HOW_DESTROY_FORCE:-true}" == "true" ]]; then
         cmd+=" --force"
+        log "Using --force flag for automated testing (set AI_HOW_DESTROY_FORCE=false to disable)"
+    else
+        log "Interactive mode: user confirmation may be required"
     fi
 
     # Destroy the cluster
@@ -223,14 +226,17 @@ show_cleanup_instructions() {
     echo "To properly clean up the existing cluster, use the ai-how tool:"
     echo ""
     echo "  cd $PROJECT_ROOT"
-    echo "  uv run ai-how destroy $resolved_config"
+    echo "  uv run ai-how hpc destroy $resolved_config --force"
     echo ""
     echo "Alternative cleanup methods:"
     echo ""
-    echo "1. Force destroy with ai-how:"
-    echo "   uv run ai-how destroy $resolved_config --force"
+    echo "1. Force destroy with ai-how (recommended for automated testing):"
+    echo "   uv run ai-how hpc destroy $resolved_config --force"
     echo ""
-    echo "2. Manual VM cleanup using virsh:"
+    echo "2. Interactive destroy (requires user confirmation):"
+    echo "   AI_HOW_DESTROY_FORCE=false uv run ai-how hpc destroy $resolved_config"
+    echo ""
+    echo "3. Manual VM cleanup using virsh:"
     echo "   # Stop the VM"
     echo "   virsh destroy $vm_name"
     echo "   # Remove VM definition"
@@ -369,8 +375,8 @@ get_cluster_plan_data() {
         return 1
     fi
 
-    # Extract JSON by finding the first { and last }
-    plan_output=$(echo "$raw_output" | sed -n '/^{/,/^}/p')
+    # Extract JSON robustly: find the first valid JSON object in the output
+    plan_output=$(echo "$raw_output" | jq -s 'map(try fromjson? // empty) | .[0]' 2>/dev/null)
 
     # Parse JSON and extract cluster data
     local cluster_data
@@ -446,7 +452,7 @@ cleanup_cluster_on_exit() {
 
     if [[ "${CLEANUP_REQUIRED:-false}" == "true" ]]; then
         log "Attempting to tear down test cluster..."
-        if ! destroy_cluster "$test_config" "" "force"; then
+        if ! destroy_cluster "$test_config" ""; then
             log_warning "Automated cleanup failed. You may need to manually clean up VMs."
             if [[ "${INTERACTIVE_CLEANUP:-false}" == "true" ]]; then
                 ask_manual_cleanup "$test_config"
@@ -488,9 +494,9 @@ manual_cluster_cleanup() {
         resolved_config="$test_config"  # Fallback to original if resolution fails
     fi
 
-    # Try to destroy cluster using ai-how
+    # Try to destroy cluster using ai-how with force flag
     cd "$PROJECT_ROOT" || return 1
-    if uv run ai-how destroy "$resolved_config" --force 2>/dev/null; then
+    if uv run ai-how hpc destroy "$resolved_config" --force 2>/dev/null; then
         log_success "Manual cleanup completed"
     else
         log_warning "Manual cleanup with ai-how failed"

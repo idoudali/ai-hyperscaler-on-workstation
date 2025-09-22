@@ -72,16 +72,12 @@ def main(
     if actual_log_level == "DEBUG" and log_file is None:
         actual_log_file = Path("output/ai-how.log")
 
-    # Check if this is a JSON output command by examining sys.argv
+    # Check if this is a JSON output command by examining Typer context
     is_json_output = False
-    import sys
-
-    if (
-        len(sys.argv) >= 3
-        and "plan" in sys.argv
-        and "clusters" in sys.argv
-        and ("--format json" in " ".join(sys.argv) or "-f json" in " ".join(sys.argv))
-    ):
+    # Try to detect if the current command is 'plan clusters' and --format/-f is 'json'
+    command_path = ctx.command_path if hasattr(ctx, "command_path") else ""
+    params = ctx.params if hasattr(ctx, "params") else {}
+    if "plan clusters" in command_path and params.get("format", None) == "json":
         is_json_output = True
 
     configure_logging(

@@ -4,6 +4,10 @@
 # Main integration script that provides a common interface for Task 004-based test framework
 # This script orchestrates the complete test workflow using shared utilities
 #
+# Environment Variables:
+#   AI_HOW_DESTROY_FORCE: Set to "false" to disable --force flag for interactive destroy operations
+#                         Default: "true" (automated testing mode)
+#
 
 set -euo pipefail
 
@@ -70,10 +74,13 @@ run_test_framework() {
     log "Log Directory: $LOG_DIR"
     echo
 
-    # Setup cleanup handler
-    # Export test_config so it's available to the trap
-    export test_config
-    trap 'cleanup_test_framework "$test_config"' EXIT INT TERM
+    # Setup cleanup handler with structured approach
+    # Create a cleanup function that captures the current test_config
+    cleanup_handler() {
+        # shellcheck disable=SC2317  # This function is called by trap, not directly
+        cleanup_test_framework "$test_config" "$test_scripts_dir" "$target_vm_pattern" "$master_test_script"
+    }
+    trap cleanup_handler EXIT INT TERM
 
     # Step 1: Prerequisites
     if ! check_test_prerequisites "$test_config" "$test_scripts_dir"; then
@@ -159,7 +166,7 @@ run_test_framework() {
     fi
 
     # Step 7: Cleanup
-    if ! destroy_cluster "$test_config" "$cluster_name" "force"; then
+    if ! destroy_cluster "$test_config" "$cluster_name"; then
         log_error "Failed to tear down cluster cleanly"
         INTERACTIVE_CLEANUP=true
         export INTERACTIVE_CLEANUP
@@ -233,6 +240,9 @@ check_test_prerequisites() {
 
 cleanup_test_framework() {
     local test_config="$1"
+    local test_scripts_dir="$2"
+    local target_vm_pattern="$3"
+    local master_test_script="$4"
     local exit_code=$?
 
     log "Cleaning up test framework on exit (code: $exit_code)..."
@@ -242,7 +252,7 @@ cleanup_test_framework() {
         log "Attempting to tear down test cluster..."
         local cluster_name
         cluster_name=$(basename "${test_config%.yaml}")
-        if ! destroy_cluster "$test_config" "$cluster_name" "force"; then
+        if ! destroy_cluster "$test_config" "$cluster_name"; then
             log_warning "Automated cleanup failed. You may need to manually clean up VMs."
             if [[ "${INTERACTIVE_CLEANUP:-false}" == "true" ]]; then
                 ask_manual_cleanup "$test_config"

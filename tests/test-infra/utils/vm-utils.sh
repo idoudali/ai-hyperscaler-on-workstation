@@ -96,13 +96,13 @@ get_vm_ips_for_cluster() {
         vm_type=$(echo "$vm_spec" | jq -r '.type' 2>/dev/null)
 
         # Check if this VM is running
-        if ! echo "$all_running_vms" | grep -q "^${vm_name}$"; then
+        if ! echo "$all_running_vms" | grep -F -q "^${vm_name}$"; then
             log_warning "Expected VM $vm_name is not running, skipping"
             continue
         fi
 
         # If target_vm_name is specified, filter to that specific VM
-        if [[ -n "$target_vm_name" ]] && [[ "$vm_name" != *"$target_vm_name"* ]]; then
+        if [[ -n "$target_vm_name" ]] && [[ "$vm_name" != "$target_vm_name" ]]; then
             continue
         fi
 
