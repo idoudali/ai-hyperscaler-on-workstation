@@ -1,0 +1,36 @@
+[Unit]
+Description=SLURM Database Daemon
+Documentation=man:slurmdbd(8)
+After=network.target munge.service
+Wants=munge.service
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/slurm/slurmdbd.conf
+ExecStart=/usr/sbin/slurmdbd -D
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+User={{ slurm_user | default('slurm') }}
+Group={{ slurm_user | default('slurm') }}
+PIDFile=/var/run/slurmdbd.pid
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/slurm
+ReadWritePaths=/var/lib/slurm
+ReadWritePaths=/var/run
+ReadWritePaths=/tmp
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+[Install]
+WantedBy=multi-user.target

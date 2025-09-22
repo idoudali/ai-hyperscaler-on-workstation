@@ -1,0 +1,136 @@
+# Test Configuration for SLURM Job Accounting
+# Task 017: Configure SLURM Job Accounting
+# This configuration tests SLURM job accounting functionality with database integration
+
+clusters:
+  hpc:
+    name: "test-slurm-accounting"
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    # Controller configuration
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 30
+      node_type: "controller"
+
+      # Enable accounting features
+      enable_accounting: true
+      enable_database: true
+
+      # Database configuration
+      database:
+        host: "localhost"
+        port: 3306
+        name: "slurm_acct_db"
+        user: "slurm"
+        password: "slurm"
+
+      # SLURM accounting configuration
+      slurm_accounting:
+        storage_type: "accounting_storage/slurmdbd"
+        storage_host: "localhost"
+        storage_port: 6819
+        job_acct_gather_type: "jobacct_gather/linux"
+        job_acct_gather_params: "UsePss,NoOverMemoryKill"
+        job_acct_gather_frequency: 30
+
+      # MUNGE authentication (required for accounting)
+      munge:
+        enabled: true
+        key_path: "/etc/munge/munge.key"
+        socket_path: "/var/run/munge/munge.socket.2"
+
+    # Compute nodes configuration
+    compute_nodes:
+      - cpu_cores: 2
+        memory_gb: 4
+        disk_gb: 20
+        node_type: "compute"
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+
+        # Enable accounting on compute nodes
+        enable_accounting: true
+
+        # MUNGE authentication
+        munge:
+          enabled: true
+          key_path: "/etc/munge/munge.key"
+          socket_path: "/var/run/munge/munge.socket.2"
+
+      - cpu_cores: 2
+        memory_gb: 4
+        disk_gb: 20
+        node_type: "compute"
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+
+        # Enable accounting on compute nodes
+        enable_accounting: true
+
+        # MUNGE authentication
+        munge:
+          enabled: true
+          key_path: "/etc/munge/munge.key"
+          socket_path: "/var/run/munge/munge.socket.2"
+
+  # Cloud cluster (required by schema)
+  cloud:
+    name: "test-cloud-accounting"
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+
+    # Minimal cloud configuration for testing
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+
+    workers:
+      - cpu_cores: 2
+        memory_gb: 4
+        disk_gb: 20
+
+# Network configuration
+networks:
+  hpc:
+    subnet: "192.168.150.0/24"
+    gateway: "192.168.150.1"
+    dns_servers: ["8.8.8.8", "8.8.4.4"]
+
+  cloud:
+    subnet: "192.168.151.0/24"
+    gateway: "192.168.151.1"
+    dns_servers: ["8.8.8.8", "8.8.4.4"]
+
+# Test-specific configuration
+test_config:
+  # Accounting test settings
+  accounting:
+    test_job_timeout: 300
+    test_job_count: 5
+    test_job_memory: "1G"
+    test_job_cpus: 1
+
+    # Database test settings
+    database:
+      connection_timeout: 30
+      test_query_timeout: 10
+      validate_tables: true
+      check_data_integrity: true
+
+    # Performance test settings
+    performance:
+      sacct_query_timeout: 10
+      max_query_duration: 5.0
+      test_concurrent_queries: 3
+
+  # Logging configuration
+  logging:
+    log_level: "INFO"
+    log_retention_days: 7
+    enable_debug_logs: true
+
+  # Cleanup configuration
+  cleanup:
+    remove_test_jobs: true
+    cleanup_test_data: true
+    preserve_logs: true

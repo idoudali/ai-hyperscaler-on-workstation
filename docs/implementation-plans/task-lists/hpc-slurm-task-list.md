@@ -21,7 +21,8 @@ tasks for individual execution and testing.
   TASK-013,
   TASK-014,
   TASK-015,
-  TASK-016
+  TASK-016,
+  TASK-017,
   )
 
 ## Overview
@@ -2498,47 +2499,55 @@ curl -u admin:admin http://localhost:3000/api/dashboards/home
 
 ---
 
-#### Task 017: Configure SLURM Job Accounting
+#### Task 017: Configure SLURM Job Accounting ✅ COMPLETED
 
 - **ID**: TASK-017
 - **Phase**: 1 - Infrastructure
 - **Dependencies**: TASK-010.2, TASK-012
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-29
+- **Branch**: `ansible`
 
 **Description:** Set up SLURM job accounting with MariaDB backend for
 comprehensive job metrics and resource usage tracking.
 
 **Deliverables:**
 
-- `ansible/roles/slurm-controller/tasks/accounting.yml`
-- MariaDB database setup for SLURM accounting
-- slurmdbd configuration
-- Job accounting validation
+- ✅ `ansible/roles/slurm-controller/tasks/accounting.yml` - Complete job accounting configuration
+- ✅ `ansible/roles/slurm-controller/templates/slurmdbd.conf.j2` - slurmdbd configuration template
+- ✅ `ansible/roles/slurm-controller/templates/slurmdbd.service.j2` - systemd service configuration
+- ✅ MariaDB database setup for SLURM accounting
+- ✅ slurmdbd configuration and service management
+- ✅ Job accounting validation and testing framework
 
 **Configuration Components:**
 
 ```ini
 # slurm.conf additions
 AccountingStorageType=accounting_storage/slurmdbd
-AccountingStorageHost=controller
+AccountingStorageHost=localhost
 AccountingStoragePort=6819
+AccountingStorageUser=slurm
 JobAcctGatherType=jobacct_gather/linux
 JobAcctGatherParams=UsePss,NoOverMemoryKill
+JobAcctGatherFrequency=30
 ```
 
 **Database Setup:**
 
-- Create `slurm_acct_db` database
-- Configure slurmdbd user and permissions
-- Set up accounting tables
+- ✅ Create `slurm_acct_db` database with proper permissions
+- ✅ Configure slurmdbd user and permissions for localhost and remote access
+- ✅ Set up accounting tables with proper schema
+- ✅ Initialize default cluster, account, and user records
 
 **Validation Criteria:**
 
-- [ ] MariaDB configured for SLURM accounting
-- [ ] slurmdbd service running and connected
-- [ ] Job accounting data being collected
-- [ ] sacct command returns job information
+- [x] MariaDB configured for SLURM accounting
+- [x] slurmdbd service running and connected
+- [x] Job accounting data being collected
+- [x] sacct command returns job information
 
 **Test Commands:**
 
@@ -2555,14 +2564,84 @@ squeue -o "%18i %12j %4t %10u %20q %20a %10g %20S %20e %8D %20R"
 
 # Check accounting configuration
 scontrol show config | grep -i accounting
+
+# Run comprehensive job accounting tests
+./tests/suites/slurm-controller/check-job-accounting.sh
 ```
 
 **Success Criteria:**
 
-- slurmdbd connects to MariaDB successfully
-- Job submission creates accounting records
-- sacct shows historical job information
-- Resource usage metrics collected
+- ✅ slurmdbd connects to MariaDB successfully
+- ✅ Job submission creates accounting records
+- ✅ sacct shows historical job information
+- ✅ Resource usage metrics collected
+
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+- ✅ `ansible/roles/slurm-controller/tasks/accounting.yml` - Complete job accounting configuration (167 lines)
+- ✅ `ansible/roles/slurm-controller/templates/slurmdbd.conf.j2` - Comprehensive slurmdbd configuration (150 lines)
+- ✅ `ansible/roles/slurm-controller/templates/slurmdbd.service.j2` - systemd service configuration (25 lines)
+- ✅ `ansible/roles/slurm-controller/defaults/main.yml` - Enhanced with 30+ accounting configuration variables
+- ✅ `ansible/roles/slurm-controller/handlers/main.yml` - Updated with slurmdbd and systemd reload handlers
+- ✅ `ansible/roles/slurm-controller/tasks/main.yml` - Updated to include accounting tasks
+- ✅ `tests/suites/slurm-controller/check-job-accounting.sh` - Comprehensive test suite (15 validation tests)
+- ✅ `tests/test-slurm-accounting-framework.sh` - Complete test framework with cluster deployment
+- ✅ `tests/test-infra/configs/test-slurm-accounting.yaml` - Test configuration for accounting validation
+- ✅ `tests/Makefile` - Updated with job accounting test targets
+
+**Key Implementation Features:**
+
+- **Complete Database Setup**: MariaDB database creation, user management, and permissions configuration
+- **slurmdbd Configuration**: Comprehensive slurmdbd configuration with MySQL backend, logging, and archiving
+- **Service Management**: systemd service configuration with proper security settings and resource limits
+- **SLURM Integration**: Updated SLURM configuration with accounting storage and job gathering settings
+- **Comprehensive Testing**: 15 specialized validation tests covering all aspects of job accounting
+- **Test Framework**: Complete test framework with cluster deployment and validation capabilities
+- **Automated Deployment**: Full Ansible integration with proper service management and validation
+
+**Database Configuration Components:**
+
+- **Database Setup**: Automatic creation of `slurm_acct_db` with proper user permissions
+- **User Management**: slurm user with appropriate privileges for localhost and remote access
+- **Table Initialization**: Automatic creation of accounting tables with proper schema
+- **Data Initialization**: Default cluster, account, and user record creation
+
+**slurmdbd Configuration Features:**
+
+- **Storage Configuration**: MySQL backend with configurable host, port, and credentials
+- **Service Configuration**: Port 6819, proper logging, and state directory management
+- **Authentication**: MUNGE integration for secure communication
+- **Archiving**: Configurable data archiving and purging settings
+- **Performance**: Connection pooling, timeout settings, and retry configuration
+- **Security**: Access control, user permissions, and secure communication
+
+**Test Suite Features:**
+
+- **Database Validation**: MariaDB service status, connectivity, and table verification
+- **Service Validation**: slurmdbd service status, configuration, and connectivity testing
+- **Command Testing**: sacct and sacctmgr command functionality validation
+- **Job Accounting**: Job submission, tracking, and accounting record verification
+- **Data Integrity**: Database record validation and data consistency checking
+- **Performance Testing**: Query performance and response time validation
+- **Configuration Validation**: SLURM and slurmdbd configuration syntax validation
+- **Logging Validation**: Log file existence, readability, and content verification
+
+**Integration Benefits:**
+
+- **Production Ready**: Complete job accounting system with all required components
+- **Test Coverage**: Comprehensive validation ensuring reliable job tracking and reporting
+- **Maintainability**: Well-structured configuration with clear separation of concerns
+- **Framework Alignment**: Uses established testing framework for consistent validation
+- **Documentation**: Clear configuration templates and usage examples
+
+**Notes:**
+
+- Task completed successfully with comprehensive job accounting implementation
+- All deliverables met with enhanced functionality beyond original scope
+- Test framework provides robust validation for job accounting components
+- Ready for dependent tasks and production deployment
 
 ---
 

@@ -28,6 +28,7 @@ TEST_SCRIPTS=(
     "check-pmix-integration.sh"        # Task 011: Validate PMIx integration and configuration
     "check-munge-authentication.sh"    # Task 012: Validate MUNGE authentication system
     "check-container-plugin.sh"        # Task 013: Validate container plugin configuration and integration
+    "check-job-accounting.sh"          # Task 017: Validate job accounting and database integration
 )
 
 # Colors for output

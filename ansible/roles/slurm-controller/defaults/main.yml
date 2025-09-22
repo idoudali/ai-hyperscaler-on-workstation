@@ -14,6 +14,64 @@ slurm_database_host: "localhost"
 slurm_database_port: 3306
 slurm_database_name: "slurm_acct_db"
 slurm_database_user: "slurm"
+slurm_database_password: "slurm"
+
+# SLURM accounting configuration
+slurm_accounting_storage_type: "accounting_storage/slurmdbd"
+slurm_accounting_storage_host: "localhost"
+slurm_accounting_storage_port: 6819
+slurm_accounting_storage_user: "slurm"
+slurm_job_acct_gather_type: "jobacct_gather/linux"
+slurm_job_acct_gather_params: "UsePss,NoOverMemoryKill"
+slurm_job_acct_gather_frequency: 30
+
+# SLURM accounting logging
+slurm_accounting_log_file: "/var/log/slurm/slurmdbd.log"
+slurm_accounting_state_dir: "/var/lib/slurm"
+slurm_accounting_debug_level: 3
+slurm_accounting_debug_flags: "DB_ARCHIVE,DB_AS"
+
+# SLURM accounting archiving
+slurm_accounting_archive_events: "yes"
+slurm_accounting_archive_jobs: "yes"
+slurm_accounting_archive_steps: "yes"
+slurm_accounting_archive_usage: "yes"
+slurm_accounting_purge_event_after: 12
+slurm_accounting_purge_job_after: 12
+slurm_accounting_purge_step_after: 12
+slurm_accounting_purge_usage_after: 12
+
+# SLURM accounting connection settings
+slurm_accounting_connection_timeout: 300
+slurm_accounting_max_db_connections: 0
+slurm_accounting_db_conn_retry_count: 0
+slurm_accounting_db_conn_retry_delay: 0
+slurm_accounting_db_conn_timeout: 0
+
+# SLURM accounting tracking
+slurm_accounting_track_wckey: "yes"
+slurm_accounting_track_resources: "yes"
+slurm_accounting_track_steps: "yes"
+slurm_accounting_track_usage: "yes"
+
+# SLURM accounting access control
+slurm_accounting_allow_users_create_accounts: "no"
+slurm_accounting_allow_users_create_clusters: "no"
+slurm_accounting_allow_users_create_federations: "no"
+slurm_accounting_allow_users_create_qos: "no"
+slurm_accounting_allow_users_create_resources: "no"
+slurm_accounting_allow_users_create_wckeys: "no"
+
+# SLURM accounting monitoring
+slurm_accounting_health_check_interval: 0
+slurm_accounting_health_check_program: ""
+slurm_accounting_health_check_timeout: 0
+
+# SLURM accounting backup
+slurm_accounting_backup_database: "no"
+slurm_accounting_backup_dir: "/var/backup/slurm"
+slurm_accounting_backup_frequency: 0
+slurm_accounting_backup_retention: 0
 
 # MUNGE configuration
 munge_key_path: "/etc/munge/munge.key"
@@ -216,7 +274,10 @@ slurm_controller_packages:
   - libmunge2              # MUNGE runtime library
   - libmunge-dev           # Development libraries
   - mariadb-server         # Database backend
+  - mariadb-client         # MySQL client command line tools
   - libmariadb-dev         # Database client libraries
+  - python3-pymysql        # Python MySQL client for Ansible
+  - python3-mysqldb        # Alternative Python MySQL client
   - libpmix2               # PMIx for MPI integration
   - libpmix-dev            # PMIx development headers
 

@@ -14,6 +14,7 @@ help:
 	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-grafana           - Run Grafana dashboard platform tests"
+	@echo "  test-job-accounting    - Run SLURM job accounting tests"
 	@echo "  test-ansible-roles     - Run Ansible roles validation"
 	@echo "  test-integration       - Run integration tests"
 	@echo "  test-pcie-validation   - Run PCIe validation tests"
@@ -34,10 +35,10 @@ help:
 	@echo ""
 
 # Run core infrastructure tests (fast, essential components)
-test: test-integration test-ansible-roles test-container-runtime test-slurm-controller
+test: test-integration test-ansible-roles test-container-runtime test-slurm-controller test-grafana test-job-accounting
 
 # Run comprehensive test suite including builds and CLI validation
-test-all: test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
+test-all: test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-grafana test-job-accounting test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
 
 # Run base images test
 test-base-images:
@@ -59,9 +60,15 @@ test-monitoring-stack:
 	@echo "Running Prometheus monitoring stack tests..."
 	@./test-monitoring-stack-framework.sh
 
+# Run Grafana dashboard platform tests
 test-grafana:
 	@echo "Running Grafana dashboard platform tests..."
 	@./test-grafana-framework.sh
+
+# Run SLURM job accounting tests
+test-job-accounting:
+	@echo "Running SLURM job accounting tests..."
+	@./test-slurm-accounting-framework.sh
 
 # Run Ansible roles integration tests
 test-ansible-roles:

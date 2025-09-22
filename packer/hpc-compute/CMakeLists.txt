@@ -42,7 +42,7 @@ add_custom_target(generate-packer-vars-hpc-compute
 # Packer variable arguments
 set(PACKER_VARS
     -var "source_directory=${CMAKE_CURRENT_SOURCE_DIR}"
-    -var "repo_tot_dir=${PROJECT_SOURCE_DIR}"
+    -var "repo_tot_dir=${CMAKE_CURRENT_SOURCE_DIR}/../.."
     -var "build_directory=${HPC_OUTPUT_DIR}"
     -var "image_name=${IMAGE_NAME}"
     -var "vm_name=${VM_NAME}"

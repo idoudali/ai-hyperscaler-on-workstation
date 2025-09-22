@@ -42,3 +42,8 @@
     state: restarted
   become: true
   when: not (packer_build | default(false))
+
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+  become: true

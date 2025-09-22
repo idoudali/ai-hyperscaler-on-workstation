@@ -1,0 +1,378 @@
+---
+# SLURM Controller Role - Job Accounting Configuration
+# Task 017: Configure SLURM Job Accounting
+# This file handles MariaDB database setup, slurmdbd configuration, and job accounting
+
+- name: Set up MariaDB database for SLURM accounting
+  block:
+    - name: Start and enable MariaDB service
+      systemd:
+        name: mariadb
+        state: started
+        enabled: true
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Wait for MariaDB to be ready
+      wait_for:
+        port: "{{ slurm_database_port | default(3306) }}"
+        host: "{{ slurm_database_host | default('localhost') }}"
+        delay: 5
+        timeout: 60
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Ensure MySQL socket directory exists
+      file:
+        path: /var/run/mysqld
+        state: directory
+        owner: mysql
+        group: mysql
+        mode: '0755'
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Wait for MySQL socket to be available
+      wait_for:
+        path: /var/run/mysqld/mysqld.sock
+        timeout: 30
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Create SLURM accounting database
+      mysql_db:
+        name: "{{ slurm_database_name | default('slurm_acct_db') }}"
+        state: present
+        login_host: "{{ slurm_database_host | default('localhost') }}"
+        login_port: "{{ slurm_database_port | default(3306) }}"
+        login_user: root
+        login_password: ""
+        login_unix_socket: "/var/run/mysqld/mysqld.sock"
+      register: create_db_result
+      failed_when: false
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Create SLURM accounting database (fallback)
+      shell: |
+        mysql -u root -e "CREATE DATABASE IF NOT EXISTS {{ slurm_database_name | default('slurm_acct_db') }};"
+      when: create_db_result is failed
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Create SLURM database user
+      mysql_user:
+        name: "{{ slurm_database_user | default('slurm') }}"
+        password: "{{ slurm_database_password | default('slurm') }}"
+        priv: "{{ slurm_database_name | default('slurm_acct_db') }}.*:ALL"
+        host: "%"
+        state: present
+        login_host: "{{ slurm_database_host | default('localhost') }}"
+        login_port: "{{ slurm_database_port | default(3306) }}"
+        login_user: root
+        login_password: ""
+        login_unix_socket: "/var/run/mysqld/mysqld.sock"
+      register: create_user_result
+      failed_when: false
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+    - name: Create SLURM database user (fallback)
+      shell: |
+        mysql -u root -e "CREATE USER IF NOT EXISTS '{{ slurm_database_user | default('slurm') }}'@'%' IDENTIFIED BY '{{ slurm_database_password | default('slurm') }}';"
+        mysql -u root -e "GRANT ALL PRIVILEGES ON {{ slurm_database_name | default('slurm_acct_db') }}.* TO '{{ slurm_database_user | default('slurm') }}'@'%';"
+        mysql -u root -e "CREATE USER IF NOT EXISTS '{{ slurm_database_user | default('slurm') }}'@'localhost' IDENTIFIED BY '{{ slurm_database_password | default('slurm') }}';"
+        mysql -u root -e "GRANT ALL PRIVILEGES ON {{ slurm_database_name | default('slurm_acct_db') }}.* TO '{{ slurm_database_user | default('slurm') }}'@'localhost';"
+        mysql -u root -e "FLUSH PRIVILEGES;"
+      when: create_user_result is failed
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
+  when: install_database | default(true)
+  tags:
+    - slurm
+    - slurm-controller
+    - accounting
+    - database
+
+- name: Configure slurmdbd service
+  block:
+    - name: Create slurmdbd configuration directory
+      file:
+        path: /etc/slurm
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Deploy slurmdbd configuration template
+      template:
+        src: slurmdbd.conf.j2
+        dest: /etc/slurm/slurmdbd.conf
+        owner: root
+        group: root
+        mode: '0600'
+        backup: true
+      notify:
+        - restart slurmdbd
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Create slurmdbd log directory
+      file:
+        path: /var/log/slurm
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: '0755'
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Create slurmdbd state directory
+      file:
+        path: /var/lib/slurm
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: '0755'
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Create slurmdbd systemd service file
+      template:
+        src: slurmdbd.service.j2
+        dest: /etc/systemd/system/slurmdbd.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify:
+        - restart slurmdbd
+        - reload systemd
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: true
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Enable slurmdbd service (Packer build mode)
+      systemd:
+        name: slurmdbd
+        state: stopped
+        enabled: true
+      when: packer_build | default(false)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Display Packer build accounting status
+      debug:
+        msg:
+          - "SLURM accounting configured for Packer build mode"
+          - "slurmdbd service: ENABLED (not started during build)"
+          - "Database and configuration files: DEPLOYED"
+          - "Service will start automatically on first boot"
+      when: packer_build | default(false)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Start and enable slurmdbd service (Live deployment mode)
+      systemd:
+        name: slurmdbd
+        state: started
+        enabled: true
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Wait for slurmdbd to be ready
+      wait_for:
+        port: "{{ slurm_accounting_storage_port | default(6819) }}"
+        host: "{{ slurm_accounting_storage_host | default('localhost') }}"
+        delay: 5
+        timeout: 60
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+  when: install_database | default(true)
+  tags:
+    - slurm
+    - slurm-controller
+    - accounting
+    - slurmdbd
+
+- name: Initialize SLURM accounting database
+  block:
+    - name: Wait for slurmdbd to be fully ready
+      pause:
+        seconds: 10
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - init
+
+    - name: Initialize SLURM accounting database
+      command: sacctmgr -i create cluster {{ slurm_cluster_name | default('hpc-cluster') }}
+      become: true
+      become_user: slurm
+      environment:
+        SLURM_CONF: /etc/slurm/slurm.conf
+      register: init_cluster_result
+      failed_when: false
+      changed_when: init_cluster_result.rc == 0
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - init
+
+    - name: Create default account
+      command: sacctmgr -i create account default
+      become: true
+      become_user: slurm
+      environment:
+        SLURM_CONF: /etc/slurm/slurm.conf
+      register: init_account_result
+      failed_when: false
+      changed_when: init_account_result.rc == 0
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - init
+
+    - name: Create default user
+      command: sacctmgr -i create user {{ ansible_user }} account=default
+      become: true
+      become_user: slurm
+      environment:
+        SLURM_CONF: /etc/slurm/slurm.conf
+      register: init_user_result
+      failed_when: false
+      changed_when: init_user_result.rc == 0
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - init
+
+  when: install_database | default(true)
+  tags:
+    - slurm
+    - slurm-controller
+    - accounting
+    - init
+
+- name: Validate SLURM accounting configuration
+  block:
+    - name: Test slurmdbd connection
+      command: sacctmgr show cluster
+      become: true
+      become_user: slurm
+      environment:
+        SLURM_CONF: /etc/slurm/slurm.conf
+      register: test_slurmdbd_result
+      changed_when: false
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - validation
+
+    - name: Test job accounting
+      command: sacct --format=JobID,JobName,Partition,Account,AllocCPUS,State,ExitCode
+      become: true
+      become_user: slurm
+      environment:
+        SLURM_CONF: /etc/slurm/slurm.conf
+      register: test_sacct_result
+      changed_when: false
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - validation
+
+    - name: Display accounting validation results
+      debug:
+        msg:
+          - "SLURM accounting configuration completed successfully"
+          - "slurmdbd connection: {{ 'OK' if test_slurmdbd_result.rc == 0 else 'FAILED' }}"
+          - "sacct command: {{ 'OK' if test_sacct_result.rc == 0 else 'FAILED' }}"
+      when: not (packer_build | default(false))
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - validation
+
+  when: install_database | default(true)
+  tags:
+    - slurm
+    - slurm-controller
+    - accounting
+    - validation

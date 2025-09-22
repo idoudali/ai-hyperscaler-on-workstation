@@ -25,5 +25,10 @@
     - munge
     - auth
 
-# Future tasks will be added here:
-# - include_tasks: accounting.yml
+- name: Include SLURM job accounting configuration tasks
+  include_tasks: accounting.yml
+  tags:
+    - slurm
+    - slurm-controller
+    - accounting
+    - database
