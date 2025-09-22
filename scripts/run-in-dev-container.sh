@@ -133,7 +133,7 @@ if [[ $# -eq 0 ]]; then
         /bin/bash
 else
     # For commands, pass user info via environment variables and use /bin/bash -c to handle compound commands
-    exec docker run -it --rm \
+    exec docker run --rm \
         -v /etc/passwd:/etc/passwd:ro \
         -v /etc/group:/etc/group:ro \
         -v /etc/shadow:/etc/shadow:ro \

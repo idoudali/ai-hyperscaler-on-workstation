@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -12,6 +12,7 @@ help:
 	@echo "  test-base-images       - Run base images build tests"
 	@echo "  test-container-runtime - Run container runtime tests"
 	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
+	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-ansible-roles     - Run Ansible roles validation"
 	@echo "  test-integration       - Run integration tests"
 	@echo "  test-pcie-validation   - Run PCIe validation tests"
@@ -35,7 +36,7 @@ help:
 test: test-integration test-ansible-roles test-container-runtime test-slurm-controller
 
 # Run comprehensive test suite including builds and CLI validation
-test-all: test-base-images test-container-runtime test-slurm-controller test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
+test-all: test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
 
 # Run base images test
 test-base-images:
@@ -51,6 +52,11 @@ test-container-runtime:
 test-slurm-controller:
 	@echo "Running SLURM controller tests..."
 	@./test-slurm-controller-framework.sh
+
+# Run monitoring stack tests (Task 015)
+test-monitoring-stack:
+	@echo "Running Prometheus monitoring stack tests..."
+	@./test-monitoring-stack-framework.sh
 
 # Run Ansible roles integration tests
 test-ansible-roles:
@@ -89,6 +95,7 @@ test-quick:
 	@./test_ansible_roles.sh --integration-only
 	@./test-container-runtime-framework.sh --quick
 	@./test_integration.sh --quick
+	@./suites/monitoring-stack/run-monitoring-stack-tests.sh --quick
 
 # Verbose test execution
 test-verbose:
@@ -139,6 +146,46 @@ test-infrastructure:
 # Run configuration validation tests (Task 005 - enhanced validation)
 test-configuration:
 	@./tests/test_config_validation.sh --all-configs --enhanced
+
+# Run HPC cloud ansible integration tests (new orchestration script)
+test-hpc-ansible:
+	@echo "Testing HPC cloud Ansible orchestration script..."
+	@./test-ansible-hpc-integration.sh full-cycle
+
+# Test HPC ansible deployment only
+test-hpc-ansible-deploy:
+	@echo "Testing HPC cluster deployment with Ansible..."
+	@./test-ansible-hpc-integration.sh deploy
+
+# Test HPC ansible configuration only
+test-hpc-ansible-configure:
+	@echo "Testing HPC cluster configuration with Ansible..."
+	@./test-ansible-hpc-integration.sh configure
+
+# Dry-run test of HPC ansible workflow
+test-hpc-ansible-dry:
+	@echo "Dry-run testing of HPC cloud Ansible orchestration..."
+	@./test-ansible-hpc-integration.sh full-cycle --dry-run
+
+# Run HPC cloud deployment directly (without test wrapper)
+deploy-hpc-cloud:
+	@echo "Deploying HPC cloud cluster..."
+	@../ansible/run-ansible-hpc-cloud.sh deploy
+
+# Configure existing HPC cloud cluster
+configure-hpc-cloud:
+	@echo "Configuring HPC cloud cluster..."
+	@../ansible/run-ansible-hpc-cloud.sh configure
+
+# Verify HPC cloud cluster status
+verify-hpc-cloud:
+	@echo "Verifying HPC cloud cluster..."
+	@../ansible/run-ansible-hpc-cloud.sh verify
+
+# Destroy HPC cloud cluster
+destroy-hpc-cloud:
+	@echo "Destroying HPC cloud cluster..."
+	@../ansible/run-ansible-hpc-cloud.sh destroy --force
 
 # Clean artifacts
 clean:

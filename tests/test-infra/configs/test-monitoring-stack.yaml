@@ -1,0 +1,67 @@
+---
+# Test configuration for monitoring stack validation
+# Task 015: Install Prometheus Monitoring Stack
+
+version: "1.0"
+metadata:
+  name: "monitoring-stack-test"
+  description: "HPC monitoring stack validation"
+
+global: {}
+
+# HPC Cluster configuration with monitoring
+clusters:
+  hpc:
+    name: "test-hpc-monitoring"
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    # Network configuration (isolated test subnet)
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
+
+    # Controller node with monitoring server role
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 40
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+      ip_address: "192.168.200.10"
+
+    # Compute nodes with monitoring agents
+    compute_nodes:
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 30
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        ip: "192.168.200.21"
+
+    slurm_config:
+      partitions: ["debug"]
+      default_partition: "debug"
+      max_job_time: "1:00:00"
+
+  cloud:
+    name: "test-cloud-monitoring"
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: "192.168.201.0/24"
+      bridge: "virbr201"
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+      ip_address: "192.168.201.10"
+
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 2
+          memory_gb: 4
+          disk_gb: 20
+          ip: "192.168.201.20"
+
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"

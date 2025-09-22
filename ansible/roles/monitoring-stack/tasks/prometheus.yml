@@ -1,0 +1,168 @@
+---
+# Prometheus server installation and configuration tasks
+
+- name: Create prometheus system group
+  group:
+    name: "{{ prometheus_group }}"
+    system: true
+    state: present
+
+- name: Check if prometheus user exists
+  getent:
+    database: passwd
+    key: "{{ prometheus_user }}"
+  register: prometheus_user_exists
+  failed_when: false
+
+- name: Create prometheus system user
+  user:
+    name: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    system: true
+    shell: /sbin/nologin
+    home: "{{ prometheus_data_dir }}"
+    createhome: false
+    state: present
+  when: prometheus_user_exists.ansible_facts is not defined or prometheus_user_exists.ansible_facts.getent_passwd[prometheus_user] is not defined
+  ignore_errors: true
+  register: prometheus_user_result
+
+- name: Ensure prometheus user is in correct group (if user exists)
+  user:
+    name: "{{ prometheus_user }}"
+    groups: "{{ prometheus_group }}"
+    append: true
+  when: prometheus_user_exists.ansible_facts is defined and prometheus_user_exists.ansible_facts.getent_passwd[prometheus_user] is defined
+  ignore_errors: true
+  register: prometheus_user_group_result
+
+- name: Check if prometheus user was created successfully
+  debug:
+    msg: "Prometheus user creation: {{ 'Success' if prometheus_user_result is not failed else 'User already exists or creation failed' }}"
+  when: prometheus_user_result is defined
+
+- name: Update package cache (Debian/Ubuntu)
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install Prometheus packages
+  package:
+    name: "{{ prometheus_packages }}"
+    state: present
+  register: prometheus_install_result
+
+- name: Create Prometheus configuration directory
+  file:
+    path: "{{ prometheus_config_dir }}"
+    state: directory
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0755'
+
+- name: Create Prometheus data directory
+  file:
+    path: "{{ prometheus_data_dir }}"
+    state: directory
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0755'
+
+- name: Deploy Prometheus configuration file
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus_config_dir }}/prometheus.yml"
+    owner: "{{ prometheus_user }}"
+    group: "{{ prometheus_group }}"
+    mode: '0644'
+    backup: true
+  notify:
+    - restart prometheus
+  register: prometheus_config_result
+
+- name: Check if promtool is available
+  command: which promtool
+  register: promtool_check
+  failed_when: false
+  changed_when: false
+
+- name: Validate Prometheus configuration with promtool
+  shell: "promtool check config {{ prometheus_config_dir }}/prometheus.yml"
+  register: prometheus_config_validation
+  failed_when: prometheus_config_validation.rc != 0
+  changed_when: false
+  when:
+    - prometheus_config_result.changed
+    - promtool_check.rc == 0
+
+- name: Display promtool validation results
+  debug:
+    msg: "Prometheus configuration validation: {{ prometheus_config_validation.stdout if prometheus_config_validation.stdout is defined else 'No output' }}"
+  when:
+    - prometheus_config_result.changed
+    - promtool_check.rc == 0
+    - prometheus_config_validation is defined
+
+- name: Validate Prometheus configuration with basic syntax check (fallback)
+  shell: "python3 -c 'import yaml; yaml.safe_load(open(\"{{ prometheus_config_dir }}/prometheus.yml\"))'"
+  register: prometheus_yaml_validation
+  failed_when: prometheus_yaml_validation.rc != 0
+  changed_when: false
+  when:
+    - prometheus_config_result.changed
+    - promtool_check.rc != 0
+
+- name: Create Prometheus systemd service override directory
+  file:
+    path: /etc/systemd/system/prometheus.service.d
+    state: directory
+    mode: '0755'
+  when: ansible_service_mgr == 'systemd'
+
+- name: Deploy Prometheus systemd service override
+  template:
+    src: prometheus-service-override.conf.j2
+    dest: /etc/systemd/system/prometheus.service.d/override.conf
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart prometheus
+  when: ansible_service_mgr == 'systemd'
+
+- name: Enable and start Prometheus service
+  systemd:
+    name: prometheus
+    enabled: "{{ prometheus_enable_service }}"
+    state: "{{ 'started' if prometheus_start_service else 'stopped' }}"
+    daemon_reload: true
+  when: ansible_service_mgr == 'systemd'
+
+- name: Wait for Prometheus to be ready
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:9090/-/ready"
+    method: GET
+    status_code: 200
+  register: prometheus_ready
+  until: prometheus_ready.status == 200
+  retries: 30
+  delay: 2
+  when: prometheus_start_service
+
+- name: Verify Prometheus metrics endpoint
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:9090/api/v1/query?query=up"
+    method: GET
+    status_code: 200
+  register: prometheus_metrics_check
+  when: prometheus_start_service
+
+- name: Display Prometheus service status
+  debug:
+    msg: |
+      Prometheus installation completed:
+      - Service: {{ 'Running' if prometheus_start_service else 'Installed but not started' }}
+      - Web UI: http://{{ ansible_default_ipv4.address }}:9090
+      - Configuration: {{ prometheus_config_dir }}/prometheus.yml
+      - Data directory: {{ prometheus_data_dir }}
+      - Metrics endpoint: {{ 'Available' if prometheus_metrics_check.status is defined and prometheus_metrics_check.status == 200 else 'Not verified' }}

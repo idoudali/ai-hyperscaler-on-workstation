@@ -22,6 +22,10 @@ make test-quick
 make test-verbose
 ```
 
+## Test script list
+
+TODO document the tests and what they test
+
 ## Test Architecture Overview
 
 The test infrastructure uses a **two-tier approach**:
@@ -178,7 +182,43 @@ make test-ansible-syntax
 ./test_ansible_roles.sh --fail-fast           # Stop on first test failure
 ```
 
-### 4. Integration Test (`test_integration.sh`)
+### 4. Monitoring Stack Test (`test-monitoring-stack-framework.sh`)
+
+Comprehensive Prometheus monitoring stack validation (Task 015):
+
+- **Purpose**: Validates Prometheus monitoring stack deployment and functionality
+- **Components**: Prometheus server, Node Exporter, monitoring integration
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, base images
+
+**Validation Coverage:**
+
+- **Components Installation**: Prometheus and Node Exporter package installation, configuration, and service status
+- **Integration Testing**: Prometheus targets, metrics collection, data quality validation
+- **Environment Validation**: System prerequisites and Packer integration validation (built into framework)
+
+**Simplified Test Structure (Post-Consolidation):**
+
+- `suites/monitoring-stack/check-components-installation.sh`: Combined Prometheus + Node Exporter installation tests
+- `suites/monitoring-stack/check-monitoring-integration.sh`: Integration and data quality tests
+- Environment validation: Built into the main test framework
+
+```bash
+# Run monitoring stack tests
+make test-monitoring-stack
+
+# Run direct framework test
+./test-monitoring-stack-framework.sh
+
+# Options
+./test-monitoring-stack-framework.sh --help
+./test-monitoring-stack-framework.sh --verbose           # Detailed output
+./test-monitoring-stack-framework.sh start-cluster       # Start cluster independently
+./test-monitoring-stack-framework.sh deploy-ansible      # Deploy monitoring stack only
+./test-monitoring-stack-framework.sh run-tests          # Run tests on existing cluster
+```
+
+### 5. Integration Test (`test_integration.sh`)
 
 End-to-end integration validation:
 
@@ -375,6 +415,7 @@ run_test "New functionality" test_new_functionality
 These tests directly support the HPC SLURM task list validation:
 
 - **Container Runtime**: `test_container_runtime.sh` and `make test-container-comprehensive`
+- **Monitoring Stack (Task 015)**: `test-monitoring-stack-framework.sh` and `make test-monitoring-stack`
 - **Base Images**: `test_base_images.sh`
 - **General Infrastructure**: `test_integration.sh` and `test_ansible_roles.sh`
 - **AI-HOW CLI**: `test_ai_how_cli.sh`, `test_config_validation.sh`, `test_pcie_validation.sh`
@@ -388,6 +429,23 @@ The `make test-container-comprehensive` target runs comprehensive validation for
 3. **Functionality**: Validates container runtime installation, configuration, and security
 4. **Deployment**: Tests actual package installation, service configuration, and container execution
 5. **Cross-Role Validation**: Ensures container-runtime role integrates properly with other roles
+
+### Monitoring Stack Comprehensive Testing
+
+The `make test-monitoring-stack` target runs comprehensive validation for the Prometheus Monitoring Stack (Task 015):
+
+1. **Environment Validation**: Validates system prerequisites, Ansible installation, and Packer integration (built into framework)
+2. **Components Installation**: Tests Prometheus server and Node Exporter installation, configuration, and service management
+3. **Integration Testing**: Validates Prometheus target discovery, metrics collection, and data quality
+4. **End-to-End Deployment**: Tests complete cluster deployment with monitoring stack via Ansible provisioning
+5. **Simplified Test Structure**: Consolidated test files reduce maintenance while preserving comprehensive coverage
+
+**Key Improvements from Consolidation:**
+
+- Reduced from 3 individual test files to 2 consolidated files
+- Combined Prometheus and Node Exporter installation tests for efficiency
+- Integrated environment validation into main test framework
+- Simplified test execution while maintaining full test coverage
 
 See `docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
 

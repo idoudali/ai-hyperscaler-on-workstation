@@ -1,0 +1,24 @@
+---
+# Handlers for monitoring-stack role
+
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart prometheus
+  systemd:
+    name: prometheus
+    state: restarted
+  when: prometheus_start_service | default(true)
+
+- name: restart node-exporter
+  systemd:
+    name: prometheus-node-exporter
+    state: restarted
+  when: node_exporter_start_service | default(true)
+
+- name: restart alertmanager
+  systemd:
+    name: prometheus-alertmanager
+    state: restarted
+  when: alertmanager_start_service | default(true)

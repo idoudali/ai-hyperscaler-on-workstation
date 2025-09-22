@@ -23,8 +23,8 @@ MpiDefault={{ slurm_mpi_default | default('pmix') }}
 # MPI parameters - Port range for MPI communication
 MpiParams={{ slurm_mpi_params | default('ports=' + pmix_ports) }}
 
-# MPI timeout
-MpiTimeout={{ slurm_mpi_timeout | default('300') }}
+# MPI timeout (deprecated parameter removed)
+# MpiTimeout={{ slurm_mpi_timeout | default('300') }}
 
 #=============================================================================
 # Resource Management and Scheduling
@@ -55,8 +55,8 @@ ProctrackType={{ slurm_proctrack_type | default('proctrack/cgroup') }}
 # Task plugin for task management
 TaskPlugin={{ slurm_task_plugin | default('task/cgroup,task/affinity') }}
 
-# Task plugin parameters
-TaskPluginParam={{ slurm_task_plugin_param | default('Sched') }}
+# Task plugin parameters (Sched parameter is invalid)
+# TaskPluginParam={{ slurm_task_plugin_param | default('Sched') }}
 
 #=============================================================================
 # Job Accounting and Database
@@ -134,8 +134,8 @@ MaxStepCount={{ slurm_max_step_count | default('40000') }}
 # Minimum job time
 MinJobAge={{ slurm_min_job_age | default('300') }}
 
-# Maximum job time (default: unlimited)
-MaxJobTime={{ slurm_max_job_time | default('UNLIMITED') }}
+# Maximum job time (parameter removed - use partition MaxTime instead)
+# MaxJobTime={{ slurm_max_job_time | default('UNLIMITED') }}
 
 #=============================================================================
 # Partition Configuration
@@ -216,19 +216,19 @@ ConstrainCores={{ slurm_constrain_cores | default('yes') }}
 #=============================================================================
 
 {% if pmix_enabled | default(true) %}
-# PMIx server parameters
-PmixServerAddr={{ slurm_pmix_server_addr | default('localhost') }}
-PmixServerPort={{ slurm_pmix_server_port | default('15000') }}
+# PMIx server parameters (deprecated parameters removed)
+# PmixServerAddr={{ slurm_pmix_server_addr | default('localhost') }}
+# PmixServerPort={{ slurm_pmix_server_port | default('15000') }}
 
-# PMIx client parameters
-PmixClientAddr={{ slurm_pmix_client_addr | default('localhost') }}
-PmixClientPort={{ slurm_pmix_client_port | default('15001') }}
+# PMIx client parameters (deprecated parameters removed)
+# PmixClientAddr={{ slurm_pmix_client_addr | default('localhost') }}
+# PmixClientPort={{ slurm_pmix_client_port | default('15001') }}
 
-# PMIx timeout settings
-PmixTimeout={{ slurm_pmix_timeout | default('300') }}
+# PMIx timeout settings (deprecated parameter removed)
+# PmixTimeout={{ slurm_pmix_timeout | default('300') }}
 
-# PMIx debug level (0=none, 1=error, 2=warn, 3=info, 4=debug)
-PmixDebug={{ slurm_pmix_debug | default('0') }}
+# PMIx debug level (deprecated parameter removed)
+# PmixDebug={{ slurm_pmix_debug | default('0') }}
 {% endif %}
 
 #=============================================================================
@@ -238,11 +238,11 @@ PmixDebug={{ slurm_pmix_debug | default('0') }}
 # Debug flags
 DebugFlags={{ slurm_debug_flags | default('Backfill,BackfillMap,Priority') }}
 
-# Log file format
-LogFileFormat={{ slurm_log_file_format | default('2') }}
+# Log file format (deprecated parameter removed)
+# LogFileFormat={{ slurm_log_file_format | default('2') }}
 
-# Job completion callback
-JobCheckpointDir={{ slurm_job_checkpoint_dir | default('/var/checkpoint') }}
+# Job completion callback (deprecated parameter removed)
+# JobCheckpointDir={{ slurm_job_checkpoint_dir | default('/var/checkpoint') }}
 
 #=============================================================================
 # Power Management (if enabled)

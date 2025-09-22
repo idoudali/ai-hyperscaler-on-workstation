@@ -40,6 +40,159 @@ source "$UTILS_DIR/vm-utils.sh"
 : "${CLEANUP_REQUIRED:=false}"
 : "${INTERACTIVE_CLEANUP:=false}"
 
+# Provision monitoring stack on deployed VMs using Ansible
+provision_monitoring_stack_on_vms() {
+    local cluster_pattern="$1"
+
+    [[ -z "$cluster_pattern" ]] && {
+        log_error "provision_monitoring_stack_on_vms: cluster_pattern parameter required"
+        return 1
+    }
+
+    log "Provisioning monitoring stack on VMs..."
+
+    # Get all VMs for the cluster
+    local vm_list
+    vm_list=$(virsh list --name --state-running | grep "^${cluster_pattern}" || true)
+
+    if [[ -z "$vm_list" ]]; then
+        log_error "No running VMs found for cluster: $cluster_pattern"
+        return 1
+    fi
+
+    # Create temporary Ansible inventory file
+    local temp_inventory
+    temp_inventory=$(mktemp)
+    local temp_inventory_dir
+    temp_inventory_dir=$(mktemp -d)
+
+    # Build inventory with separate arrays for organization
+    local controllers=()
+    local compute_nodes=()
+
+    while IFS= read -r vm_name; do
+        if [[ -z "$vm_name" ]]; then continue; fi
+
+        local vm_ip
+        vm_ip=$(get_vm_ip "$vm_name")
+
+        if [[ -z "$vm_ip" ]]; then
+            log_warning "Could not get IP for VM: $vm_name"
+            continue
+        fi
+
+        # Determine VM role and add to appropriate array
+        if [[ "$vm_name" == *"controller"* ]]; then
+            controllers+=("${vm_name} ansible_host=${vm_ip} ansible_user=admin")
+        elif [[ "$vm_name" == *"compute"* ]]; then
+            compute_nodes+=("${vm_name} ansible_host=${vm_ip} ansible_user=admin")
+        fi
+    done <<< "$vm_list"
+
+    # Write inventory file
+    echo "[hpc_controllers]" > "$temp_inventory"
+    for controller in "${controllers[@]}"; do
+        echo "$controller" >> "$temp_inventory"
+    done
+
+    echo "" >> "$temp_inventory"
+    echo "[hpc_compute_nodes]" >> "$temp_inventory"
+    for compute in "${compute_nodes[@]}"; do
+        echo "$compute" >> "$temp_inventory"
+    done
+
+    # Add common variables
+    cat >> "$temp_inventory" << EOF
+
+[all:vars]
+ansible_ssh_private_key_file=${SSH_KEY_PATH}
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+install_monitoring_stack=true
+install_slurm_controller=true
+install_slurm_compute=true
+install_container_runtime=true
+install_gpu_support=true
+install_database=true
+packer_build=false
+EOF
+
+    log "Generated Ansible inventory:"
+    while IFS= read -r line; do log "  $line"; done < "$temp_inventory"
+
+    # Run Ansible playbooks from ansible directory to use proper ansible.cfg
+    local playbook_result=0
+    local original_dir
+    original_dir=$(pwd)
+    local ansible_dir="$PROJECT_ROOT/ansible"
+    cd "$ansible_dir" || {
+        log_error "Could not change to ansible directory: $ansible_dir"
+        rm -f "$temp_inventory"
+        rm -rf "$temp_inventory_dir"
+        return 1
+    }
+
+    # Set environment variables for Ansible
+    export ANSIBLE_CONFIG="$ansible_dir/ansible.cfg"
+    log "Using Ansible config: $ANSIBLE_CONFIG"
+
+    # Setup Ansible command with virtual environment if available
+    local ansible_cmd="ansible-playbook"
+    if [[ -n "${VIRTUAL_ENV_PATH:-}" ]] && [[ -f "$VIRTUAL_ENV_PATH/bin/ansible-playbook" ]]; then
+        ansible_cmd="$VIRTUAL_ENV_PATH/bin/ansible-playbook"
+        log "Using Ansible from virtual environment: $ansible_cmd"
+    fi
+
+    # Run controller playbook
+    local controller_count
+    controller_count=$(grep -c "controller" "$temp_inventory" || echo "0")
+    if [[ "$controller_count" -gt 0 ]]; then
+        log "Running HPC controller playbook..."
+        if ! "$ansible_cmd" -i "$temp_inventory" \
+            playbooks/playbook-hpc-controller.yml \
+            --limit hpc_controllers \
+            -v; then
+            log_error "Controller playbook failed"
+            playbook_result=1
+        else
+            log_success "Controller playbook completed successfully"
+        fi
+    fi
+
+    # Run compute playbook
+    local compute_count
+    compute_count=$(grep -c "compute" "$temp_inventory" || echo "0")
+    if [[ "$compute_count" -gt 0 ]]; then
+        log "Running HPC compute playbook..."
+        if ! "$ansible_cmd" -i "$temp_inventory" \
+            playbooks/playbook-hpc-compute.yml \
+            --limit hpc_compute_nodes \
+            -v; then
+            log_error "Compute playbook failed"
+            playbook_result=1
+        else
+            log_success "Compute playbook completed successfully"
+        fi
+    fi
+
+    # Return to original directory
+    cd "$original_dir" || log_warning "Could not return to original directory"
+
+    # Cleanup
+    rm -f "$temp_inventory"
+    rm -rf "$temp_inventory_dir"
+
+    if [[ $playbook_result -eq 0 ]]; then
+        log_success "Monitoring stack provisioning completed successfully"
+        # Wait a moment for services to stabilize
+        log "Waiting for services to stabilize..."
+        sleep 15
+        return 0
+    else
+        log_error "Monitoring stack provisioning failed"
+        return 1
+    fi
+}
+
 # Test framework main execution function
 run_test_framework() {
     test_config="$1"  # Make it global for cleanup trap
@@ -80,6 +233,8 @@ run_test_framework() {
         # shellcheck disable=SC2317  # This function is called by trap, not directly
         cleanup_test_framework "$test_config" "$test_scripts_dir" "$target_vm_pattern" "$master_test_script"
     }
+    # Export variables for cleanup handler
+    export test_config test_scripts_dir target_vm_pattern master_test_script
     trap cleanup_handler EXIT INT TERM
 
     # Step 1: Prerequisites
@@ -117,7 +272,15 @@ run_test_framework() {
         return 1
     fi
 
-    # Step 6: Run tests
+    # Step 6: Provision VMs with Ansible (if monitoring stack test)
+    if [[ "$test_scripts_dir" == *"monitoring-stack"* ]]; then
+        if ! provision_monitoring_stack_on_vms "$cluster_name"; then
+            log_error "Failed to provision monitoring stack on VMs"
+            return 1
+        fi
+    fi
+
+    # Step 7: Run tests
     local overall_success=true
 
     # Check if this is a basic infrastructure test (run on host)

@@ -26,6 +26,42 @@ fi
 : "${SSH_OPTS:=-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
 
 # VM discovery and management using ai-how API
+
+# Get IP address for a single VM
+get_vm_ip() {
+    local vm_name="$1"
+
+    [[ -z "$vm_name" ]] && {
+        log_error "get_vm_ip: vm_name parameter required"
+        return 1
+    }
+
+    # Try to get IP using virsh domifaddr
+    local vm_ip=""
+    local attempts=0
+    local max_attempts=10
+
+    while [[ $attempts -lt $max_attempts ]] && [[ -z "$vm_ip" ]]; do
+        local domifaddr_output
+        domifaddr_output=$(virsh domifaddr "$vm_name" 2>/dev/null || true)
+
+        if [[ -n "$domifaddr_output" ]]; then
+            # Extract IPv4 address
+            vm_ip=$(echo "$domifaddr_output" | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -1)
+
+            if [[ -n "$vm_ip" ]]; then
+                echo "$vm_ip"
+                return 0
+            fi
+        fi
+
+        attempts=$((attempts + 1))
+        [[ $attempts -lt $max_attempts ]] && sleep 5
+    done
+
+    # Return empty if no IP found
+    return 1
+}
 get_vm_ips_for_cluster() {
     local config_file="$1"
     local cluster_type="${2:-hpc}"
@@ -118,31 +154,9 @@ get_vm_ips_for_cluster() {
 
         log "Getting IP for VM: $vm_name (type: $vm_type)"
 
-        # Try to get IP using virsh domifaddr
+        # Use the improved get_vm_ip function
         local vm_ip=""
-        local attempts=0
-        local max_attempts=10
-
-        while [[ $attempts -lt $max_attempts ]] && [[ -z "$vm_ip" ]]; do
-            # Extract IPv4 address from virsh domifaddr output
-            local domifaddr_output
-            domifaddr_output=$(virsh domifaddr "$vm_name" 2>/dev/null || true)
-
-            if [[ -n "$domifaddr_output" ]]; then
-                # Look for IPv4 addresses in the format: 192.168.155.11/24
-                # Extract just the IP part (before the /)
-                vm_ip=$(echo "$domifaddr_output" | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -1)
-
-                if [[ -n "$vm_ip" ]]; then
-                    log "Found IP address for $vm_name: $vm_ip"
-                    break
-                fi
-            fi
-
-            attempts=$((attempts + 1))
-            log "IP not available yet for $vm_name, attempt $attempts/$max_attempts"
-            sleep 5
-        done
+        vm_ip=$(get_vm_ip "$vm_name")
 
         if [[ -n "$vm_ip" ]]; then
             log_success "VM $vm_name IP: $vm_ip"
@@ -233,31 +247,9 @@ get_vm_ips_for_cluster_legacy() {
 
         log "Getting IP for VM: $vm_name"
 
-        # Try to get IP using virsh domifaddr
+        # Use the improved get_vm_ip function
         local vm_ip=""
-        local attempts=0
-        local max_attempts=10
-
-        while [[ $attempts -lt $max_attempts ]] && [[ -z "$vm_ip" ]]; do
-            # Extract IPv4 address from virsh domifaddr output (any valid IPv4, not just 192.168.*)
-            local domifaddr_output
-            domifaddr_output=$(virsh domifaddr "$vm_name" 2>/dev/null || true)
-
-            if [[ -n "$domifaddr_output" ]]; then
-                # Look for IPv4 addresses in the format: 192.168.155.11/24
-                # Extract just the IP part (before the /)
-                vm_ip=$(echo "$domifaddr_output" | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -1)
-
-                if [[ -n "$vm_ip" ]]; then
-                    log "Found IP address for $vm_name: $vm_ip"
-                    break
-                fi
-            fi
-
-            attempts=$((attempts + 1))
-            log "IP not available yet for $vm_name, attempt $attempts/$max_attempts"
-            sleep 5
-        done
+        vm_ip=$(get_vm_ip "$vm_name")
 
         if [[ -n "$vm_ip" ]]; then
             log_success "VM $vm_name IP: $vm_ip"
@@ -508,5 +500,5 @@ save_vm_connection_info() {
 }
 
 # Export functions for use in other scripts
-export -f get_vm_ips_for_cluster get_vm_ips_for_cluster_legacy wait_for_vm_ssh upload_scripts_to_vm
+export -f get_vm_ip get_vm_ips_for_cluster get_vm_ips_for_cluster_legacy wait_for_vm_ssh upload_scripts_to_vm
 export -f execute_script_on_vm save_vm_connection_info

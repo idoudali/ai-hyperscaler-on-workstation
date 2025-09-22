@@ -149,7 +149,7 @@
         Run 'sudo reboot' after this playbook completes.
       verbosity: 1
     when:
-      - not (nvidia_packer_build | default(false))
+      - not (nvidia_packer_build | default(false) | bool)
       - (reboot_required_file.stat.exists or nvidia_force_reboot_warning)
 
   - name: Notify about Packer build completion
@@ -159,6 +159,6 @@
         Drivers will be available after the image is deployed and rebooted.
         No reboot required during image creation process.
       verbosity: 1
-    when: nvidia_packer_build | default(false)
+    when: nvidia_packer_build | default(false) | bool
 
   # Always execute NVIDIA driver installation (no conditional check)

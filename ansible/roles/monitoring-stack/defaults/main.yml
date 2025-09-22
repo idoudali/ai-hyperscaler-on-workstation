@@ -1,0 +1,58 @@
+---
+# Default variables for monitoring-stack role
+
+# Monitoring role configuration
+monitoring_role: "all"  # Options: server, node, all
+
+# Prometheus configuration
+prometheus_version: "2.40.7"
+prometheus_user: "prometheus"
+prometheus_group: "prometheus"
+prometheus_config_dir: "/etc/prometheus"
+prometheus_data_dir: "/var/lib/prometheus"
+prometheus_web_listen_address: "0.0.0.0:9090"
+prometheus_storage_retention: "15d"
+prometheus_storage_retention_size: "0"
+
+# Prometheus packages to install
+prometheus_packages:
+  - prometheus
+  - prometheus-node-exporter
+  - prometheus-alertmanager
+
+# Node Exporter configuration
+node_exporter_port: 9100
+node_exporter_user: "prometheus"
+node_exporter_group: "prometheus"
+node_exporter_enabled_collectors:
+  - systemd
+  - meminfo
+  - diskstats
+  - filesystem
+  - netdev
+  - loadavg
+  - cpu
+
+# AlertManager configuration
+alertmanager_port: 9093
+alertmanager_user: "prometheus"
+alertmanager_group: "prometheus"
+
+# Prometheus targets configuration
+prometheus_scrape_interval: "15s"
+prometheus_evaluation_interval: "15s"
+
+# Default scrape configs
+prometheus_scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+
+# Service management
+prometheus_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
+prometheus_start_service: "{{ not ((packer_build | default(false)) | bool) }}"
+node_exporter_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
+node_exporter_start_service: "{{ not ((packer_build | default(false)) | bool) }}"

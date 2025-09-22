@@ -1,0 +1,129 @@
+---
+# Node Exporter installation and configuration tasks
+
+- name: Create prometheus system group for node exporter
+  group:
+    name: "{{ node_exporter_group }}"
+    system: true
+    state: present
+
+- name: Check if prometheus user exists for node exporter
+  getent:
+    database: passwd
+    key: "{{ node_exporter_user }}"
+  register: node_exporter_user_exists
+  failed_when: false
+
+- name: Create prometheus system user for node exporter
+  user:
+    name: "{{ node_exporter_user }}"
+    group: "{{ node_exporter_group }}"
+    system: true
+    shell: /sbin/nologin
+    home: /var/lib/node_exporter
+    createhome: false
+    state: present
+  when: node_exporter_user_exists.ansible_facts is not defined or node_exporter_user_exists.ansible_facts.getent_passwd[node_exporter_user] is not defined
+  ignore_errors: true
+  register: node_exporter_user_result
+
+- name: Ensure prometheus user is in correct group (if user exists)
+  user:
+    name: "{{ node_exporter_user }}"
+    groups: "{{ node_exporter_group }}"
+    append: true
+  when: node_exporter_user_exists.ansible_facts is defined and node_exporter_user_exists.ansible_facts.getent_passwd[node_exporter_user] is defined
+  ignore_errors: true
+  register: node_exporter_user_group_result
+
+- name: Check if prometheus user was created successfully for node exporter
+  debug:
+    msg: "Prometheus user creation for node exporter: {{ 'Success' if node_exporter_user_result is not failed else 'User already exists or creation failed' }}"
+  when: node_exporter_user_result is defined
+
+- name: Update package cache (Debian/Ubuntu)
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install Node Exporter package
+  package:
+    name: prometheus-node-exporter
+    state: present
+  register: node_exporter_install_result
+
+- name: Create Node Exporter systemd service override directory
+  file:
+    path: /etc/systemd/system/prometheus-node-exporter.service.d
+    state: directory
+    mode: '0755'
+  when: ansible_service_mgr == 'systemd'
+
+- name: Deploy Node Exporter systemd service override
+  template:
+    src: node-exporter-service-override.conf.j2
+    dest: /etc/systemd/system/prometheus-node-exporter.service.d/override.conf
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart node-exporter
+  when: ansible_service_mgr == 'systemd'
+
+- name: Configure Node Exporter default options
+  template:
+    src: node-exporter-defaults.j2
+    dest: /etc/default/prometheus-node-exporter
+    mode: '0644'
+    backup: true
+  notify:
+    - restart node-exporter
+
+- name: Enable and start Node Exporter service
+  systemd:
+    name: prometheus-node-exporter
+    enabled: "{{ node_exporter_enable_service }}"
+    state: "{{ 'started' if node_exporter_start_service else 'stopped' }}"
+    daemon_reload: true
+  when: ansible_service_mgr == 'systemd'
+
+- name: Flush handlers to ensure service is restarted with new config
+  meta: flush_handlers
+
+- name: Wait for Node Exporter to be ready
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:{{ node_exporter_port }}/metrics"
+    method: GET
+    status_code: 200
+  register: node_exporter_ready
+  until: node_exporter_ready.status == 200
+  retries: 30
+  delay: 2
+  when: node_exporter_start_service
+
+- name: Verify Node Exporter metrics collection
+  uri:
+    url: "http://{{ ansible_default_ipv4.address }}:{{ node_exporter_port }}/metrics"
+    method: GET
+    return_content: true
+  register: node_exporter_metrics
+  when: node_exporter_start_service
+
+- name: Validate key system metrics are available
+  assert:
+    that:
+      - "'node_cpu_seconds_total' in node_exporter_metrics.content"
+      - "'node_memory_MemTotal_bytes' in node_exporter_metrics.content"
+      - "'node_filesystem_size_bytes' in node_exporter_metrics.content"
+    fail_msg: "Required system metrics not found in Node Exporter output"
+    success_msg: "Node Exporter is collecting required system metrics"
+  when: node_exporter_start_service and node_exporter_metrics.content is defined
+
+- name: Display Node Exporter service status
+  debug:
+    msg: |
+      Node Exporter installation completed:
+      - Service: {{ 'Running' if node_exporter_start_service else 'Installed but not started' }}
+      - Metrics endpoint: http://{{ ansible_default_ipv4.address }}:{{ node_exporter_port }}/metrics
+      - Collectors: {{ node_exporter_enabled_collectors | join(', ') }}
+      - Status: {{ 'Available' if node_exporter_ready.status is defined and node_exporter_ready.status == 200 else 'Not verified' }}

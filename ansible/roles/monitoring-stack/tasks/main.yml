@@ -1,0 +1,17 @@
+---
+# Main tasks file for monitoring-stack role
+# Orchestrates the installation and configuration of Prometheus monitoring stack
+
+- name: Include Prometheus server tasks
+  include_tasks: prometheus.yml
+  when: monitoring_role == 'server' or monitoring_role == 'all'
+  tags:
+    - prometheus
+    - monitoring
+
+- name: Include Node Exporter tasks
+  include_tasks: node-exporter.yml
+  when: monitoring_role == 'node' or monitoring_role == 'all' or monitoring_role == 'server'
+  tags:
+    - node-exporter
+    - monitoring

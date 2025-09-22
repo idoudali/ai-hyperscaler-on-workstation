@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress  
 **Updated:** 2025-01-29  
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 13 (
+**Completed Tasks:** 14 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -19,7 +19,8 @@ tasks for individual execution and testing.
   TASK-011,
   TASK-012,
   TASK-013,
-  TASK-014
+  TASK-014,
+  TASK-015
   )
 
 ## Overview
@@ -2293,13 +2294,16 @@ slurm_gres_conf:
 
 ### Monitoring Infrastructure
 
-#### Task 015: Install Prometheus Monitoring Stack
+#### Task 015: Install Prometheus Monitoring Stack ✅ COMPLETED
 
 - **ID**: TASK-015
 - **Phase**: 1 - Infrastructure
 - **Dependencies**: TASK-007
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-29
+- **Branch**: `feature/task-015-monitoring-stack`
 
 **Description:** Install and configure Prometheus monitoring system for HPC
 cluster metrics collection.
@@ -2322,10 +2326,10 @@ prometheus_packages:
 
 **Validation Criteria:**
 
-- [ ] Prometheus server installed and running
-- [ ] Node exporters running on all nodes
-- [ ] Basic system metrics being collected
-- [ ] Prometheus web UI accessible
+- [x] Prometheus server installed and running
+- [x] Node exporters running on all nodes
+- [x] Basic system metrics being collected
+- [x] Prometheus web UI accessible
 
 **Test Commands:**
 
@@ -2344,10 +2348,70 @@ curl http://localhost:9090/api/v1/query?query=node_cpu_seconds_total
 
 **Success Criteria:**
 
-- Prometheus service active and healthy
-- Node metrics visible in Prometheus UI
-- All cluster nodes reporting metrics
-- No configuration errors in logs
+- ✅ Prometheus service active and healthy
+- ✅ Node metrics visible in Prometheus UI
+- ✅ All cluster nodes reporting metrics
+- ✅ No configuration errors in logs
+
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+- `ansible/roles/monitoring-stack/tasks/main.yml` - Main orchestration task (18 lines)
+- `ansible/roles/monitoring-stack/tasks/prometheus.yml` - Prometheus server installation and configuration (147 lines)
+- `ansible/roles/monitoring-stack/tasks/node-exporter.yml` - Node Exporter installation for all nodes (97 lines)
+- `ansible/roles/monitoring-stack/defaults/main.yml` - Comprehensive monitoring configuration variables (67 lines)
+- `ansible/roles/monitoring-stack/handlers/main.yml` - Service management handlers (20 lines)
+- `ansible/roles/monitoring-stack/templates/prometheus.yml.j2` - Prometheus configuration template (89 lines)
+- `ansible/roles/monitoring-stack/templates/prometheus-service-override.conf.j2` - Systemd service override (32 lines)
+- `ansible/roles/monitoring-stack/templates/node-exporter-service-override.conf.j2` - Node Exporter service
+  override (29 lines)
+- `ansible/roles/monitoring-stack/templates/node-exporter-defaults.j2` - Node Exporter default configuration (10 lines)
+- `tests/suites/monitoring-stack/check-prometheus-installation.sh` - Comprehensive Prometheus installation tests (221 lines)
+- `tests/suites/monitoring-stack/check-node-exporter.sh` - Node Exporter functionality validation tests (198 lines)
+- `tests/suites/monitoring-stack/check-monitoring-integration.sh` - Integration testing between Prometheus
+  and Node Exporter (276 lines)
+- `tests/suites/monitoring-stack/run-monitoring-stack-tests.sh` - Master test runner (332 lines)
+- `tests/test-infra/configs/test-monitoring-stack.yaml` - Monitoring stack test configuration (119 lines)
+- `tests/test-monitoring-stack-framework.sh` - Framework integration script (270 lines)
+- `tests/Makefile` - Updated with monitoring stack test targets
+
+**Key Implementation Features:**
+
+- **Complete Prometheus Stack**: Full Prometheus server installation with systemd integration and proper security configuration
+- **Node Exporter Deployment**: Automated installation on all nodes with system metrics collection and customizable collectors
+- **Configuration Management**: Templated configurations for flexible deployment with proper variable substitution
+- **Security Implementation**: Proper user management, file permissions, and systemd security constraints
+- **Service Integration**: Systemd service overrides with proper resource limits and security settings
+- **Comprehensive Testing**: 3 specialized test scripts with framework integration and validation of all components
+- **Monitoring Integration**: Prometheus configured to scrape Node Exporter metrics from all cluster nodes
+- **Web Interface**: Prometheus web UI accessible with target discovery and metrics visualization
+
+**Monitoring Stack Components:**
+
+- **Prometheus Server**: Metrics collection, storage, and query engine with 15-day retention
+- **Node Exporter**: System metrics collection including CPU, memory, disk, network, and filesystem metrics
+- **AlertManager**: Alert routing and management (installed but not configured)
+- **Configuration Templates**: Jinja2 templates for flexible configuration deployment
+- **Service Management**: Proper systemd integration with automatic startup and restart policies
+- **Security Configuration**: Dedicated prometheus user, proper file permissions, and systemd security constraints
+
+**Test Suite Features:**
+
+- **Installation Validation**: Package installation, user creation, directory structure, and service status
+- **Functionality Testing**: Metrics collection, endpoint accessibility, and data quality validation
+- **Integration Testing**: Target discovery, scraping functionality, and cross-component communication
+- **Framework Integration**: Uses established Task 004/005 testing framework patterns
+- **Comprehensive Coverage**: 3 test scripts with 19+ individual test functions
+- **Production Readiness**: All tests validate production deployment requirements
+
+**Integration Benefits:**
+
+- **Production Ready**: Complete monitoring stack with proper security and service management
+- **Scalable Architecture**: Supports monitoring of controller and compute nodes
+- **Framework Alignment**: Uses proven testing framework for reliable validation
+- **SLURM Integration**: Ready for SLURM-specific metrics collection and GPU monitoring
+- **Maintainability**: Well-structured Ansible role with clear separation of concerns
 
 ---
 

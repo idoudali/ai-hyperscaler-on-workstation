@@ -217,6 +217,7 @@ build {
       "--extra-vars", "install_slurm_compute=true",
       "--extra-vars", "install_container_runtime=true",
       "--extra-vars", "install_gpu_support=true",
+      "--extra-vars", "install_monitoring_stack=true",
       "--extra-vars", "nvidia_install_cuda=false",
       "--become",
       "--become-user=root",
@@ -292,6 +293,12 @@ build {
     inline = [
       "echo 'Optimizing and compressing QEMU image...'",
       "cd ${local.output_directory}",
+      # Check if the image file exists before processing
+      "if [ ! -f ${var.vm_name} ]; then",
+      "  echo 'ERROR: Image file ${var.vm_name} not found!'",
+      "  ls -la ${local.output_directory}/",
+      "  exit 1",
+      "fi",
       # Get original image size
       "ORIGINAL_SIZE=$(du -h ${var.vm_name} | cut -f1)",
       "echo Original image size: $ORIGINAL_SIZE",
