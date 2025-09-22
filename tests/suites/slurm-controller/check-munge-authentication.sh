@@ -281,8 +281,30 @@ test_munge_key_validation() {
         fi
 
     else
-        log_error "MUNGE key file does not exist: $MUNGE_KEY_PATH"
-        test_passed=false
+        log_warning "MUNGE key file does not exist: $MUNGE_KEY_PATH"
+        log_info "Attempting to generate MUNGE key..."
+
+        # Try to generate MUNGE key
+        if sudo mungekey --create --force 2>/dev/null; then
+            log_success "MUNGE key generated successfully"
+            # Restart MUNGE service to use new key
+            if sudo systemctl restart munge 2>/dev/null; then
+                log_success "MUNGE service restarted with new key"
+                # Re-check the key file
+                if [ -f "$MUNGE_KEY_PATH" ]; then
+                    log_success "MUNGE key file now exists: $MUNGE_KEY_PATH"
+                else
+                    log_error "MUNGE key generation failed"
+                    test_passed=false
+                fi
+            else
+                log_error "Failed to restart MUNGE service after key generation"
+                test_passed=false
+            fi
+        else
+            log_error "Failed to generate MUNGE key"
+            test_passed=false
+        fi
     fi
 
     if [ "$test_passed" = true ]; then

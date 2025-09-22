@@ -25,13 +25,149 @@ fi
 # These options are acceptable ONLY in isolated test environments for automation convenience.
 : "${SSH_OPTS:=-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
 
-# VM discovery and management
+# VM discovery and management using ai-how API
 get_vm_ips_for_cluster() {
+    local config_file="$1"
+    local cluster_type="${2:-hpc}"
+    local target_vm_name="${3:-}"
+
+    [[ -z "$config_file" ]] && {
+        log_error "get_vm_ips_for_cluster: config_file parameter required"
+        return 1
+    }
+
+    log "Getting IP addresses for VMs using ai-how API: $config_file"
+
+    # Check if jq is available for JSON parsing
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq command not found. Please install jq to parse JSON output from ai-how API."
+        return 1
+    fi
+
+    # Get cluster plan data using ai-how API
+    local cluster_data
+    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+        log_error "Failed to get cluster plan data using ai-how API"
+        return 1
+    fi
+
+    # Extract cluster name and expected VMs
+    local cluster_name
+    cluster_name=$(echo "$cluster_data" | jq -r '.name' 2>/dev/null)
+
+    # Get VM count to validate we have VMs
+    local vm_count
+    vm_count=$(echo "$cluster_data" | jq -r '.vms | length' 2>/dev/null)
+
+    if [[ "$vm_count" -eq 0 ]]; then
+        log_error "No VMs found in cluster plan data"
+        return 1
+    fi
+
+    log "Cluster: $cluster_name"
+    log "Expected VMs from API: $(echo "$cluster_data" | jq -r '.vms[].name' | tr '\n' ' ')"
+
+    # Initialize arrays
+    VM_IPS=()
+    VM_NAMES=()
+
+    # Get all running VMs matching our cluster name
+    local all_running_vms
+    all_running_vms=$(virsh list --name --state-running | grep "^${cluster_name}-" || true)
+
+    if [[ -z "$all_running_vms" ]]; then
+        log_error "No running VMs found for cluster: $cluster_name"
+        return 1
+    fi
+
+    # Process each VM specification from the API
+    local vm_index=0
+    while [[ $vm_index -lt $vm_count ]]; do
+        local vm_spec
+        vm_spec=$(echo "$cluster_data" | jq -r ".vms[$vm_index]" 2>/dev/null)
+
+        [[ -z "$vm_spec" ]] && {
+            ((vm_index++))
+            continue
+        }
+
+        local vm_name vm_type
+        vm_name=$(echo "$vm_spec" | jq -r '.name' 2>/dev/null)
+        vm_type=$(echo "$vm_spec" | jq -r '.type' 2>/dev/null)
+
+        # Check if this VM is running
+        if ! echo "$all_running_vms" | grep -q "^${vm_name}$"; then
+            log_warning "Expected VM $vm_name is not running, skipping"
+            continue
+        fi
+
+        # If target_vm_name is specified, filter to that specific VM
+        if [[ -n "$target_vm_name" ]] && [[ "$vm_name" != *"$target_vm_name"* ]]; then
+            continue
+        fi
+
+        log "Getting IP for VM: $vm_name (type: $vm_type)"
+
+        # Try to get IP using virsh domifaddr
+        local vm_ip=""
+        local attempts=0
+        local max_attempts=10
+
+        while [[ $attempts -lt $max_attempts ]] && [[ -z "$vm_ip" ]]; do
+            # Extract IPv4 address from virsh domifaddr output
+            local domifaddr_output
+            domifaddr_output=$(virsh domifaddr "$vm_name" 2>/dev/null || true)
+
+            if [[ -n "$domifaddr_output" ]]; then
+                # Look for IPv4 addresses in the format: 192.168.155.11/24
+                # Extract just the IP part (before the /)
+                vm_ip=$(echo "$domifaddr_output" | grep -oE "([0-9]{1,3}\.){3}[0-9]{1,3}" | head -1)
+
+                if [[ -n "$vm_ip" ]]; then
+                    log "Found IP address for $vm_name: $vm_ip"
+                    break
+                fi
+            fi
+
+            attempts=$((attempts + 1))
+            log "IP not available yet for $vm_name, attempt $attempts/$max_attempts"
+            sleep 5
+        done
+
+        if [[ -n "$vm_ip" ]]; then
+            log_success "VM $vm_name IP: $vm_ip"
+            VM_IPS+=("$vm_ip")
+            VM_NAMES+=("$vm_name")
+        else
+            log_error "Failed to get IP for VM: $vm_name"
+            return 1
+        fi
+
+        ((vm_index++))
+    done
+
+    if [[ ${#VM_IPS[@]} -eq 0 ]]; then
+        log_error "No VM IPs obtained"
+        return 1
+    fi
+
+    log_success "Retrieved ${#VM_IPS[@]} target VM IP address(es) for testing"
+
+    # Save VM connection information for debugging
+    save_vm_connection_info "$cluster_name"
+
+    return 0
+}
+
+# Legacy function for backward compatibility - now uses ai-how API
+get_vm_ips_for_cluster_legacy() {
     local cluster_pattern="$1"
     local target_vm_name="${2:-}"
 
+    log_warning "Using legacy VM discovery method. Consider updating to use ai-how API."
+
     [[ -z "$cluster_pattern" ]] && {
-        log_error "get_vm_ips_for_cluster: cluster_pattern parameter required"
+        log_error "get_vm_ips_for_cluster_legacy: cluster_pattern parameter required"
         return 1
     }
 
@@ -362,5 +498,5 @@ save_vm_connection_info() {
 }
 
 # Export functions for use in other scripts
-export -f get_vm_ips_for_cluster wait_for_vm_ssh upload_scripts_to_vm
+export -f get_vm_ips_for_cluster get_vm_ips_for_cluster_legacy wait_for_vm_ssh upload_scripts_to_vm
 export -f execute_script_on_vm save_vm_connection_info

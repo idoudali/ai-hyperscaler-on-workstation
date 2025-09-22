@@ -18,7 +18,7 @@ else
 fi
 
 # Configuration variables (must be set by calling script)
-: "${PROJECT_ROOT:=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+: "${PROJECT_ROOT:=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 : "${TESTS_DIR:=$PROJECT_ROOT/tests}"
 
 # Helper function to resolve test config path
@@ -33,6 +33,12 @@ resolve_test_config_path() {
     # If it's already an absolute path, use it as-is
     if [[ "$test_config" == /* ]]; then
         echo "$test_config"
+        return 0
+    fi
+
+    # If it already starts with tests/, use PROJECT_ROOT directly
+    if [[ "$test_config" == tests/* ]]; then
+        echo "$PROJECT_ROOT/$test_config"
         return 0
     fi
 
@@ -252,33 +258,22 @@ wait_for_cluster_vms() {
         return 1
     }
 
-    # Check if yq is available
-    if ! command -v yq >/dev/null 2>&1; then
-        log_error "yq command not found. Please install yq (https://github.com/mikefarah/yq) to parse YAML configurations."
-        log_error "Install with: 'apt install yq', 'brew install yq', 'snap install yq', or download from https://github.com/mikefarah/yq/releases"
+    # Check if jq is available for JSON parsing
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq command not found. Please install jq to parse JSON output from ai-how API."
+        log_error "Install with: 'apt install jq', 'brew install jq', 'snap install jq', or download from https://stedolan.github.io/jq/"
         return 1
     fi
 
-    # Resolve the config file path
-    local resolved_config
-    if ! resolved_config=$(resolve_test_config_path "$config_file"); then
-        return 1
-    fi
-
-    [[ ! -f "$resolved_config" ]] && {
-        log_error "Configuration file not found: $resolved_config"
-        return 1
-    }
-
-    # Parse the YAML configuration to get cluster name and expected VMs
+    # Parse the configuration using ai-how API to get cluster name and expected VMs
     local cluster_name expected_vms
-    if ! cluster_name=$(parse_cluster_name "$resolved_config" "$cluster_type"); then
-        log_error "Failed to parse cluster name from configuration"
+    if ! cluster_name=$(parse_cluster_name "$config_file" "$cluster_type"); then
+        log_error "Failed to parse cluster name from configuration using ai-how API"
         return 1
     fi
 
-    if ! expected_vms=$(parse_expected_vms "$resolved_config" "$cluster_type"); then
-        log_error "Failed to parse expected VMs from configuration"
+    if ! expected_vms=$(parse_expected_vms "$config_file" "$cluster_type"); then
+        log_error "Failed to parse expected VMs from configuration using ai-how API"
         return 1
     fi
 
@@ -341,69 +336,105 @@ wait_for_cluster_vms() {
     return 1
 }
 
-# Helper function to parse cluster name from YAML configuration
+# Helper function to get cluster planning data using ai-how API
+get_cluster_plan_data() {
+    local config_file="$1"
+    local cluster_type="${2:-hpc}"
+
+    [[ -z "$config_file" ]] && {
+        log_error "get_cluster_plan_data: config_file parameter required"
+        return 1
+    }
+
+    # Resolve the config file path
+    local resolved_config
+    if ! resolved_config=$(resolve_test_config_path "$config_file"); then
+        return 1
+    fi
+
+    [[ ! -f "$resolved_config" ]] && {
+        log_error "Configuration file not found: $resolved_config"
+        return 1
+    }
+
+    # Log to stderr to avoid contaminating stdout (needed for JSON parsing)
+    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} Getting cluster plan data using ai-how API: $resolved_config" >&2
+
+    # Use ai-how plan clusters command with JSON output
+    # Extract only the JSON part (from first { to last })
+    local plan_output
+    local raw_output
+    if ! raw_output=$(uv run ai-how plan clusters "$resolved_config" --format json 2>&1); then
+        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} Failed to get cluster plan data using ai-how API" >&2
+        return 1
+    fi
+
+    # Extract JSON by finding the first { and last }
+    plan_output=$(echo "$raw_output" | sed -n '/^{/,/^}/p')
+
+    # Parse JSON and extract cluster data
+    local cluster_data
+    if ! cluster_data=$(echo "$plan_output" | jq -r ".clusters.${cluster_type}" 2>/dev/null); then
+        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} Failed to parse cluster data from ai-how API output" >&2
+        return 1
+    fi
+
+    if [[ "$cluster_data" == "null" ]]; then
+        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} No ${cluster_type} cluster found in configuration" >&2
+        return 1
+    fi
+
+    echo "$cluster_data"
+}
+
+# Helper function to parse cluster name from ai-how API
 parse_cluster_name() {
     local config_file="$1"
     local cluster_type="$2"
 
-    yq ".clusters.${cluster_type}.name" "$config_file" 2>/dev/null | tr -d '"'
+    local cluster_data
+    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+        return 1
+    fi
+
+    echo "$cluster_data" | jq -r '.name' 2>/dev/null
 }
 
-# Helper function to parse expected VMs from YAML configuration
+# Helper function to parse expected VMs from ai-how API
 parse_expected_vms() {
     local config_file="$1"
     local cluster_type="$2"
-    local cluster_name
 
-    cluster_name=$(parse_cluster_name "$config_file" "$cluster_type")
-    [[ -z "$cluster_name" ]] && return 1
-
-    local expected_vms=""
-
-    if [[ "$cluster_type" == "hpc" ]]; then
-        # Check if controller exists
-        local has_controller
-        has_controller=$(yq ".clusters.hpc.controller" "$config_file" 2>/dev/null)
-        if [[ "$has_controller" != "null" && -n "$has_controller" ]]; then
-            expected_vms+="${cluster_name}-controller "
-        fi
-
-        # Check compute nodes
-        local compute_nodes
-        compute_nodes=$(yq ".clusters.hpc.compute_nodes | length" "$config_file" 2>/dev/null)
-        if [[ "$compute_nodes" != "null" && "$compute_nodes" -gt 0 ]]; then
-            for ((i=0; i<compute_nodes; i++)); do
-                expected_vms+="${cluster_name}-compute$((i+1)) "
-            done
-        fi
-
-    elif [[ "$cluster_type" == "cloud" ]]; then
-        # Check if control plane exists
-        local has_control_plane
-        has_control_plane=$(yq ".clusters.cloud.control_plane" "$config_file" 2>/dev/null)
-        if [[ "$has_control_plane" != "null" && -n "$has_control_plane" ]]; then
-            expected_vms+="${cluster_name}-control-plane "
-        fi
-
-        # Check worker nodes
-        local cpu_workers gpu_workers
-        cpu_workers=$(yq ".clusters.cloud.worker_nodes.cpu | length" "$config_file" 2>/dev/null)
-        gpu_workers=$(yq ".clusters.cloud.worker_nodes.gpu | length" "$config_file" 2>/dev/null)
-
-        if [[ "$cpu_workers" != "null" && "$cpu_workers" -gt 0 ]]; then
-            for ((i=0; i<cpu_workers; i++)); do
-                expected_vms+="${cluster_name}-worker-cpu$((i+1)) "
-            done
-        fi
-
-        if [[ "$gpu_workers" != "null" && "$gpu_workers" -gt 0 ]]; then
-            for ((i=0; i<gpu_workers; i++)); do
-                expected_vms+="${cluster_name}-worker-gpu$((i+1)) "
-            done
-        fi
+    local cluster_data
+    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+        return 1
     fi
 
+    # Extract VM names from the cluster data
+    local expected_vms
+    expected_vms=$(echo "$cluster_data" | jq -r '.vms[].name' 2>/dev/null | tr '\n' ' ')
+
     echo "$expected_vms" | xargs  # Trim whitespace
+}
+
+# Helper function to get VM specifications from ai-how API
+get_vm_specifications() {
+    local config_file="$1"
+    local cluster_type="$2"
+    local vm_name="${3:-}"
+
+    local cluster_data
+    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+        return 1
+    fi
+
+    if [[ -n "$vm_name" ]]; then
+        # Get specific VM data
+        echo "$cluster_data" | jq -r ".vms[] | select(.name == \"$vm_name\")" 2>/dev/null
+    else
+        # Get all VM data
+        echo "$cluster_data" | jq -r '.vms[]' 2>/dev/null
+    fi
 }
 
 # Cleanup handler for use with trap
@@ -474,3 +505,4 @@ manual_cluster_cleanup() {
 export -f resolve_test_config_path start_cluster destroy_cluster verify_cluster_cleanup check_cluster_not_running
 export -f show_cleanup_instructions wait_for_cluster_vms cleanup_cluster_on_exit
 export -f ask_manual_cleanup manual_cluster_cleanup
+export -f get_cluster_plan_data parse_cluster_name parse_expected_vms get_vm_specifications

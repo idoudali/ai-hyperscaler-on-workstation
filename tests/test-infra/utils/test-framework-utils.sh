@@ -38,7 +38,7 @@ source "$UTILS_DIR/vm-utils.sh"
 
 # Test framework main execution function
 run_test_framework() {
-    local test_config="$1"
+    test_config="$1"  # Make it global for cleanup trap
     local test_scripts_dir="$2"
     local target_vm_pattern="${3:-}"
     local master_test_script="${4:-run-all-tests.sh}"
@@ -57,22 +57,9 @@ run_test_framework() {
     }
 
     local cluster_name
-    # Extract cluster name from YAML configuration using yq
-    if command -v yq >/dev/null 2>&1; then
-        cluster_name=""
-        yq_output=$(yq '.clusters.hpc.name' "$test_config" 2>&1)
-        yq_status=$?
-        if [[ $yq_status -ne 0 ]]; then
-            log_error "Failed to parse YAML config file '$test_config' with yq: $yq_output"
-            return 1
-        fi
-        cluster_name="$yq_output"
-        if [[ -z "$cluster_name" || "$cluster_name" == "null" ]]; then
-            log_warning "Could not extract cluster name from config, falling back to filename"
-            cluster_name=$(basename "${test_config%.yaml}")
-        fi
-    else
-        log_warning "yq command not found, falling back to filename for cluster name"
+    # Extract cluster name using ai-how API
+    if ! cluster_name=$(parse_cluster_name "$test_config" "hpc"); then
+        log_warning "Failed to extract cluster name using ai-how API, falling back to filename"
         cluster_name=$(basename "${test_config%.yaml}")
     fi
 
@@ -117,13 +104,9 @@ run_test_framework() {
         return 1
     fi
 
-    # Step 5: Get VM IPs
-    # Extract cluster pattern resolution to avoid duplication
-    local resolved_test_config cluster_pattern
-    resolved_test_config=$(resolve_test_config_path "$test_config")
-    cluster_pattern=$(parse_cluster_name "$resolved_test_config" "hpc" | tr '_' '-')
-    if ! get_vm_ips_for_cluster "$cluster_pattern" "$target_vm_pattern"; then
-        log_error "Failed to get VM IP addresses"
+    # Step 5: Get VM IPs using ai-how API
+    if ! get_vm_ips_for_cluster "$test_config" "hpc" "$target_vm_pattern"; then
+        log_error "Failed to get VM IP addresses using ai-how API"
         return 1
     fi
 
@@ -176,7 +159,7 @@ run_test_framework() {
     fi
 
     # Step 7: Cleanup
-    if ! destroy_cluster "$test_config" "$cluster_name"; then
+    if ! destroy_cluster "$test_config" "$cluster_name" "force"; then
         log_error "Failed to tear down cluster cleanly"
         INTERACTIVE_CLEANUP=true
         export INTERACTIVE_CLEANUP
@@ -226,7 +209,7 @@ check_test_prerequisites() {
 
     # Check for required commands
     local missing_commands=()
-    for cmd in uv virsh ssh scp; do
+    for cmd in uv virsh ssh scp jq; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing_commands+=("$cmd")
         fi
@@ -234,6 +217,7 @@ check_test_prerequisites() {
 
     if [[ ${#missing_commands[@]} -gt 0 ]]; then
         log_error "Missing required commands: ${missing_commands[*]}"
+        log_error "Note: jq is required for parsing JSON output from ai-how API"
         return 1
     fi
 
@@ -253,7 +237,8 @@ cleanup_test_framework() {
 
     log "Cleaning up test framework on exit (code: $exit_code)..."
 
-    if [[ "${CLEANUP_REQUIRED:-false}" == "true" ]]; then
+    # Only attempt cleanup if we have a valid test_config and cleanup is required
+    if [[ "${CLEANUP_REQUIRED:-false}" == "true" ]] && [[ -n "${test_config:-}" ]]; then
         log "Attempting to tear down test cluster..."
         local cluster_name
         cluster_name=$(basename "${test_config%.yaml}")
@@ -263,6 +248,8 @@ cleanup_test_framework() {
                 ask_manual_cleanup "$test_config"
             fi
         fi
+    elif [[ "${CLEANUP_REQUIRED:-false}" == "true" ]]; then
+        log_warning "Cleanup required but no test config available for cleanup"
     fi
 
     # Create comprehensive log summary
@@ -314,7 +301,7 @@ get_target_vm_from_config() {
 
 # Utility function for running framework-based tests with common patterns
 run_container_runtime_test_framework() {
-    local test_config="${1:-suites/container-runtime/test-container-runtime.yaml}"
+    test_config="${1:-suites/container-runtime/test-container-runtime.yaml}"  # Make it global for cleanup trap
     local test_suite_dir="${2:-suites/container-runtime}"
     local master_script="${3:-run-container-runtime-tests.sh}"
 
@@ -339,6 +326,7 @@ run_container_runtime_test_framework() {
     local full_scripts_dir="$TESTS_DIR/$test_suite_dir"
 
     # Run with compute node focus (container runtime typically on compute nodes)
+    # Note: The new API automatically handles VM type filtering based on configuration
     run_test_framework "$full_config_path" "$full_scripts_dir" "compute" "$master_script"
 }
 
