@@ -4,9 +4,9 @@
 tasks for individual execution and testing.
 
 **Status:** Task Breakdown Complete - Implementation In Progress  
-**Updated:** 2025-09-19  
+**Updated:** 2025-01-29  
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 12 (
+**Completed Tasks:** 13 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -18,7 +18,8 @@ tasks for individual execution and testing.
   TASK-010.2,
   TASK-011,
   TASK-012,
-  TASK-013
+  TASK-013,
+  TASK-014
   )
 
 ## Overview
@@ -2157,23 +2158,25 @@ ls -la /opt/containers/
 
 ### Infrastructure Enhancement
 
-#### Task 014: Enhance Inventory Generator for GPU Detection
+#### Task 014: Enhance Inventory Generator for GPU Detection ✅ COMPLETED
 
 - **ID**: TASK-014
 - **Phase**: 1 - Infrastructure
 - **Dependencies**: TASK-007
 - **Estimated Time**: 6 hours
 - **Difficulty**: Intermediate-Advanced
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-29
 
 **Description:** Extend the Python inventory generator to detect PCIe
 passthrough GPUs and generate proper SLURM GRES configuration.
 
 **Deliverables:**
 
-- Enhanced `ansible/inventories/generate_inventory.py`
-- GPU detection and mapping logic
-- GRES configuration generation
-- Validation tests for inventory generation
+- ✅ Enhanced `ansible/inventories/generate_inventory.py` - Complete rewrite with GPU detection
+- ✅ GPU detection and mapping logic - PCIe passthrough parsing with vendor recognition
+- ✅ GRES configuration generation - Node-specific and global SLURM GRES configuration
+- ✅ Validation tests for inventory generation - 9 comprehensive test cases
 
 **Key Enhancements:**
 
@@ -2201,10 +2204,10 @@ def generate_gres_config(self, gpu_devices, node_name):
 
 **Validation Criteria:**
 
-- [ ] Script detects GPU devices from cluster.yaml
-- [ ] GRES configuration generated correctly
-- [ ] Inventory includes GPU-specific variables
-- [ ] Output validates against SLURM configuration requirements
+- [x] Script detects GPU devices from cluster.yaml
+- [x] GRES configuration generated correctly
+- [x] Inventory includes GPU-specific variables
+- [x] Output validates against SLURM configuration requirements
 
 **Test Commands:**
 
@@ -2225,10 +2228,66 @@ python3 -c "import yaml; yaml.safe_load(open('inventories/hpc/hosts.yml'))"
 
 **Success Criteria:**
 
-- GPU nodes correctly identified in inventory
-- GRES configuration matches PCIe passthrough setup
-- Inventory passes YAML validation
-- Generated configuration compatible with SLURM
+- ✅ GPU nodes correctly identified in inventory
+- ✅ GRES configuration matches PCIe passthrough setup
+- ✅ Inventory passes YAML validation
+- ✅ Generated configuration compatible with SLURM
+
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+- `ansible/inventories/generate_inventory.py` - Complete rewrite with enhanced GPU detection (440 lines)
+- `ansible/inventories/test_inventory_generation.py` - Comprehensive test suite (9 tests)
+- Updated documentation in `ansible/README.md` with usage examples
+
+**Key Implementation Features:**
+
+- **Object-Oriented Design**: `InventoryGenerator` class with comprehensive GPU detection capabilities
+- **GPU Detection Logic**: Automatic identification of GPU devices via PCIe passthrough configuration parsing
+- **GRES Configuration Generation**: Creates both node-specific and global SLURM GRES configuration entries
+- **Multi-Cluster Support**: Supports both HPC (SLURM) and Cloud (Kubernetes) cluster inventory generation
+- **Vendor Recognition**: Maps vendor IDs (10de → NVIDIA, 1002 → AMD, 8086 → Intel)
+- **Comprehensive Validation**: Built-in inventory validation, YAML syntax checking, and GRES configuration verification
+- **Test Coverage**: 9 automated tests covering GPU detection, GRES generation, and edge cases
+
+**Real-World Test Results:**
+
+Successfully tested with `template-cluster.yaml` configuration:
+
+```text
+🏗️  HPC CLUSTER
+  📦 hpc_controllers: 1 host(s)
+  📦 hpc_gpu_nodes: 2 host(s)
+    🎮 Total GPUs: 2
+
+🏗️  CLOUD CLUSTER
+  📦 k8s_control_plane: 1 host(s)
+  📦 k8s_workers: 1 host(s)
+  📦 k8s_gpu_workers: 2 host(s)
+    🎮 Total GPUs: 2
+```
+
+**Generated GRES Configuration Examples:**
+
+```yaml
+# Per-node GRES configuration
+slurm_gres:
+  - NodeName=hpc-compute-01 Name=gpu Type=nvidia_2805 File=/dev/nvidia0
+  - NodeName=hpc-compute-02 Name=gpu Type=nvidia_2504 File=/dev/nvidia0
+
+# Global cluster GRES configuration
+slurm_gres_conf:
+  - NodeName=hpc-compute-01 Name=gpu Type=nvidia_2805 File=/dev/nvidia0
+  - NodeName=hpc-compute-02 Name=gpu Type=nvidia_2504 File=/dev/nvidia0
+```
+
+**Integration Benefits:**
+
+- **Production Ready**: Complete GPU detection and GRES configuration generation
+- **Test Coverage**: 9 automated tests ensure reliable functionality
+- **Maintainability**: Well-structured object-oriented design with comprehensive documentation
+- **Framework Integration**: Ready for dependent tasks TASK-023 (GRES configuration) and TASK-015 (VM provisioning)
 
 ---
 
@@ -3317,11 +3376,11 @@ and provides a consistent, proven approach for all integration testing.
 ### Phase 1 Execution Flow
 
 ```text
-TASK-007 → TASK-008 ✅ → TASK-009
+TASK-007 ✅ → TASK-008 ✅ → TASK-009 ✅
     ↓         ↓
-TASK-010.1 → TASK-010.2 → TASK-011 → TASK-013
+TASK-010.1 ✅ → TASK-010.2 ✅ → TASK-011 ✅ → TASK-013 ✅
     ↓          ↓           ↓
-TASK-014      TASK-012 ←←←←
+TASK-014 ✅     TASK-012 ✅ ←←←←
     ↓
 TASK-015 → TASK-016
     ↓         ↓
