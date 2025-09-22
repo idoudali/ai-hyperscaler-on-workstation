@@ -84,7 +84,7 @@ graph TD
     end
 
     subgraph Docker Container
-        D[Container Starts] --> E[Workspace code mounted at /workspace];
+        D[Container Starts] --> E[Workspace code mounted at project root path];
         E --> F[Tools available: terraform, ansible, etc.];
         F --> G[Developer works inside container];
     end

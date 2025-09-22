@@ -121,14 +121,13 @@ if [[ $# -eq 0 ]]; then
         -v /etc/shadow:/etc/shadow:ro \
         -v /etc/sudoers:/etc/sudoers:ro \
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
-        -v "$PROJECT_ROOT":/workspace \
         -v "$PROJECT_ROOT":$PROJECT_ROOT \
         -e HOME="$HOME" \
         -e USER="$USER" \
         -e USER_ID="$USER_ID" \
         -e GROUP_ID="$GROUP_ID" \
         -e DISPLAY="${DISPLAY:-}" \
-        -w /workspace \
+        -w $PROJECT_ROOT \
         $DOCKER_EXTRA_ARGS \
         "$FULL_IMAGE_NAME" \
         /bin/bash
@@ -140,14 +139,13 @@ else
         -v /etc/shadow:/etc/shadow:ro \
         -v /etc/sudoers:/etc/sudoers:ro \
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
-        -v "$PROJECT_ROOT":/workspace \
         -v "$PROJECT_ROOT":$PROJECT_ROOT \
         -e HOME="$HOME" \
         -e USER="$USER" \
         -e USER_ID="$USER_ID" \
         -e GROUP_ID="$GROUP_ID" \
         -e DISPLAY="${DISPLAY:-}" \
-        -w /workspace \
+        -w $PROJECT_ROOT \
         $DOCKER_EXTRA_ARGS \
         "$FULL_IMAGE_NAME" \
         /bin/bash -c "${COMMAND}"
