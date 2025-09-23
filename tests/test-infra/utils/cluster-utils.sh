@@ -272,13 +272,14 @@ wait_for_cluster_vms() {
     fi
 
     # Parse the configuration using ai-how API to get cluster name and expected VMs
+    local log_directory="${LOG_DIR:-./logs}"
     local cluster_name expected_vms
-    if ! cluster_name=$(parse_cluster_name "$config_file" "$cluster_type"); then
+    if ! cluster_name=$(parse_cluster_name "$config_file" "$log_directory" "$cluster_type"); then
         log_error "Failed to parse cluster name from configuration using ai-how API"
         return 1
     fi
 
-    if ! expected_vms=$(parse_expected_vms "$config_file" "$cluster_type"); then
+    if ! expected_vms=$(parse_expected_vms "$config_file" "$log_directory" "$cluster_type"); then
         log_error "Failed to parse expected VMs from configuration using ai-how API"
         return 1
     fi
@@ -342,13 +343,19 @@ wait_for_cluster_vms() {
     return 1
 }
 
-# Helper function to get cluster planning data using ai-how API
+# Helper function to generate cluster plan using ai-how API and return JSON file path
 get_cluster_plan_data() {
     local config_file="$1"
-    local cluster_type="${2:-hpc}"
+    local log_directory="$2"
+    local cluster_type="${3:-hpc}"
 
     [[ -z "$config_file" ]] && {
         log_error "get_cluster_plan_data: config_file parameter required"
+        return 1
+    }
+
+    [[ -z "$log_directory" ]] && {
+        log_error "get_cluster_plan_data: log_directory parameter required"
         return 1
     }
 
@@ -363,62 +370,61 @@ get_cluster_plan_data() {
         return 1
     }
 
-    # Log to stderr to avoid contaminating stdout (needed for JSON parsing)
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} Getting cluster plan data using ai-how API: $resolved_config" >&2
+    # Create plan output file in specified log directory
+    local plan_output_file
+    plan_output_file="$log_directory/cluster-plan-$(basename "${resolved_config%.yaml}").json"
+    mkdir -p "$(dirname "$plan_output_file")"
 
-    # Use ai-how plan clusters command with JSON output
-    # Extract only the JSON part (from first { to last })
-    local plan_output
-    local raw_output
-    if ! raw_output=$(uv run ai-how plan clusters "$resolved_config" --format json 2>&1); then
-        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} Failed to get cluster plan data using ai-how API" >&2
+    # Log to stderr to avoid contaminating stdout
+    log "Generating cluster plan using ai-how API: $resolved_config" >&2
+    log "Writing plan output to: $plan_output_file" >&2
+
+    # Use ai-how plan clusters command with JSON output to file
+    # Redirect stderr to log file to avoid contaminating stdout
+    if ! uv run ai-how plan clusters "$resolved_config" --format json --output-file "$plan_output_file" 2>> "$log_directory/ai-how-plan.log"; then
+        log_error "Failed to generate cluster plan using ai-how API" >&2
         return 1
     fi
 
-    # Extract JSON robustly: find the first valid JSON object in the output
-    plan_output=$(echo "$raw_output" | jq -s 'map(try fromjson? // empty) | .[0]' 2>/dev/null)
-
-    # Parse JSON and extract cluster data
-    local cluster_data
-    if ! cluster_data=$(echo "$plan_output" | jq -r ".clusters.${cluster_type}" 2>/dev/null); then
-        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} Failed to parse cluster data from ai-how API output" >&2
+    # Validate that the cluster type exists in the generated plan
+    if ! jq -e ".clusters.${cluster_type}" "$plan_output_file" >/dev/null 2>&1; then
+        log_error "No ${cluster_type} cluster found in generated plan" >&2
+        log_error "Plan output file: $plan_output_file" >&2
         return 1
     fi
 
-    if [[ "$cluster_data" == "null" ]]; then
-        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} No ${cluster_type} cluster found in configuration" >&2
-        return 1
-    fi
-
-    echo "$cluster_data"
+    log_success "Cluster plan generated successfully: $plan_output_file" >&2
+    echo "$plan_output_file"
 }
 
 # Helper function to parse cluster name from ai-how API
 parse_cluster_name() {
     local config_file="$1"
-    local cluster_type="$2"
+    local log_directory="$2"
+    local cluster_type="$3"
 
-    local cluster_data
-    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+    local plan_file
+    if ! plan_file=$(get_cluster_plan_data "$config_file" "$log_directory" "$cluster_type"); then
         return 1
     fi
 
-    echo "$cluster_data" | jq -r '.name' 2>/dev/null
+    jq -r ".clusters.${cluster_type}.name" "$plan_file" 2>/dev/null
 }
 
 # Helper function to parse expected VMs from ai-how API
 parse_expected_vms() {
     local config_file="$1"
-    local cluster_type="$2"
+    local log_directory="$2"
+    local cluster_type="$3"
 
-    local cluster_data
-    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+    local plan_file
+    if ! plan_file=$(get_cluster_plan_data "$config_file" "$log_directory" "$cluster_type"); then
         return 1
     fi
 
     # Extract VM names from the cluster data
     local expected_vms
-    expected_vms=$(echo "$cluster_data" | jq -r '.vms[].name' 2>/dev/null | tr '\n' ' ')
+    expected_vms=$(jq -r ".clusters.${cluster_type}.vms[].name" "$plan_file" 2>/dev/null | tr '\n' ' ')
 
     echo "$expected_vms" | xargs  # Trim whitespace
 }
@@ -426,20 +432,21 @@ parse_expected_vms() {
 # Helper function to get VM specifications from ai-how API
 get_vm_specifications() {
     local config_file="$1"
-    local cluster_type="$2"
-    local vm_name="${3:-}"
+    local log_directory="$2"
+    local cluster_type="$3"
+    local vm_name="${4:-}"
 
-    local cluster_data
-    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+    local plan_file
+    if ! plan_file=$(get_cluster_plan_data "$config_file" "$log_directory" "$cluster_type"); then
         return 1
     fi
 
     if [[ -n "$vm_name" ]]; then
         # Get specific VM data
-        echo "$cluster_data" | jq -r ".vms[] | select(.name == \"$vm_name\")" 2>/dev/null
+        jq -r ".clusters.${cluster_type}.vms[] | select(.name == \"$vm_name\")" "$plan_file" 2>/dev/null
     else
         # Get all VM data
-        echo "$cluster_data" | jq -r '.vms[]' 2>/dev/null
+        jq -r ".clusters.${cluster_type}.vms[]" "$plan_file" 2>/dev/null
     fi
 }
 

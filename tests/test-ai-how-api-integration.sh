@@ -59,18 +59,19 @@ log_success "jq command is available"
 
 # Test 3: Test cluster plan data retrieval
 log "Test 3: Testing cluster plan data retrieval"
-if ! cluster_data=$(get_cluster_plan_data "$TEST_CONFIG" "hpc"); then
+if ! plan_file=$(get_cluster_plan_data "$TEST_CONFIG" "$LOG_DIR" "hpc"); then
     log_error "Failed to get cluster plan data"
     exit 1
 fi
 
 log_success "Cluster plan data retrieved successfully"
+log "Plan file: $plan_file"
 log "Cluster data preview:"
-echo "$cluster_data" | jq -r '.name, .type, (.vms | length)' 2>/dev/null || true
+jq -r '.clusters.hpc | .name, .type, (.vms | length)' "$plan_file" 2>/dev/null || true
 
 # Test 4: Test cluster name parsing
 log "Test 4: Testing cluster name parsing"
-if ! cluster_name=$(parse_cluster_name "$TEST_CONFIG" "hpc"); then
+if ! cluster_name=$(parse_cluster_name "$TEST_CONFIG" "$LOG_DIR" "hpc"); then
     log_error "Failed to parse cluster name"
     exit 1
 fi
@@ -79,7 +80,7 @@ log_success "Cluster name parsed: $cluster_name"
 
 # Test 5: Test expected VMs parsing
 log "Test 5: Testing expected VMs parsing"
-if ! expected_vms=$(parse_expected_vms "$TEST_CONFIG" "hpc"); then
+if ! expected_vms=$(parse_expected_vms "$TEST_CONFIG" "$LOG_DIR" "hpc"); then
     log_error "Failed to parse expected VMs"
     exit 1
 fi
@@ -88,7 +89,7 @@ log_success "Expected VMs parsed: $(echo "$expected_vms" | tr '\n' ' ')"
 
 # Test 6: Test VM specifications retrieval
 log "Test 6: Testing VM specifications retrieval"
-if ! vm_specs=$(get_vm_specifications "$TEST_CONFIG" "hpc"); then
+if ! vm_specs=$(get_vm_specifications "$TEST_CONFIG" "$LOG_DIR" "hpc"); then
     log_error "Failed to get VM specifications"
     exit 1
 fi
@@ -135,7 +136,7 @@ fi
 
 # Test 10: Test error handling with invalid config
 log "Test 10: Testing error handling with invalid config"
-if get_cluster_plan_data "/nonexistent/config.yaml" "hpc" >/dev/null 2>&1; then
+if get_cluster_plan_data "/nonexistent/config.yaml" "$LOG_DIR" "hpc" >/dev/null 2>&1; then
     log_error "Error handling test failed - should have failed with invalid config"
     exit 1
 fi

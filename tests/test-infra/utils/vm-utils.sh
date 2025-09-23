@@ -45,19 +45,20 @@ get_vm_ips_for_cluster() {
     fi
 
     # Get cluster plan data using ai-how API
-    local cluster_data
-    if ! cluster_data=$(get_cluster_plan_data "$config_file" "$cluster_type"); then
+    local log_directory="${LOG_DIR:-./logs}"
+    local plan_file
+    if ! plan_file=$(get_cluster_plan_data "$config_file" "$log_directory" "$cluster_type"); then
         log_error "Failed to get cluster plan data using ai-how API"
         return 1
     fi
 
     # Extract cluster name and expected VMs
     local cluster_name
-    cluster_name=$(echo "$cluster_data" | jq -r '.name' 2>/dev/null)
+    cluster_name=$(jq -r ".clusters.${cluster_type}.name" "$plan_file" 2>/dev/null)
 
     # Get VM count to validate we have VMs
     local vm_count
-    vm_count=$(echo "$cluster_data" | jq -r '.vms | length' 2>/dev/null)
+    vm_count=$(jq -r ".clusters.${cluster_type}.vms | length" "$plan_file" 2>/dev/null)
 
     if [[ "$vm_count" -eq 0 ]]; then
         log_error "No VMs found in cluster plan data"
@@ -65,7 +66,7 @@ get_vm_ips_for_cluster() {
     fi
 
     log "Cluster: $cluster_name"
-    log "Expected VMs from API: $(echo "$cluster_data" | jq -r '.vms[].name' | tr '\n' ' ')"
+    log "Expected VMs from API: $(jq -r ".clusters.${cluster_type}.vms[].name" "$plan_file" | tr '\n' ' ')"
 
     # Initialize arrays
     VM_IPS=()
@@ -74,6 +75,11 @@ get_vm_ips_for_cluster() {
     # Get all running VMs matching our cluster name
     local all_running_vms
     all_running_vms=$(virsh list --name --state-running | grep "^${cluster_name}-" || true)
+
+    # Debug: Show what VMs were found for troubleshooting
+    log_verbose "VM discovery - Cluster pattern: ^${cluster_name}-"
+    log_verbose "VM discovery - Running VMs found: '$all_running_vms'"
+    log_verbose "VM discovery - All running VMs (raw): $(virsh list --name --state-running || true)"
 
     if [[ -z "$all_running_vms" ]]; then
         log_error "No running VMs found for cluster: $cluster_name"
@@ -84,10 +90,10 @@ get_vm_ips_for_cluster() {
     local vm_index=0
     while [[ $vm_index -lt $vm_count ]]; do
         local vm_spec
-        vm_spec=$(echo "$cluster_data" | jq -r ".vms[$vm_index]" 2>/dev/null)
+        vm_spec=$(jq -r ".clusters.${cluster_type}.vms[$vm_index]" "$plan_file" 2>/dev/null)
 
         [[ -z "$vm_spec" ]] && {
-            ((vm_index++))
+            vm_index=$((vm_index + 1))
             continue
         }
 
@@ -96,13 +102,17 @@ get_vm_ips_for_cluster() {
         vm_type=$(echo "$vm_spec" | jq -r '.type' 2>/dev/null)
 
         # Check if this VM is running
-        if ! echo "$all_running_vms" | grep -F -q "^${vm_name}$"; then
+        log_verbose "VM check - Verifying VM '$vm_name' is in running list: '$all_running_vms'"
+        if ! echo "$all_running_vms" | grep -q "^${vm_name}$"; then
             log_warning "Expected VM $vm_name is not running, skipping"
+            log_verbose "VM check failed - Pattern: '^${vm_name}$', List: '$all_running_vms'"
+            vm_index=$((vm_index + 1))
             continue
         fi
 
-        # If target_vm_name is specified, filter to that specific VM
-        if [[ -n "$target_vm_name" ]] && [[ "$vm_name" != "$target_vm_name" ]]; then
+        # If target_vm_name is specified, filter to VMs matching that pattern
+        if [[ -n "$target_vm_name" ]] && [[ "$vm_name" != *"$target_vm_name"* ]]; then
+            vm_index=$((vm_index + 1))
             continue
         fi
 
@@ -143,7 +153,7 @@ get_vm_ips_for_cluster() {
             return 1
         fi
 
-        ((vm_index++))
+        vm_index=$((vm_index + 1))
     done
 
     if [[ ${#VM_IPS[@]} -eq 0 ]]; then

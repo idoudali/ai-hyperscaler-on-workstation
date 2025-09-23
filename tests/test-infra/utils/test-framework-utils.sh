@@ -43,9 +43,9 @@ source "$UTILS_DIR/vm-utils.sh"
 # Test framework main execution function
 run_test_framework() {
     test_config="$1"  # Make it global for cleanup trap
-    local test_scripts_dir="$2"
-    local target_vm_pattern="${3:-}"
-    local master_test_script="${4:-run-all-tests.sh}"
+    test_scripts_dir="$2"  # Make it global for cleanup trap
+    target_vm_pattern="${3:-}"  # Make it global for cleanup trap
+    master_test_script="${4:-run-all-tests.sh}"  # Make it global for cleanup trap
 
     [[ -z "$test_config" ]] && {
         log_error "run_test_framework: test_config parameter required"
@@ -62,7 +62,7 @@ run_test_framework() {
 
     local cluster_name
     # Extract cluster name using ai-how API
-    if ! cluster_name=$(parse_cluster_name "$test_config" "hpc"); then
+    if ! cluster_name=$(parse_cluster_name "$test_config" "$LOG_DIR" "hpc"); then
         log_warning "Failed to extract cluster name using ai-how API, falling back to filename"
         cluster_name=$(basename "${test_config%.yaml}")
     fi
@@ -270,76 +270,6 @@ cleanup_test_framework() {
     exit $exit_code
 }
 
-# Configuration parsing utilities
-get_cluster_name_from_config() {
-    local config_file="$1"
-
-    if [[ -f "$config_file" ]]; then
-        # Try to extract cluster name from metadata or use filename
-        local name
-        name=$(grep -E "^\s*name:" "$config_file" | head -1 | cut -d: -f2 | tr -d ' "' || true)
-        if [[ -n "$name" ]]; then
-            echo "$name"
-        else
-            basename "${config_file%.yaml}"
-        fi
-    else
-        basename "${config_file%.yaml}"
-    fi
-}
-
-get_target_vm_from_config() {
-    local config_file="$1"
-    local vm_type="${2:-compute}"  # compute, controller, or specific name
-
-    if [[ -f "$config_file" ]]; then
-        case "$vm_type" in
-            "compute"|"compute_nodes")
-                echo "compute"
-                ;;
-            "controller")
-                echo "controller"
-                ;;
-            *)
-                echo "$vm_type"
-                ;;
-        esac
-    else
-        echo "$vm_type"
-    fi
-}
-
-# Utility function for running framework-based tests with common patterns
-run_container_runtime_test_framework() {
-    test_config="${1:-suites/container-runtime/test-container-runtime.yaml}"  # Make it global for cleanup trap
-    local test_suite_dir="${2:-suites/container-runtime}"
-    local master_script="${3:-run-container-runtime-tests.sh}"
-
-    # Initialize logging with container runtime specific settings
-    local run_timestamp
-    run_timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
-    local test_name="container-runtime"
-    init_logging "$run_timestamp" "logs" "$test_name"
-
-    log "Container Runtime Test Framework Starting"
-    log "Test Configuration: $test_config"
-    log "Test Suite Directory: $test_suite_dir"
-
-    # Resolve the test config path (handles both absolute and relative paths)
-    local resolved_config
-    if ! resolved_config=$(resolve_test_config_path "$test_config"); then
-        return 1
-    fi
-
-    # Use tests directory as base for test config and scripts
-    local full_config_path="$resolved_config"
-    local full_scripts_dir="$TESTS_DIR/$test_suite_dir"
-
-    # Run with compute node focus (container runtime typically on compute nodes)
-    # Note: The new API automatically handles VM type filtering based on configuration
-    run_test_framework "$full_config_path" "$full_scripts_dir" "compute" "$master_script"
-}
 
 # Export main functions for use in other scripts
 export -f run_test_framework check_test_prerequisites cleanup_test_framework
-export -f get_cluster_name_from_config get_target_vm_from_config run_container_runtime_test_framework

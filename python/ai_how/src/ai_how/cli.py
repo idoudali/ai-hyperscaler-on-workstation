@@ -461,6 +461,14 @@ def plan_clusters(
             help="Output format: text, json, or markdown",
         ),
     ] = "text",
+    output_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--output-file",
+            "-o",
+            help="Write output to file instead of stdout",
+        ),
+    ] = None,
 ) -> None:
     """Show planned clusters and VMs from configuration file.
 
@@ -473,6 +481,9 @@ def plan_clusters(
     - text: Human-readable formatted output (default)
     - json: Machine-readable JSON output
     - markdown: Markdown table format
+
+    Options:
+    - --output-file, -o: Write output to specified file instead of stdout
     """
     # Get logger for this module
     logger = logging.getLogger(__name__)
@@ -489,13 +500,29 @@ def plan_clusters(
         # Parse cluster configuration
         planned_data = _parse_cluster_config(config_data)
 
-        # Output based on format
-        if output_format.lower() == "json":
-            _output_json(planned_data)
-        elif output_format.lower() == "markdown":
-            _output_markdown(planned_data)
-        else:  # text format (default)
-            _output_text(planned_data)
+        # Output based on format and destination
+        if output_file:
+            # Create parent directories if they don't exist
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(output_file, "w", encoding="utf-8") as f:
+                if output_format.lower() == "json":
+                    _output_json(planned_data, file=f)
+                elif output_format.lower() == "markdown":
+                    _output_markdown(planned_data, file=f)
+                else:  # text format (default)
+                    _output_text(planned_data, file=f)
+
+            if output_format.lower() != "json":
+                console.print(f"[green]Output written to: {output_file}[/green]")
+        else:
+            # Output to stdout (original behavior)
+            if output_format.lower() == "json":
+                _output_json(planned_data)
+            elif output_format.lower() == "markdown":
+                _output_markdown(planned_data)
+            else:  # text format (default)
+                _output_text(planned_data)
 
     except FileNotFoundError:
         if output_format.lower() != "json":
@@ -919,105 +946,164 @@ def _extract_gpu_info(pcie_config: dict) -> str | None:
     return f"{pci_addr} ({vendor_id}:{device_id})"
 
 
-def _output_text(planned_data: dict) -> None:
+def _output_text(planned_data: dict, file=None) -> None:
     """Output planned data in human-readable text format.
 
     Args:
         planned_data: Parsed cluster configuration data
+        file: File object to write to, defaults to stdout via Rich console
     """
-    console.print("\n[bold blue]Cluster Planning Report[/bold blue]")
-    console.print(f"Configuration: {planned_data['metadata'].get('name', 'Unknown')}")
-    console.print(f"Description: {planned_data['metadata'].get('description', 'No description')}")
+    if file is not None:
+        # For file output, create a simple text version without Rich formatting
+        def write_line(text=""):
+            file.write(text + "\n")
 
-    total_clusters = len(planned_data["clusters"])
-    total_vms = sum(len(cluster["vms"]) for cluster in planned_data["clusters"].values())
+        write_line("\nCluster Planning Report")
+        write_line(f"Configuration: {planned_data['metadata'].get('name', 'Unknown')}")
+        write_line(f"Description: {planned_data['metadata'].get('description', 'No description')}")
 
-    console.print(f"\n[bold]Summary:[/bold] {total_clusters} cluster(s), {total_vms} VM(s)")
+        total_clusters = len(planned_data["clusters"])
+        total_vms = sum(len(cluster["vms"]) for cluster in planned_data["clusters"].values())
 
-    for cluster_name, cluster_info in planned_data["clusters"].items():
+        write_line(f"\nSummary: {total_clusters} cluster(s), {total_vms} VM(s)")
+
+        for cluster_name, cluster_info in planned_data["clusters"].items():
+            write_line(f"\nCluster: {cluster_info['name']} ({cluster_name.upper()})")
+            write_line(f"  Type: {cluster_info['type'].upper()}")
+            subnet = cluster_info["network"].get("subnet", "unknown")
+            bridge = cluster_info["network"].get("bridge", "unknown")
+            write_line(f"  Network: {subnet} ({bridge})")
+            write_line(f"  Base Image: {cluster_info['base_image']}")
+            write_line(f"  VMs: {len(cluster_info['vms'])}")
+
+            # Create simple table header
+            write_line(f"\n{cluster_info['name']} VMs:")
+            write_line(
+                "Name                | Type      | CPU | Memory (GB) | Disk (GB) | IP Address    | "
+                "GPU"
+            )
+            write_line(
+                "--------------------|-----------|-----|-------------|-----------|---------------|-----"
+            )
+
+            for vm in cluster_info["vms"]:
+                gpu_display = vm["gpu_assigned"] if vm["gpu_assigned"] else "None"
+                write_line(
+                    f"{vm['name']:<19} | {vm['type']:<9} | {vm['cpu_cores']:<3} | "
+                    f"{vm['memory_gb']:<11} | {vm['disk_gb']:<9} | {vm['ip_address']:<13} | "
+                    f"{gpu_display}"
+                )
+    else:
+        # Original Rich console output for stdout
+        console.print("\n[bold blue]Cluster Planning Report[/bold blue]")
+        console.print(f"Configuration: {planned_data['metadata'].get('name', 'Unknown')}")
         console.print(
-            f"\n[bold cyan]Cluster: {cluster_info['name']} ({cluster_name.upper()})[/bold cyan]"
+            f"Description: {planned_data['metadata'].get('description', 'No description')}"
         )
-        console.print(f"  Type: {cluster_info['type'].upper()}")
-        subnet = cluster_info["network"].get("subnet", "unknown")
-        bridge = cluster_info["network"].get("bridge", "unknown")
-        console.print(f"  Network: {subnet} ({bridge})")
-        console.print(f"  Base Image: {cluster_info['base_image']}")
-        console.print(f"  VMs: {len(cluster_info['vms'])}")
 
-        # Create VM table
-        vm_table = Table(title=f"{cluster_info['name']} VMs")
-        vm_table.add_column("Name", style="cyan")
-        vm_table.add_column("Type", style="white")
-        vm_table.add_column("CPU", style="white")
-        vm_table.add_column("Memory (GB)", style="white")
-        vm_table.add_column("Disk (GB)", style="white")
-        vm_table.add_column("IP Address", style="white")
-        vm_table.add_column("GPU", style="white")
+        total_clusters = len(planned_data["clusters"])
+        total_vms = sum(len(cluster["vms"]) for cluster in planned_data["clusters"].values())
 
-        for vm in cluster_info["vms"]:
-            gpu_display = (
-                f"[green]{vm['gpu_assigned']}[/green]" if vm["gpu_assigned"] else "[dim]None[/dim]"
+        console.print(f"\n[bold]Summary:[/bold] {total_clusters} cluster(s), {total_vms} VM(s)")
+
+        for cluster_name, cluster_info in planned_data["clusters"].items():
+            console.print(
+                f"\n[bold cyan]Cluster: {cluster_info['name']} ({cluster_name.upper()})[/bold cyan]"
             )
-            vm_table.add_row(
-                vm["name"],
-                vm["type"],
-                str(vm["cpu_cores"]),
-                str(vm["memory_gb"]),
-                str(vm["disk_gb"]),
-                vm["ip_address"],
-                gpu_display,
-            )
+            console.print(f"  Type: {cluster_info['type'].upper()}")
+            subnet = cluster_info["network"].get("subnet", "unknown")
+            bridge = cluster_info["network"].get("bridge", "unknown")
+            console.print(f"  Network: {subnet} ({bridge})")
+            console.print(f"  Base Image: {cluster_info['base_image']}")
+            console.print(f"  VMs: {len(cluster_info['vms'])}")
 
-        console.print(vm_table)
+            # Create VM table
+            vm_table = Table(title=f"{cluster_info['name']} VMs")
+            vm_table.add_column("Name", style="cyan")
+            vm_table.add_column("Type", style="white")
+            vm_table.add_column("CPU", style="white")
+            vm_table.add_column("Memory (GB)", style="white")
+            vm_table.add_column("Disk (GB)", style="white")
+            vm_table.add_column("IP Address", style="white")
+            vm_table.add_column("GPU", style="white")
+
+            for vm in cluster_info["vms"]:
+                gpu_display = (
+                    f"[green]{vm['gpu_assigned']}[/green]"
+                    if vm["gpu_assigned"]
+                    else "[dim]None[/dim]"
+                )
+                vm_table.add_row(
+                    vm["name"],
+                    vm["type"],
+                    str(vm["cpu_cores"]),
+                    str(vm["memory_gb"]),
+                    str(vm["disk_gb"]),
+                    vm["ip_address"],
+                    gpu_display,
+                )
+
+            console.print(vm_table)
 
 
-def _output_json(planned_data: dict) -> None:
+def _output_json(planned_data: dict, file=None) -> None:
     """Output planned data in JSON format.
 
     Args:
         planned_data: Parsed cluster configuration data
+        file: File object to write to, defaults to stdout
     """
-    print(json.dumps(planned_data, indent=2))
+    if file is None:
+        print(json.dumps(planned_data, indent=2))
+    else:
+        json.dump(planned_data, file, indent=2)
 
 
-def _output_markdown(planned_data: dict) -> None:
+def _output_markdown(planned_data: dict, file=None) -> None:
     """Output planned data in markdown table format.
 
     Args:
         planned_data: Parsed cluster configuration data
+        file: File object to write to, defaults to stdout
     """
-    print("# Cluster Planning Report")
-    print(f"**Configuration:** {planned_data['metadata'].get('name', 'Unknown')}")
-    print(f"**Description:** {planned_data['metadata'].get('description', 'No description')}")
+
+    def write_line(text=""):
+        if file is None:
+            print(text)
+        else:
+            file.write(text + "\n")
+
+    write_line("# Cluster Planning Report")
+    write_line(f"**Configuration:** {planned_data['metadata'].get('name', 'Unknown')}")
+    write_line(f"**Description:** {planned_data['metadata'].get('description', 'No description')}")
 
     total_clusters = len(planned_data["clusters"])
     total_vms = sum(len(cluster["vms"]) for cluster in planned_data["clusters"].values())
-    print(f"\n**Summary:** {total_clusters} cluster(s), {total_vms} VM(s)\n")
+    write_line(f"\n**Summary:** {total_clusters} cluster(s), {total_vms} VM(s)\n")
 
     for cluster_name, cluster_info in planned_data["clusters"].items():
-        print(f"## {cluster_info['name']} ({cluster_name.upper()})")
-        print(f"- **Type:** {cluster_info['type'].upper()}")
+        write_line(f"## {cluster_info['name']} ({cluster_name.upper()})")
+        write_line(f"- **Type:** {cluster_info['type'].upper()}")
         subnet = cluster_info["network"].get("subnet", "unknown")
         bridge = cluster_info["network"].get("bridge", "unknown")
-        print(f"- **Network:** {subnet} ({bridge})")
-        print(f"- **Base Image:** {cluster_info['base_image']}")
-        print(f"- **VMs:** {len(cluster_info['vms'])}")
-        print()
+        write_line(f"- **Network:** {subnet} ({bridge})")
+        write_line(f"- **Base Image:** {cluster_info['base_image']}")
+        write_line(f"- **VMs:** {len(cluster_info['vms'])}")
+        write_line()
 
         # Create markdown table
-        print("| Name | Type | CPU | Memory (GB) | Disk (GB) | IP Address | GPU |")
-        print("|------|------|-----|-------------|-----------|------------|-----|")
+        write_line("| Name | Type | CPU | Memory (GB) | Disk (GB) | IP Address | GPU |")
+        write_line("|------|------|-----|-------------|-----------|------------|-----|")
 
         for vm in cluster_info["vms"]:
             gpu_display = vm["gpu_assigned"] if vm["gpu_assigned"] else "None"
-            print(
+            write_line(
                 f"| {vm['name']} | {vm['type']} | {vm['cpu_cores']} | "
                 f"{vm['memory_gb']} | {vm['disk_gb']} | {vm['ip_address']} | "
                 f"{gpu_display} |"
             )
 
-        print()
+        write_line()
 
 
 if __name__ == "__main__":
