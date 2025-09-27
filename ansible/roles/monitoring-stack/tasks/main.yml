@@ -15,3 +15,10 @@
   tags:
     - node-exporter
     - monitoring
+
+- name: Include Grafana tasks
+  include_tasks: grafana.yml
+  when: monitoring_role == 'server' or monitoring_role == 'all'
+  tags:
+    - grafana
+    - monitoring

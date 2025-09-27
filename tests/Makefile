@@ -13,6 +13,7 @@ help:
 	@echo "  test-container-runtime - Run container runtime tests"
 	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
+	@echo "  test-grafana           - Run Grafana dashboard platform tests"
 	@echo "  test-ansible-roles     - Run Ansible roles validation"
 	@echo "  test-integration       - Run integration tests"
 	@echo "  test-pcie-validation   - Run PCIe validation tests"
@@ -57,6 +58,10 @@ test-slurm-controller:
 test-monitoring-stack:
 	@echo "Running Prometheus monitoring stack tests..."
 	@./test-monitoring-stack-framework.sh
+
+test-grafana:
+	@echo "Running Grafana dashboard platform tests..."
+	@./test-grafana-framework.sh
 
 # Run Ansible roles integration tests
 test-ansible-roles:

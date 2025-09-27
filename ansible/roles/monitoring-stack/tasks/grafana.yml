@@ -1,0 +1,202 @@
+---
+# Grafana installation and configuration tasks
+# Installs Grafana and configures it with Prometheus data source
+
+- name: Add Grafana APT repository key
+  shell: |
+    apt-get update && apt-get install -y gnupg
+    curl -fsSL https://packages.grafana.com/gpg.key | gpg --dearmor -o /usr/share/keyrings/grafana.asc
+    chmod 644 /usr/share/keyrings/grafana.asc
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Add Grafana APT repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/grafana.asc] https://packages.grafana.com/oss/deb stable main"
+    state: present
+    filename: grafana
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Install Grafana packages
+  apt:
+    name: "{{ grafana_packages }}"
+    state: present
+    update_cache: yes
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Create Grafana user and group
+  group:
+    name: "{{ grafana_group }}"
+    state: present
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Create Grafana user
+  user:
+    name: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    system: yes
+    shell: /bin/false
+    create_home: no
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Create Grafana directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0750'
+  become: yes
+  loop:
+    - "{{ grafana_config_dir }}"
+    - "{{ grafana_data_dir }}"
+    - "{{ grafana_logs_dir }}"
+    - "{{ grafana_plugins_dir }}"
+    - "{{ grafana_provisioning_dir }}"
+    - "{{ grafana_provisioning_dir }}/datasources"
+    - "{{ grafana_provisioning_dir }}/dashboards"
+  tags:
+    - grafana
+    - monitoring
+
+- name: Configure Grafana main configuration
+  template:
+    src: grafana.ini.j2
+    dest: "{{ grafana_config_dir }}/grafana.ini"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  become: yes
+  notify:
+    - restart grafana
+  tags:
+    - grafana
+    - monitoring
+
+- name: Configure Prometheus data source provisioning
+  template:
+    src: prometheus-datasource.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/datasources/prometheus.yml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  become: yes
+  notify:
+    - restart grafana
+  tags:
+    - grafana
+    - monitoring
+
+- name: Configure basic system dashboard provisioning
+  template:
+    src: system-dashboard.yml.j2
+    dest: "{{ grafana_provisioning_dir }}/dashboards/system-overview.yml"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  become: yes
+  notify:
+    - restart grafana
+  tags:
+    - grafana
+    - monitoring
+
+- name: Copy system overview dashboard JSON
+  copy:
+    src: system-overview-dashboard.json
+    dest: "{{ grafana_provisioning_dir }}/dashboards/system-overview.json"
+    owner: "{{ grafana_user }}"
+    group: "{{ grafana_group }}"
+    mode: '0640'
+  become: yes
+  notify:
+    - restart grafana
+  tags:
+    - grafana
+    - monitoring
+
+- name: Create Grafana systemd service override directory
+  file:
+    path: "/etc/systemd/system/grafana-server.service.d"
+    state: directory
+    mode: '0755'
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Configure Grafana systemd service override
+  template:
+    src: grafana-service-override.conf.j2
+    dest: "/etc/systemd/system/grafana-server.service.d/override.conf"
+    mode: '0644'
+  become: yes
+  notify:
+    - reload systemd
+    - restart grafana
+  tags:
+    - grafana
+    - monitoring
+
+- name: Enable and start Grafana service
+  systemd:
+    name: grafana-server
+    enabled: "{{ grafana_enable_service }}"
+    state: "{{ 'started' if grafana_start_service else 'stopped' }}"
+    daemon_reload: yes
+  become: yes
+  tags:
+    - grafana
+    - monitoring
+
+- name: Wait for Grafana to start
+  wait_for:
+    host: localhost
+    port: "{{ grafana_port }}"
+    timeout: 60
+  when: grafana_start_service
+  tags:
+    - grafana
+    - monitoring
+
+- name: Validate Grafana health
+  uri:
+    url: "http://localhost:{{ grafana_port }}/api/health"
+    method: GET
+    status_code: 200
+  register: grafana_health_check
+  until: grafana_health_check.status == 200
+  retries: 5
+  delay: 10
+  when: grafana_start_service
+  tags:
+    - grafana
+    - monitoring
+
+- name: Verify Prometheus data source is configured
+  uri:
+    url: "http://localhost:{{ grafana_port }}/api/datasources"
+    method: GET
+    user: "{{ grafana_admin_user }}"
+    password: "{{ grafana_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: grafana_datasources_check
+  when: grafana_start_service
+  tags:
+    - grafana
+    - monitoring

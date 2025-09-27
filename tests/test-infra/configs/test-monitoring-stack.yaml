@@ -1,6 +1,7 @@
 ---
-# Test configuration for monitoring stack validation
+# Test configuration for monitoring stack validation with Grafana
 # Task 015: Install Prometheus Monitoring Stack
+# Task 016: Set Up Grafana Dashboard Platform
 
 version: "1.0"
 metadata:

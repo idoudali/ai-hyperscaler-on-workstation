@@ -51,8 +51,27 @@ prometheus_scrape_configs:
     static_configs:
       - targets: ['localhost:9100']
 
+# Grafana configuration
+grafana_version: "10.2.2"
+grafana_user: "grafana"
+grafana_group: "grafana"
+grafana_config_dir: "/etc/grafana"
+grafana_data_dir: "/var/lib/grafana"
+grafana_logs_dir: "/var/log/grafana"
+grafana_plugins_dir: "/var/lib/grafana/plugins"
+grafana_provisioning_dir: "/etc/grafana/provisioning"
+grafana_port: 3000
+grafana_admin_user: "admin"
+grafana_admin_password: "admin"
+
+# Grafana packages to install
+grafana_packages:
+  - grafana
+
 # Service management
 prometheus_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
 prometheus_start_service: "{{ not ((packer_build | default(false)) | bool) }}"
 node_exporter_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
 node_exporter_start_service: "{{ not ((packer_build | default(false)) | bool) }}"
+grafana_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
+grafana_start_service: "{{ not ((packer_build | default(false)) | bool) }}"

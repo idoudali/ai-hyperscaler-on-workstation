@@ -41,7 +41,9 @@ else()
 endif()
 
 # --- Packer Images ---
-# Add packer subdirectory
+# The packer directory structure is already set up
+
+# Add packer subdirectory to make packer targets available
 add_subdirectory(packer)
 
 # --- Custom Targets ---

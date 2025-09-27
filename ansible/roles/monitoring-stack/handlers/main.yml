@@ -22,3 +22,9 @@
     name: prometheus-alertmanager
     state: restarted
   when: alertmanager_start_service | default(true)
+
+- name: restart grafana
+  systemd:
+    name: grafana-server
+    state: restarted
+  when: grafana_start_service | default(true)
