@@ -75,3 +75,90 @@ node_exporter_enable_service: "{{ not ((packer_build | default(false)) | bool) }
 node_exporter_start_service: "{{ not ((packer_build | default(false)) | bool) }}"
 grafana_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
 grafana_start_service: "{{ not ((packer_build | default(false)) | bool) }}"
+
+# DCGM (Data Center GPU Manager) configuration
+dcgm_version: "4.4.1"
+dcgm_user: "root"
+dcgm_group: "root"
+
+# DCGM packages to install
+dcgm_packages:
+  - datacenter-gpu-manager-4-core
+  - datacenter-gpu-manager-4-cuda12
+  - datacenter-gpu-manager-exporter
+
+# DCGM CUDA repository configuration
+dcgm_cuda_repo_key_url: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub"
+dcgm_cuda_repo_uri: "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/"
+dcgm_cuda_repo_suite: "/"
+dcgm_cuda_repo_components: ""
+
+# DCGM configuration paths
+dcgm_config_dir: "/etc/nvidia-datacenter-gpu-manager"
+dcgm_socket_path: "/var/run/nvidia-dcgm/dcgm.socket"
+dcgm_log_file: "/var/log/nvidia-dcgm/nv-hostengine.log"
+
+# DCGM host engine configuration
+dcgm_host_engine_port: 5555
+dcgm_verbose_logging: false
+dcgm_log_level: "INFO"
+dcgm_use_syslog: false
+
+# DCGM monitoring configuration
+dcgm_polling_interval: 1000  # milliseconds
+dcgm_max_samples: 1000
+dcgm_auto_update: true
+
+# DCGM health monitoring
+dcgm_health_monitoring: true
+dcgm_health_check_interval: 60  # seconds
+
+# DCGM profiling configuration
+dcgm_profiling_enabled: true
+dcgm_profiling_level: "summary"  # Options: none, summary, detailed
+
+# DCGM field groups
+dcgm_enable_standard_fields: true
+dcgm_custom_field_groups: []
+
+# DCGM security configuration
+dcgm_auth_enabled: false
+dcgm_connection_timeout: 30  # seconds
+dcgm_enable_tls: false
+
+# DCGM performance configuration
+dcgm_max_connections: 100
+dcgm_gpu_sharing: false
+
+# DCGM cache configuration
+dcgm_cache_enabled: true
+dcgm_cache_size: 128  # MB
+dcgm_cache_ttl: 300  # seconds
+
+# DCGM Exporter configuration
+dcgm_exporter_version: "3.1.7-3.1.4"
+dcgm_exporter_user: "prometheus"
+dcgm_exporter_group: "prometheus"
+dcgm_exporter_binary_path: "/usr/bin/dcgm-exporter"
+dcgm_exporter_download_url: "https://github.com/NVIDIA/dcgm-exporter/releases/download/{{ dcgm_exporter_version }}/dcgm-exporter_{{ dcgm_exporter_version }}_linux_x86_64.tar.gz"
+
+# DCGM Exporter runtime configuration
+dcgm_exporter_port: 9400
+dcgm_exporter_listen_address: "0.0.0.0"
+dcgm_exporter_collectors: "dcgm"  # Options: dcgm, nvml
+dcgm_exporter_remote_host: ""  # Leave empty for local DCGM connection
+dcgm_exporter_kubernetes_mode: false
+dcgm_exporter_gpu_devices: []  # Empty list monitors all GPUs
+dcgm_exporter_verbose: false
+dcgm_exporter_log_level: "info"
+dcgm_exporter_fields_config: "/etc/dcgm-exporter/default-counters.csv"  # Metrics configuration file
+
+# DCGM Exporter resource limits
+dcgm_exporter_max_open_files: 8192
+dcgm_exporter_max_processes: 512
+
+# DCGM service management
+dcgm_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
+dcgm_start_service: "{{ not ((packer_build | default(false)) | bool) }}"
+dcgm_exporter_enable_service: "{{ not ((packer_build | default(false)) | bool) }}"
+dcgm_exporter_start_service: "{{ not ((packer_build | default(false)) | bool) }}"

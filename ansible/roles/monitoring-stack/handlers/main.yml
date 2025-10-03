@@ -28,3 +28,15 @@
     name: grafana-server
     state: restarted
   when: grafana_start_service | default(true)
+
+- name: restart dcgm
+  systemd:
+    name: nvidia-dcgm
+    state: restarted
+  when: dcgm_start_service | default(true)
+
+- name: restart dcgm-exporter
+  systemd:
+    name: dcgm-exporter
+    state: restarted
+  when: dcgm_exporter_start_service | default(true)

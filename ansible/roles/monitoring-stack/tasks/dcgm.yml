@@ -1,0 +1,199 @@
+---
+# DCGM GPU Monitoring Installation and Configuration
+# Installs NVIDIA Data Center GPU Manager and configures GPU metrics export
+
+- name: Check if system has NVIDIA GPUs
+  shell: lspci | grep -i nvidia | wc -l
+  register: gpu_count
+  changed_when: false
+  failed_when: false
+  tags:
+    - dcgm
+    - gpu-monitoring
+
+- name: Display GPU detection results
+  debug:
+    msg: "Detected {{ gpu_count.stdout }} NVIDIA GPU(s) on this node"
+  tags:
+    - dcgm
+    - gpu-monitoring
+
+- name: Skip DCGM installation if no GPUs detected
+  debug:
+    msg: "Skipping DCGM installation - no NVIDIA GPUs detected"
+  when: gpu_count.stdout | int == 0
+  tags:
+    - dcgm
+    - gpu-monitoring
+
+- name: DCGM installation and configuration block
+  when: gpu_count.stdout | int > 0
+  tags:
+    - dcgm
+    - gpu-monitoring
+  block:
+    - name: Download NVIDIA CUDA repository GPG key
+      get_url:
+        url: "{{ dcgm_cuda_repo_key_url }}"
+        dest: /usr/share/keyrings/nvidia-cuda-keyring.gpg
+        mode: '0644'
+      when: not (packer_build | default(false) | bool)
+
+    - name: Add NVIDIA CUDA repository using deb822 format
+      deb822_repository:
+        name: nvidia-cuda
+        types:
+          - deb
+        uris: "{{ dcgm_cuda_repo_uri }}"
+        suites: "{{ dcgm_cuda_repo_suite }}"
+        components: "{{ dcgm_cuda_repo_components }}"
+        signed_by: /usr/share/keyrings/nvidia-cuda-keyring.gpg
+        state: present
+      when: not (packer_build | default(false) | bool)
+
+    - name: Install DCGM packages
+      apt:
+        name: "{{ dcgm_packages }}"
+        state: present
+        update_cache: yes
+      register: dcgm_install
+      retries: 3
+      delay: 10
+      until: dcgm_install is succeeded
+
+    - name: Create DCGM configuration directory
+      file:
+        path: "{{ dcgm_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy DCGM configuration file
+      template:
+        src: dcgm.conf.j2
+        dest: "{{ dcgm_config_dir }}/dcgm.conf"
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart dcgm
+
+    - name: Create DCGM exporter user
+      user:
+        name: "{{ dcgm_exporter_user }}"
+        system: yes
+        create_home: no
+        shell: /usr/sbin/nologin
+        comment: "DCGM Exporter Service User"
+
+    # DCGM exporter is now installed via package (datacenter-gpu-manager-exporter)
+    # No need to download and install manually
+
+    - name: Create DCGM exporter systemd service
+      template:
+        src: dcgm-exporter.service.j2
+        dest: /etc/systemd/system/dcgm-exporter.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart dcgm-exporter
+
+    - name: Create DCGM exporter default configuration
+      template:
+        src: dcgm-exporter-defaults.j2
+        dest: /etc/default/dcgm-exporter
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart dcgm-exporter
+
+    # ===================================================================
+    # SERVICE MANAGEMENT - PACKER BUILD vs RUNTIME DEPLOYMENT
+    # ===================================================================
+    # During Packer builds: Only enable services, DO NOT start or verify
+    # During runtime: Both enable and start services, then verify
+    # ===================================================================
+
+    - name: Service management block - Packer build mode
+      when: packer_build | default(false) | bool
+      block:
+        - name: "[PACKER BUILD] Enable DCGM service (but do not start)"
+          systemd:
+            name: nvidia-dcgm
+            enabled: yes
+            daemon_reload: yes
+          failed_when: false
+
+        - name: "[PACKER BUILD] Enable DCGM exporter service (but do not start)"
+          systemd:
+            name: dcgm-exporter
+            enabled: yes
+            daemon_reload: yes
+          failed_when: false
+
+        - name: "[PACKER BUILD] Display build completion message"
+          debug:
+            msg:
+              - "DCGM and DCGM exporter installed and enabled for startup"
+              - "Services will NOT be started during Packer build"
+              - "Services will start automatically on first boot"
+
+    - name: Service management block - Runtime deployment
+      when: not (packer_build | default(false) | bool)
+      block:
+        - name: "[RUNTIME] Enable and start DCGM service"
+          systemd:
+            name: nvidia-dcgm
+            enabled: "{{ dcgm_enable_service }}"
+            state: "{{ 'started' if dcgm_start_service else omit }}"
+            daemon_reload: yes
+          when: dcgm_enable_service
+          register: dcgm_service_start
+
+        - name: "[RUNTIME] Enable and start DCGM exporter service"
+          systemd:
+            name: dcgm-exporter
+            enabled: "{{ dcgm_exporter_enable_service }}"
+            state: "{{ 'started' if dcgm_exporter_start_service else omit }}"
+            daemon_reload: yes
+          when: dcgm_exporter_enable_service
+          register: dcgm_exporter_service_start
+
+        - name: "[RUNTIME] Wait for DCGM exporter to be ready"
+          wait_for:
+            port: "{{ dcgm_exporter_port }}"
+            delay: 5
+            timeout: 30
+          when: dcgm_exporter_start_service
+          failed_when: false
+
+        - name: "[RUNTIME] Verify DCGM service status"
+          systemd:
+            name: nvidia-dcgm
+          register: dcgm_status
+          when: dcgm_start_service
+
+        - name: "[RUNTIME] Verify DCGM exporter service status"
+          systemd:
+            name: dcgm-exporter
+          register: dcgm_exporter_status
+          when: dcgm_exporter_start_service
+
+        - name: "[RUNTIME] Display service status"
+          debug:
+            msg:
+              - "DCGM Service: {{ dcgm_status.status.ActiveState | default('not checked') }}"
+              - "DCGM Exporter: {{ dcgm_exporter_status.status.ActiveState | default('not checked') }}"
+          when: dcgm_start_service and dcgm_exporter_start_service
+
+        - name: "[RUNTIME] Test GPU discovery with DCGM"
+          command: dcgmi discovery -l
+          register: dcgm_discovery
+          changed_when: false
+          failed_when: false
+          when: dcgm_start_service
+
+        - name: "[RUNTIME] Display GPU discovery results"
+          debug:
+            msg: "{{ dcgm_discovery.stdout_lines }}"
+          when: dcgm_discovery is defined and dcgm_discovery.rc == 0

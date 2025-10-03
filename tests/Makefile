@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -13,6 +13,12 @@ help:
 	@echo "  test-container-runtime - Run container runtime tests"
 	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
+	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
+	@echo "  test-dcgm-start        - Start DCGM test cluster"
+	@echo "  test-dcgm-deploy       - Deploy DCGM Ansible configuration"
+	@echo "  test-dcgm-tests        - Run DCGM tests only"
+	@echo "  test-dcgm-stop         - Stop DCGM test cluster"
+	@echo "  test-dcgm-status       - Show DCGM test cluster status"
 	@echo "  test-grafana           - Run Grafana dashboard platform tests"
 	@echo "  test-job-accounting    - Run SLURM job accounting tests"
 	@echo "  test-ansible-roles     - Run Ansible roles validation"
@@ -35,10 +41,10 @@ help:
 	@echo ""
 
 # Run core infrastructure tests (fast, essential components)
-test: test-integration test-ansible-roles test-container-runtime test-slurm-controller test-grafana test-job-accounting
+test: test-integration test-ansible-roles test-container-runtime test-slurm-controller test-grafana test-job-accounting test-dcgm-monitoring
 
 # Run comprehensive test suite including builds and CLI validation
-test-all: test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-grafana test-job-accounting test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
+test-all: test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-dcgm-monitoring test-grafana test-job-accounting test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
 
 # Run base images test
 test-base-images:
@@ -59,6 +65,36 @@ test-slurm-controller:
 test-monitoring-stack:
 	@echo "Running Prometheus monitoring stack tests..."
 	@./test-monitoring-stack-framework.sh
+
+# Run DCGM GPU monitoring tests (full workflow)
+test-dcgm-monitoring:
+	@echo "Running DCGM GPU monitoring tests (full workflow)..."
+	@./test-dcgm-monitoring-framework.sh
+
+# Start DCGM test cluster
+test-dcgm-start:
+	@echo "Starting DCGM test cluster..."
+	@./test-dcgm-monitoring-framework.sh start-cluster
+
+# Deploy DCGM Ansible configuration
+test-dcgm-deploy:
+	@echo "Deploying DCGM Ansible configuration..."
+	@./test-dcgm-monitoring-framework.sh deploy-ansible
+
+# Run DCGM tests only (assumes cluster deployed)
+test-dcgm-tests:
+	@echo "Running DCGM tests..."
+	@./test-dcgm-monitoring-framework.sh run-tests
+
+# Stop DCGM test cluster
+test-dcgm-stop:
+	@echo "Stopping DCGM test cluster..."
+	@./test-dcgm-monitoring-framework.sh stop-cluster
+
+# Show DCGM test cluster status
+test-dcgm-status:
+	@echo "Checking DCGM test cluster status..."
+	@./test-dcgm-monitoring-framework.sh status
 
 # Run Grafana dashboard platform tests
 test-grafana:

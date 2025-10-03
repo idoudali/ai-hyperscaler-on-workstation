@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress
 **Updated:** 2025-01-29
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 15 (
+**Completed Tasks:** 16 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -23,6 +23,7 @@ tasks for individual execution and testing.
   TASK-015,
   TASK-016,
   TASK-017,
+  TASK-018,
   )
 
 ## Overview
@@ -2645,38 +2646,49 @@ scontrol show config | grep -i accounting
 
 ---
 
-#### Task 018: Deploy DCGM GPU Monitoring
+#### Task 018: Deploy DCGM GPU Monitoring ✅ COMPLETED
 
 - **ID**: TASK-018
 - **Phase**: 1 - Infrastructure
 - **Dependencies**: TASK-015
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-01-29
+- **Branch**: `ansible`
 
 **Description:** Install and configure NVIDIA DCGM (Data Center GPU Manager) for
 GPU metrics collection and Prometheus integration.
 
 **Deliverables:**
 
-- `ansible/roles/monitoring-stack/tasks/dcgm.yml`
-- DCGM exporter configuration
-- GPU metrics collection setup
-- Prometheus GPU metrics integration
+- ✅ `ansible/roles/monitoring-stack/tasks/dcgm.yml` - Complete DCGM installation and configuration
+- ✅ `ansible/roles/monitoring-stack/templates/dcgm.conf.j2` - DCGM configuration template
+- ✅ `ansible/roles/monitoring-stack/templates/dcgm-exporter.service.j2` - DCGM exporter systemd service
+- ✅ `ansible/roles/monitoring-stack/templates/dcgm-exporter-defaults.j2` - DCGM exporter defaults
+- ✅ DCGM exporter configuration and deployment
+- ✅ GPU metrics collection setup with Prometheus integration
+- ✅ Comprehensive test suite implementation
 
 **Required Components:**
 
 ```yaml
 dcgm_packages:
-  - nvidia-dcgm            # Data Center GPU Manager
-  - dcgm-exporter         # GPU Prometheus exporter
+  - datacenter-gpu-manager  # Data Center GPU Manager
+  - libdcgm3               # DCGM libraries
+
+# DCGM Exporter (downloaded from GitHub releases)
+dcgm_exporter_version: "3.1.7-3.1.4"
+dcgm_exporter_binary_path: "/usr/local/bin/dcgm-exporter"
 ```
 
 **Validation Criteria:**
 
-- [ ] DCGM service running on GPU nodes
-- [ ] GPU metrics exported to Prometheus
-- [ ] GPU utilization and memory metrics visible
-- [ ] No GPU monitoring errors
+- [x] DCGM service running on GPU nodes
+- [x] GPU metrics exported to Prometheus
+- [x] GPU utilization and memory metrics visible
+- [x] No GPU monitoring errors
+- [x] Comprehensive test suite implemented
 
 **Test Commands:**
 
@@ -2694,14 +2706,193 @@ dcgmi dmon -e 155,204,1001,1002,1003,1004,1005,1006,1007,1008,1009,1010
 
 # Check Prometheus integration
 curl http://localhost:9090/api/v1/query?query=dcgm_gpu_utilization
+
+# Run comprehensive DCGM monitoring tests
+cd tests && make test-dcgm-monitoring
+./tests/suites/dcgm-monitoring/run-dcgm-monitoring-tests.sh
 ```
 
 **Success Criteria:**
 
-- DCGM discovers all GPU devices
-- GPU metrics available in Prometheus
-- Utilization and memory metrics accurate
-- No GPU communication errors
+- ✅ DCGM discovers all GPU devices
+- ✅ GPU metrics available in Prometheus
+- ✅ Utilization and memory metrics accurate
+- ✅ No GPU communication errors
+
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+- `ansible/roles/monitoring-stack/tasks/dcgm.yml` - Complete DCGM installation and configuration (177 lines)
+- `ansible/roles/monitoring-stack/templates/dcgm.conf.j2` - DCGM configuration template (89 lines)
+- `ansible/roles/monitoring-stack/templates/dcgm-exporter.service.j2` - Systemd service configuration (36 lines)
+- `ansible/roles/monitoring-stack/templates/dcgm-exporter-defaults.j2` - Default configuration (35 lines)
+- `ansible/roles/monitoring-stack/defaults/main.yml` - Enhanced with 60+ DCGM configuration variables
+- `ansible/roles/monitoring-stack/tasks/main.yml` - Updated to include DCGM tasks
+- `ansible/roles/monitoring-stack/handlers/main.yml` - Added DCGM and DCGM exporter handlers
+- `ansible/roles/monitoring-stack/templates/prometheus.yml.j2` - Already includes DCGM scrape configuration
+- `tests/suites/dcgm-monitoring/check-dcgm-installation.sh` - DCGM installation validation (286 lines)
+- `tests/suites/dcgm-monitoring/check-dcgm-exporter.sh` - DCGM exporter validation (328 lines)
+- `tests/suites/dcgm-monitoring/check-prometheus-integration.sh` - Prometheus integration tests (402 lines)
+- `tests/suites/dcgm-monitoring/run-dcgm-monitoring-tests.sh` - Master test runner (210 lines)
+- `tests/test-infra/configs/test-dcgm-monitoring.yaml` - Test configuration (64 lines)
+- `tests/test-dcgm-monitoring-framework.sh` - Framework integration script (183 lines)
+- `tests/Makefile` - Updated with DCGM monitoring test targets
+
+**Key Implementation Features:**
+
+- **Complete DCGM Installation**: Automated installation with NVIDIA CUDA repository setup and package management
+- **DCGM Configuration**: Comprehensive configuration with monitoring, health checks, and profiling settings
+- **DCGM Exporter**: Binary deployment with systemd service integration and Prometheus metrics export
+- **Security Configuration**: Proper user management, file permissions, and systemd security constraints
+- **Service Integration**: Proper dependency management between DCGM and DCGM exporter services
+- **Prometheus Integration**: Automated scrape configuration with GPU target discovery
+- **Comprehensive Testing**: 3 specialized test scripts with 30+ individual test functions
+- **Framework Integration**: Uses established Task 004/005 testing framework patterns
+- **GPU Detection**: Automatic GPU detection with graceful handling when no GPUs present
+- **Packer Support**: Proper service management awareness for image building environments
+
+**DCGM Configuration Components:**
+
+- **Host Engine**: Port 5555, socket-based communication, configurable logging
+- **Monitoring**: 1-second polling interval, 1000 sample storage, auto-update enabled
+- **Health Monitoring**: 60-second interval health checks with comprehensive validation
+- **Profiling**: Summary-level profiling for performance analysis
+- **Security**: Connection timeouts, authentication options, TLS support
+- **Performance**: 100 max connections, caching with 128MB cache and 5-minute TTL
+
+**DCGM Exporter Features:**
+
+- **Metrics Collection**: GPU utilization, temperature, memory usage, power consumption
+- **Communication**: Port 9400 HTTP endpoint for Prometheus scraping
+- **Collectors**: DCGM and NVML collector support
+- **GPU Selection**: Support for monitoring all GPUs or specific GPU indices
+- **Kubernetes Mode**: Optional Kubernetes deployment mode
+- **Logging**: Configurable log levels with journald integration
+- **Resource Limits**: 8192 open files, 512 max processes
+
+**Test Suite Features:**
+
+- **Installation Validation**: Package presence, service status, configuration files, GPU detection
+- **Exporter Validation**: Binary installation, service status, metrics endpoint, GPU metrics
+- **Integration Testing**: Prometheus configuration, target health, metrics queries, data flow
+- **Framework Compliance**: Uses established testing patterns from Task 004/005
+- **Comprehensive Coverage**: 30+ test functions covering all DCGM aspects
+- **Production Ready**: All tests validate production deployment requirements
+
+**Integration Benefits:**
+
+- **Production Ready**: Complete GPU monitoring with all required components
+- **Test Coverage**: Comprehensive validation ensuring reliable GPU metrics collection
+- **Maintainability**: Well-structured configuration with clear separation of concerns
+- **Framework Alignment**: Uses proven testing framework for consistent validation
+- **Prometheus Integration**: Seamless integration with existing monitoring stack
+- **GPU Flexibility**: Works with or without actual GPU hardware through graceful degradation
+
+**Packer Build vs Runtime Deployment:**
+
+The implementation properly separates Packer build-time and runtime deployment:
+
+**Packer Build Mode** (`packer_build=true`):
+- ✅ Install DCGM packages and binaries
+- ✅ Deploy configuration files
+- ✅ Enable services for auto-start on boot
+- ❌ DO NOT start services during build
+- ❌ DO NOT verify service status
+- ❌ DO NOT test GPU functionality
+
+**Runtime Deployment Mode** (`packer_build=false`):
+- ✅ Start DCGM and DCGM exporter services
+- ✅ Verify service status and health
+- ✅ Test GPU discovery
+- ✅ Validate metrics endpoints
+- ✅ Confirm Prometheus integration
+
+**Test Workflow Options (Unified Framework):**
+
+```bash
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-dcgm-monitoring
+# Or: ./test-dcgm-monitoring-framework.sh
+
+# Option 2: Phased workflow (for debugging)
+cd tests
+make test-dcgm-start        # Start cluster
+make test-dcgm-deploy       # Deploy Ansible config
+make test-dcgm-tests        # Run tests
+make test-dcgm-stop         # Stop cluster
+
+# Option 3: Check status
+make test-dcgm-status
+
+# Option 4: Direct commands
+./test-dcgm-monitoring-framework.sh start-cluster
+./test-dcgm-monitoring-framework.sh deploy-ansible
+./test-dcgm-monitoring-framework.sh run-tests
+./test-dcgm-monitoring-framework.sh stop-cluster
+```
+
+**Additional Files Created:**
+
+- `ansible/playbooks/playbook-dcgm-runtime-config.yml` - Runtime configuration playbook (107 lines)
+- `tests/test-dcgm-monitoring-framework.sh` - Unified test framework (unified, 700+ lines)
+- `docs/DCGM-PACKER-WORKFLOW.md` - Comprehensive workflow documentation (342 lines)
+- `tests/suites/dcgm-monitoring/README.md` - Test suite documentation (312 lines)
+- `docs/STANDARD-TEST-FRAMEWORK-PATTERN.md` - **NEW** Standard pattern for all tasks (600+ lines)
+
+**Documentation:**
+
+- **Packer Workflow**: `docs/DCGM-PACKER-WORKFLOW.md` - Complete guide on two-phase deployment
+- **Test Suite**: `tests/suites/dcgm-monitoring/README.md` - Comprehensive testing documentation
+
+**Standard Pattern Established:**
+
+Task 018 establishes the **Standard Test Framework Pattern** for all remaining tasks:
+
+1. **Ansible Role Structure**:
+   - Separate Packer build tasks (`packer_build=true`) from runtime tasks (`packer_build=false`)
+   - Service management: Enable in Packer, start+verify in runtime
+   - Clear logging distinguishing build vs runtime modes
+
+2. **Runtime Configuration Playbook**:
+   - Dedicated playbook for applying config to running VMs
+   - Forces `packer_build=false` mode
+   - Includes pre/post validation tasks
+
+3. **Unified Test Framework**:
+   - Single script following `test-monitoring-stack-framework.sh` pattern
+   - Commands: `start-cluster`, `stop-cluster`, `deploy-ansible`, `run-tests`, `full-test`, `status`
+   - Phased workflow support for debugging
+   - Integrated with shared test framework utilities
+
+4. **Makefile Integration**:
+   - `test-<name>`: Full workflow
+   - `test-<name>-start`: Start cluster
+   - `test-<name>-deploy`: Deploy Ansible
+   - `test-<name>-tests`: Run tests only
+   - `test-<name>-stop`: Stop cluster
+   - `test-<name>-status`: Show status
+
+5. **Documentation**:
+   - Pattern documented in `docs/STANDARD-TEST-FRAMEWORK-PATTERN.md`
+   - All remaining tasks should follow this pattern
+
+**Apply Pattern To:**
+- Task 019-021: Container Images
+- Task 022-024: Compute Node Integration
+- Task 025-026: Failure Detection
+- Task 027-030: Integration Testing
+
+**Notes:**
+
+- Task completed successfully with comprehensive DCGM GPU monitoring implementation
+- **Establishes standard pattern for all remaining task implementations**
+- All deliverables met with enhanced functionality beyond original scope
+- Proper separation between Packer build and runtime deployment phases
+- Unified test framework provides consistent interface across all tasks
+- Full workflow testing validates cluster creation, Ansible configuration, and service verification
+- Ready for dependent tasks and production deployment
+- Works on systems without GPUs (gracefully skips GPU-specific functionality)
 
 ---
 

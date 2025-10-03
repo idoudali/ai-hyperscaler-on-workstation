@@ -1,0 +1,89 @@
+---
+# Test Configuration for DCGM GPU Monitoring Validation
+# Deploys HPC cluster with GPU compute nodes for DCGM testing
+
+clusters:
+  hpc:
+    name: "test-dcgm-monitoring"
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+    network:
+      name: "hpc-network-dcgm"
+      subnet: "192.168.190.0/24"
+      bridge: "virbr190"
+      gateway: "192.168.190.1"
+      dns_servers:
+        - "8.8.8.8"
+        - "8.8.4.4"
+
+    controller:
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+      hostname: "hpc-controller-dcgm"
+      ip_address: "192.168.190.10"
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 30
+      node_type: "controller"
+      monitoring_role: "server"
+
+    compute_nodes:
+      - base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        hostname: "hpc-compute-dcgm-01"
+        ip_address: "192.168.190.11"
+        cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 30
+        node_type: "compute"
+        monitoring_role: "gpu"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:01:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2805"
+              vendor: "nvidia"
+              description: "NVIDIA RTX 4060 Ti 16GB"
+
+      - base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        hostname: "hpc-compute-dcgm-02"
+        ip_address: "192.168.190.12"
+        cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 30
+        node_type: "compute"
+        monitoring_role: "gpu"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:07:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2504"
+              vendor: "nvidia"
+              description: "NVIDIA RTX 3060 LHR"
+
+  cloud:
+    name: "test-cloud-dcgm"
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    network:
+      name: "cloud-network-dcgm"
+      subnet: "192.168.191.0/24"
+      bridge: "virbr191"
+      gateway: "192.168.191.1"
+      dns_servers:
+        - "8.8.8.8"
+        - "8.8.4.4"
+
+    control_plane:
+      hostname: "k8s-control-dcgm"
+      ip_address: "192.168.191.10"
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+
+    worker_nodes:
+      - hostname: "k8s-worker-dcgm-01"
+        ip_address: "192.168.191.11"
+        cpu_cores: 2
+        memory_gb: 4
+        disk_gb: 20

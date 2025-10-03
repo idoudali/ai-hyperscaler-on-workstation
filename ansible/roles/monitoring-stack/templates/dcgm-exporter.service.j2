@@ -1,0 +1,46 @@
+[Unit]
+Description=NVIDIA DCGM Exporter for Prometheus
+Documentation=https://github.com/NVIDIA/dcgm-exporter
+After=network.target nvidia-dcgm.service
+Requires=nvidia-dcgm.service
+
+[Service]
+Type=simple
+User={{ dcgm_exporter_user }}
+Group={{ dcgm_exporter_group }}
+ExecStart={{ dcgm_exporter_binary_path }} \
+    -address :{{ dcgm_exporter_port }} \
+{% if dcgm_exporter_fields_config %}
+    -f {{ dcgm_exporter_fields_config }} \
+{% endif %}
+{% if dcgm_exporter_remote_host %}
+    -remote-hostengine-info {{ dcgm_exporter_remote_host }} \
+{% endif %}
+    -kubernetes {{ dcgm_exporter_kubernetes_mode | lower }}
+
+EnvironmentFile=-/etc/default/dcgm-exporter
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=false
+ReadWritePaths=/var/log
+
+# Resource limits
+LimitNOFILE={{ dcgm_exporter_max_open_files }}
+LimitNPROC={{ dcgm_exporter_max_processes }}
+
+# Restart configuration
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dcgm-exporter
+
+[Install]
+WantedBy=multi-user.target

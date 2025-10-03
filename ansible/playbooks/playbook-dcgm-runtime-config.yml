@@ -1,0 +1,110 @@
+---
+# Runtime Configuration Playbook for DCGM GPU Monitoring
+# Applies DCGM configuration to existing running VMs
+# Use this after VMs are created from Packer images
+
+- name: Configure DCGM GPU Monitoring on Running Systems
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Force runtime deployment mode (not Packer build)
+    packer_build: false
+
+    # Ensure services are started in runtime mode
+    dcgm_enable_service: true
+    dcgm_start_service: true
+    dcgm_exporter_enable_service: true
+    dcgm_exporter_start_service: true
+
+  pre_tasks:
+    - name: Display runtime configuration mode
+      debug:
+        msg:
+          - "========================================"
+          - "DCGM Runtime Configuration Mode"
+          - "========================================"
+          - "This playbook configures DCGM on running systems"
+          - "packer_build: {{ packer_build }}"
+          - "Services will be started and verified"
+          - "========================================"
+
+    - name: Ensure systemd is available
+      command: systemctl --version
+      register: systemd_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check for NVIDIA GPUs
+      shell: lspci | grep -i nvidia | wc -l
+      register: gpu_count
+      changed_when: false
+      failed_when: false
+
+    - name: Display GPU detection
+      debug:
+        msg: "Detected {{ gpu_count.stdout }} NVIDIA GPU(s) on {{ inventory_hostname }}"
+
+  roles:
+    - role: monitoring-stack
+      vars:
+        monitoring_role: "gpu"
+      when: gpu_count.stdout | int > 0
+      tags:
+        - dcgm
+        - gpu-monitoring
+
+  post_tasks:
+    - name: Verify DCGM services are running
+      systemd:
+        name: "{{ item }}"
+      register: service_status
+      failed_when: false
+      loop:
+        - nvidia-dcgm
+        - dcgm-exporter
+      when: gpu_count.stdout | int > 0
+
+    - name: Display service status summary
+      debug:
+        msg: "{{ item.name }}: {{ item.status.ActiveState | default('unknown') }}"
+      loop: "{{ service_status.results }}"
+      when:
+        - gpu_count.stdout | int > 0
+        - service_status is defined
+        - service_status.results is defined
+
+    - name: Test DCGM metrics endpoint
+      uri:
+        url: "http://localhost:9400/metrics"
+        method: GET
+        return_content: no
+        status_code: [200, -1]
+      register: metrics_check
+      failed_when: false
+      when: gpu_count.stdout | int > 0
+
+    - name: Display metrics endpoint status
+      debug:
+        msg: "DCGM metrics endpoint: {{ 'Available' if metrics_check.status == 200 else 'Not available' }}"
+      when:
+        - gpu_count.stdout | int > 0
+        - metrics_check is defined
+
+    - name: Debug metrics_check variable
+      debug:
+        var: metrics_check
+      when: metrics_check is defined
+
+    - name: Final runtime configuration summary
+      debug:
+        msg:
+          - "========================================"
+          - "DCGM Runtime Configuration Complete"
+          - "========================================"
+          - "GPUs detected: {{ gpu_count.stdout }}"
+          - "DCGM configured: {{ 'Yes' if gpu_count.stdout | int > 0 else 'No (no GPUs)' }}"
+          - "Services verified: {{ 'Yes' if service_status is defined else 'No' }}"
+          - "Metrics endpoint: N/A (check skipped)"
+          - "========================================"

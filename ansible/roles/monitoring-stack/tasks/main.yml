@@ -22,3 +22,11 @@
   tags:
     - grafana
     - monitoring
+
+- name: Include DCGM tasks
+  include_tasks: dcgm.yml
+  when: monitoring_role == 'gpu' or monitoring_role == 'all' or monitoring_role == 'node'
+  tags:
+    - dcgm
+    - gpu-monitoring
+    - monitoring
