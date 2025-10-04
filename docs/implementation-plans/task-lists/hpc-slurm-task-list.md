@@ -2903,287 +2903,426 @@ Task 018 establishes the **Standard Test Framework Pattern** for all remaining t
 
 ### Container Image Development
 
-#### Task 019: Create PyTorch Container Definition
+#### Task 019: Create PyTorch Container with DockerWrapper Integration
 
 - **ID**: TASK-019
 - **Phase**: 2 - Container Development
 - **Dependencies**: TASK-009
-- **Estimated Time**: 6 hours
+- **Estimated Time**: 8 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:** Write Singularity definition file for PyTorch+MPI container
-with CUDA support and monitoring tools following the Standard Test Framework Pattern.
+**Description:** Create PyTorch+MPI Docker container using Dockerfile-first approach with DockerWrapper
+integration and CMake build system. This decouples application logic (containers) from infrastructure
+(Ansible) and provides local development → Docker testing → Apptainer conversion → cluster deployment workflow.
+
+**Note:** Uses Apptainer (the evolution of Singularity) for HPC container runtime.
 
 **Deliverables:**
 
-- ✅ `ansible/roles/ml-container-images/tasks/pytorch-mpi.yml` - Container definition deployment
-- ✅ `ansible/roles/ml-container-images/templates/pytorch-mpi.def.j2` - Container definition template
-- ✅ `ansible/playbooks/playbook-pytorch-container-runtime-config.yml` - Runtime configuration playbook
-- ✅ `tests/suites/pytorch-container/check-container-definition.sh` - Definition validation
-- ✅ `tests/suites/pytorch-container/check-container-components.sh` - Component verification
-- ✅ `tests/suites/pytorch-container/run-pytorch-container-tests.sh` - Master test runner
-- ✅ `tests/test-pytorch-container-framework.sh` - Unified test framework
-- ✅ `docs/PYTORCH-CONTAINER-WORKFLOW.md` - Workflow documentation
+**Container Extension (DockerWrapper Pattern):**
+
+- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/Docker/Dockerfile` - PyTorch Dockerfile
+- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/Docker/requirements.txt` - Python dependencies
+- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/Docker/entrypoint.sh` - Container entrypoint
+- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/docker_wrapper_extensions.py` - DockerWrapper extension
+
+**HPC Extensions:**
+
+- `containers/tools/docker_wrapper/hpc_extensions.py` - HPCDockerImage base class
+- `containers/tools/docker_wrapper/apptainer_converter.py` - Docker→Apptainer conversion
+
+**CLI Tool:**
+
+- `containers/tools/cli/hpc-container-manager` - Main CLI tool (extends DockerWrapper)
+
+**Infrastructure Setup (Ansible - Registry Only):**
+
+- `ansible/roles/container-registry/tasks/registry-setup.yml` - Create `/opt/containers/` structure
+- `ansible/roles/container-registry/tasks/permissions.yml` - Set up permissions and access
+- `ansible/roles/container-registry/tasks/sync.yml` - Cross-node synchronization
+
+**Documentation:**
+
+- `containers/README.md` - Container build system documentation
+- `docs/CONTAINER-DEVELOPMENT-WORKFLOW.md` - Complete workflow guide
 
 **Container Components:**
 
-- NVIDIA CUDA 12.1 base image
-- Python 3.10 with PyTorch >= 2.0
-- Open MPI 4.1.4 with PMIx support
-- Monitoring tools (tensorboard, wandb, nvitop)
+- NVIDIA CUDA 12.1 base image (`nvidia/cuda:12.1.0-devel-ubuntu22.04`)
+- Python 3.10 with PyTorch 2.1.0 + CUDA 12.1 support
+- Open MPI 4.1.4 with CUDA and PMIx support
+- Monitoring tools (tensorboard, wandb, nvitop, py-spy, memory-profiler)
+- Distributed training libraries (horovod, deepspeed, accelerate)
 - Development and debugging tools
 
-**Key Software Stack:**
+**Dockerfile Example:**
 
-```bash
-# Base: nvidia/cuda:12.1-devel-ubuntu22.04
-# PyTorch: torch>=2.0.0+cu121
-# MPI: OpenMPI 4.1.4 with CUDA and PMIx support
-# Tools: tensorboard, wandb, nvitop, py-spy, memory-profiler
+```dockerfile
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+# Install Python and system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 python3-pip \
+    libopenmpi-dev openmpi-bin \
+    openssh-client openssh-server
+
+# Install PyTorch with CUDA support
+RUN pip3 install torch==2.1.0+cu121 torchvision torchaudio \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Install MPI and ML tools
+RUN pip3 install mpi4py tensorboard wandb nvitop
+
+WORKDIR /workspace
+CMD ["/bin/bash"]
 ```
 
-**Packer Build vs Runtime Deployment:**
+**CMake Integration:**
 
-**Packer Build Mode** (`packer_build=true`):
+```bash
+# Setup (once)
+cmake -G Ninja -S . -B build
+cmake --build build --target setup-docker-wrapper
 
-- ✅ Deploy container definition templates
-- ✅ Create container storage directories
-- ✅ Install build dependencies
-- ❌ DO NOT build containers during image creation
-- ❌ DO NOT validate container functionality
+# Build Docker image
+cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
 
-**Runtime Deployment Mode** (`packer_build=false`):
+# Test Docker image locally
+cmake --build build --target test-docker-pytorch-cuda12.1-mpi4.1
 
-- ✅ Render container definition from template
-- ✅ Validate definition syntax
-- ✅ Verify required components specified
-- ✅ Check build environment readiness
+# Or use CLI directly
+build/containers/venv/bin/hpc-container-manager docker build pytorch-cuda12.1-mpi4.1
+build/containers/venv/bin/hpc-container-manager docker prompt pytorch-cuda12.1-mpi4.1
+```
+
+**Development Workflow:**
+
+1. **Create Dockerfile** in `containers/wrapper-extensions/<name>/Docker/`
+2. **Create DockerWrapper extension** in `docker_wrapper_extensions.py`
+3. **Reconfigure CMake** (automatic discovery): `cmake -G Ninja -S . -B build`
+4. **Build Docker image**: `cmake --build build --target build-docker-<name>`
+5. **Test locally**: `cmake --build build --target test-docker-<name>`
 
 **Validation Criteria:**
 
-- [ ] Singularity definition file syntactically correct
-- [ ] All required software components included
-- [ ] CUDA and PyTorch integration specified
-- [ ] MPI functionality configured
-- [ ] Template variables properly configured
-- [ ] Definition passes schema validation
+- [ ] Dockerfile builds successfully
+- [ ] All required software components installed
+- [ ] CUDA and PyTorch functional in Docker container
+- [ ] MPI libraries available
+- [ ] DockerWrapper extension properly configured
+- [ ] CMake targets created automatically
+- [ ] Local Docker testing passes
 
-**Test Framework (Following Standard Pattern):**
+**Test Commands:**
 
 ```bash
-# Option 1: Full workflow (default - create + deploy + test)
-cd tests && make test-pytorch-container
+# Build Docker image via CMake
+cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
 
-# Option 2: Phased workflow (for debugging)
-make test-pytorch-container-start   # Start cluster
-make test-pytorch-container-deploy  # Deploy Ansible config
-make test-pytorch-container-tests   # Run tests
-make test-pytorch-container-stop    # Stop cluster
+# Test Docker image locally
+docker run --rm --gpus all \
+  build/containers/docker/pytorch-cuda12.1-mpi4.1:latest \
+  python3 -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
 
-# Option 3: Check status
-make test-pytorch-container-status
-
-# Option 4: Direct commands
-./test-pytorch-container-framework.sh start-cluster
-./test-pytorch-container-framework.sh deploy-ansible
-./test-pytorch-container-framework.sh run-tests
-./test-pytorch-container-framework.sh stop-cluster
+# Interactive development
+build/containers/venv/bin/hpc-container-manager docker prompt pytorch-cuda12.1-mpi4.1 \
+  --mount-home --volume /data:/data
 ```
 
 **Success Criteria:**
 
-- Definition file passes Singularity syntax validation
-- Template variables properly configured
-- All required dependencies specified
-- Build instructions complete and accurate
-- Unified test framework validates all components
-- Runtime configuration playbook works correctly
+- ✅ Dockerfile builds without errors
+- ✅ PyTorch imports and CUDA available (or simulation mode)
+- ✅ MPI libraries functional
+- ✅ Container starts and executes commands
+- ✅ CMake integration working
+- ✅ DockerWrapper CLI functional
+- ✅ Local testing passes
 
 ---
 
-#### Task 020: Automate Container Image Building
+#### Task 020: Docker to Apptainer Conversion Workflow
 
 - **ID**: TASK-020
 - **Phase**: 2 - Container Development
 - **Dependencies**: TASK-019
-- **Estimated Time**: 5 hours
+- **Estimated Time**: 6 hours
 - **Difficulty**: Intermediate
 
-**Description:** Create Ansible tasks to automatically build Singularity
-container images from definition files with validation, following the Standard Test Framework Pattern.
+**Description:** Implement Docker→Apptainer conversion workflow with automated testing and validation.
+This task focuses on converting Docker images to Apptainer format for HPC deployment while maintaining
+all functionality. Apptainer is the evolution of Singularity and is the recommended container runtime
+for HPC environments.
 
 **Deliverables:**
 
-- ✅ `ansible/roles/ml-container-images/tasks/build-containers.yml` - Build automation tasks
-- ✅ `ansible/roles/ml-container-images/tasks/validate-containers.yml` - Container validation
-- ✅ `ansible/playbooks/playbook-container-build-runtime-config.yml` - Runtime build playbook
-- ✅ `tests/suites/container-build/check-build-process.sh` - Build process validation
-- ✅ `tests/suites/container-build/check-container-functionality.sh` - Functionality tests
-- ✅ `tests/suites/container-build/run-container-build-tests.sh` - Master test runner
-- ✅ `tests/test-container-build-framework.sh` - Unified test framework
-- ✅ `docs/CONTAINER-BUILD-WORKFLOW.md` - Build workflow documentation
+**Conversion Tools:**
 
-**Build Process:**
+- `containers/tools/docker_wrapper/apptainer_converter.py` - Conversion module (part of HPCDockerImage)
+- `containers/scripts/convert-single.sh` - Single image conversion script
+- `containers/scripts/convert-all.sh` - Batch conversion script
+- `containers/scripts/test-apptainer-local.sh` - Local Apptainer testing
 
-1. Render Singularity definition from template
-2. Execute container build with proper permissions
-3. Validate container functionality
-4. Store image in registry location
+**Test Suite:**
 
-**Packer Build vs Runtime Deployment:**
+- `containers/tests/apptainer/test-converted-images.sh` - Validation tests
+- `containers/tests/apptainer/test-cuda-apptainer.sh` - CUDA functionality tests
+- `containers/tests/apptainer/test-mpi-apptainer.sh` - MPI functionality tests
 
-**Packer Build Mode** (`packer_build=true`):
+**Documentation:**
 
-- ✅ Install Singularity/Apptainer build tools
-- ✅ Create build directories and permissions
-- ✅ Deploy build script templates
-- ❌ DO NOT build containers during image creation
-- ❌ DO NOT run container tests
+- `docs/APPTAINER-CONVERSION-WORKFLOW.md` - Conversion process documentation
 
-**Runtime Deployment Mode** (`packer_build=false`):
+**Conversion Process:**
 
-- ✅ Execute container build process
-- ✅ Validate built container images
-- ✅ Test container functionality (PyTorch, CUDA, MPI)
-- ✅ Store images in registry location
-- ✅ Verify image permissions and accessibility
+1. **Extract Docker image** from Docker daemon
+2. **Create Apptainer definition** with proper labels and metadata
+3. **Build Apptainer image** using `apptainer build`
+4. **Optimize image** (squashfs compression)
+5. **Validate functionality** (PyTorch, CUDA, MPI)
+6. **Store in build directory** (`build/containers/apptainer/`)
+
+**Apptainer Build Methods:**
+
+- `apptainer build image.sif docker://repo/image:tag` - Direct Docker conversion
+- `apptainer build image.sif docker-daemon://image:tag` - Convert from local Docker
+- `apptainer build image.sif image.def` - Build from Apptainer definition file
+
+**CMake Integration:**
+
+```bash
+# Convert single image
+cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1
+
+# Convert all images
+cmake --build build --target convert-all-to-apptainer
+
+# Test Apptainer image
+cmake --build build --target test-apptainer-pytorch-cuda12.1-mpi4.1
+
+# Or use CLI directly
+build/containers/venv/bin/hpc-container-manager convert pytorch-cuda12.1-mpi4.1 \
+  --output-dir build/containers/apptainer/
+```
+
+**Conversion Workflow:**
+
+```bash
+# 1. Build Docker image (from Task 019)
+cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
+
+# 2. Convert to Apptainer
+cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1
+
+# 3. Test Apptainer image locally
+apptainer exec build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  python3 -c "import torch; print(torch.__version__)"
+
+# 4. Test with GPU (if available) - using --nv for NVIDIA GPU support
+apptainer exec --nv build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  python3 -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
+```
 
 **Validation Criteria:**
 
-- [ ] Container builds successfully without errors
-- [ ] Built image passes functionality tests
-- [ ] Image stored in correct registry location
-- [ ] Build process is repeatable
-- [ ] PyTorch and CUDA functional in container
-- [ ] MPI communication working
-- [ ] Proper separation of build-time and runtime tasks
+- [ ] Conversion completes without errors
+- [ ] Apptainer image size optimized (<5GB for PyTorch)
+- [ ] All Docker functionality preserved in Apptainer
+- [ ] PyTorch imports successfully
+- [ ] CUDA functionality maintained (when GPU available)
+- [ ] MPI libraries functional
+- [ ] Image metadata properly set
+- [ ] SIF (Singularity Image Format) file created correctly
 
-**Test Framework (Following Standard Pattern):**
+**Test Commands:**
 
 ```bash
-# Option 1: Full workflow (default - create + build + test)
-cd tests && make test-container-build
+# Test conversion via CMake
+cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1
 
-# Option 2: Phased workflow (for debugging)
-make test-container-build-start   # Start cluster
-make test-container-build-deploy  # Deploy Ansible & build containers
-make test-container-build-tests   # Run tests
-make test-container-build-stop    # Stop cluster
+# Verify Apptainer image
+apptainer inspect build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
 
-# Option 3: Check status
-make test-container-build-status
+# Test basic functionality
+apptainer exec build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  python3 --version
 
-# Option 4: Direct commands
-./test-container-build-framework.sh start-cluster
-./test-container-build-framework.sh deploy-ansible
-./test-container-build-framework.sh run-tests
-./test-container-build-framework.sh stop-cluster
+# Test PyTorch
+apptainer exec build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  python3 -c "import torch; print(f'PyTorch: {torch.__version__}')"
+
+# Test MPI
+apptainer exec build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  python3 -c "from mpi4py import MPI; print(f'MPI rank: {MPI.COMM_WORLD.Get_rank()}')"
 ```
 
 **Success Criteria:**
 
-- Container builds without compilation errors
-- PyTorch and CUDA functional in container
-- MPI communication working
-- Image size reasonable (<5GB for base image)
-- Unified test framework validates all components
-- Runtime configuration playbook works correctly
-- Build process properly separated from Packer image creation
+- ✅ Docker image converts to Apptainer successfully
+- ✅ Converted image size reasonable (within 10% of Docker)
+- ✅ PyTorch functional in Apptainer
+- ✅ CUDA support maintained (testable with --nv flag)
+- ✅ MPI libraries accessible
+- ✅ File system access working
+- ✅ CMake integration complete
+- ✅ Local testing passes
+- ✅ SIF image format validated
 
 ---
 
-#### Task 021: Set Up Container Image Registry
+#### Task 021: Container Registry Infrastructure & Cluster Deployment
 
 - **ID**: TASK-021
 - **Phase**: 2 - Container Development
 - **Dependencies**: TASK-020
-- **Estimated Time**: 3 hours
-- **Difficulty**: Junior-Intermediate
+- **Estimated Time**: 5 hours
+- **Difficulty**: Intermediate
 
-**Description:** Create shared directory structure and permissions system for
-container image distribution across cluster, following the Standard Test Framework Pattern.
+**Description:** Set up container registry infrastructure on HPC cluster and implement deployment
+workflow for Apptainer images. This includes Ansible roles for registry setup and CLI tools for
+deployment automation. Apptainer is compatible with Singularity Image Format (SIF) and provides
+enhanced security and performance for HPC environments.
 
 **Deliverables:**
 
-- ✅ `ansible/roles/ml-container-images/tasks/registry.yml` - Registry setup tasks
-- ✅ `ansible/roles/ml-container-images/templates/registry-metadata.yaml.j2` - Metadata template
-- ✅ `ansible/playbooks/playbook-container-registry-runtime-config.yml` - Runtime configuration playbook
-- ✅ `tests/suites/container-registry/check-registry-structure.sh` - Structure validation
-- ✅ `tests/suites/container-registry/check-registry-access.sh` - Access validation
-- ✅ `tests/suites/container-registry/check-registry-distribution.sh` - Distribution tests
-- ✅ `tests/suites/container-registry/run-container-registry-tests.sh` - Master test runner
-- ✅ `tests/test-container-registry-framework.sh` - Unified test framework
-- ✅ `docs/CONTAINER-REGISTRY-WORKFLOW.md` - Registry workflow documentation
+**Ansible Infrastructure (Registry Setup):**
+
+- `ansible/roles/container-registry/tasks/main.yml` - Main registry setup orchestration
+- `ansible/roles/container-registry/tasks/registry-setup.yml` - Create `/opt/containers/` structure
+- `ansible/roles/container-registry/tasks/permissions.yml` - Configure permissions and ownership
+- `ansible/roles/container-registry/tasks/sync.yml` - Cross-node synchronization setup
+- `ansible/roles/container-registry/templates/registry-config.yaml.j2` - Registry configuration
+- `ansible/roles/container-registry/handlers/main.yml` - Registry service handlers
+
+**Deployment Tools:**
+
+- `containers/tools/docker_wrapper/cluster_deploy.py` - Cluster deployment module (in HPCDockerImage)
+- `containers/scripts/deploy-single.sh` - Single image deployment script
+- `containers/scripts/deploy-all.sh` - Batch deployment script
+
+**Test Framework:**
+
+- `tests/suites/container-registry/check-registry-structure.sh` - Structure validation
+- `tests/suites/container-registry/check-registry-access.sh` - Access validation
+- `tests/suites/container-registry/check-cross-node-sync.sh` - Cross-node distribution tests
+- `tests/suites/container-registry/run-container-registry-tests.sh` - Master test runner
+- `tests/test-container-registry-framework.sh` - Unified test framework
+
+**Documentation:**
+
+- `docs/CLUSTER-DEPLOYMENT-WORKFLOW.md` - Complete deployment guide
 
 **Registry Structure:**
 
 ```text
-/opt/containers/
-├── pytorch-mpi-2.0-mpi4.1.4.sif
-├── pytorch-mpi-2.1-mpi4.1.4.sif
-├── base-images/
-├── custom-images/
-└── registry.yaml (metadata)
+/opt/containers/                       # Main registry directory
+├── ml-frameworks/                     # Production ML frameworks
+│   ├── pytorch-cuda12.1-mpi4.1.sif
+│   └── tensorflow-cuda12.1.sif
+├── custom-images/                     # User custom containers
+├── base-images/                       # Base/template images
+└── .registry/                         # Registry metadata
+    ├── config.yaml
+    └── catalog.yaml
 ```
 
-**Packer Build vs Runtime Deployment:**
+**Deployment Workflow:**
+
+```bash
+# 1. Setup registry infrastructure (Ansible - once per cluster)
+ansible-playbook playbooks/playbook-container-registry.yml
+
+# 2. Deploy Apptainer image to cluster (via CLI)
+build/containers/venv/bin/hpc-container-manager deploy \
+  build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  --cluster-config config/template-cluster.yaml \
+  --registry-path /opt/containers/ml-frameworks/ \
+  --sync-nodes \
+  --verify
+
+# 3. Verify deployment on cluster
+ssh hpc-controller "apptainer inspect /opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif"
+```
+
+**CLI Deployment Features:**
+
+```bash
+# Deploy with various options
+build/containers/venv/bin/hpc-container-manager deploy \
+  <apptainer-image.sif> \
+  --cluster-config <yaml> \
+  --cluster-name hpc-cluster \
+  --registry-path /opt/containers/ml-frameworks/ \
+  --sync-nodes \           # Sync to all compute nodes
+  --verify                 # Verify image on all nodes
+```
 
 **Packer Build Mode** (`packer_build=true`):
 
 - ✅ Create registry directory structure
-- ✅ Set base permissions and ownership
-- ✅ Deploy registry management scripts
+- ✅ Set base permissions (755) and ownership (root:slurm)
+- ✅ Deploy registry configuration templates
 - ❌ DO NOT populate with container images
-- ❌ DO NOT test cross-node access
+- ❌ DO NOT test cross-node synchronization
 
-**Runtime Deployment Mode** (`packer_build=false`):
+**Runtime Deployment Mode** (`packer_build=false` or via CLI):
 
-- ✅ Verify registry structure on all nodes
-- ✅ Test cross-node access to registry
-- ✅ Validate image accessibility
-- ✅ Update registry metadata
-- ✅ Verify version management functionality
+- ✅ Upload Apptainer image to controller
+- ✅ Deploy to registry path
+- ✅ Sync image to all compute nodes
+- ✅ Verify image integrity on all nodes
+- ✅ Update registry catalog
+- ✅ Validate SIF image format
 
 **Validation Criteria:**
 
-- [ ] Registry directory created with correct permissions
-- [ ] All cluster nodes can access registry
-- [ ] Image metadata tracking working
-- [ ] Version management functional
-- [ ] Cross-node distribution validated
-- [ ] Proper separation of build-time and runtime tasks
+- [ ] Registry infrastructure deployed via Ansible
+- [ ] Directory structure created with correct permissions
+- [ ] CLI tool can deploy images to cluster
+- [ ] Images synchronized to all nodes
+- [ ] All nodes can access registry
+- [ ] SLURM can execute containers from registry
+- [ ] Registry catalog tracking working
 
-**Test Framework (Following Standard Pattern):**
+**Test Commands:**
 
 ```bash
-# Option 1: Full workflow (default - create + deploy + test)
-cd tests && make test-container-registry
+# Test registry setup (Ansible)
+ansible-playbook playbooks/playbook-container-registry.yml --check
 
-# Option 2: Phased workflow (for debugging)
-make test-container-registry-start   # Start cluster
-make test-container-registry-deploy  # Deploy Ansible config
-make test-container-registry-tests   # Run tests
-make test-container-registry-stop    # Stop cluster
+# Test deployment via CLI
+build/containers/venv/bin/hpc-container-manager deploy \
+  build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
+  --cluster-config config/template-cluster.yaml \
+  --sync-nodes --verify
 
-# Option 3: Check status
-make test-container-registry-status
+# Test from cluster (after deployment)
+ssh hpc-controller "srun --container=/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif \
+  python3 -c 'import torch; print(torch.__version__)'"
 
-# Option 4: Direct commands
-./test-container-registry-framework.sh start-cluster
-./test-container-registry-framework.sh deploy-ansible
-./test-container-registry-framework.sh run-tests
-./test-container-registry-framework.sh stop-cluster
+# Test cross-node access
+ssh hpc-controller "
+  for node in \$(sinfo -N -h -o '%N'); do
+    echo \"Testing \$node...\"
+    ssh \$node 'ls -la /opt/containers/ml-frameworks/'
+  done
+"
+
+# Test Apptainer functionality directly
+ssh hpc-controller "apptainer exec /opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif \
+  python3 -c 'import torch; print(f\"PyTorch: {torch.__version__}\")'"
 ```
 
 **Success Criteria:**
 
-- All nodes can read from registry
-- Proper ownership (root:slurm) and permissions (755)
-- Images accessible for container execution
-- Registry structure supports versioning
-- Unified test framework validates all components
-- Runtime configuration playbook works correctly
-- Cross-node access properly validated
+- ✅ Registry structure created on all nodes
+- ✅ Proper permissions (755) and ownership (root:slurm)
+- ✅ Images deployed successfully to cluster
+- ✅ Cross-node synchronization working
+- ✅ All nodes can access registry
+- ✅ SLURM can execute containers
+- ✅ Deployment automation via CLI working
+- ✅ Test framework validates all components
 
 ---
 
