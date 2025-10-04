@@ -2794,6 +2794,7 @@ cd tests && make test-dcgm-monitoring
 The implementation properly separates Packer build-time and runtime deployment:
 
 **Packer Build Mode** (`packer_build=true`):
+
 - ✅ Install DCGM packages and binaries
 - ✅ Deploy configuration files
 - ✅ Enable services for auto-start on boot
@@ -2802,6 +2803,7 @@ The implementation properly separates Packer build-time and runtime deployment:
 - ❌ DO NOT test GPU functionality
 
 **Runtime Deployment Mode** (`packer_build=false`):
+
 - ✅ Start DCGM and DCGM exporter services
 - ✅ Verify service status and health
 - ✅ Test GPU discovery
@@ -2878,6 +2880,7 @@ Task 018 establishes the **Standard Test Framework Pattern** for all remaining t
    - All remaining tasks should follow this pattern
 
 **Apply Pattern To:**
+
 - Task 019-021: Container Images
 - Task 022-024: Compute Node Integration
 - Task 025-026: Failure Detection
@@ -2909,14 +2912,18 @@ Task 018 establishes the **Standard Test Framework Pattern** for all remaining t
 - **Difficulty**: Intermediate-Advanced
 
 **Description:** Write Singularity definition file for PyTorch+MPI container
-with CUDA support and monitoring tools.
+with CUDA support and monitoring tools following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- `ansible/roles/ml-container-images/templates/pytorch-mpi.def.j2`
-- Container requirements specification
-- Build environment configuration
-- Container validation tests
+- ✅ `ansible/roles/ml-container-images/tasks/pytorch-mpi.yml` - Container definition deployment
+- ✅ `ansible/roles/ml-container-images/templates/pytorch-mpi.def.j2` - Container definition template
+- ✅ `ansible/playbooks/playbook-pytorch-container-runtime-config.yml` - Runtime configuration playbook
+- ✅ `tests/suites/pytorch-container/check-container-definition.sh` - Definition validation
+- ✅ `tests/suites/pytorch-container/check-container-components.sh` - Component verification
+- ✅ `tests/suites/pytorch-container/run-pytorch-container-tests.sh` - Master test runner
+- ✅ `tests/test-pytorch-container-framework.sh` - Unified test framework
+- ✅ `docs/PYTORCH-CONTAINER-WORKFLOW.md` - Workflow documentation
 
 **Container Components:**
 
@@ -2935,24 +2942,52 @@ with CUDA support and monitoring tools.
 # Tools: tensorboard, wandb, nvitop, py-spy, memory-profiler
 ```
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Deploy container definition templates
+- ✅ Create container storage directories
+- ✅ Install build dependencies
+- ❌ DO NOT build containers during image creation
+- ❌ DO NOT validate container functionality
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Render container definition from template
+- ✅ Validate definition syntax
+- ✅ Verify required components specified
+- ✅ Check build environment readiness
+
 **Validation Criteria:**
 
 - [ ] Singularity definition file syntactically correct
 - [ ] All required software components included
-- [ ] CUDA and PyTorch integration working
-- [ ] MPI functionality validated
+- [ ] CUDA and PyTorch integration specified
+- [ ] MPI functionality configured
+- [ ] Template variables properly configured
+- [ ] Definition passes schema validation
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Validate definition syntax
-singularity build --dry-run pytorch-test.sif pytorch-mpi.def
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-pytorch-container
 
-# Check template rendering
-ansible-playbook -i localhost, --check --diff test-container-template.yml
+# Option 2: Phased workflow (for debugging)
+make test-pytorch-container-start   # Start cluster
+make test-pytorch-container-deploy  # Deploy Ansible config
+make test-pytorch-container-tests   # Run tests
+make test-pytorch-container-stop    # Stop cluster
 
-# Verify required components listed
-grep -E "(pytorch|openmpi|cuda)" pytorch-mpi.def
+# Option 3: Check status
+make test-pytorch-container-status
+
+# Option 4: Direct commands
+./test-pytorch-container-framework.sh start-cluster
+./test-pytorch-container-framework.sh deploy-ansible
+./test-pytorch-container-framework.sh run-tests
+./test-pytorch-container-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -2961,6 +2996,8 @@ grep -E "(pytorch|openmpi|cuda)" pytorch-mpi.def
 - Template variables properly configured
 - All required dependencies specified
 - Build instructions complete and accurate
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
 
 ---
 
@@ -2973,14 +3010,18 @@ grep -E "(pytorch|openmpi|cuda)" pytorch-mpi.def
 - **Difficulty**: Intermediate
 
 **Description:** Create Ansible tasks to automatically build Singularity
-container images from definition files with validation.
+container images from definition files with validation, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- `ansible/roles/ml-container-images/tasks/pytorch-mpi.yml`
-- Container build automation
-- Image validation tests
-- Build artifact management
+- ✅ `ansible/roles/ml-container-images/tasks/build-containers.yml` - Build automation tasks
+- ✅ `ansible/roles/ml-container-images/tasks/validate-containers.yml` - Container validation
+- ✅ `ansible/playbooks/playbook-container-build-runtime-config.yml` - Runtime build playbook
+- ✅ `tests/suites/container-build/check-build-process.sh` - Build process validation
+- ✅ `tests/suites/container-build/check-container-functionality.sh` - Functionality tests
+- ✅ `tests/suites/container-build/run-container-build-tests.sh` - Master test runner
+- ✅ `tests/test-container-build-framework.sh` - Unified test framework
+- ✅ `docs/CONTAINER-BUILD-WORKFLOW.md` - Build workflow documentation
 
 **Build Process:**
 
@@ -2989,25 +3030,54 @@ container images from definition files with validation.
 3. Validate container functionality
 4. Store image in registry location
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Install Singularity/Apptainer build tools
+- ✅ Create build directories and permissions
+- ✅ Deploy build script templates
+- ❌ DO NOT build containers during image creation
+- ❌ DO NOT run container tests
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Execute container build process
+- ✅ Validate built container images
+- ✅ Test container functionality (PyTorch, CUDA, MPI)
+- ✅ Store images in registry location
+- ✅ Verify image permissions and accessibility
+
 **Validation Criteria:**
 
 - [ ] Container builds successfully without errors
 - [ ] Built image passes functionality tests
 - [ ] Image stored in correct registry location
 - [ ] Build process is repeatable
+- [ ] PyTorch and CUDA functional in container
+- [ ] MPI communication working
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Test build process
-ansible-playbook -i inventories/hpc/hosts.yml build-containers.yml --limit controller
+# Option 1: Full workflow (default - create + build + test)
+cd tests && make test-container-build
 
-# Verify built image
-ls -la /opt/containers/pytorch-mpi-*.sif
+# Option 2: Phased workflow (for debugging)
+make test-container-build-start   # Start cluster
+make test-container-build-deploy  # Deploy Ansible & build containers
+make test-container-build-tests   # Run tests
+make test-container-build-stop    # Stop cluster
 
-# Test container functionality
-singularity exec /opt/containers/pytorch-mpi-*.sif python3 -c "import torch; print(torch.__version__)"
-singularity exec /opt/containers/pytorch-mpi-*.sif mpirun --version
+# Option 3: Check status
+make test-container-build-status
+
+# Option 4: Direct commands
+./test-container-build-framework.sh start-cluster
+./test-container-build-framework.sh deploy-ansible
+./test-container-build-framework.sh run-tests
+./test-container-build-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3016,6 +3086,9 @@ singularity exec /opt/containers/pytorch-mpi-*.sif mpirun --version
 - PyTorch and CUDA functional in container
 - MPI communication working
 - Image size reasonable (<5GB for base image)
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
+- Build process properly separated from Packer image creation
 
 ---
 
@@ -3028,14 +3101,19 @@ singularity exec /opt/containers/pytorch-mpi-*.sif mpirun --version
 - **Difficulty**: Junior-Intermediate
 
 **Description:** Create shared directory structure and permissions system for
-container image distribution across cluster.
+container image distribution across cluster, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- Container registry directory structure
-- Proper permissions and ownership
-- Image distribution mechanism
-- Registry management tools
+- ✅ `ansible/roles/ml-container-images/tasks/registry.yml` - Registry setup tasks
+- ✅ `ansible/roles/ml-container-images/templates/registry-metadata.yaml.j2` - Metadata template
+- ✅ `ansible/playbooks/playbook-container-registry-runtime-config.yml` - Runtime configuration playbook
+- ✅ `tests/suites/container-registry/check-registry-structure.sh` - Structure validation
+- ✅ `tests/suites/container-registry/check-registry-access.sh` - Access validation
+- ✅ `tests/suites/container-registry/check-registry-distribution.sh` - Distribution tests
+- ✅ `tests/suites/container-registry/run-container-registry-tests.sh` - Master test runner
+- ✅ `tests/test-container-registry-framework.sh` - Unified test framework
+- ✅ `docs/CONTAINER-REGISTRY-WORKFLOW.md` - Registry workflow documentation
 
 **Registry Structure:**
 
@@ -3048,27 +3126,53 @@ container image distribution across cluster.
 └── registry.yaml (metadata)
 ```
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Create registry directory structure
+- ✅ Set base permissions and ownership
+- ✅ Deploy registry management scripts
+- ❌ DO NOT populate with container images
+- ❌ DO NOT test cross-node access
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Verify registry structure on all nodes
+- ✅ Test cross-node access to registry
+- ✅ Validate image accessibility
+- ✅ Update registry metadata
+- ✅ Verify version management functionality
+
 **Validation Criteria:**
 
 - [ ] Registry directory created with correct permissions
 - [ ] All cluster nodes can access registry
 - [ ] Image metadata tracking working
 - [ ] Version management functional
+- [ ] Cross-node distribution validated
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Check registry structure
-ls -la /opt/containers/
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-container-registry
 
-# Verify permissions
-stat -c "%a %U:%G" /opt/containers/
+# Option 2: Phased workflow (for debugging)
+make test-container-registry-start   # Start cluster
+make test-container-registry-deploy  # Deploy Ansible config
+make test-container-registry-tests   # Run tests
+make test-container-registry-stop    # Stop cluster
 
-# Test access from compute nodes
-ansible slurm_compute -i inventories/hpc/hosts.yml -m shell -a "ls /opt/containers/"
+# Option 3: Check status
+make test-container-registry-status
 
-# Validate image accessibility
-singularity exec /opt/containers/pytorch-mpi-*.sif echo "Registry access working"
+# Option 4: Direct commands
+./test-container-registry-framework.sh start-cluster
+./test-container-registry-framework.sh deploy-ansible
+./test-container-registry-framework.sh run-tests
+./test-container-registry-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3077,6 +3181,9 @@ singularity exec /opt/containers/pytorch-mpi-*.sif echo "Registry access working
 - Proper ownership (root:slurm) and permissions (755)
 - Images accessible for container execution
 - Registry structure supports versioning
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
+- Cross-node access properly validated
 
 ---
 
@@ -3091,14 +3198,21 @@ singularity exec /opt/containers/pytorch-mpi-*.sif echo "Registry access working
 - **Difficulty**: Intermediate
 
 **Description:** Install SLURM compute node components with container runtime
-integration.
+integration, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- `ansible/roles/slurm-compute/tasks/install.yml`
-- Compute node package installation
-- Service configuration
-- Node registration with controller
+- ✅ `ansible/roles/slurm-compute/tasks/install.yml` - Package installation
+- ✅ `ansible/roles/slurm-compute/tasks/configure.yml` - Service configuration
+- ✅ `ansible/playbooks/playbook-slurm-compute-runtime-config.yml` - Runtime configuration playbook
+- ✅ `tests/suites/slurm-compute/check-compute-installation.sh` - Installation validation
+- ✅ `tests/suites/slurm-compute/check-compute-registration.sh` - Node registration tests
+- ✅ `tests/suites/slurm-compute/check-multi-node-communication.sh` - Multi-node connectivity
+- ✅ `tests/suites/slurm-compute/check-distributed-jobs.sh` - Job execution validation
+- ✅ `tests/suites/slurm-compute/run-slurm-compute-tests.sh` - Master test runner
+- ✅ `tests/test-slurm-compute-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-slurm-compute.yaml` - Multi-node test configuration
+- ✅ `docs/SLURM-COMPUTE-WORKFLOW.md` - Compute node workflow documentation
 
 **Required Packages:**
 
@@ -3112,27 +3226,56 @@ slurm_compute_packages:
   - singularity-container # Container runtime (if available)
 ```
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Install SLURM compute packages
+- ✅ Install MUNGE and PMIx libraries
+- ✅ Deploy slurmd configuration templates
+- ✅ Enable slurmd service for auto-start
+- ❌ DO NOT start slurmd during build
+- ❌ DO NOT register with controller
+- ❌ DO NOT test multi-node communication
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Start and enable slurmd service
+- ✅ Verify node registration with controller
+- ✅ Test SLURM communication
+- ✅ Validate container runtime integration
+- ✅ Test multi-node job execution
+- ✅ Verify MUNGE authentication across nodes
+
 **Validation Criteria:**
 
 - [ ] All compute packages installed successfully
 - [ ] slurmd service configured and running
 - [ ] Node communicates with controller
 - [ ] Container runtime available
+- [ ] Multi-node communication functional
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Check slurmd service
-systemctl status slurmd
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-slurm-compute
 
-# Verify node registration
-sinfo -N -l | grep compute
+# Option 2: Phased workflow (for debugging)
+make test-slurm-compute-start   # Start cluster
+make test-slurm-compute-deploy  # Deploy Ansible config
+make test-slurm-compute-tests   # Run tests
+make test-slurm-compute-stop    # Stop cluster
 
-# Test SLURM communication
-srun --nodes=1 --ntasks=1 hostname
+# Option 3: Check status
+make test-slurm-compute-status
 
-# Verify container availability
-singularity --version
+# Option 4: Direct commands
+./test-slurm-compute-framework.sh start-cluster
+./test-slurm-compute-framework.sh deploy-ansible
+./test-slurm-compute-framework.sh run-tests
+./test-slurm-compute-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3141,17 +3284,10 @@ singularity --version
 - Nodes show as available in sinfo output
 - Can execute simple jobs on compute nodes
 - Container runtime functional
-
-**Testing Requirements:**
-
-- **Multi-Node Test Suite**: Create `test-infra/suites/multi-node/` using Task 004 framework
-- **Validation Scripts**:
-  - `check-slurm-cluster.sh` - Verify all nodes available in SLURM
-  - `check-multi-node-communication.sh` - Test node-to-node connectivity
-  - `check-distributed-jobs.sh` - Validate multi-node job execution
-  - `run-multi-node-tests.sh` - Master test runner
-- **Test Configuration**: `test-multi-node.yaml` with multiple compute nodes
-- **Job Validation**: Multi-node test jobs for SLURM functionality verification
+- Multi-node job execution working
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
+- Proper separation of Packer build and runtime deployment
 
 ---
 
@@ -3164,14 +3300,20 @@ singularity --version
 - **Difficulty**: Intermediate-Advanced
 
 **Description:** Create GRES configuration for GPU resource management and
-scheduling in SLURM.
+scheduling in SLURM, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- `ansible/roles/slurm-compute/templates/gres.conf.j2`
-- GPU device mapping configuration
-- NVML auto-detection setup
-- GPU resource validation
+- ✅ `ansible/roles/slurm-compute/tasks/gres.yml` - GRES configuration tasks
+- ✅ `ansible/roles/slurm-compute/templates/gres.conf.j2` - GRES configuration template
+- ✅ `ansible/playbooks/playbook-gres-runtime-config.yml` - Runtime configuration playbook
+- ✅ `tests/suites/gpu-gres/check-gres-configuration.sh` - GRES config validation
+- ✅ `tests/suites/gpu-gres/check-gpu-detection.sh` - GPU detection tests
+- ✅ `tests/suites/gpu-gres/check-gpu-scheduling.sh` - GPU scheduling validation
+- ✅ `tests/suites/gpu-gres/run-gpu-gres-tests.sh` - Master test runner
+- ✅ `tests/test-gpu-gres-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-gpu-gres.yaml` - GPU GRES test configuration
+- ✅ `docs/GPU-GRES-WORKFLOW.md` - GRES workflow documentation
 
 **GRES Configuration Example:**
 
@@ -3184,27 +3326,55 @@ NodeName=compute-01 Name=gpu Type=rtx4090 File=/dev/nvidia1
 NodeName=compute-01 AutoDetect=nvml
 ```
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Deploy GRES configuration templates
+- ✅ Install GPU detection utilities
+- ✅ Create GRES configuration directories
+- ❌ DO NOT configure actual GPU devices
+- ❌ DO NOT test GPU detection
+- ❌ DO NOT verify GPU scheduling
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Generate GRES configuration from inventory
+- ✅ Deploy GRES configuration to compute nodes
+- ✅ Restart SLURM services with GRES support
+- ✅ Verify GPU device detection
+- ✅ Test GPU resource scheduling
+- ✅ Validate GPU job submission and allocation
+
 **Validation Criteria:**
 
 - [ ] GRES configuration deployed to compute nodes
 - [ ] GPU devices properly mapped
 - [ ] SLURM recognizes GPU resources
 - [ ] GPU scheduling functional
+- [ ] Auto-detection working (if enabled)
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Check GRES configuration
-cat /etc/slurm/gres.conf
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-gpu-gres
 
-# Verify GPU detection
-sinfo -o "%20N %10c %10m %25f %10G %6t"
+# Option 2: Phased workflow (for debugging)
+make test-gpu-gres-start   # Start cluster
+make test-gpu-gres-deploy  # Deploy Ansible config
+make test-gpu-gres-tests   # Run tests
+make test-gpu-gres-stop    # Stop cluster
 
-# Test GPU job submission
-srun --gres=gpu:1 nvidia-smi
+# Option 3: Check status
+make test-gpu-gres-status
 
-# Validate resource allocation
-scontrol show node compute-01 | grep -i gres
+# Option 4: Direct commands
+./test-gpu-gres-framework.sh start-cluster
+./test-gpu-gres-framework.sh deploy-ansible
+./test-gpu-gres-framework.sh run-tests
+./test-gpu-gres-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3213,6 +3383,9 @@ scontrol show node compute-01 | grep -i gres
 - Can submit jobs requesting GPU resources
 - GPU allocation prevents conflicts
 - Resource counts match physical hardware
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
+- GRES configuration properly separated from Packer build
 
 ---
 
@@ -3225,14 +3398,21 @@ scontrol show node compute-01 | grep -i gres
 - **Difficulty**: Intermediate-Advanced
 
 **Description:** Configure cgroup-based resource isolation for CPU, memory, and
-GPU device access control.
+GPU device access control, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- `ansible/roles/slurm-compute/templates/cgroup.conf.j2`
-- Cgroup hierarchy setup
-- Resource limit enforcement
-- Device isolation configuration
+- ✅ `ansible/roles/slurm-compute/tasks/cgroup.yml` - Cgroup configuration tasks
+- ✅ `ansible/roles/slurm-compute/templates/cgroup.conf.j2` - Cgroup configuration template
+- ✅ `ansible/roles/slurm-compute/templates/cgroup_allowed_devices_file.conf.j2` - Allowed devices
+- ✅ `ansible/playbooks/playbook-cgroup-runtime-config.yml` - Runtime configuration playbook
+- ✅ `tests/suites/cgroup-isolation/check-cgroup-configuration.sh` - Config validation
+- ✅ `tests/suites/cgroup-isolation/check-resource-isolation.sh` - Resource constraint tests
+- ✅ `tests/suites/cgroup-isolation/check-device-isolation.sh` - Device isolation tests
+- ✅ `tests/suites/cgroup-isolation/run-cgroup-isolation-tests.sh` - Master test runner
+- ✅ `tests/test-cgroup-isolation-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-cgroup-isolation.yaml` - Cgroup test configuration
+- ✅ `docs/CGROUP-ISOLATION-WORKFLOW.md` - Cgroup workflow documentation
 
 **Cgroup Configuration:**
 
@@ -3247,27 +3427,55 @@ TaskAffinity=yes
 AllowedDevicesFile="/etc/slurm/cgroup_allowed_devices_file.conf"
 ```
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Deploy cgroup configuration templates
+- ✅ Create cgroup directories
+- ✅ Install cgroup utilities
+- ❌ DO NOT configure cgroup hierarchy
+- ❌ DO NOT test resource isolation
+- ❌ DO NOT verify device constraints
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Deploy cgroup configuration
+- ✅ Configure cgroup hierarchy
+- ✅ Restart SLURM with cgroup support
+- ✅ Test resource constraint enforcement
+- ✅ Validate device isolation
+- ✅ Verify CPU/memory limits working
+
 **Validation Criteria:**
 
 - [ ] Cgroup configuration deployed and active
 - [ ] Resource constraints enforced
 - [ ] GPU device isolation working
 - [ ] Jobs cannot exceed allocated resources
+- [ ] CPU affinity working correctly
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Check cgroup configuration
-cat /etc/slurm/cgroup.conf
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-cgroup-isolation
 
-# Verify cgroup mounting
-mount | grep cgroup
+# Option 2: Phased workflow (for debugging)
+make test-cgroup-isolation-start   # Start cluster
+make test-cgroup-isolation-deploy  # Deploy Ansible config
+make test-cgroup-isolation-tests   # Run tests
+make test-cgroup-isolation-stop    # Stop cluster
 
-# Test resource isolation
-srun --mem=1G --cpus-per-task=1 stress --vm 1 --vm-bytes 2G --timeout 10s  # Should fail
+# Option 3: Check status
+make test-cgroup-isolation-status
 
-# Check device constraints
-srun --gres=gpu:1 nvidia-smi -L | wc -l  # Should show 1 GPU
+# Option 4: Direct commands
+./test-cgroup-isolation-framework.sh start-cluster
+./test-cgroup-isolation-framework.sh deploy-ansible
+./test-cgroup-isolation-framework.sh run-tests
+./test-cgroup-isolation-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3276,6 +3484,9 @@ srun --gres=gpu:1 nvidia-smi -L | wc -l  # Should show 1 GPU
 - GPU access properly isolated
 - Resource oversubscription prevented
 - Cgroup hierarchy properly structured
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
+- Cgroup configuration properly separated from Packer build
 
 ---
 
@@ -3288,14 +3499,22 @@ srun --gres=gpu:1 nvidia-smi -L | wc -l  # Should show 1 GPU
 - **Difficulty**: Advanced
 
 **Description:** Implement SLURM epilog/prolog scripts for job completion
-analysis and distributed training failure debugging.
+analysis and distributed training failure debugging, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- `/etc/slurm/epilog.sh` - Job completion analysis
-- `/etc/slurm/prolog.sh` - Job initialization checks
-- `/opt/slurm/bin/diagnose_training_failure.py` - Failure diagnosis tool
-- Failure analysis automation
+- ✅ `ansible/roles/slurm-compute/tasks/job-scripts.yml` - Job script deployment
+- ✅ `ansible/roles/slurm-compute/templates/epilog.sh.j2` - Job completion script
+- ✅ `ansible/roles/slurm-compute/templates/prolog.sh.j2` - Job initialization script
+- ✅ `ansible/roles/slurm-compute/files/diagnose_training_failure.py` - Failure diagnosis tool
+- ✅ `ansible/playbooks/playbook-job-scripts-runtime-config.yml` - Runtime configuration playbook
+- ✅ `tests/suites/job-scripts/check-epilog-prolog.sh` - Script execution validation
+- ✅ `tests/suites/job-scripts/check-failure-detection.sh` - Failure detection tests
+- ✅ `tests/suites/job-scripts/check-debug-collection.sh` - Debug info collection tests
+- ✅ `tests/suites/job-scripts/run-job-scripts-tests.sh` - Master test runner
+- ✅ `tests/test-job-scripts-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-job-scripts.yaml` - Job scripts test configuration
+- ✅ `docs/JOB-SCRIPTS-WORKFLOW.md` - Job scripts workflow documentation
 
 **Script Functionality:**
 
@@ -3305,28 +3524,55 @@ analysis and distributed training failure debugging.
 - Distributed training environment validation
 - Automated failure pattern detection
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Deploy epilog/prolog script templates
+- ✅ Install failure diagnosis tool
+- ✅ Create debug log directories
+- ❌ DO NOT configure job scripts in SLURM
+- ❌ DO NOT test script execution
+- ❌ DO NOT run failure detection
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Deploy configured epilog/prolog scripts
+- ✅ Configure SLURM to use job scripts
+- ✅ Restart SLURM with job script support
+- ✅ Test epilog/prolog execution
+- ✅ Validate failure detection
+- ✅ Verify debug information collection
+
 **Validation Criteria:**
 
 - [ ] Epilog/prolog scripts execute on job events
 - [ ] Failure diagnosis captures relevant information
 - [ ] Debug information stored in structured format
 - [ ] Common failure patterns detected automatically
+- [ ] Scripts integrated with SLURM job lifecycle
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Test epilog execution
-srun --job-name=test-epilog echo "Testing epilog"
-grep "test-epilog" /var/log/slurm/job_metrics.log
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-job-scripts
 
-# Verify prolog execution
-srun --job-name=test-prolog echo "Testing prolog"
+# Option 2: Phased workflow (for debugging)
+make test-job-scripts-start   # Start cluster
+make test-job-scripts-deploy  # Deploy Ansible config
+make test-job-scripts-tests   # Run tests
+make test-job-scripts-stop    # Stop cluster
 
-# Test failure diagnosis
-python3 /opt/slurm/bin/diagnose_training_failure.py
+# Option 3: Check status
+make test-job-scripts-status
 
-# Check debug directory creation
-ls -la /var/log/slurm/debug/
+# Option 4: Direct commands
+./test-job-scripts-framework.sh start-cluster
+./test-job-scripts-framework.sh deploy-ansible
+./test-job-scripts-framework.sh run-tests
+./test-job-scripts-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3335,6 +3581,9 @@ ls -la /var/log/slurm/debug/
 - Failure diagnosis captures comprehensive system state
 - Debug information helps identify common issues
 - Automation reduces manual debugging time
+- Unified test framework validates all components
+- Runtime configuration playbook works correctly
+- Job scripts properly separated from Packer build
 
 ---
 
@@ -3347,14 +3596,20 @@ ls -la /var/log/slurm/debug/
 - **Difficulty**: Intermediate-Advanced
 
 **Description:** Implement comprehensive validation tests for PyTorch CUDA, MPI
-functionality, and GPU access within containers.
+functionality, and GPU access within containers, following the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- Container functionality test suite
-- PyTorch distributed training validation
-- GPU access and utilization tests
-- MPI communication verification
+- ✅ `tests/suites/container-integration/check-container-functionality.sh` - Basic container tests
+- ✅ `tests/suites/container-integration/check-pytorch-cuda-integration.sh` - PyTorch + CUDA tests
+- ✅ `tests/suites/container-integration/check-mpi-communication.sh` - MPI communication tests
+- ✅ `tests/suites/container-integration/check-distributed-training.sh` - Distributed training validation
+- ✅ `tests/suites/container-integration/check-container-slurm-integration.sh` - SLURM integration tests
+- ✅ `tests/suites/container-integration/run-container-integration-tests.sh` - Master test runner
+- ✅ `tests/test-container-integration-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-container-integration.yaml` - Integration test configuration
+- ✅ `docs/CONTAINER-INTEGRATION-TESTING.md` - Integration testing documentation
+- ✅ `ansible/playbooks/playbook-container-validation-runtime-config.yml` - Runtime validation playbook
 
 **Test Categories:**
 
@@ -3378,31 +3633,52 @@ functionality, and GPU access within containers.
    - Environment variable propagation
    - NCCL backend functionality
 
+**Packer Build vs Runtime Deployment:**
+
+**Packer Build Mode** (`packer_build=true`):
+
+- ✅ Deploy validation script templates
+- ✅ Install test dependencies
+- ❌ DO NOT run container tests
+- ❌ DO NOT execute validation jobs
+
+**Runtime Deployment Mode** (`packer_build=false`):
+
+- ✅ Execute comprehensive container validation
+- ✅ Test PyTorch + CUDA integration
+- ✅ Validate MPI communication across containers
+- ✅ Test distributed training setup
+- ✅ Verify SLURM + container integration
+
 **Validation Criteria:**
 
 - [ ] All container functionality tests pass
 - [ ] PyTorch can utilize GPUs within containers
 - [ ] MPI communication works across container instances
 - [ ] Distributed training environment properly configured
+- [ ] SLURM scheduling with containers functional
+- [ ] Proper separation of build-time and runtime tasks
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Run comprehensive validation
-ansible-playbook -i inventories/hpc/hosts.yml validate-containers.yml
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-container-integration
 
-# Test PyTorch CUDA in container
-srun --gres=gpu:1 --container-image=/opt/containers/pytorch-mpi-*.sif \
-  python3 -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
+# Option 2: Phased workflow (for debugging)
+make test-container-integration-start   # Start cluster
+make test-container-integration-deploy  # Deploy Ansible config
+make test-container-integration-tests   # Run tests
+make test-container-integration-stop    # Stop cluster
 
-# Test MPI across nodes
-srun --nodes=2 --ntasks=4 --container-image=/opt/containers/pytorch-mpi-*.sif \
-  python3 -c "from mpi4py import MPI; print(f'Rank {MPI.COMM_WORLD.Get_rank()}')"
+# Option 3: Check status
+make test-container-integration-status
 
-# Validate distributed training setup
-srun --nodes=2 --ntasks-per-node=1 --gres=gpu:1 \
-  --container-image=/opt/containers/pytorch-mpi-*.sif \
-  python3 /opt/test-scripts/validate_distributed_pytorch.py
+# Option 4: Direct commands
+./test-container-integration-framework.sh start-cluster
+./test-container-integration-framework.sh deploy-ansible
+./test-container-integration-framework.sh run-tests
+./test-container-integration-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
@@ -3412,17 +3688,9 @@ srun --nodes=2 --ntasks-per-node=1 --gres=gpu:1 \
 - MPI processes communicate across nodes
 - Distributed training environment variables set correctly
 - No container execution or permission errors
-
-**Testing Requirements:**
-
-- **Container Integration Test Suite**: Create `test-infra/suites/container-integration/` using Task 004 framework
-- **Advanced Validation Scripts**:
-  - `check-pytorch-cuda-integration.sh` - PyTorch + CUDA functionality
-  - `check-mpi-communication.sh` - MPI across container instances
-  - `check-distributed-training.sh` - Multi-node distributed training setup
-  - `check-container-slurm-integration.sh` - SLURM + container execution
-  - `run-container-integration-tests.sh` - Master test runner
-- **Full Integration Testing**: Combines container runtime, SLURM scheduling, and GPU resources
+- Unified test framework validates all components
+- Runtime validation playbook works correctly
+- Full integration testing demonstrates production readiness
 
 ---
 
@@ -3434,20 +3702,25 @@ srun --nodes=2 --ntasks-per-node=1 --gres=gpu:1 \
 
 - **ID**: TASK-027
 - **Phase**: 3 - Integration Testing
-- **Dependencies**: TASK-005, TASK-018, TASK-021
+- **Dependencies**: TASK-005, TASK-018, TASK-026
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate-Advanced
 
-**Description:** Execute comprehensive full-stack integration
-testing using the established Task 004/005 framework with
-complete HPC SLURM deployment validation.
+**Description:** Execute comprehensive full-stack integration testing using all
+established test frameworks with complete HPC SLURM deployment validation, following
+the Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- Full-stack test configuration extending Task 005's framework
-- Production-scale test validation suite
-- Complete system integration test execution
-- Performance and reliability baseline documentation
+- ✅ `tests/suites/full-stack-integration/check-complete-deployment.sh` - Full deployment validation
+- ✅ `tests/suites/full-stack-integration/check-component-integration.sh` - Component integration tests
+- ✅ `tests/suites/full-stack-integration/check-end-to-end-workflows.sh` - E2E workflow tests
+- ✅ `tests/suites/full-stack-integration/check-performance-baseline.sh` - Performance validation
+- ✅ `tests/suites/full-stack-integration/run-full-stack-integration-tests.sh` - Master test runner
+- ✅ `tests/test-full-stack-integration-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-full-stack-integration.yaml` - Full-stack test configuration
+- ✅ `docs/FULL-STACK-INTEGRATION-TESTING.md` - Integration testing documentation
+- ✅ Performance and reliability baseline documentation
 
 **Framework-Based Integration Testing:**
 
@@ -3458,6 +3731,7 @@ Using established framework to validate:
 - GPU resource management and allocation
 - Monitoring stack integration (Prometheus, Grafana, DCGM)
 - Multi-node distributed workload execution
+- End-to-end job submission workflows
 
 **Validation Criteria:**
 
@@ -3466,30 +3740,31 @@ Using established framework to validate:
 - [ ] Production-scale workloads execute successfully
 - [ ] Performance metrics meet baseline requirements
 - [ ] System resilience validated under load testing
+- [ ] All previous test frameworks execute successfully
 
-**Framework-Based Test Execution:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Execute full-stack integration testing using established framework
-# Production-scale test configuration
-./test-infra/test-pcie-passthrough-framework.sh \
-    --config test-infra/suites/full-stack/test-full-stack.yaml \
-    --validation-suite full-stack \
-    --verbose
+# Option 1: Full workflow (default - create + deploy + test all)
+cd tests && make test-full-stack-integration
 
-# Run comprehensive test suite covering all components
-for suite in basic-cluster container-runtime gpu-passthrough multi-node full-stack; do
-    echo "=== Running $suite test suite ==="
-    ./test-infra/test-pcie-passthrough-framework.sh \
-        --config "test-infra/suites/$suite/test-$suite.yaml" \
-        --validation-suite "$suite"
-done
+# Option 2: Phased workflow (for debugging)
+make test-full-stack-integration-start   # Start cluster
+make test-full-stack-integration-deploy  # Deploy full Ansible config
+make test-full-stack-integration-tests   # Run comprehensive tests
+make test-full-stack-integration-stop    # Stop cluster
 
-# Performance and load testing using framework
-./test-infra/test-pcie-passthrough-framework.sh \
-    --config test-infra/suites/performance/test-performance.yaml \
-    --validation-suite performance \
-    --no-cleanup  # For performance analysis
+# Option 3: Check status
+make test-full-stack-integration-status
+
+# Option 4: Direct commands
+./test-full-stack-integration-framework.sh start-cluster
+./test-full-stack-integration-framework.sh deploy-ansible
+./test-full-stack-integration-framework.sh run-tests
+./test-full-stack-integration-framework.sh stop-cluster
+
+# Option 5: Run all individual test frameworks
+make test-all  # Runs all established test frameworks sequentially
 ```
 
 **Framework-Based Success Criteria:**
@@ -3498,6 +3773,8 @@ done
 - Full-stack deployment completes within framework timeout limits
 - Performance test suite validates system under production-scale loads
 - Framework logging captures comprehensive system state for analysis
+- All individual component tests pass in integrated environment
+- Unified test framework validates entire stack
 
 ---
 
@@ -3509,17 +3786,23 @@ done
 - **Estimated Time**: 6 hours
 - **Difficulty**: Advanced
 
-**Description:** Run comprehensive test suite validating all task
-implementations and system functionality.
+**Description:** Run comprehensive test suite validating all task implementations
+and system functionality across all established test frameworks, following the
+Standard Test Framework Pattern.
 
 **Deliverables:**
 
-- Complete validation test execution
-- Test results report and analysis
-- Performance metrics collection
-- Failure scenario testing
+- ✅ `tests/suites/comprehensive-validation/run-all-test-frameworks.sh` - Execute all frameworks
+- ✅ `tests/suites/comprehensive-validation/check-service-integration.sh` - Service integration validation
+- ✅ `tests/suites/comprehensive-validation/check-failure-scenarios.sh` - Failure handling tests
+- ✅ `tests/suites/comprehensive-validation/check-performance-metrics.sh` - Performance validation
+- ✅ `tests/suites/comprehensive-validation/generate-validation-report.sh` - Report generation
+- ✅ `tests/test-comprehensive-validation-framework.sh` - Unified comprehensive test framework
+- ✅ `tests/test-infra/configs/test-comprehensive-validation.yaml` - Comprehensive test configuration
+- ✅ `docs/COMPREHENSIVE-VALIDATION-REPORT.md` - Complete validation report template
+- ✅ Complete test results and analysis documentation
 
-**Test Categories:**
+**Test Categories (All Following Standard Pattern):**
 
 1. **Service Integration Tests**: All services communicate properly
 2. **Container Execution Tests**: Various container scenarios work
@@ -3527,6 +3810,7 @@ implementations and system functionality.
 4. **MPI Communication Tests**: Multi-node distributed jobs
 5. **Monitoring Integration Tests**: Metrics collection and alerting
 6. **Failure Recovery Tests**: System behavior under failure conditions
+7. **All Component Tests**: Execute all individual test frameworks
 
 **Validation Criteria:**
 
@@ -3534,29 +3818,63 @@ implementations and system functionality.
 - [ ] Performance metrics within acceptable ranges
 - [ ] Failure scenarios handled gracefully
 - [ ] Resource utilization optimized
+- [ ] All individual test frameworks pass
+- [ ] Complete test coverage of all task deliverables
 
-**Test Commands:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Run comprehensive validation suite
-python3 test-infra/test-framework/test_runner.py --suite=comprehensive --report=detailed
+# Option 1: Full comprehensive validation workflow
+cd tests && make test-comprehensive-validation
 
-# Execute performance tests
-python3 test-infra/test-framework/test_runner.py --suite=performance --baseline
+# Option 2: Run all individual test frameworks sequentially
+make test-all
 
-# Test failure scenarios
-python3 test-infra/test-framework/test_runner.py --suite=failure-scenarios
+# Option 3: Phased comprehensive validation
+make test-comprehensive-validation-start   # Start cluster
+make test-comprehensive-validation-deploy  # Deploy all configs
+make test-comprehensive-validation-tests   # Run all tests
+make test-comprehensive-validation-stop    # Stop cluster
 
-# Generate final report
-python3 test-infra/test-framework/test_runner.py --generate-final-report
+# Option 4: Generate validation report
+make test-comprehensive-validation-report
+
+# Option 5: Individual framework execution
+./test-comprehensive-validation-framework.sh start-cluster
+./test-comprehensive-validation-framework.sh deploy-ansible
+./test-comprehensive-validation-framework.sh run-tests
+./test-comprehensive-validation-framework.sh generate-report
+./test-comprehensive-validation-framework.sh stop-cluster
+```
+
+**Comprehensive Test Execution Plan:**
+
+```bash
+# Execute all established test frameworks
+make test-monitoring-stack          # Task 015
+make test-dcgm-monitoring          # Task 018
+make test-slurm-controller         # Task 010.2
+make test-slurm-accounting         # Task 017
+make test-pytorch-container        # Task 019
+make test-container-build          # Task 020
+make test-container-registry       # Task 021
+make test-slurm-compute           # Task 022
+make test-gpu-gres                # Task 023
+make test-cgroup-isolation        # Task 024
+make test-job-scripts             # Task 025
+make test-container-integration   # Task 026
+make test-full-stack-integration  # Task 027
 ```
 
 **Success Criteria:**
 
-- >95% of tests pass
+- >95% of tests pass across all frameworks
 - Performance within 20% of baseline expectations
 - All failure scenarios handled without system crash
 - Complete test coverage of all task deliverables
+- All individual test frameworks execute successfully
+- Unified comprehensive validation report generated
+- System demonstrates production readiness
 
 ---
 
@@ -3569,23 +3887,45 @@ python3 test-infra/test-framework/test_runner.py --generate-final-report
 - **Difficulty**: Intermediate
 
 **Description:** Generate comprehensive documentation for production deployment
-based on validated test results.
+based on validated test results, documenting the Standard Test Framework Pattern
+for all implementations.
 
 **Deliverables:**
 
-- Production deployment guide
-- Configuration templates and examples
-- Troubleshooting and maintenance procedures
-- Performance tuning recommendations
+- ✅ `docs/PRODUCTION-DEPLOYMENT-GUIDE.md` - Complete deployment guide
+- ✅ `docs/CONFIGURATION-TEMPLATES.md` - All configuration templates and examples
+- ✅ `docs/TROUBLESHOOTING-GUIDE.md` - Troubleshooting and maintenance procedures
+- ✅ `docs/PERFORMANCE-TUNING.md` - Performance tuning recommendations
+- ✅ `docs/STANDARD-TEST-FRAMEWORK-PATTERN.md` - Standard testing approach documentation
+- ✅ `docs/ANSIBLE-WORKFLOW-GUIDE.md` - Packer build vs runtime deployment guide
+- ✅ `docs/PRODUCTION-READINESS-CHECKLIST.md` - Complete readiness checklist
+- ✅ Configuration validation scripts for production
 
 **Documentation Components:**
 
-- Step-by-step deployment instructions
-- Hardware and software requirements
-- Network and security configuration
-- Monitoring and alerting setup
-- Backup and recovery procedures
-- Scaling and optimization guidelines
+1. **Deployment Instructions**
+   - Step-by-step deployment guide using Ansible playbooks
+   - Packer image building procedures
+   - Runtime configuration application
+   - Standard Test Framework Pattern implementation
+
+2. **Configuration Management**
+   - Hardware and software requirements
+   - Network and security configuration
+   - All Ansible role configurations
+   - Template customization guide
+
+3. **Operations and Maintenance**
+   - Monitoring and alerting setup
+   - Backup and recovery procedures
+   - Scaling and optimization guidelines
+   - Troubleshooting common issues
+
+4. **Testing and Validation**
+   - Test framework usage guide
+   - How to add new test suites
+   - Continuous integration setup
+   - Production validation procedures
 
 **Validation Criteria:**
 
@@ -3593,19 +3933,26 @@ based on validated test results.
 - [ ] All configuration examples tested
 - [ ] Troubleshooting procedures validated
 - [ ] Production readiness checklist created
+- [ ] Standard Test Framework Pattern documented
+- [ ] All workflow documentation completed
 
-**Test Commands:**
+**Documentation Validation:**
 
 ```bash
-# Validate documentation examples
-cd docs/deployment/
-bash validate-config-examples.sh
+# Validate all configuration examples
+cd docs && ./scripts/validate-config-examples.sh
 
 # Test troubleshooting procedures
-python3 test-troubleshooting-scenarios.py
+./scripts/test-troubleshooting-scenarios.sh
 
 # Check documentation completeness
-python3 validate-documentation-coverage.py
+./scripts/validate-documentation-coverage.sh
+
+# Verify all code examples in documentation
+./scripts/validate-code-examples.sh
+
+# Check markdown formatting
+markdownlint docs/**/*.md
 ```
 
 **Success Criteria:**
@@ -3614,6 +3961,9 @@ python3 validate-documentation-coverage.py
 - All examples and procedures tested and working
 - Troubleshooting covers common scenarios
 - Clear migration path from test to production
+- Standard Test Framework Pattern clearly documented
+- All workflow documentation complete and accurate
+- Production readiness checklist comprehensive
 
 ---
 
@@ -3626,14 +3976,20 @@ python3 validate-documentation-coverage.py
 - **Difficulty**: Intermediate
 
 **Description:** Perform final validation of complete system against original
-requirements and success criteria.
+requirements and success criteria, ensuring all Standard Test Framework Pattern
+implementations are validated and production-ready.
 
 **Deliverables:**
 
-- Final system validation report
-- Requirements traceability matrix
-- Performance benchmark results
-- Production readiness assessment
+- ✅ `docs/FINAL-VALIDATION-REPORT.md` - Complete system validation report
+- ✅ `docs/REQUIREMENTS-TRACEABILITY-MATRIX.md` - Requirements coverage matrix
+- ✅ `docs/PERFORMANCE-BENCHMARK-RESULTS.md` - Performance validation results
+- ✅ `docs/PRODUCTION-READINESS-ASSESSMENT.md` - Production readiness evaluation
+- ✅ `tests/scripts/final-requirements-validation.sh` - Requirements validation script
+- ✅ `tests/scripts/final-performance-benchmark.sh` - Performance benchmark script
+- ✅ `tests/scripts/final-security-validation.sh` - Security validation script
+- ✅ `tests/scripts/generate-final-assessment.sh` - Assessment report generation
+- ✅ Complete system sign-off documentation
 
 **Final Validation Areas:**
 
@@ -3643,6 +3999,8 @@ requirements and success criteria.
 - Monitoring and observability complete
 - Documentation accurate and complete
 - Production deployment ready
+- All test frameworks validated
+- Standard Test Framework Pattern implemented consistently
 
 **Validation Criteria:**
 
@@ -3650,21 +4008,49 @@ requirements and success criteria.
 - [ ] Performance benchmarks achieved
 - [ ] Security validation passed
 - [ ] Complete system traceability
+- [ ] All test frameworks passing
+- [ ] Standard Test Framework Pattern verified
+- [ ] Production readiness confirmed
 
-**Test Commands:**
+**Final Validation Execution:**
 
 ```bash
+# Execute final comprehensive validation
+cd tests && make final-validation
+
 # Final requirements validation
-python3 test-infra/validation/final-requirements-check.py
+./scripts/final-requirements-validation.sh
 
 # Performance benchmark validation
-python3 test-infra/validation/performance-benchmark.py
+./scripts/final-performance-benchmark.sh
 
 # Security and isolation validation
-python3 test-infra/validation/security-validation.py
+./scripts/final-security-validation.sh
+
+# Execute all test frameworks one final time
+make test-all
 
 # Generate final assessment report
-python3 test-infra/validation/final-assessment.py
+./scripts/generate-final-assessment.sh
+
+# Verify production readiness
+./scripts/verify-production-readiness.sh
+```
+
+**Requirements Traceability Validation:**
+
+```bash
+# Validate all original requirements against implementations
+./scripts/trace-requirements.sh --comprehensive
+
+# Verify all tasks completed
+./scripts/check-task-completion.sh
+
+# Validate all deliverables present
+./scripts/verify-deliverables.sh
+
+# Check test coverage
+./scripts/check-test-coverage.sh
 ```
 
 **Success Criteria:**
@@ -3673,6 +4059,10 @@ python3 test-infra/validation/final-assessment.py
 - Performance meets or exceeds specifications
 - Security model properly implemented
 - System ready for production deployment
+- All test frameworks passing consistently
+- Standard Test Framework Pattern verified across all tasks
+- Complete documentation and traceability
+- Production readiness assessment approved
 
 ---
 
