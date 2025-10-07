@@ -208,6 +208,45 @@ add_custom_target(clean-all-containers
     COMMENT "Cleaning all container artifacts..."
 )
 
+# --- Task 020: Conversion Workflow Scripts ---
+# Test convert-single.sh script correctness
+add_custom_target(test-convert-single-script
+    COMMAND ${CMAKE_SOURCE_DIR}/containers/scripts/test-convert-single-correctness.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Testing convert-single.sh script correctness and functionality..."
+    USES_TERMINAL
+)
+
+add_custom_target(test-apptainer-local
+    COMMAND ${CMAKE_SOURCE_DIR}/containers/scripts/test-apptainer-local.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Testing Apptainer images locally..."
+)
+
+# --- Task 020: Comprehensive Apptainer Test Suite ---
+add_custom_target(test-converted-images
+    COMMAND ${CMAKE_SOURCE_DIR}/containers/tests/apptainer/test-converted-images.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Testing converted Apptainer images..."
+)
+
+add_custom_target(test-cuda-apptainer
+    COMMAND ${CMAKE_SOURCE_DIR}/containers/tests/apptainer/test-cuda-apptainer.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Testing CUDA functionality in Apptainer images..."
+)
+
+add_custom_target(test-mpi-apptainer
+    COMMAND ${CMAKE_SOURCE_DIR}/containers/tests/apptainer/test-mpi-apptainer.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Testing MPI functionality in Apptainer images..."
+)
+
+add_custom_target(test-apptainer-all
+    DEPENDS test-converted-images test-cuda-apptainer test-mpi-apptainer
+    COMMENT "Running all Apptainer test suites..."
+)
+
 # --- Help Target ---
 # Build list of container names for help output (one per line)
 set(CONTAINER_HELP_LINES "")
@@ -232,6 +271,16 @@ add_custom_target(help-containers
     COMMAND ${CMAKE_COMMAND} -E echo "  convert-to-apptainer-<name>   - Convert specific Docker image"
     COMMAND ${CMAKE_COMMAND} -E echo "  convert-all-to-apptainer      - Convert all Docker images"
     COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-<name>         - Test specific Apptainer image"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Task 020: Conversion workflow scripts:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-convert-single-script    - Test convert-single.sh script correctness"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-local          - Test Apptainer images locally"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Task 020: Comprehensive Apptainer test suite:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-converted-images         - Test converted image format and functionality"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-cuda-apptainer           - Test CUDA functionality in images"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-mpi-apptainer            - Test MPI functionality in images"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-all            - Run all Apptainer test suites"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Complete workflow targets:"
     COMMAND ${CMAKE_COMMAND} -E echo "  build-container-<name>        - Build Docker + convert to Apptainer"

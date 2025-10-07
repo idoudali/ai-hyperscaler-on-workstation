@@ -295,8 +295,149 @@ cmake --build build --target clean-docker-images
 cmake --build build --target build-all-docker-images
 ```
 
+## Task 020: Docker to Apptainer Conversion Workflow
+
+### Overview
+
+Convert Docker images to Apptainer format for HPC deployment and validate functionality with comprehensive test suites.
+
+### Quick Start
+
+```bash
+# 1. Convert single Docker image
+./scripts/convert-single.sh pytorch-cuda12.1-mpi4.1:latest
+
+# 2. Convert all Docker images (use CMake target)
+cmake --build build --target convert-all-to-apptainer
+
+# 3. Test converted images
+./scripts/test-apptainer-local.sh
+```
+
+### Conversion Methods
+
+**Single Image Conversion:**
+
+```bash
+# Using shell script (recommended)
+./scripts/convert-single.sh pytorch-cuda12.1-mpi4.1:latest
+
+# Using HPC CLI
+build/containers/venv/bin/hpc-container-manager convert to-apptainer \
+  pytorch-cuda12.1-mpi4.1:latest \
+  build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
+
+# Using CMake
+cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1
+```
+
+**Batch Conversion:**
+
+```bash
+# Convert all Docker images to Apptainer
+cmake --build build --target convert-all-to-apptainer
+
+# This will automatically:
+# - Discover all built Docker images
+# - Convert each to Apptainer SIF format
+# - Skip already converted images (unless Docker is newer)
+```
+
+### Testing Converted Images
+
+**Quick Local Testing:**
+
+```bash
+# Test all images
+./scripts/test-apptainer-local.sh
+
+# Test specific image
+./scripts/test-apptainer-local.sh pytorch-cuda12.1-mpi4.1.sif
+
+# With GPU testing
+./scripts/test-apptainer-local.sh --gpu
+```
+
+**Comprehensive Test Suites:**
+
+```bash
+# Run all test suites
+cmake --build build --target test-apptainer-all
+
+# Individual test suites
+cmake --build build --target test-converted-images  # Format and functionality
+cmake --build build --target test-cuda-apptainer    # CUDA functionality
+cmake --build build --target test-mpi-apptainer     # MPI functionality
+```
+
+### CMake Targets (Task 020)
+
+**Conversion Workflow Scripts:**
+
+- `convert-single` - Interactive single image conversion
+- `test-apptainer-local` - Quick local testing
+
+**Comprehensive Test Suite:**
+
+- `test-converted-images` - Image format and functionality tests
+- `test-cuda-apptainer` - CUDA functionality tests
+- `test-mpi-apptainer` - MPI functionality tests
+- `test-apptainer-all` - Run all test suites
+
+**Complete Workflow:**
+
+```bash
+# Build Docker + convert to Apptainer
+cmake --build build --target build-container-pytorch-cuda12.1-mpi4.1
+
+# This runs:
+# 1. build-docker-pytorch-cuda12.1-mpi4.1
+# 2. convert-to-apptainer-pytorch-cuda12.1-mpi4.1
+```
+
+### Test Suite Details
+
+**Image Format Tests** (`test-converted-images.sh`):
+
+- SIF format validation
+- File system structure
+- Python environment
+- Package installations
+- Library linking
+- Container size optimization
+
+**CUDA Tests** (`test-cuda-apptainer.sh`):
+
+- CUDA libraries presence
+- CUDA version detection
+- PyTorch CUDA build verification
+- GPU device detection (requires GPU)
+- CUDA tensor operations (requires GPU)
+- cuDNN availability
+
+**MPI Tests** (`test-mpi-apptainer.sh`):
+
+- MPI libraries presence
+- MPI executables availability
+- MPI4Py installation
+- Basic MPI functionality
+- MPI communication
+- Collective operations
+- PMIx support
+
+### Documentation
+
+For complete workflow documentation, see:
+
+- [Apptainer Conversion Workflow Guide](../docs/APPTAINER-CONVERSION-WORKFLOW.md)
+- Conversion best practices
+- Testing strategies
+- Troubleshooting guide
+- Performance optimization
+
 ## Next Steps
 
 - See `tools/cli/hpc-container-manager` for CLI usage
-- See `tools/docker_wrapper/hpc_extensions.py` for HPC extensions
-- See `../docs/CONTAINER-DEVELOPMENT-WORKFLOW.md` for detailed workflow
+- See `tools/hpc_extensions/` for conversion and deployment utilities
+- See `../docs/APPTAINER-CONVERSION-WORKFLOW.md` for detailed workflow
+- Task 021: Container Registry Infrastructure & Cluster Deployment
