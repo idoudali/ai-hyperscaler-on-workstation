@@ -1,3 +1,4 @@
 logs
 output
 traces
+test-infra/inventory/*.ini

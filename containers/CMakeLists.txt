@@ -97,16 +97,29 @@ message(STATUS "Found container extensions: ${CONTAINER_NAMES}")
 
 # --- Docker Image Build Targets ---
 foreach(CONTAINER_NAME ${CONTAINER_NAMES})
-    # Build Docker image target
-    add_custom_target(build-docker-${CONTAINER_NAME}
+    # Gather all input files for the Docker image (Dockerfile and context)
+    file(GLOB_RECURSE CONTAINER_DOCKER_INPUT_FILES
+         ${CONTAINERS_SOURCE_DIR}/images/${CONTAINER_NAME}/Docker/*)
+
+    # Build Docker image command (creates a stamp file to track builds)
+    add_custom_command(
+        OUTPUT ${DOCKER_BUILD_DIR}/${CONTAINER_NAME}.stamp
         COMMAND ${DOCKER_EXECUTABLE} build
                 -t ${CONTAINER_NAME}:latest
                 ${CONTAINERS_SOURCE_DIR}/images/${CONTAINER_NAME}/Docker/
-        DEPENDS setup-container-tools
+        COMMAND ${CMAKE_COMMAND} -E touch ${DOCKER_BUILD_DIR}/${CONTAINER_NAME}.stamp
+        DEPENDS ${VENV_DIR}/.container-tools-installed
+                ${CONTAINER_DOCKER_INPUT_FILES}
         WORKING_DIRECTORY ${CONTAINERS_SOURCE_DIR}
         COMMENT "Building Docker image: ${CONTAINER_NAME}"
         USES_TERMINAL
         VERBATIM
+    )
+
+    # Target for the Docker build (depends on the stamp file)
+    add_custom_target(build-docker-${CONTAINER_NAME}
+        DEPENDS ${DOCKER_BUILD_DIR}/${CONTAINER_NAME}.stamp
+        COMMENT "Ensuring Docker image ${CONTAINER_NAME} is built"
     )
 
     # Test Docker image target
@@ -132,16 +145,25 @@ add_custom_target(build-all-docker-images
 
 # --- Apptainer Conversion Targets ---
 foreach(CONTAINER_NAME ${CONTAINER_NAMES})
-    # Convert Docker to Apptainer target
-    add_custom_target(convert-to-apptainer-${CONTAINER_NAME}
+    # Convert Docker to Apptainer command (outputs .sif file)
+    # Depends on the Docker stamp file to ensure Docker image is built first
+    add_custom_command(
+        OUTPUT ${APPTAINER_BUILD_DIR}/${CONTAINER_NAME}.sif
         COMMAND bash -c "source ${VENV_DIR}/bin/activate && \
             PYTHONPATH=${CONTAINERS_SOURCE_DIR}/tools:${PYTHONPATH} \
-            ${VENV_DIR}/bin/hpc-container-manager convert to-apptainer \
-            ${CONTAINER_NAME}:latest ${APPTAINER_BUILD_DIR}/${CONTAINER_NAME}.sif --force"
-        DEPENDS build-docker-${CONTAINER_NAME} setup-hpc-cli
+            ${VENV_DIR}/bin/hpc-container-manager convert to-apptainer --force \
+            ${CONTAINER_NAME}:latest ${APPTAINER_BUILD_DIR}/${CONTAINER_NAME}.sif"
+        DEPENDS ${VENV_DIR}/bin/hpc-container-manager
+                ${DOCKER_BUILD_DIR}/${CONTAINER_NAME}.stamp
         WORKING_DIRECTORY ${CONTAINERS_SOURCE_DIR}
         COMMENT "Converting ${CONTAINER_NAME} to Apptainer..."
         VERBATIM
+    )
+
+    # Target for the conversion (depends on the .sif file)
+    add_custom_target(convert-to-apptainer-${CONTAINER_NAME}
+        DEPENDS ${APPTAINER_BUILD_DIR}/${CONTAINER_NAME}.sif
+        COMMENT "Ensuring ${CONTAINER_NAME} is converted to Apptainer"
     )
 
     # Test Apptainer image target

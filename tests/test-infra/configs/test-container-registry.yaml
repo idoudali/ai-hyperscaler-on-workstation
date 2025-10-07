@@ -1,0 +1,59 @@
+---
+# Test configuration for container registry validation
+# Task 021: Container Registry Infrastructure & Cluster Deployment
+
+version: "1.0"
+metadata:
+  name: "container-registry-test"
+  description: "Container registry infrastructure and image deployment validation"
+
+global: {}
+
+# HPC Cluster configuration for container registry testing
+clusters:
+  hpc:
+    name: "test-container-registry"
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    # Network configuration (isolated test subnet)
+    network:
+      subnet: "192.168.210.0/24"
+      bridge: "virbr210"
+
+    # Controller node - hosts container registry infrastructure
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 50  # Extra space for container images
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+      ip_address: "192.168.210.10"
+
+    # Compute nodes - receive synced container images
+    compute_nodes:
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 40
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        ip: "192.168.210.21"
+
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 40
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        ip: "192.168.210.22"
+
+    # SLURM configuration for container execution testing
+    slurm_config:
+      partitions: ["container-test"]
+      default_partition: "container-test"
+      max_job_time: "1:00:00"
+
+    # Container registry specific configuration
+    container_registry:
+      enabled: true
+      base_path: "/opt/containers"
+      sync_method: "rsync"
+      subdirectories:
+        - "ml-frameworks"
+        - "custom-images"
+        - "base-images"

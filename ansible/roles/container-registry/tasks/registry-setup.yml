@@ -1,0 +1,124 @@
+---
+# Container Registry Setup Tasks
+# Creates the container registry directory structure and configuration files
+
+- name: Create container registry base directory
+  file:
+    path: "{{ container_registry_base_path }}"
+    state: directory
+    mode: "{{ container_registry_dir_mode }}"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+  tags:
+    - container-registry
+    - registry-setup
+
+- name: Create container registry subdirectories
+  file:
+    path: "{{ container_registry_base_path }}/{{ item }}"
+    state: directory
+    mode: "{{ container_registry_dir_mode }}"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+  loop: "{{ container_registry_subdirs }}"
+  tags:
+    - container-registry
+    - registry-setup
+
+- name: Deploy registry configuration file
+  template:
+    src: registry-config.yaml.j2
+    dest: "{{ container_registry_config_file }}"
+    mode: "0644"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+  notify: Reload registry configuration
+  tags:
+    - container-registry
+    - registry-setup
+    - config
+
+- name: Initialize registry catalog file
+  copy:
+    content: |
+      # Container Registry Catalog
+      # Automatically updated by deployment tools
+      version: "1.0"
+      registry_path: {{ container_registry_base_path }}
+      last_updated: {{ ansible_date_time.iso8601 }}
+      images: []
+    dest: "{{ container_registry_catalog_file }}"
+    mode: "0644"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+    force: false  # Don't overwrite if already exists
+  tags:
+    - container-registry
+    - registry-setup
+    - catalog
+
+- name: Create registry README
+  copy:
+    content: |
+      # HPC Container Registry
+
+      This directory contains Apptainer/Singularity container images for the HPC cluster.
+
+      ## Directory Structure
+
+      - `ml-frameworks/`: Production ML framework containers (PyTorch, TensorFlow, etc.)
+      - `custom-images/`: User-created custom containers
+      - `base-images/`: Base/template container images
+      - `.registry/`: Registry metadata and configuration
+
+      ## Usage
+
+      Deploy containers using the HPC container manager CLI:
+
+      ```bash
+      hpc-container-manager deploy <image.sif> \
+        --cluster-config <config.yaml> \
+        --registry-path {{ container_registry_base_path }}/ml-frameworks/ \
+        --sync-nodes --verify
+      ```
+
+      ## SLURM Integration
+
+      Execute containers in SLURM jobs:
+
+      ```bash
+      srun --container={{ container_registry_base_path }}/ml-frameworks/<image.sif> <command>
+      ```
+
+      Or using Apptainer directly:
+
+      ```bash
+      apptainer exec {{ container_registry_base_path }}/ml-frameworks/<image.sif> <command>
+      ```
+
+      ## Permissions
+
+      - Owner: {{ container_registry_owner }}
+      - Group: {{ container_registry_group }}
+      - Mode: {{ container_registry_dir_mode }}
+
+      All SLURM users can read and execute containers from this registry.
+    dest: "{{ container_registry_base_path }}/README.md"
+    mode: "0644"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+  tags:
+    - container-registry
+    - registry-setup
+    - documentation
+
+- name: Verify registry structure
+  stat:
+    path: "{{ container_registry_base_path }}/{{ item }}"
+  register: registry_dir_stat
+  loop: "{{ container_registry_subdirs }}"
+  failed_when: not registry_dir_stat.stat.exists
+  tags:
+    - container-registry
+    - registry-setup
+    - verify

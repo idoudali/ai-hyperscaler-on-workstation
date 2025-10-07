@@ -1,0 +1,37 @@
+---
+# Container Registry Role - Default Variables
+# Default configuration for container registry infrastructure
+
+# Container registry base directory
+container_registry_base_path: "/opt/containers"
+
+# Registry subdirectories
+container_registry_subdirs:
+  - "ml-frameworks"      # Production ML frameworks
+  - "custom-images"      # User custom containers
+  - "base-images"        # Base/template images
+  - ".registry"          # Registry metadata
+
+# Registry permissions
+container_registry_dir_mode: "0775"
+container_registry_owner: "root"
+container_registry_group: "slurm"
+
+# Registry configuration
+container_registry_config_dir: "{{ container_registry_base_path }}/.registry"
+container_registry_config_file: "{{ container_registry_config_dir }}/config.yaml"
+container_registry_catalog_file: "{{ container_registry_config_dir }}/catalog.yaml"
+
+# Cross-node synchronization settings
+container_registry_sync_enabled: true
+container_registry_sync_method: "rsync"  # Options: rsync, nfs, shared-storage
+
+# SLURM integration
+container_registry_slurm_integration: true
+container_registry_slurm_conf_dir: "/etc/slurm"
+
+# Packer build flag - CRITICAL: Skip this role during Packer builds
+packer_build: false
+
+# Container runtime
+container_runtime: "apptainer"  # Options: apptainer, singularity

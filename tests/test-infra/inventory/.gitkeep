@@ -1,0 +1,2 @@
+# This directory contains dynamically generated Ansible inventory files
+# The .ini files are generated at test runtime and should not be committed

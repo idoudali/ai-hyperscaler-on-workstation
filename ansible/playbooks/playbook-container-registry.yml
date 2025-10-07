@@ -1,0 +1,154 @@
+---
+# Container Registry Infrastructure Deployment Playbook
+# Deploys container registry infrastructure on HPC cluster (live VMs only)
+#
+# CRITICAL: This playbook MUST NOT run during Packer builds
+# Set packer_build=false (or omit it) when running this playbook
+#
+# Usage:
+#   ansible-playbook playbooks/playbook-container-registry.yml
+#   ansible-playbook playbooks/playbook-container-registry.yml --check  # Dry run
+#   ansible-playbook playbooks/playbook-container-registry.yml --tags registry-setup
+#
+# Prerequisites:
+#   - HPC cluster deployed with controller and compute nodes
+#   - SLURM installed and configured
+#   - Apptainer/Singularity installed on all nodes
+
+- name: Deploy Container Registry Infrastructure on HPC Cluster
+  hosts: controller,compute
+  become: true
+  gather_facts: true
+
+  vars:
+    # Explicitly set packer_build to false for live VM deployment
+    packer_build: false
+
+    # Optional: Override default registry settings
+    # container_registry_base_path: "/opt/containers"
+    # container_registry_group: "slurm"
+    # container_registry_sync_enabled: true
+
+  pre_tasks:
+    - name: Verify not running in Packer build mode
+      assert:
+        that:
+          - not (packer_build | default(false))
+        fail_msg: |
+          ERROR: This playbook is for live VM deployment only.
+          It should NOT run during Packer builds.
+          If you're running this during a Packer build, you're doing it wrong.
+        success_msg: "Running in live VM deployment mode (packer_build=false) ✓"
+      tags: always
+
+    - name: Display deployment information
+      debug:
+        msg:
+          - "Deploying container registry infrastructure"
+          - "Target hosts: {{ ansible_play_hosts | join(', ') }}"
+          - "Registry base path: {{ container_registry_base_path | default('/opt/containers') }}"
+          - "Packer build mode: {{ packer_build | default(false) }}"
+      tags: always
+
+    - name: Ensure Apptainer/Singularity is installed
+      package:
+        name: "{{ container_runtime | default('apptainer') }}"
+        state: present
+      ignore_errors: true  # Package name may vary
+      tags:
+        - prerequisites
+        - packages
+
+    - name: Verify container runtime is available
+      command: "which {{ container_runtime | default('apptainer') }}"
+      register: container_runtime_check
+      changed_when: false
+      failed_when: container_runtime_check.rc != 0
+      tags:
+        - prerequisites
+        - verify
+
+  roles:
+    - role: container-registry
+      tags:
+        - container-registry
+
+  post_tasks:
+    - name: Verify registry infrastructure deployed
+      stat:
+        path: "{{ container_registry_base_path | default('/opt/containers') }}"
+      register: registry_deployed
+      failed_when: not registry_deployed.stat.exists
+      tags:
+        - verify
+
+    - name: Display registry information
+      debug:
+        msg:
+          - "Container registry infrastructure deployed successfully ✓"
+          - "Registry path: {{ container_registry_base_path | default('/opt/containers') }}"
+          - "Owner: {{ container_registry_owner | default('root') }}"
+          - "Group: {{ container_registry_group | default('slurm') }}"
+          - ""
+          - "Next steps:"
+          - "1. Deploy container images using: hpc-container-manager deploy <image.sif>"
+          - "2. Run tests: tests/test-container-registry-framework.sh --phase infrastructure"
+          - "3. Verify: tests/suites/container-registry/run-ansible-infrastructure-tests.sh"
+      tags:
+        - always
+
+# Deployment verification play
+- name: Verify Container Registry Deployment
+  hosts: controller
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check registry structure on controller
+      stat:
+        path: "{{ item }}"
+      register: registry_structure_stat
+      loop:
+        - "{{ container_registry_base_path | default('/opt/containers') }}"
+        - "{{ container_registry_base_path | default('/opt/containers') }}/ml-frameworks"
+        - "{{ container_registry_base_path | default('/opt/containers') }}/custom-images"
+        - "{{ container_registry_base_path | default('/opt/containers') }}/base-images"
+        - "{{ container_registry_base_path | default('/opt/containers') }}/.registry"
+      failed_when: not registry_structure_stat.stat.exists
+      tags:
+        - verify
+
+    - name: Test registry sync script availability
+      stat:
+        path: /usr/local/bin/registry-sync-to-nodes.sh
+      register: sync_script
+      failed_when: not sync_script.stat.exists or not sync_script.stat.executable
+      tags:
+        - verify
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "═══════════════════════════════════════════════════════════"
+          - "  Container Registry Infrastructure Deployment Complete"
+          - "═══════════════════════════════════════════════════════════"
+          - ""
+          - "Registry Status: READY"
+          - "Base Path: {{ container_registry_base_path | default('/opt/containers') }}"
+          - "Sync Script: /usr/local/bin/registry-sync-to-nodes.sh"
+          - ""
+          - "Subdirectories:"
+          - "  • ml-frameworks/  - Production ML frameworks"
+          - "  • custom-images/  - User custom containers"
+          - "  • base-images/    - Base/template images"
+          - "  • .registry/      - Registry metadata"
+          - ""
+          - "Deploy containers with:"
+          - "  hpc-container-manager deploy <image.sif> \\"
+          - "    --cluster-config config/template-cluster.yaml \\"
+          - "    --registry-path /opt/containers/ml-frameworks/ \\"
+          - "    --sync-nodes --verify"
+          - ""
+          - "═══════════════════════════════════════════════════════════"
+      tags:
+        - always

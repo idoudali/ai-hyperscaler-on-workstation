@@ -22,6 +22,114 @@ make test-quick
 make test-verbose
 ```
 
+## Test Framework CLI Pattern
+
+**IMPORTANT:** All test framework scripts (`test-*-framework.sh`) MUST provide a standardized CLI interface for
+modular test execution. This pattern enables flexible testing workflows and debugging capabilities.
+
+### Standard CLI Commands
+
+Every test framework should implement these commands:
+
+- `start-cluster` - Start the test cluster independently (keeps cluster running)
+- `stop-cluster` - Stop and destroy the test cluster
+- `deploy-ansible` - Deploy via Ansible on running cluster (assumes cluster exists)
+- `run-tests` - Run test suite on deployed cluster (assumes deployment complete)
+- `list-tests` - List all available individual test scripts
+- `run-test NAME` - Run a specific individual test by name
+- `full-test` - Run complete end-to-end test suite (default behavior)
+- `status` - Show current cluster status and configuration
+- `help` - Display comprehensive usage information
+
+### Standard CLI Options
+
+- `-h, --help` - Show help message with examples
+- `-v, --verbose` - Enable verbose output for debugging
+- `--no-cleanup` - Skip cleanup after test completion (for debugging)
+- `--interactive` - Enable interactive prompts for cleanup/confirmation
+
+### Example Usage Pattern
+
+```bash
+# Reference implementation: test-dcgm-monitoring-framework.sh
+# All test frameworks should follow this pattern
+
+# 1. Start cluster and keep it running for debugging
+./test-example-framework.sh start-cluster
+
+# 2. Deploy configuration separately
+./test-example-framework.sh deploy-ansible
+
+# 3. Run tests on deployed cluster
+./test-example-framework.sh run-tests
+
+# 4. List available individual tests
+./test-example-framework.sh list-tests
+
+# 5. Run specific individual test for focused debugging
+./test-example-framework.sh run-test check-specific-component.sh
+
+# 6. Check cluster status
+./test-example-framework.sh status
+
+# 7. Clean up when done
+./test-example-framework.sh stop-cluster
+
+# Or run everything at once (default)
+./test-example-framework.sh
+./test-example-framework.sh full-test  # Explicit
+```
+
+### Benefits of CLI Pattern
+
+1. **Debugging**: Keep cluster running between test iterations
+2. **Development**: Deploy once, run tests multiple times
+3. **Incremental Testing**: Test individual phases independently
+4. **Focused Testing**: List and run individual tests for granular debugging
+5. **CI/CD Integration**: Different pipeline stages can use different commands
+6. **Manual Validation**: Deploy with Ansible, validate manually before running tests
+7. **Test Discovery**: Easy discovery of all available tests via list-tests command
+
+### Implementation Reference
+
+See `test-dcgm-monitoring-framework.sh` (Task 018) and `test-container-registry-framework.sh` (Task 021) as reference implementations:
+
+```bash
+# View help and available commands
+./test-dcgm-monitoring-framework.sh --help
+
+# Example workflow for debugging
+./test-dcgm-monitoring-framework.sh start-cluster      # Start once
+./test-dcgm-monitoring-framework.sh deploy-ansible     # Deploy changes
+./test-dcgm-monitoring-framework.sh run-tests          # Test multiple times
+
+# List and run individual tests (required feature)
+./test-dcgm-monitoring-framework.sh list-tests         # Show all available tests
+./test-dcgm-monitoring-framework.sh run-test check-dcgm-service.sh  # Run specific test
+
+./test-dcgm-monitoring-framework.sh stop-cluster       # Clean up
+```
+
+### Required for New Test Frameworks
+
+When creating new test frameworks (e.g., `test-container-registry-framework.sh` for Task 021):
+
+- ✅ Implement all standard commands (`start-cluster`, `stop-cluster`, `deploy-ansible`, `run-tests`, etc.)
+- ✅ **Implement `list-tests` command** - Show all available individual test scripts
+- ✅ **Implement `run-test NAME` command** - Run specific individual tests by name
+- ✅ Support all standard options (`--help`, `--verbose`, `--no-cleanup`, `--interactive`)
+- ✅ Provide comprehensive `--help` output with examples including list-tests and run-test
+- ✅ Allow modular execution of test phases
+- ✅ Support both full-test and incremental workflows
+- ✅ Include status command for debugging
+- ✅ Provide test discovery capability via list-tests
+
+**Existing Test Frameworks:**
+
+- ✅ `test-dcgm-monitoring-framework.sh` (Task 018) - Reference implementation
+- ✅ `test-monitoring-stack-framework.sh` (Task 015) - CLI pattern implemented
+- ✅ `test-container-registry-framework.sh` (Task 021) - CLI pattern implemented
+
 ## Test script list
 
 TODO document the tests and what they test

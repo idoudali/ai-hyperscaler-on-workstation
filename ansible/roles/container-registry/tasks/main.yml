@@ -1,0 +1,50 @@
+---
+# Container Registry Role - Main Tasks
+# Orchestrates container registry infrastructure setup on live VMs
+#
+# CRITICAL: This role MUST NOT execute during Packer builds
+# Container registry requires multi-node coordination and is environment-specific
+# It should only be provisioned during cluster deployment on live VMs
+
+- name: Check if running in Packer build mode
+  debug:
+    msg: "Packer build mode detected (packer_build={{ packer_build }}). Skipping container registry setup."
+  when: packer_build | default(false)
+  tags:
+    - container-registry
+    - debug
+
+- name: Skip container registry setup during Packer builds
+  meta: end_play
+  when: packer_build | default(false)
+  tags:
+    - container-registry
+
+# Only execute the following tasks on live VMs (packer_build=false)
+- name: Include container registry setup tasks
+  include_tasks: registry-setup.yml
+  when: not (packer_build | default(false))
+  tags:
+    - container-registry
+    - registry-setup
+
+- name: Include permissions configuration tasks
+  include_tasks: permissions.yml
+  when: not (packer_build | default(false))
+  tags:
+    - container-registry
+    - permissions
+
+- name: Include cross-node synchronization setup tasks
+  include_tasks: sync.yml
+  when: not (packer_build | default(false))
+  tags:
+    - container-registry
+    - sync
+
+- name: Display registry setup completion message
+  debug:
+    msg: "Container registry infrastructure setup completed on {{ inventory_hostname }}"
+  when: not (packer_build | default(false))
+  tags:
+    - container-registry

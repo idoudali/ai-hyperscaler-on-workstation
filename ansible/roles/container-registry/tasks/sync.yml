@@ -1,0 +1,146 @@
+---
+# Container Registry Cross-Node Synchronization Setup
+# Configures infrastructure for syncing container images across compute nodes
+
+- name: Install rsync for container synchronization
+  package:
+    name: rsync
+    state: present
+  when: container_registry_sync_method == "rsync"
+  tags:
+    - container-registry
+    - sync
+    - packages
+
+- name: Create SSH keys directory for registry sync
+  file:
+    path: /root/.ssh
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+  tags:
+    - container-registry
+    - sync
+    - ssh
+
+- name: Check if SSH key for registry sync exists
+  stat:
+    path: /root/.ssh/id_rsa_registry_sync
+  register: registry_sync_key
+  tags:
+    - container-registry
+    - sync
+    - ssh
+
+- name: Generate SSH key pair for registry synchronization (controller only)
+  openssh_keypair:
+    path: /root/.ssh/id_rsa_registry_sync
+    type: rsa
+    size: 4096
+    comment: "Container registry sync key"
+    state: present
+  when:
+    - "'controller' in group_names"
+    - not registry_sync_key.stat.exists
+  tags:
+    - container-registry
+    - sync
+    - ssh
+
+- name: Read registry sync public key from controller
+  slurp:
+    src: /root/.ssh/id_rsa_registry_sync.pub
+  register: registry_sync_pubkey
+  when: "'controller' in group_names"
+  delegate_to: "{{ groups['controller'][0] }}"
+  run_once: true
+  tags:
+    - container-registry
+    - sync
+    - ssh
+
+- name: Authorize registry sync key on all nodes
+  authorized_key:
+    user: root
+    key: "{{ registry_sync_pubkey.content | b64decode }}"
+    state: present
+    key_options: 'command="/usr/local/bin/registry-sync-wrapper.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding'
+  when: registry_sync_pubkey is defined
+  tags:
+    - container-registry
+    - sync
+    - ssh
+
+- name: Create registry sync wrapper script
+  copy:
+    content: |
+      #!/bin/bash
+      # Registry Sync Wrapper - Restricts SSH key to registry sync operations only
+
+      set -euo pipefail
+
+      # Only allow rsync commands to the container registry
+      case "$SSH_ORIGINAL_COMMAND" in
+        rsync\ --server*)
+          # Extract destination path
+          if [[ "$SSH_ORIGINAL_COMMAND" =~ {{ container_registry_base_path }} ]]; then
+            exec $SSH_ORIGINAL_COMMAND
+          else
+            echo "ERROR: Access denied. Registry sync key can only write to {{ container_registry_base_path }}"
+            exit 1
+          fi
+          ;;
+        *)
+          echo "ERROR: Only rsync commands are allowed for registry synchronization"
+          exit 1
+          ;;
+      esac
+    dest: /usr/local/bin/registry-sync-wrapper.sh
+    mode: "0755"
+    owner: root
+    group: root
+  tags:
+    - container-registry
+    - sync
+    - security
+
+- name: Create registry sync helper script (controller only)
+  template:
+    src: sync-to-nodes.sh.j2
+    dest: /usr/local/bin/registry-sync-to-nodes.sh
+    mode: "0755"
+    owner: root
+    group: root
+  when: "'controller' in group_names"
+  tags:
+    - container-registry
+    - sync
+    - scripts
+
+- name: Test rsync connectivity to compute nodes
+  shell: |
+    rsync --dry-run -e "ssh -i /root/.ssh/id_rsa_registry_sync -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5" \
+        {{ container_registry_base_path }}/.registry/ \
+        root@{{ item }}:{{ container_registry_base_path }}/.registry/ 2>&1 | head -1
+  loop: "{{ groups['compute'] | default([]) }}"
+  when: "'controller' in group_names"
+  register: sync_connectivity_test
+  ignore_errors: true
+  changed_when: false
+  tags:
+    - container-registry
+    - sync
+    - verify
+
+- name: Report sync connectivity issues
+  debug:
+    msg: "WARNING: Sync connectivity test failed for {{ item.item }}: {{ item.stderr }}"
+  loop: "{{ sync_connectivity_test.results | default([]) }}"
+  when:
+    - sync_connectivity_test is defined
+    - item.failed | default(false)
+  tags:
+    - container-registry
+    - sync
+    - verify

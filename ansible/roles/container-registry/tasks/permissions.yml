@@ -1,0 +1,93 @@
+---
+# Container Registry Permissions Configuration
+# Configures ownership, permissions, and access control for the container registry
+
+- name: Ensure SLURM group exists
+  group:
+    name: "{{ container_registry_group }}"
+    state: present
+  tags:
+    - container-registry
+    - permissions
+
+- name: Add admin user to SLURM group for registry access
+  user:
+    name: admin
+    groups: "{{ container_registry_group }}"
+    append: true
+  tags:
+    - container-registry
+    - permissions
+
+- name: Set registry base directory permissions
+  file:
+    path: "{{ container_registry_base_path }}"
+    state: directory
+    mode: "{{ container_registry_dir_mode }}"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+    recurse: false  # Only set on base directory
+  tags:
+    - container-registry
+    - permissions
+
+- name: Set permissions on registry subdirectories
+  file:
+    path: "{{ container_registry_base_path }}/{{ item }}"
+    state: directory
+    mode: "{{ container_registry_dir_mode }}"
+    owner: "{{ container_registry_owner }}"
+    group: "{{ container_registry_group }}"
+    recurse: true  # Apply to all files within subdirectories
+  loop: "{{ container_registry_subdirs }}"
+  tags:
+    - container-registry
+    - permissions
+
+- name: Configure SELinux context for container registry (if SELinux is enabled)
+  sefcontext:
+    target: "{{ container_registry_base_path }}(/.*)?"
+    setype: container_file_t
+    state: present
+  when: ansible_selinux.status == "enabled"
+  ignore_errors: true  # SELinux may not be available
+  tags:
+    - container-registry
+    - permissions
+    - selinux
+
+- name: Apply SELinux context to registry directories
+  command: restorecon -R {{ container_registry_base_path }}
+  when: ansible_selinux.status == "enabled"
+  ignore_errors: true
+  changed_when: false
+  tags:
+    - container-registry
+    - permissions
+    - selinux
+
+- name: Set up SLURM user access to registry
+  acl:
+    path: "{{ container_registry_base_path }}"
+    entity: "{{ container_registry_group }}"
+    etype: group
+    permissions: rx
+    state: present
+  when: container_registry_slurm_integration | bool
+  tags:
+    - container-registry
+    - permissions
+    - slurm
+
+- name: Verify registry permissions
+  stat:
+    path: "{{ container_registry_base_path }}"
+  register: registry_permissions
+  failed_when:
+    - registry_permissions.stat.mode != container_registry_dir_mode
+    - registry_permissions.stat.pw_name != container_registry_owner
+    - registry_permissions.stat.gr_name != container_registry_group
+  tags:
+    - container-registry
+    - permissions
+    - verify

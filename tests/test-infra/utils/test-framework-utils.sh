@@ -135,12 +135,9 @@ EOF
     export ANSIBLE_CONFIG="$ansible_dir/ansible.cfg"
     log "Using Ansible config: $ANSIBLE_CONFIG"
 
-    # Setup Ansible command with virtual environment if available
-    local ansible_cmd="ansible-playbook"
-    if [[ -n "${VIRTUAL_ENV_PATH:-}" ]] && [[ -f "$VIRTUAL_ENV_PATH/bin/ansible-playbook" ]]; then
-        ansible_cmd="$VIRTUAL_ENV_PATH/bin/ansible-playbook"
-        log "Using Ansible from virtual environment: $ansible_cmd"
-    fi
+    # Setup Ansible command using uv (consistent with ai-how usage)
+    local ansible_cmd="uv run ansible-playbook"
+    log "Using Ansible via uv: $ansible_cmd"
 
     # Run controller playbook
     local controller_count
@@ -434,5 +431,319 @@ cleanup_test_framework() {
 }
 
 
+# Generate Ansible inventory from cluster state
+# Uses utility functions to get VM IPs and state information
+generate_ansible_inventory() {
+    local inventory_file="$1"
+    local cluster_name="$2"
+
+    [[ -z "$inventory_file" ]] && {
+        log_error "generate_ansible_inventory: inventory_file parameter required"
+        return 1
+    }
+    [[ -z "$cluster_name" ]] && {
+        log_error "generate_ansible_inventory: cluster_name parameter required"
+        return 1
+    }
+
+    log "Generating Ansible inventory: $inventory_file"
+
+    # Get all running VMs for the cluster using utility function
+    local vm_list
+    vm_list=$(virsh list --name --state-running | grep "^${cluster_name}-" || true)
+
+    if [[ -z "$vm_list" ]]; then
+        log_error "No running VMs found for cluster: $cluster_name"
+        return 1
+    fi
+
+    # Build inventory with separate arrays for organization
+    local controllers=()
+    local compute_nodes=()
+
+    while IFS= read -r vm_name; do
+        if [[ -z "$vm_name" ]]; then continue; fi
+
+        # Use utility function to get VM IP
+        local vm_ip
+        if ! vm_ip=$(get_vm_ip "$vm_name"); then
+            log_warning "Could not get IP for VM: $vm_name"
+            continue
+        fi
+
+        log "  Found VM: $vm_name ($vm_ip)"
+
+        # Determine VM role and add to appropriate array
+        if [[ "$vm_name" == *"controller"* ]]; then
+            controllers+=("${vm_name}:ansible_host=${vm_ip}")
+        elif [[ "$vm_name" == *"compute"* ]]; then
+            compute_nodes+=("${vm_name}:ansible_host=${vm_ip}")
+        fi
+    done <<< "$vm_list"
+
+    # Get controller hostname from first controller VM (if exists)
+    local controller_hostname="controller"
+    if [[ ${#controllers[@]} -gt 0 ]]; then
+        local first_controller_ip
+        first_controller_ip=$(echo "${controllers[0]}" | cut -d= -f2)
+
+        # Try to get actual hostname from the controller VM
+        if controller_hostname=$(timeout 10 ssh "${SSH_OPTS}" -i "${SSH_KEY_PATH}" "${SSH_USER}@${first_controller_ip}" "hostname" 2>/dev/null); then
+            log "Detected controller hostname: $controller_hostname"
+        else
+            # Default to expected hostname from Packer cloud-init
+            controller_hostname="hpc-controller"
+            log "Using default controller hostname: $controller_hostname"
+        fi
+    fi
+
+    # Write inventory file in YAML format
+    cat > "$inventory_file" << EOF
+all:
+  children:
+    controller:
+      hosts:
+EOF
+
+    # Add controllers
+    for controller in "${controllers[@]}"; do
+        local name ip
+        name=$(echo "$controller" | cut -d: -f1)
+        ip=$(echo "$controller" | cut -d= -f2)
+        cat >> "$inventory_file" << EOF
+        $name:
+          ansible_host: $ip
+          ansible_user: ${SSH_USER}
+          ansible_ssh_private_key_file: ${SSH_KEY_PATH}
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+EOF
+    done
+
+    # Add compute nodes
+    cat >> "$inventory_file" << EOF
+    compute:
+      hosts:
+EOF
+
+    for compute in "${compute_nodes[@]}"; do
+        local name ip
+        name=$(echo "$compute" | cut -d: -f1)
+        ip=$(echo "$compute" | cut -d= -f2)
+        cat >> "$inventory_file" << EOF
+        $name:
+          ansible_host: $ip
+          ansible_user: ${SSH_USER}
+          ansible_ssh_private_key_file: ${SSH_KEY_PATH}
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+EOF
+    done
+
+    # Add group variables including controller hostname
+    cat >> "$inventory_file" << EOF
+  vars:
+    slurm_controller_name: "$controller_hostname"
+    slurm_cluster_name: "$cluster_name"
+    packer_build: false
+EOF
+
+    log_success "Ansible inventory generated with ${#controllers[@]} controller(s) and ${#compute_nodes[@]} compute node(s)"
+    return 0
+}
+
+# Extract IPs from Ansible inventory file for SSH connectivity checks
+# Parses YAML inventory to get host IPs
+# NOTE: Logging is sent to stderr to avoid polluting stdout data
+extract_ips_from_inventory() {
+    local inventory_file="$1"
+    local group_pattern="${2:-compute}"  # Default to compute group
+
+    [[ -z "$inventory_file" ]] && {
+        echo "extract_ips_from_inventory: inventory_file parameter required" >&2
+        return 1
+    }
+
+    [[ ! -f "$inventory_file" ]] && {
+        echo "Inventory file not found: $inventory_file" >&2
+        return 1
+    }
+
+    # Simple grep/awk parsing for YAML inventory
+    # Extract hostname and IP from inventory for specified group
+    local in_group=false
+    local current_host=""
+    declare -A host_ips
+
+    while IFS= read -r line; do
+        # Detect when we enter the target group
+        if [[ "$line" =~ ^[[:space:]]*${group_pattern}:[[:space:]]*$ ]]; then
+            in_group=true
+            continue
+        fi
+
+        # Detect when we leave the group (another top-level key at same or higher level)
+        if [[ "$in_group" == "true" ]] && [[ "$line" =~ ^[[:space:]]*[a-z_]+:[[:space:]]*$ ]] && [[ ! "$line" =~ hosts: ]]; then
+            in_group=false
+            continue
+        fi
+
+        # Extract host names (indented under hosts:)
+        if [[ "$in_group" == "true" ]] && [[ "$line" =~ ^[[:space:]]{8,}([a-zA-Z0-9._-]+):[[:space:]]*$ ]]; then
+            current_host="${BASH_REMATCH[1]}"
+        fi
+
+        # Extract ansible_host IP
+        if [[ "$in_group" == "true" ]] && [[ -n "$current_host" ]] && [[ "$line" =~ ansible_host:[[:space:]]*([0-9.]+) ]]; then
+            host_ips["$current_host"]="${BASH_REMATCH[1]}"
+        fi
+    done < "$inventory_file"
+
+    # Output in format: hostname:ip (one per line) to stdout
+    for host in "${!host_ips[@]}"; do
+        echo "${host}:${host_ips[$host]}"
+    done
+}
+
+# Wait for SSH connectivity on all nodes from inventory
+# Uses the inventory file to determine which nodes to check
+wait_for_inventory_nodes_ssh() {
+    local inventory_file="$1"
+    local group_pattern="${2:-compute}"
+    local timeout="${3:-180}"
+
+    [[ -z "$inventory_file" ]] && {
+        log_error "wait_for_inventory_nodes_ssh: inventory_file parameter required"
+        return 1
+    }
+
+    log "Waiting for SSH connectivity on ${group_pattern} nodes from inventory..."
+
+    # Extract host:ip pairs from inventory
+    local host_ips
+    if ! host_ips=$(extract_ips_from_inventory "$inventory_file" "$group_pattern"); then
+        log_error "Failed to extract IPs from inventory"
+        return 1
+    fi
+
+    if [[ -z "$host_ips" ]]; then
+        log_warning "No hosts found in ${group_pattern} group"
+        return 0
+    fi
+
+    # Check SSH connectivity for each host
+    local failed_hosts=()
+    while IFS=: read -r hostname ip_address; do
+        [[ -z "$hostname" || -z "$ip_address" ]] && continue
+
+        log "Checking SSH connectivity: $hostname ($ip_address)"
+
+        # Use wait_for_vm_ssh utility function
+        if ! wait_for_vm_ssh "$ip_address" "$hostname" "$timeout"; then
+            log_error "SSH connectivity failed for $hostname ($ip_address)"
+            failed_hosts+=("$hostname")
+        fi
+    done <<< "$host_ips"
+
+    if [[ ${#failed_hosts[@]} -gt 0 ]]; then
+        log_error "SSH connectivity failed for ${#failed_hosts[@]} host(s): ${failed_hosts[*]}"
+        return 1
+    fi
+
+    log_success "SSH connectivity verified for all ${group_pattern} nodes"
+    return 0
+}
+
+# Deploy Ansible playbook using generated inventory
+# Common function for all test frameworks that need to deploy Ansible configuration
+deploy_ansible_playbook() {
+    local config_file="$1"
+    local playbook="$2"
+    local target_group="${3:-all}"
+    local log_directory="${4:-${LOG_DIR}}"
+
+    [[ -z "$config_file" ]] && {
+        log_error "deploy_ansible_playbook: config_file parameter required"
+        return 1
+    }
+    [[ -z "$playbook" ]] && {
+        log_error "deploy_ansible_playbook: playbook parameter required"
+        return 1
+    }
+
+    log "Deploying Ansible playbook: $playbook"
+    log "Target group: $target_group"
+
+    # Check if playbook exists
+    if [[ ! -f "$playbook" ]]; then
+        log_error "Playbook not found: $playbook"
+        return 1
+    fi
+
+    # Get cluster name from config file using ai-how API
+    local cluster_name
+    if ! cluster_name=$(parse_cluster_name "$config_file" "$log_directory" "hpc"); then
+        log_error "Failed to get cluster name from configuration"
+        return 1
+    fi
+
+    log "Cluster name (from config): $cluster_name"
+
+    # Generate dynamic inventory in test run folder
+    local inventory_file="${log_directory}/ansible-inventory-${cluster_name}.yml"
+    log "Inventory will be saved to: $inventory_file"
+
+    # Use utility function to generate inventory
+    if ! generate_ansible_inventory "$inventory_file" "$cluster_name"; then
+        log_error "Failed to generate Ansible inventory"
+        return 1
+    fi
+
+    # Display generated inventory for verification
+    log "Generated inventory contents:"
+    while IFS= read -r line; do
+        log "  $line"
+    done < "$inventory_file"
+
+    # Wait for SSH connectivity on target nodes using inventory
+    if ! wait_for_inventory_nodes_ssh "$inventory_file" "$target_group"; then
+        log_error "SSH connectivity check failed for ${target_group} nodes"
+        return 1
+    fi
+
+    # Run Ansible playbook
+    log ""
+    log "Running Ansible playbook..."
+    log "Playbook: $playbook"
+    log "Inventory: $inventory_file"
+    log "Target: $target_group"
+
+    # Change to ansible directory to find roles
+    local original_dir
+    original_dir=$(pwd)
+    cd "$PROJECT_ROOT/ansible" || {
+        log_error "Failed to change to ansible directory"
+        return 1
+    }
+
+    local ansible_cmd="uv run ansible-playbook -i $inventory_file"
+    [[ "$target_group" != "all" ]] && ansible_cmd+=" -l $target_group"
+    ansible_cmd+=" $playbook"
+
+    log "Executing: $ansible_cmd"
+
+    if eval "$ansible_cmd"; then
+        log_success "Ansible playbook deployed successfully"
+        log "Inventory preserved at: $inventory_file"
+        cd "$original_dir" || true
+        return 0
+    else
+        log_error "Failed to deploy Ansible playbook"
+        log "Check the Ansible output above for details"
+        log "Inventory file preserved for debugging: $inventory_file"
+        cd "$original_dir" || true
+        return 1
+    fi
+}
+
 # Export main functions for use in other scripts
 export -f run_test_framework check_test_prerequisites cleanup_test_framework
+export -f generate_ansible_inventory extract_ips_from_inventory wait_for_inventory_nodes_ssh deploy_ansible_playbook

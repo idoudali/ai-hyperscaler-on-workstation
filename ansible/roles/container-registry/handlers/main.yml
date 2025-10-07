@@ -1,0 +1,48 @@
+---
+# Container Registry Role - Handlers
+# Handlers for registry configuration changes
+
+- name: Reload registry configuration
+  debug:
+    msg: "Registry configuration updated. Changes will take effect immediately."
+  listen: "Reload registry configuration"
+
+- name: Sync registry to compute nodes
+  command: /usr/local/bin/registry-sync-to-nodes.sh
+  listen: "Sync registry to compute nodes"
+  when:
+    - "'controller' in group_names"
+    - container_registry_sync_enabled | bool
+  ignore_errors: true
+
+- name: Update registry catalog
+  shell: |
+    python3 <<EOF
+    import yaml
+    import os
+    from datetime import datetime
+
+    catalog_file = "{{ container_registry_catalog_file }}"
+
+    if os.path.exists(catalog_file):
+        with open(catalog_file, 'r') as f:
+            catalog = yaml.safe_load(f)
+    else:
+        catalog = {'version': '1.0', 'images': []}
+
+    catalog['last_updated'] = datetime.utcnow().isoformat()
+
+    with open(catalog_file, 'w') as f:
+        yaml.dump(catalog, f, default_flow_style=False)
+    EOF
+  listen: "Update registry catalog"
+  when: "'controller' in group_names"
+  ignore_errors: true
+
+- name: Verify registry structure
+  stat:
+    path: "{{ container_registry_base_path }}/{{ item }}"
+  loop: "{{ container_registry_subdirs }}"
+  register: verify_dir_stat
+  listen: "Verify registry structure"
+  failed_when: not verify_dir_stat.stat.exists
