@@ -17,16 +17,18 @@ FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 USER_ID="$(id -u)"
 GROUP_ID="$(id -g)"
 
-# Get KVM, libvirt, and sudo group IDs for hardware acceleration and sudo access
+# Get KVM, libvirt, sudo, and docker group IDs for hardware acceleration, sudo access, and Docker socket access
 KVM_GID=""
 LIBVIRT_GID=""
 SUDO_GID=""
+DOCKER_GID=""
 DOCKER_EXTRA_ARGS=""
 
 if command -v getent >/dev/null 2>&1; then
     KVM_GID="$(getent group kvm 2>/dev/null | cut -d: -f3 || echo "")"
     LIBVIRT_GID="$(getent group libvirt 2>/dev/null | cut -d: -f3 || echo "")"
     SUDO_GID="$(getent group sudo 2>/dev/null | cut -d: -f3 || echo "")"
+    DOCKER_GID="$(getent group docker 2>/dev/null | cut -d: -f3 || echo "")"
 
     if [[ -n "$KVM_GID" && -c "/dev/kvm" ]]; then
         DOCKER_EXTRA_ARGS="$DOCKER_EXTRA_ARGS --device /dev/kvm --group-add $KVM_GID"
@@ -38,6 +40,11 @@ if command -v getent >/dev/null 2>&1; then
 
     if [[ -n "$SUDO_GID" ]]; then
         DOCKER_EXTRA_ARGS="$DOCKER_EXTRA_ARGS --group-add $SUDO_GID"
+    fi
+
+    # Mount Docker socket and add docker group for container-in-container access
+    if [[ -n "$DOCKER_GID" && -S "/var/run/docker.sock" ]]; then
+        DOCKER_EXTRA_ARGS="$DOCKER_EXTRA_ARGS -v /var/run/docker.sock:/var/run/docker.sock --group-add $DOCKER_GID"
     fi
 fi
 

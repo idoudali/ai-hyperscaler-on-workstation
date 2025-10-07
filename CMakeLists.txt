@@ -46,6 +46,10 @@ endif()
 # Add packer subdirectory to make packer targets available
 add_subdirectory(packer)
 
+# --- Container Images ---
+# Add containers subdirectory for Docker/Apptainer image builds
+add_subdirectory(containers)
+
 # --- Custom Targets ---
 # Note: Packer-related targets are available in the packer/ subdirectory
 # Use: cmake --build build --target packer/<target_name>

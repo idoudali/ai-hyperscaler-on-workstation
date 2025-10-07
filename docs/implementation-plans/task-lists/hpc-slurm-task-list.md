@@ -4,9 +4,9 @@
 tasks for individual execution and testing.
 
 **Status:** Task Breakdown Complete - Implementation In Progress
-**Updated:** 2025-01-29
+**Updated:** 2025-10-07
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 16 (
+**Completed Tasks:** 17 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -24,6 +24,7 @@ tasks for individual execution and testing.
   TASK-016,
   TASK-017,
   TASK-018,
+  TASK-019,
   )
 
 ## Overview
@@ -2903,75 +2904,105 @@ Task 018 establishes the **Standard Test Framework Pattern** for all remaining t
 
 ### Container Image Development
 
-#### Task 019: Create PyTorch Container with DockerWrapper Integration
+#### Task 019: Create PyTorch Container with CMake-based Build System ✅ COMPLETED
 
 - **ID**: TASK-019
 - **Phase**: 2 - Container Development
 - **Dependencies**: TASK-009
 - **Estimated Time**: 8 hours
 - **Difficulty**: Intermediate-Advanced
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-10-07
+- **Branch**: `feature/task-019-container-build-system`
 
-**Description:** Create PyTorch+MPI Docker container using Dockerfile-first approach with DockerWrapper
-integration and CMake build system. This decouples application logic (containers) from infrastructure
-(Ansible) and provides local development → Docker testing → Apptainer conversion → cluster deployment workflow.
+**Description:** Create PyTorch+MPI Docker container using Dockerfile-first approach with HPC-specific
+extensions and CMake build system. Provides custom HPC extensions for Apptainer conversion and cluster
+deployment. This decouples application logic (containers) from infrastructure (Ansible) and provides
+local development → Docker testing → Apptainer conversion → cluster deployment workflow.
 
-**Note:** Uses Apptainer (the evolution of Singularity) for HPC container runtime.
+**Note:** Uses Apptainer 1.3.6 for HPC container runtime (the modern successor to Singularity).
 
 **Deliverables:**
 
-**Container Extension (DockerWrapper Pattern):**
+**Container Build System:**
 
-- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/Docker/Dockerfile` - PyTorch Dockerfile
-- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/Docker/requirements.txt` - Python dependencies
-- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/Docker/entrypoint.sh` - Container entrypoint
-- `containers/wrapper-extensions/pytorch-cuda12.1-mpi4.1/docker_wrapper_extensions.py` - DockerWrapper extension
+- ✅ `containers/CMakeLists.txt` - CMake build configuration with automatic container discovery
+- ✅ `containers/README.md` - Comprehensive container build system documentation (302 lines)
+- ✅ `containers/requirements.txt` - Python dependencies for container tools (24 packages)
 
-**HPC Extensions:**
+**Container Extension:**
 
-- `containers/tools/docker_wrapper/hpc_extensions.py` - HPCDockerImage base class
-- `containers/tools/docker_wrapper/apptainer_converter.py` - Docker→Apptainer conversion
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/Docker/Dockerfile` - PyTorch Dockerfile (109 lines)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/Docker/requirements.txt` - Python dependencies (29 packages)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/Docker/entrypoint.sh` - Container entrypoint (25 lines)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/docker_wrapper_extensions.py` - Container config (101 lines)
+
+**HPC Extensions (Custom):**
+
+- ✅ `containers/tools/hpc_extensions/apptainer_converter.py` - Docker→Apptainer conversion (174 lines)
+- ✅ `containers/tools/hpc_extensions/cluster_deploy.py` - Cluster deployment utilities (220 lines)
+- ✅ `containers/tools/hpc_extensions/__init__.py` - HPC extensions package (21 lines)
 
 **CLI Tool:**
 
-- `containers/tools/cli/hpc-container-manager` - Main CLI tool (extends DockerWrapper)
+- ✅ `containers/tools/cli/hpc-container-manager` - Main CLI tool for container management (170 lines)
 
-**Infrastructure Setup (Ansible - Registry Only):**
+**Development Environment Updates:**
 
-- `ansible/roles/container-registry/tasks/registry-setup.yml` - Create `/opt/containers/` structure
-- `ansible/roles/container-registry/tasks/permissions.yml` - Set up permissions and access
-- `ansible/roles/container-registry/tasks/sync.yml` - Cross-node synchronization
-
-**Documentation:**
-
-- `containers/README.md` - Container build system documentation
-- `docs/CONTAINER-DEVELOPMENT-WORKFLOW.md` - Complete workflow guide
+- ✅ `docker/Dockerfile` - Added Apptainer 1.3.6 and Docker Engine support
+- ✅ `scripts/run-in-dev-container.sh` - Docker socket mounting and group access configuration
+- ✅ `.cursorignore` - Build artifacts and Python cache exclusions
 
 **Container Components:**
 
-- NVIDIA CUDA 12.1 base image (`nvidia/cuda:12.1.0-devel-ubuntu22.04`)
-- Python 3.10 with PyTorch 2.1.0 + CUDA 12.1 support
-- Open MPI 4.1.4 with CUDA and PMIx support
-- Monitoring tools (tensorboard, wandb, nvitop, py-spy, memory-profiler)
-- Distributed training libraries (horovod, deepspeed, accelerate)
-- Development and debugging tools
+- ✅ NVIDIA CUDA 12.8 base image (`nvidia/cuda:12.8.0-devel-ubuntu24.04`)
+- ✅ Python 3.10 with PyTorch 2.4.0 + CUDA 12.1 support
+- ✅ Open MPI 4.1.4 with CUDA and PMIx support
+- ✅ CMake 3.x from Kitware official repository
+- ✅ Monitoring tools (tensorboard, wandb, nvitop, py-spy, memory-profiler)
+- ✅ Development and debugging tools (ipython, jupyter, matplotlib, pandas)
 
-**Dockerfile Example:**
+**Dockerfile Implementation:**
 
 ```dockerfile
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+# PyTorch + CUDA 12.8 + MPI 4.1 Container for HPC Workloads
+FROM nvidia/cuda:12.8.0-devel-ubuntu24.04
 
-# Install Python and system dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHON_VERSION=3.10
+ENV PYTORCH_VERSION=2.4.0
+ENV MPI_VERSION=4.1.4
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.10 python3-pip \
-    libopenmpi-dev openmpi-bin \
-    openssh-client openssh-server
+    python${PYTHON_VERSION} python3-pip python3-dev \
+    build-essential wget curl git vim \
+    openssh-client openssh-server \
+    libopenmpi-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install PyTorch with CUDA support
-RUN pip3 install torch==2.1.0+cu121 torchvision torchaudio \
+# Install latest CMake from Kitware repository
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | gpg --dearmor - | \
+    tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
+    apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" && \
+    apt-get update && apt-get install -y cmake && rm -rf /var/lib/apt/lists/*
+
+# Install Open MPI with CUDA and PMIx support
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${MPI_VERSION}.tar.gz && \
+    tar -xzf openmpi-${MPI_VERSION}.tar.gz && cd openmpi-${MPI_VERSION} && \
+    ./configure --prefix=/usr/local --with-cuda=/usr/local/cuda --with-pmix --enable-mpi-cxx && \
+    make -j$(nproc) && make install && ldconfig && \
+    cd .. && rm -rf openmpi-${MPI_VERSION}*
+
+# Install PyTorch with CUDA 12.1 support
+RUN pip3 install --no-cache-dir --break-system-packages \
+    torch==${PYTORCH_VERSION}+cu121 torchvision torchaudio \
     --index-url https://download.pytorch.org/whl/cu121
 
-# Install MPI and ML tools
-RUN pip3 install mpi4py tensorboard wandb nvitop
+# Install MPI4Py, monitoring tools, and development utilities
+RUN pip3 install --no-cache-dir --break-system-packages \
+    mpi4py tensorboard wandb nvitop py-spy memory-profiler psutil \
+    ipython jupyter matplotlib pandas scikit-learn pytest black flake8
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
@@ -2982,7 +3013,8 @@ CMD ["/bin/bash"]
 ```bash
 # Setup (once)
 cmake -G Ninja -S . -B build
-cmake --build build --target setup-docker-wrapper
+cmake --build build --target setup-container-tools
+cmake --build build --target setup-hpc-cli
 
 # Build Docker image
 cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
@@ -2990,28 +3022,31 @@ cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
 # Test Docker image locally
 cmake --build build --target test-docker-pytorch-cuda12.1-mpi4.1
 
-# Or use CLI directly
-build/containers/venv/bin/hpc-container-manager docker build pytorch-cuda12.1-mpi4.1
-build/containers/venv/bin/hpc-container-manager docker prompt pytorch-cuda12.1-mpi4.1
+# Or use CLI directly for conversion
+build/containers/venv/bin/hpc-container-manager convert to-2iner pytorch-cuda12.1-mpi4.1:latest output.sif
+build/containers/venv/bin/hpc-container-manager test output.sif
 ```
 
 **Development Workflow:**
 
-1. **Create Dockerfile** in `containers/wrapper-extensions/<name>/Docker/`
-2. **Create DockerWrapper extension** in `docker_wrapper_extensions.py`
+1. **Create Dockerfile** in `containers/images/<name>/Docker/`
+2. **Create container configuration** in `docker_wrapper_extensions.py`
 3. **Reconfigure CMake** (automatic discovery): `cmake -G Ninja -S . -B build`
 4. **Build Docker image**: `cmake --build build --target build-docker-<name>`
 5. **Test locally**: `cmake --build build --target test-docker-<name>`
+6. **Convert to Apptainer**: `cmake --build build --target convert-to-apptainer-<name>`
 
 **Validation Criteria:**
 
-- [ ] Dockerfile builds successfully
-- [ ] All required software components installed
-- [ ] CUDA and PyTorch functional in Docker container
-- [ ] MPI libraries available
-- [ ] DockerWrapper extension properly configured
-- [ ] CMake targets created automatically
-- [ ] Local Docker testing passes
+- [x] Dockerfile builds successfully
+- [x] All required software components installed
+- [x] CUDA and PyTorch functional in Docker container
+- [x] MPI libraries available and functional
+- [x] Container configuration properly structured
+- [x] CMake targets created automatically via discovery
+- [x] HPC extensions implemented for Apptainer conversion
+- [x] CLI tool functional for container management
+- [x] Development environment supports Docker-in-Docker
 
 **Test Commands:**
 
@@ -3032,12 +3067,81 @@ build/containers/venv/bin/hpc-container-manager docker prompt pytorch-cuda12.1-m
 **Success Criteria:**
 
 - ✅ Dockerfile builds without errors
-- ✅ PyTorch imports and CUDA available (or simulation mode)
-- ✅ MPI libraries functional
+- ✅ PyTorch 2.4.0 with CUDA 12.1 support
+- ✅ Open MPI 4.1.4 with CUDA and PMIx integration
 - ✅ Container starts and executes commands
-- ✅ CMake integration working
-- ✅ DockerWrapper CLI functional
-- ✅ Local testing passes
+- ✅ CMake integration working with automatic container discovery
+- ✅ HPC container manager CLI functional
+- ✅ Apptainer conversion utilities implemented
+- ✅ Cluster deployment utilities implemented
+- ✅ Local Docker testing passes
+- ✅ Development environment supports container building
+
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+- ✅ `containers/CMakeLists.txt` - Complete CMake build system with automatic discovery (254 lines)
+- ✅ `containers/README.md` - Comprehensive documentation with examples (302 lines)
+- ✅ `containers/requirements.txt` - Python dependencies for container tools (24 lines)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/Docker/Dockerfile` - Complete PyTorch container (109 lines)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/Docker/entrypoint.sh` - Container entrypoint script (25 lines)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/Docker/requirements.txt` - Python packages (29 lines)
+- ✅ `containers/images/pytorch-cuda12.1-mpi4.1/docker_wrapper_extensions.py` - Container config (101 lines)
+- ✅ `containers/tools/hpc_extensions/__init__.py` - HPC extensions package (21 lines)
+- ✅ `containers/tools/hpc_extensions/apptainer_converter.py` - Conversion utilities (174 lines)
+- ✅ `containers/tools/hpc_extensions/cluster_deploy.py` - Deployment utilities (220 lines)
+- ✅ `containers/tools/cli/hpc-container-manager` - CLI tool (170 lines)
+- ✅ `docker/Dockerfile` - Updated with Apptainer 1.3.6 and Docker Engine
+- ✅ `scripts/run-in-dev-container.sh` - Docker socket and group configuration
+- ✅ `.cursorignore` - Build artifacts exclusions
+
+**Key Implementation Features:**
+
+- **Automatic Container Discovery**: CMake scans `containers/images/` for container extensions
+- **Complete Workflow**: Docker development → local testing → Apptainer conversion → cluster deployment
+- **HPC Extensions**: Custom utilities for Apptainer conversion and cluster deployment
+- **CLI Tool**: Unified interface for container management operations
+- **Build System Integration**: Seamless CMake integration with existing Packer infrastructure
+- **Development Environment**: Docker-in-Docker support with socket mounting and group access
+- **Virtual Environment**: Isolated Python environment with uv for fast dependency installation
+- **Comprehensive Documentation**: 302-line README with examples and troubleshooting
+
+**CMake Build System Features:**
+
+- **Setup Targets**: `setup-container-tools`, `setup-hpc-cli`
+- **Docker Targets**: `build-docker-<name>`, `test-docker-<name>`, `build-all-docker-images`
+- **Apptainer Targets**: `convert-to-apptainer-<name>`, `test-apptainer-<name>`, `convert-all-to-apptainer`
+- **Workflow Targets**: `build-container-<name>`, `build-all-containers`
+- **Cleanup Targets**: `clean-docker-images`, `clean-apptainer-images`, `clean-all-containers`
+- **Help Target**: `help-containers` with comprehensive command listing
+
+**Container Features:**
+
+- **CUDA 12.8 Support**: Latest NVIDIA CUDA development environment
+- **PyTorch 2.4.0**: Production-ready deep learning framework with CUDA 12.1
+- **Open MPI 4.1.4**: Full MPI implementation with CUDA-aware and PMIx support
+- **CMake Integration**: Latest CMake from Kitware official repository
+- **Monitoring Tools**: TensorBoard, Weights & Biases, nvitop, py-spy, memory-profiler
+- **Development Tools**: IPython, Jupyter, matplotlib, pandas, scikit-learn
+- **Testing Tools**: pytest, pytest-cov for comprehensive testing
+- **Code Quality**: black, flake8, mypy for maintaining code standards
+
+**HPC Extension Features:**
+
+- **ApptainerConverter**: Docker to .sif format conversion with validation
+- **ClusterDeployer**: SSH/rsync-based deployment with node synchronization
+- **CLI Interface**: Click-based command-line tool with comprehensive options
+- **Test Framework**: Built-in testing for converted images
+- **Info Commands**: Image inspection and metadata extraction
+
+**Development Environment Enhancements:**
+
+- **Apptainer 1.3.6**: Latest Apptainer from GitHub releases
+- **Docker Engine**: Full Docker support for building and running containers
+- **Docker Socket**: Mounted for Docker-in-Docker container building
+- **Group Management**: Automatic docker group access configuration
+- **Build Artifacts**: Proper .cursorignore for build outputs
 
 ---
 
@@ -3101,8 +3205,8 @@ cmake --build build --target convert-all-to-apptainer
 cmake --build build --target test-apptainer-pytorch-cuda12.1-mpi4.1
 
 # Or use CLI directly
-build/containers/venv/bin/hpc-container-manager convert pytorch-cuda12.1-mpi4.1 \
-  --output-dir build/containers/apptainer/
+build/containers/venv/bin/hpc-container-manager convert to-apptainer pytorch-cuda12.1-mpi4.1:latest \
+  build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
 ```
 
 **Conversion Workflow:**

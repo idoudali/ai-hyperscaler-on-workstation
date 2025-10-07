@@ -126,6 +126,7 @@ setup_groups() {
     local username="$2"
 
     # Add user to additional groups if they exist
+    # Docker group is particularly important for Docker socket access
     local additional_groups=("kvm" "libvirt" "sudo" "docker")
 
     for group in "${additional_groups[@]}"; do
@@ -136,6 +137,8 @@ setup_groups() {
             if ! usermod -a -G "$group" "$username" 2>/dev/null; then
                 log_warn "Could not add $username to group $group"
             fi
+        else
+            log_warn "Group $group does not exist in container, skipping"
         fi
     done
 }

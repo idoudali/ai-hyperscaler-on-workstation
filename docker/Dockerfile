@@ -1,3 +1,4 @@
+
 # Dockerfile for the development environment
 
 # Use Debian 12 "Bookworm" as the base image
@@ -12,6 +13,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ansible=7.7.0+dfsg-3+deb12u1 \
     build-essential=12.9 \
+    ca-certificates \
     cmake=3.25.1-1 \
     curl \
     git \
@@ -29,13 +31,48 @@ RUN apt-get update && \
     qemu-utils \
     screen=4.9.0-4 \
     software-properties-common \
+    squashfs-tools \
     sudo \
     tmux=3.3a-3 \
+    uidmap \
     xorriso \
   && rm -rf /var/lib/apt/lists/*
 
 # Set shell to fail on pipe errors for all subsequent RUN commands
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Install Apptainer/Singularity from GitHub releases
+# Reference: https://github.com/apptainer/apptainer/releases
+RUN APPTAINER_VERSION=1.3.6 && \
+    ARCH=$(dpkg --print-architecture) && \
+    curl -fsSL "https://github.com/apptainer/apptainer/releases/download/v${APPTAINER_VERSION}/apptainer_${APPTAINER_VERSION}_${ARCH}.deb" \
+      -o /tmp/apptainer.deb && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends /tmp/apptainer.deb && \
+    rm -rf /tmp/apptainer.deb /var/lib/apt/lists/*
+
+# Install Docker Engine following official documentation
+# Reference: https://docs.docker.com/engine/install/ubuntu/
+# Add Docker's official GPG key
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
+    chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add Docker repository to Apt sources
+# hadolint ignore=SC1091
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine, CLI, containerd, and Docker Compose
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install HashiCorp tools (Terraform and Packer)
 # Add HashiCorp GPG key
