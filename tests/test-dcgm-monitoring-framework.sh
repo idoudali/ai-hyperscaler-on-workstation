@@ -317,9 +317,9 @@ EOF
         fi
     done
 
-    # Run Ansible playbook
+    # Run Ansible playbook using uv (consistent with ai-how usage)
     log "Running Ansible playbook with runtime configuration..."
-    local ansible_cmd="ansible-playbook -i $inventory_file playbooks/playbook-dcgm-runtime-config.yml"
+    local ansible_cmd="uv run ansible-playbook -i $inventory_file playbooks/playbook-dcgm-runtime-config.yml"
     [[ "${VERBOSE:-false}" == "true" ]] && ansible_cmd="$ansible_cmd -vv"
 
     # Change to ansible directory to find roles

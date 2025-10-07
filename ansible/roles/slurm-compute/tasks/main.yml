@@ -1,8 +1,41 @@
 ---
 # SLURM Compute Role - Main Tasks
-# This file will contain the main orchestration tasks for SLURM compute node setup
-# including package installation, service configuration, and node registration
+# Task 022: SLURM Compute Node Installation and Configuration
+# This file orchestrates the installation and configuration of SLURM compute nodes
 
-- name: SLURM Compute Role - Main Tasks
+- name: Include SLURM compute node package installation
+  include_tasks: install.yml
+  tags:
+    - slurm-compute
+    - slurm-compute-install
+    - install
+
+- name: Include SLURM compute node configuration
+  include_tasks: configure.yml
+  tags:
+    - slurm-compute
+    - slurm-compute-configure
+    - configure
+
+- name: Display SLURM compute node setup complete
   debug:
-    msg: "SLURM Compute role main tasks will be implemented here"
+    msg: |
+      SLURM Compute Node setup complete:
+      - Node name: {{ slurm_compute_node_name | default(inventory_hostname) }}
+      - Packages installed: {{ slurm_compute_packages }}
+      - Service configured: slurmd
+      - Container runtime enabled: {{ slurm_container_enabled | default(true) }}
+      - Cgroup enabled: {{ slurm_cgroup_enabled | default(true) }}
+
+      {% if (packer_build | default(false)) | bool %}
+      Build Mode: Packer image creation
+      - Services enabled but not started
+      - Node registration will occur at runtime
+      {% else %}
+      Runtime Mode: Live deployment
+      - Services started and enabled
+      - Node registered with controller
+      - Ready to accept jobs
+      {% endif %}
+  tags:
+    - slurm-compute

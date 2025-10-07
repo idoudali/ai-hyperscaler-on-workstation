@@ -1,0 +1,208 @@
+---
+# SLURM Compute Node Configuration
+# Task 022: Configure SLURM compute node with container runtime integration
+
+- name: Create SLURM configuration directory
+  file:
+    path: /etc/slurm
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Create SLURM log directory
+  file:
+    path: /var/log/slurm
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user | default('slurm') }}"
+    group: "{{ slurm_user | default('slurm') }}"
+  become: true
+
+- name: Create SLURM spool directory
+  file:
+    path: "{{ slurm_spool_dir | default('/var/spool/slurmd') }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user | default('slurm') }}"
+    group: "{{ slurm_user | default('slurm') }}"
+  become: true
+
+- name: Ensure controller MUNGE key is available
+  stat:
+    path: "{{ munge_key_path | default('/etc/munge/munge.key') }}"
+  register: munge_key_check
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Copy MUNGE key from controller (if not exists)
+  copy:
+    src: "{{ munge_controller_key_source | default('/tmp/munge.key') }}"
+    dest: "{{ munge_key_path | default('/etc/munge/munge.key') }}"
+    owner: "{{ munge_user | default('munge') }}"
+    group: "{{ munge_group | default('munge') }}"
+    mode: '0400'
+  become: true
+  when:
+    - not ((packer_build | default(false)) | bool)
+    - munge_controller_key_source is defined
+    - not (munge_key_check.stat.exists | default(false))
+  notify:
+    - restart munge service
+
+- name: Deploy SLURM configuration template
+  template:
+    src: slurm.conf.j2
+    dest: /etc/slurm/slurm.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  register: slurm_config_deployed
+  notify:
+    - restart slurmd service
+
+- name: Create container images directory
+  file:
+    path: "{{ singularity_image_path | default('/opt/containers') }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  when: slurm_container_enabled | default(true)
+
+- name: Create cgroup configuration directory
+  file:
+    path: /etc/slurm/cgroup
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  when: slurm_cgroup_enabled | default(true)
+
+- name: Deploy cgroup configuration
+  template:
+    src: cgroup.conf.j2
+    dest: /etc/slurm/cgroup.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  when: slurm_cgroup_enabled | default(true)
+  notify:
+    - restart slurmd service
+
+- name: Enable slurmd service
+  systemd:
+    name: slurmd
+    enabled: true
+    daemon_reload: true
+  become: true
+
+- name: Start slurmd service (runtime mode only)
+  systemd:
+    name: slurmd
+    state: started
+  become: true
+  when: not ((packer_build | default(false)) | bool)
+  register: slurmd_service_start
+
+- name: Verify slurmd service is running
+  systemd:
+    name: slurmd
+    state: started
+  become: true
+  register: slurmd_service_check
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Wait for node registration with controller
+  shell: |
+    for i in {1..30}; do
+      if scontrol show node {{ slurm_compute_node_name | default(inventory_hostname) }} | grep -q "State="; then
+        exit 0
+      fi
+      sleep 2
+    done
+    exit 1
+  register: node_registration_check
+  changed_when: false
+  failed_when: false
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Check node state in SLURM
+  command: scontrol show node {{ slurm_compute_node_name | default(inventory_hostname) }}
+  register: node_state_check
+  changed_when: false
+  failed_when: false
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Verify SLURM communication with controller
+  command: sinfo
+  register: slurm_communication_check
+  changed_when: false
+  failed_when: false
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Check container runtime availability
+  shell: |
+    if command -v apptainer >/dev/null 2>&1; then
+      echo "Container runtime: apptainer"
+      apptainer --version
+      exit 0
+    elif command -v singularity >/dev/null 2>&1; then
+      echo "Container runtime: singularity"
+      singularity --version
+      exit 0
+    else
+      echo "No container runtime found"
+      exit 1
+    fi
+  register: container_runtime_available
+  changed_when: false
+  failed_when: false
+  when:
+    - not ((packer_build | default(false)) | bool)
+    - slurm_container_enabled | default(true)
+
+- name: Display SLURM compute node configuration results
+  debug:
+    msg: |
+      SLURM Compute Node configured successfully:
+      - Node name: {{ slurm_compute_node_name | default(inventory_hostname) }}
+      - Configuration file: /etc/slurm/slurm.conf
+      - Spool directory: {{ slurm_spool_dir | default('/var/spool/slurmd') }}
+      - Log directory: /var/log/slurm
+      - Container images path: {{ singularity_image_path | default('/opt/containers') if slurm_container_enabled | default(true) else 'Not configured' }}
+      - Cgroup enabled: {{ slurm_cgroup_enabled | default(true) }}
+      - Build mode: {{ 'Packer' if (packer_build | default(false)) | bool else 'Live deployment' }}
+      {% if not ((packer_build | default(false)) | bool) %}
+      - slurmd service: {{ 'Running' if slurmd_service_check.state == 'started' else 'Not running' }}
+      - Node registration: {{ 'SUCCESS' if node_registration_check.rc == 0 else 'PENDING' }}
+      - Node state: {{ node_state_check.stdout | regex_search('State=\S+') if node_state_check.rc == 0 else 'Unknown' }}
+      - Controller communication: {{ 'SUCCESS' if slurm_communication_check.rc == 0 else 'FAILED' }}
+      {% if slurm_container_enabled | default(true) %}
+      - Container runtime: {{ container_runtime_available.stdout.split('\n')[0] if container_runtime_available.rc == 0 else 'Not available' }}
+      {% endif %}
+      {% else %}
+      - Note: Service started and validation skipped during Packer build
+      {% endif %}
+
+- name: Display warning if node registration failed
+  debug:
+    msg: |
+      WARNING: Node failed to register with SLURM controller.
+      This may be expected during initial setup or if the controller is not reachable.
+      Node state: {{ node_state_check.stdout if node_state_check.rc == 0 else 'Could not retrieve' }}
+
+      Troubleshooting steps:
+      1. Check MUNGE is running and key matches controller: systemctl status munge
+      2. Verify controller hostname/IP in slurm.conf
+      3. Check network connectivity to controller
+      4. Review slurmd logs: tail -f /var/log/slurm/slurmd.log
+  when:
+    - not ((packer_build | default(false)) | bool)
+    - node_registration_check.rc != 0

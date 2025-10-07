@@ -1,0 +1,138 @@
+version: "1.0"
+metadata:
+  name: "test-slurm-compute"
+  description: "SLURM Compute Node Test Configuration for Task 022 validation"
+
+global: {}
+
+clusters:
+  hpc:
+    name: "test-hpc-slurm-compute"
+    # Base image path - will be overridden by node-specific images
+    # Note: hpc-base image not required as we use specialized images
+    # Paths are relative to PROJECT_ROOT
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    network:
+      subnet: "192.168.158.0/24"
+      bridge: "virbr158"
+
+    # Hardware acceleration configuration
+    hardware:
+      acceleration:
+        enable_kvm: true
+        enable_nested: false
+        cpu_model: "host-passthrough"
+        cpu_features:
+          - "+vmx"
+          - "+svm"
+          - "+sse4.1"
+          - "+sse4.2"
+          - "+avx"
+          - "+avx2"
+        numa_topology: null
+        cpu_topology:
+          sockets: 1
+          cores: 4
+          threads: 1
+        performance:
+          enable_hugepages: false
+          hugepage_size: "2M"
+          cpu_pinning: false
+          memory_backing: "default"
+
+    # Controller node - required for SLURM compute testing
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 50
+      ip_address: "192.168.158.10"
+      # Use specialized controller image (path relative to PROJECT_ROOT)
+      image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    # Compute nodes - focus of Task 022 testing
+    compute_nodes:
+      - name: "compute-01"
+        cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 50
+        ip_address: "192.168.158.11"
+        # Use specialized compute image (path relative to PROJECT_ROOT)
+        image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+
+      - name: "compute-02"
+        cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 50
+        ip_address: "192.168.158.12"
+        # Use specialized compute image (path relative to PROJECT_ROOT)
+        image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+
+    # SLURM configuration
+    slurm_config:
+      partitions: ["compute"]
+      default_partition: "compute"
+      max_job_time: "4:00:00"
+
+  # Empty cloud cluster (required by schema but not used in this test)
+  cloud:
+    name: "test-cloud-empty"
+    # Using controller image as placeholder since cloud-base doesn't exist
+    # Path is relative to PROJECT_ROOT
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+    network:
+      subnet: "192.168.159.0/24"
+      bridge: "virbr159"
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 30
+      ip_address: "192.168.159.10"
+    worker_nodes:
+      cpu: []
+      gpu: []
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+
+# Test-specific configuration (for test framework)
+test:
+  # Target compute nodes for testing
+  target_pattern: "compute"
+
+  # Test suite configuration
+  test_suite: "slurm-compute"
+  test_timeout: 900  # 15 minutes for SLURM compute tests (includes multi-node)
+
+  # Test categories to run
+  test_categories:
+    - "installation"      # SLURM compute package installation
+    - "registration"      # Node registration with controller
+    - "communication"     # Multi-node communication
+    - "job-execution"     # Distributed job execution
+
+  # Test environment variables
+  environment:
+    SLURM_VERSION: "23.11.4"
+    TEST_SLURM_COMPUTE: "true"
+    TEST_MULTI_NODE: "true"
+    TEST_MUNGE: "true"
+    TEST_CONTAINER_RUNTIME: "true"
+
+# Build configuration (if building images is needed)
+build:
+  enabled: false  # Tests assume pre-built compute image
+  image_type: "hpc-compute"
+
+# Performance and timeout settings
+timeouts:
+  vm_start: 300      # 5 minutes to start VMs
+  ssh_ready: 120     # 2 minutes for SSH to be ready
+  test_execution: 900 # 15 minutes for test execution (multi-node tests)
+
+# Logging configuration
+logging:
+  level: "INFO"
+  capture_vm_logs: true
+  save_test_artifacts: true

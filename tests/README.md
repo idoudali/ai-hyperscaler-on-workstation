@@ -137,6 +137,7 @@ When creating new test frameworks (e.g., `test-container-registry-framework.sh` 
 - ✅ `test-monitoring-stack-framework.sh` (Task 015) - CLI pattern implemented
 - ✅ `test-container-registry-framework.sh` (Task 021) - CLI pattern implemented
 - ✅ `test-slurm-controller-framework.sh` (Task 010) - CLI pattern implemented
+- ✅ `test-slurm-compute-framework.sh` (Task 022) - CLI pattern implemented
 - ✅ `test-grafana-framework.sh` (Task 017) - CLI pattern implemented
 - ✅ `test-slurm-accounting-framework.sh` (Task 019) - CLI pattern implemented
 - ✅ `test-container-runtime-framework.sh` (Task 008/009) - CLI pattern implemented
@@ -214,7 +215,13 @@ These tests validate HPC controller components and should run before compute nod
 
 These tests validate HPC compute node components:
 
-1. **Container Runtime Test** - Validate Apptainer/Singularity (Task 008/009)
+1. **SLURM Compute Node Test** - Validate SLURM compute node installation (Task 022)
+
+   ```bash
+   ./test-slurm-compute-framework.sh e2e
+   ```
+
+2. **Container Runtime Test** - Validate Apptainer/Singularity (Task 008/009)
 
    ```bash
    ./test-container-runtime-framework.sh e2e
@@ -222,7 +229,7 @@ These tests validate HPC compute node components:
    make test-container-comprehensive
    ```
 
-2. **PCIe Passthrough Test** - Validate GPU passthrough (requires GPU hardware)
+3. **PCIe Passthrough Test** - Validate GPU passthrough (requires GPU hardware)
 
    ```bash
    ./test-pcie-passthrough-framework.sh e2e
@@ -265,6 +272,7 @@ make test-ansible-roles
 ./test-grafana-framework.sh e2e
 
 # Phase 3: Compute Nodes
+./test-slurm-compute-framework.sh e2e
 ./test-container-runtime-framework.sh e2e
 ./test-pcie-passthrough-framework.sh e2e
 
@@ -392,6 +400,7 @@ make test-ansible-roles && \
 ./test-grafana-framework.sh e2e && \
 
 # Compute Nodes
+./test-slurm-compute-framework.sh e2e && \
 ./test-container-runtime-framework.sh e2e && \
 ./test-pcie-passthrough-framework.sh e2e && \
 

@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -12,6 +12,12 @@ help:
 	@echo "  test-base-images       - Run base images build tests"
 	@echo "  test-container-runtime - Run container runtime tests"
 	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
+	@echo "  test-slurm-compute     - Run SLURM compute node tests (full workflow)"
+	@echo "  test-slurm-compute-start   - Start SLURM compute test cluster"
+	@echo "  test-slurm-compute-deploy  - Deploy SLURM compute Ansible configuration"
+	@echo "  test-slurm-compute-tests   - Run SLURM compute tests only"
+	@echo "  test-slurm-compute-stop    - Stop SLURM compute test cluster"
+	@echo "  test-slurm-compute-status  - Show SLURM compute test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -41,10 +47,34 @@ help:
 	@echo ""
 
 # Run core infrastructure tests (fast, essential components)
-test: test-integration test-ansible-roles test-container-runtime test-slurm-controller test-grafana test-job-accounting test-dcgm-monitoring
+test: \
+  test-integration \
+  test-ansible-roles \
+  test-container-runtime \
+  test-slurm-controller \
+  test-slurm-compute \
+  test-grafana \
+  test-job-accounting \
+  test-dcgm-monitoring
 
 # Run comprehensive test suite including builds and CLI validation
-test-all: test-base-images test-container-runtime test-slurm-controller test-monitoring-stack test-dcgm-monitoring test-grafana test-job-accounting test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-infrastructure test-configuration
+test-all: \
+  test-base-images \
+  test-container-runtime \
+  test-slurm-controller \
+  test-slurm-compute \
+  test-monitoring-stack \
+  test-dcgm-monitoring \
+  test-grafana \
+  test-job-accounting \
+  test-ansible-roles \
+  test-integration \
+  test-ai-how \
+  test-config-validation \
+  test-pcie-validation \
+  test-test-configs \
+  test-infrastructure \
+  test-configuration
 
 # Run base images test
 test-base-images:
@@ -60,6 +90,36 @@ test-container-runtime:
 test-slurm-controller:
 	@echo "Running SLURM controller tests..."
 	@./test-slurm-controller-framework.sh
+
+# Run SLURM compute node tests (full workflow) (Task 022)
+test-slurm-compute:
+	@echo "Running SLURM compute node tests (full workflow)..."
+	@./test-slurm-compute-framework.sh
+
+# Start SLURM compute test cluster
+test-slurm-compute-start:
+	@echo "Starting SLURM compute test cluster..."
+	@./test-slurm-compute-framework.sh start-cluster
+
+# Deploy SLURM compute Ansible configuration
+test-slurm-compute-deploy:
+	@echo "Deploying SLURM compute Ansible configuration..."
+	@./test-slurm-compute-framework.sh deploy-ansible
+
+# Run SLURM compute tests only (assumes cluster deployed)
+test-slurm-compute-tests:
+	@echo "Running SLURM compute tests..."
+	@./test-slurm-compute-framework.sh run-tests
+
+# Stop SLURM compute test cluster
+test-slurm-compute-stop:
+	@echo "Stopping SLURM compute test cluster..."
+	@./test-slurm-compute-framework.sh stop-cluster
+
+# Show SLURM compute test cluster status
+test-slurm-compute-status:
+	@echo "Checking SLURM compute test cluster status..."
+	@./test-slurm-compute-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:

@@ -39,16 +39,11 @@
         mode: '0644'
       when: not (packer_build | default(false) | bool)
 
-    - name: Add NVIDIA CUDA repository using deb822 format
-      deb822_repository:
-        name: nvidia-cuda
-        types:
-          - deb
-        uris: "{{ dcgm_cuda_repo_uri }}"
-        suites: "{{ dcgm_cuda_repo_suite }}"
-        components: "{{ dcgm_cuda_repo_components }}"
-        signed_by: /usr/share/keyrings/nvidia-cuda-keyring.gpg
+    - name: Add NVIDIA CUDA repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/nvidia-cuda-keyring.gpg] {{ dcgm_cuda_repo_uri }} {{ dcgm_cuda_repo_suite }} {{ dcgm_cuda_repo_components | join(' ') }}"
         state: present
+        filename: nvidia-cuda
       when: not (packer_build | default(false) | bool)
 
     - name: Install DCGM packages

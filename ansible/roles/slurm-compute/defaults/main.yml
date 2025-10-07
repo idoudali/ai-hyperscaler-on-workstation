@@ -26,3 +26,187 @@ slurm_cgroup_constrain_devices: true
 # Container runtime integration
 slurm_container_enabled: true
 slurm_container_runtime: "apptainer"
+
+# SLURM user configuration
+slurm_user: "slurm"
+slurm_group: "slurm"
+
+# MUNGE configuration
+munge_user: "munge"
+munge_group: "munge"
+munge_key_path: "/etc/munge/munge.key"
+# munge_controller_key_source: "/tmp/munge.key"  # Uncomment to copy from specific location
+
+# SLURM directories
+slurm_spool_dir: "/var/spool/slurmd"
+slurm_log_dir: "/var/log/slurm"
+
+# Container configuration
+singularity_image_path: "/opt/containers"
+
+# PMIx configuration
+pmix_enabled: true
+pmix_ports: "12000-12999"
+
+# SLURM MPI configuration
+slurm_mpi_default: "pmix"
+slurm_mpi_params: "ports=12000-12999"
+slurm_mpi_timeout: 300
+
+# SLURM PMIx specific configuration
+slurm_pmix_server_addr: "localhost"
+slurm_pmix_server_port: 15000
+slurm_pmix_client_addr: "localhost"
+slurm_pmix_client_port: 15001
+slurm_pmix_timeout: 300
+slurm_pmix_debug: 0
+
+# Resource management
+gres_types: "gpu"
+select_type: "select/cons_tres"
+slurm_select_type_params: "CR_Core_Memory"
+
+# SLURM scheduler configuration
+slurm_scheduler_type: "sched/backfill"
+slurm_scheduler_params: "bf_interval=5,bf_max_job_test=1000,bf_window=3600"
+
+# Process tracking configuration
+slurm_proctrack_type: "proctrack/cgroup"
+slurm_task_plugin: "task/cgroup,task/affinity"
+slurm_task_plugin_param: "Sched"
+
+# Cluster configuration
+slurm_cluster_name: "hpc-cluster"
+slurm_controller_name: "controller"
+slurm_controller_addr: "127.0.0.1"
+slurm_controller_port: 6817
+slurm_compute_port: 6818
+
+# Authentication and security
+slurm_auth_type: "auth/munge"
+slurm_crypto_type: "crypto/munge"
+
+# Logging configuration
+slurm_log_file: "/var/log/slurm/slurmctld.log"
+slurm_compute_log_file: "/var/log/slurm/slurmd.log"
+slurm_debug_flags: "Backfill,BackfillMap,Priority"
+slurm_log_file_format: "2"
+
+# State and spool directories
+slurm_state_save_location: "/var/lib/slurm"
+
+# Job limits
+slurm_max_job_count: 10000
+slurm_max_array_size: 1000000
+slurm_max_step_count: 40000
+slurm_min_job_age: 300
+slurm_max_job_time: "UNLIMITED"
+
+# Timeout configurations
+slurm_message_timeout: 10
+slurm_tcp_timeout: 2
+slurm_tree_width: 50
+slurm_unkillable_step_timeout: 60
+slurm_vsize_factor: 0
+slurm_wait_time: 0
+
+# Partition configuration
+slurm_default_partition: "compute"
+slurm_compute_nodes: "compute-[01-99]"
+slurm_default_partition_default: "YES"
+slurm_partition_max_time: "INFINITE"
+slurm_partition_state: "UP"
+
+# Node configuration
+slurm_node_sockets: 1
+slurm_node_cores_per_socket: 8
+slurm_node_threads_per_core: 2
+slurm_node_state: "UNKNOWN"
+
+# Controller node configuration
+slurm_controller_sockets: 1
+slurm_controller_cores_per_socket: 4
+slurm_controller_threads_per_core: 2
+slurm_controller_state: "UNKNOWN"
+
+# GPU partition configuration (when GPUs are available)
+slurm_gpu_partition: "gpu"
+slurm_gpu_nodes: "compute-[01-99]"
+slurm_gpu_partition_default: "NO"
+slurm_gpu_partition_max_time: "INFINITE"
+slurm_gpu_partition_state: "UP"
+slurm_gpu_allow_groups: "ALL"
+
+# Container integration
+slurm_container_integration: false
+slurm_constrain_devices: "yes"
+slurm_constrain_ram_space: "yes"
+slurm_constrain_swap_space: "no"
+slurm_constrain_cores: "yes"
+
+# Singularity/Apptainer configuration (detailed)
+singularity_runtime_path: "/usr/bin/apptainer"
+singularity_enable_overlay: "true"
+singularity_enable_gpu: "true"
+singularity_enable_nv: "true"
+singularity_mount_home: "true"
+singularity_mount_tmp: "true"
+singularity_mount_sys: "false"
+singularity_mount_proc: "false"
+singularity_mount_dev: "false"
+singularity_allow_suid: "false"
+singularity_contain: "true"
+singularity_writable: "false"
+singularity_userns: "false"
+singularity_network: "none"
+singularity_tmpfs: "true"
+singularity_debug: "false"
+singularity_verbose: "false"
+singularity_cleanup: "true"
+singularity_gpu_device_access: "yes"
+singularity_gpu_isolation: "auto"
+
+# SLURM accounting configuration
+slurm_accounting_storage_type: "accounting_storage/slurmdbd"
+slurm_accounting_storage_host: "localhost"
+slurm_accounting_storage_port: 6819
+slurm_accounting_storage_user: "slurm"
+slurm_job_acct_gather_type: "jobacct_gather/linux"
+slurm_job_acct_gather_params: "UsePss,NoOverMemoryKill"
+slurm_job_acct_gather_frequency: 30
+
+# Power management
+slurm_power_management: false
+slurm_power_plugin: "power/none"
+slurm_power_parameters: ""
+
+# Checkpoint configuration
+slurm_job_checkpoint_dir: "/var/checkpoint"
+
+# SLURM Compute Node Package Installation
+slurm_compute_packages:
+  - slurmd                 # SLURM daemon
+  - slurm-client           # Client tools (srun, squeue, etc.)
+  - munge                  # Authentication
+  - libmunge2              # Runtime libraries
+  - libpmix2               # PMIx runtime
+
+# Container runtime packages
+# Note: Container runtime may need to be installed from external repositories
+slurm_compute_container_packages:
+  - squashfs-tools         # Required for container image creation
+  - cryptsetup-bin         # Required for encryption support
+  - fuse                   # Required for overlay filesystems
+
+# Container runtime installation method
+# Options: "package" (from repo), "external" (from external source), "skip" (manual installation)
+container_install_method: "skip"
+
+# Package installation settings
+slurm_package_state: "present"
+slurm_update_cache: true
+slurm_cache_valid_time: 3600
+
+# Build and deployment settings
+packer_build: false
+hpc_node_type: "compute"

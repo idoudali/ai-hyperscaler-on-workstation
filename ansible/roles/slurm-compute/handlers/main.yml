@@ -1,0 +1,17 @@
+---
+# SLURM Compute Node Handlers
+# Task 022: Service restart handlers
+
+- name: restart slurmd service
+  systemd:
+    name: slurmd
+    state: restarted
+  become: true
+  when: not ((packer_build | default(false)) | bool)
+
+- name: restart munge service
+  systemd:
+    name: munge
+    state: restarted
+  become: true
+  when: not ((packer_build | default(false)) | bool)

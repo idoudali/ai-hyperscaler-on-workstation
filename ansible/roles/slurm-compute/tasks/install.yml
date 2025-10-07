@@ -1,0 +1,121 @@
+---
+# SLURM Compute Node Package Installation
+# Task 022: Install SLURM compute node packages with container runtime support
+
+- name: Update package cache
+  apt:
+    update_cache: "{{ slurm_update_cache | default(true) }}"
+    cache_valid_time: "{{ slurm_cache_valid_time | default(3600) }}"
+  become: true
+
+- name: Install SLURM compute node packages
+  apt:
+    name: "{{ slurm_compute_packages }}"
+    state: "{{ slurm_package_state | default('present') }}"
+  become: true
+  register: slurm_compute_package_install
+  notify:
+    - restart slurmd service
+
+- name: Install SLURM container runtime support packages
+  apt:
+    name: "{{ slurm_compute_container_packages }}"
+    state: "{{ slurm_package_state | default('present') }}"
+  become: true
+  register: slurm_container_package_install
+  when:
+    - slurm_container_enabled | default(true)
+    - container_install_method | default("skip") != "skip"
+  notify:
+    - restart slurmd service
+
+- name: Display container runtime installation note
+  debug:
+    msg: |
+      Container runtime installation skipped (container_install_method: {{ container_install_method | default('skip') }})
+
+      To enable container runtime, you can:
+      1. Install manually: apt install apptainer (or singularity)
+      2. Set container_install_method: "package" and uncomment runtime packages in defaults
+      3. Use external installation method for specific container runtime versions
+
+      Supported runtimes: Apptainer, Singularity
+  when:
+    - slurm_container_enabled | default(true)
+    - container_install_method | default("skip") == "skip"
+
+- name: Verify SLURM binaries installation
+  command: "which {{ item }}"
+  loop:
+    - slurmd
+    - srun
+    - squeue
+    - scancel
+  register: slurm_binaries_check
+  changed_when: false
+  failed_when: slurm_binaries_check.rc != 0
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Verify SLURM version (lenient check)
+  shell: "{{ item }} --version 2>/dev/null || {{ item }} -V 2>/dev/null || echo 'Binary exists but version check failed'"
+  loop:
+    - slurmd
+    - srun
+  register: slurm_version_check
+  changed_when: false
+  failed_when: false
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Verify PMIx libraries installation
+  stat:
+    path: "/usr/lib/x86_64-linux-gnu/libpmix.so.2"
+  register: pmix_library_check
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Verify MUNGE installation
+  command: mungekey --version
+  register: munge_version_check
+  changed_when: false
+  failed_when: munge_version_check.rc != 0
+  when: not ((packer_build | default(false)) | bool)
+
+- name: Check for available container runtime
+  shell: |
+    if command -v apptainer >/dev/null 2>&1; then
+      echo "apptainer"
+      apptainer --version
+    elif command -v singularity >/dev/null 2>&1; then
+      echo "singularity"
+      singularity --version
+    else
+      echo "none"
+      echo "No container runtime found"
+    fi
+  register: container_runtime_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not ((packer_build | default(false)) | bool)
+    - (slurm_container_enabled | default(true)) | bool
+
+- name: Display installation results
+  debug:
+    msg: |
+      SLURM Compute Node installation completed:
+      - Core packages installed: {{ slurm_compute_packages }}
+      {% if slurm_container_enabled | default(true) %}
+      - Container support packages installed: {{ slurm_compute_container_packages }}
+      - Container runtime installation: {{ container_install_method | default('skip') }}
+      {% endif %}
+      - Build mode: {{ 'Packer' if (packer_build | default(false)) | bool else 'Live deployment' }}
+      {% if not ((packer_build | default(false)) | bool) %}
+      - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if (slurm_version_check is defined and slurm_version_check.results[0].rc == 0) else 'Version check failed' }}
+      - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
+      - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
+      {% if slurm_container_enabled | default(true) %}
+      - Container runtime detected: {{ container_runtime_check.stdout.split('\n')[0] if container_runtime_check is defined else 'Not checked' }}
+      - Container runtime version: {{ container_runtime_check.stdout.split('\n')[1] if container_runtime_check is defined and container_runtime_check.stdout.split('\n')|length > 1 else 'Not available' }}
+      {% endif %}
+      {% else %}
+      - Note: Detailed verification skipped during Packer build (packages installed only)
+      {% endif %}
