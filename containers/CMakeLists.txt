@@ -217,10 +217,44 @@ add_custom_target(test-convert-single-script
     USES_TERMINAL
 )
 
-add_custom_target(test-apptainer-local
-    COMMAND ${CMAKE_SOURCE_DIR}/containers/scripts/test-apptainer-local.sh
+add_custom_target(test-apptainer-local-script
+    COMMAND ${CMAKE_SOURCE_DIR}/containers/scripts/test-apptainer-local-correctness.sh
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Testing Apptainer images locally..."
+    COMMENT "Testing test-apptainer-local.sh script correctness and functionality..."
+    USES_TERMINAL
+)
+
+# Combined Task 020 script validation
+add_custom_target(test-conversion-scripts
+    DEPENDS test-convert-single-script test-apptainer-local-script
+    COMMENT "Testing all Task 020 conversion workflow scripts..."
+)
+
+# Task 020 help target
+add_custom_target(help-task-020
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "=== Task 020: Docker to Apptainer Conversion Workflow ==="
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Script Validation - No images required:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-convert-single-script    - Validate convert-single.sh - 7 tests"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-local-script   - Validate test-apptainer-local.sh - 10 tests"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-conversion-scripts       - Run all script validation tests"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Image Testing - Requires converted images:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-converted-images         - Format and functionality validation"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-cuda-apptainer           - CUDA functionality validation"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-mpi-apptainer            - MPI functionality validation"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-all            - Run all image test suites"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Conversion Workflow:"
+    COMMAND ${CMAKE_COMMAND} -E echo "  1. Build Docker:    cmake --build build --target build-docker-name"
+    COMMAND ${CMAKE_COMMAND} -E echo "  2. Convert:         cmake --build build --target convert-to-apptainer-name"
+    COMMAND ${CMAKE_COMMAND} -E echo "  3. Test scripts:    cmake --build build --target test-conversion-scripts"
+    COMMAND ${CMAKE_COMMAND} -E echo "  4. Test images:     cmake --build build --target test-apptainer-all"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Documentation: docs/APPTAINER-CONVERSION-WORKFLOW.md"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMENT "Displaying Task 020 help information"
 )
 
 # --- Task 020: Comprehensive Apptainer Test Suite ---
@@ -272,9 +306,10 @@ add_custom_target(help-containers
     COMMAND ${CMAKE_COMMAND} -E echo "  convert-all-to-apptainer      - Convert all Docker images"
     COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-<name>         - Test specific Apptainer image"
     COMMAND ${CMAKE_COMMAND} -E echo ""
-    COMMAND ${CMAKE_COMMAND} -E echo "Task 020: Conversion workflow scripts:"
+    COMMAND ${CMAKE_COMMAND} -E echo "Task 020: Conversion workflow script validation:"
     COMMAND ${CMAKE_COMMAND} -E echo "  test-convert-single-script    - Test convert-single.sh script correctness"
-    COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-local          - Test Apptainer images locally"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-apptainer-local-script   - Test test-apptainer-local.sh script correctness"
+    COMMAND ${CMAKE_COMMAND} -E echo "  test-conversion-scripts       - Test all conversion workflow scripts"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     COMMAND ${CMAKE_COMMAND} -E echo "Task 020: Comprehensive Apptainer test suite:"
     COMMAND ${CMAKE_COMMAND} -E echo "  test-converted-images         - Test converted image format and functionality"

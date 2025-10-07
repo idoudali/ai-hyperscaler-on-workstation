@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress
 **Updated:** 2025-10-07
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 17 (
+**Completed Tasks:** 18 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -25,6 +25,7 @@ tasks for individual execution and testing.
   TASK-017,
   TASK-018,
   TASK-019,
+  TASK-020,
   )
 
 ## Overview
@@ -3145,13 +3146,16 @@ build/containers/venv/bin/hpc-container-manager docker prompt pytorch-cuda12.1-m
 
 ---
 
-#### Task 020: Docker to Apptainer Conversion Workflow
+#### Task 020: Docker to Apptainer Conversion Workflow ✅ COMPLETED
 
 - **ID**: TASK-020
 - **Phase**: 2 - Container Development
 - **Dependencies**: TASK-019
 - **Estimated Time**: 6 hours
 - **Difficulty**: Intermediate
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-10-07
+- **Branch**: `feature/task-020-apptainer-conversion`
 
 **Description:** Implement Docker→Apptainer conversion workflow with automated testing and validation.
 This task focuses on converting Docker images to Apptainer format for HPC deployment while maintaining
@@ -3229,14 +3233,16 @@ apptainer exec --nv build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
 
 **Validation Criteria:**
 
-- [ ] Conversion completes without errors
-- [ ] Apptainer image size optimized (<5GB for PyTorch)
-- [ ] All Docker functionality preserved in Apptainer
-- [ ] PyTorch imports successfully
-- [ ] CUDA functionality maintained (when GPU available)
-- [ ] MPI libraries functional
-- [ ] Image metadata properly set
-- [ ] SIF (Singularity Image Format) file created correctly
+- [x] Conversion completes without errors
+- [x] Apptainer image size optimized (<5GB for PyTorch)
+- [x] All Docker functionality preserved in Apptainer
+- [x] PyTorch imports successfully
+- [x] CUDA functionality maintained (when GPU available)
+- [x] MPI libraries functional
+- [x] Image metadata properly set
+- [x] SIF (Singularity Image Format) file created correctly
+- [x] Script validation tests created and passing
+- [x] CMake integration complete
 
 **Test Commands:**
 
@@ -3271,6 +3277,101 @@ apptainer exec build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
 - ✅ CMake integration complete
 - ✅ Local testing passes
 - ✅ SIF image format validated
+- ✅ Script validation tests implemented and passing
+- ✅ Two-tier testing approach: script validation + image validation
+
+**Implementation Summary:**
+
+**Files Created/Modified:**
+
+**Conversion Scripts:**
+
+- ✅ `containers/scripts/convert-single.sh` (4.9KB) - Single image conversion with help flag fix
+- ✅ `containers/scripts/test-apptainer-local.sh` (11KB) - Local image testing (from Task 019)
+
+**Script Validation Tests:**
+
+- ✅ `containers/scripts/test-convert-single-correctness.sh` (3.5KB) - 7 validation tests
+- ✅ `containers/scripts/test-apptainer-local-correctness.sh` (5.6KB) - 10 validation tests
+
+**Image Test Suites:**
+
+- ✅ `containers/tests/apptainer/test-converted-images.sh` (12KB) - Format & functionality tests
+- ✅ `containers/tests/apptainer/test-cuda-apptainer.sh` (14KB) - CUDA functionality tests
+- ✅ `containers/tests/apptainer/test-mpi-apptainer.sh` (13KB) - MPI functionality tests
+
+**Build System Integration:**
+
+- ✅ `containers/CMakeLists.txt` - Updated with 9 new Task 020 targets
+- ✅ Removed `convert-all.sh` (replaced with existing CMake `convert-all-to-apptainer` target)
+
+**Documentation:**
+
+- ✅ `docs/APPTAINER-CONVERSION-WORKFLOW.md` (15KB) - Complete workflow guide
+- ✅ `containers/README.md` - Updated with Task 020 section (13KB total)
+
+**Key Implementation Features:**
+
+- **Two-Tier Testing Approach:**
+  - **Script Validation** (17 tests total): Validates scripts without requiring images
+  - **Image Validation** (3 test suites): Validates converted Apptainer images
+
+- **CMake Integration:**
+  - `test-convert-single-script` - Validates convert-single.sh (7 tests)
+  - `test-apptainer-local-script` - Validates test-apptainer-local.sh (10 tests)
+  - `test-conversion-scripts` - Combined script validation
+  - `test-converted-images` - Image format tests
+  - `test-cuda-apptainer` - CUDA functionality tests
+  - `test-mpi-apptainer` - MPI functionality tests
+  - `test-apptainer-all` - All image test suites
+  - `help-task-020` - Task 020 usage guide
+
+- **Script Correctness Testing:**
+  - Bash syntax validation
+  - Executable permissions
+  - Help output functionality
+  - Error handling verification
+  - Required functions presence
+  - Logging functionality
+  - Command-line options support
+
+- **Development Container Integration:**
+  - All tests run inside dev container using `make run-docker`
+  - Proper USES_TERMINAL for interactive output
+  - Full validation without requiring image builds
+
+**Script Validation Test Coverage:**
+
+**test-convert-single-correctness.sh (7 tests):**
+
+1. Bash syntax validation
+2. Executable permissions
+3. Help output functionality (--help flag works before prerequisites)
+4. Error handling for missing arguments
+5. Required functions: check_prerequisites(), convert_image(), log_error()
+6. Error messages: CLI not found, Apptainer not found, Docker not accessible
+7. Environment variable support: HPC_CLI
+
+**test-apptainer-local-correctness.sh (10 tests):**
+
+1. Bash syntax validation
+2. Executable permissions
+3. Help output functionality
+4. Error handling code present
+5. Test functions: test_basic_functionality(), test_pytorch(), test_cuda(), test_mpi()
+6. Command-line options: --verbose, --gpu
+7. Apptainer execution commands present
+8. GPU support flag (--nv) present
+9. Test result tracking: tests_passed, tests_failed, total_passed, total_failed
+10. Logging functions: log_info(), log_success(), log_error()
+
+**Integration Benefits:**
+
+- **CI/CD Ready**: Script validation runs without images for fast pipeline checks
+- **Production Validation**: Image tests ensure functionality before deployment
+- **Developer Friendly**: Clear separation between script testing and image testing
+- **CMake Native**: All testing integrated into build system
+- **Container Compliant**: All builds and tests run in dev container as required
 
 ---
 

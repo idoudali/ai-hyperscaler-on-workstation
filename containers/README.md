@@ -343,7 +343,34 @@ cmake --build build --target convert-all-to-apptainer
 # - Skip already converted images (unless Docker is newer)
 ```
 
-### Testing Converted Images
+### Script Validation (Development/CI)
+
+Validate the conversion workflow scripts themselves (without requiring images):
+
+```bash
+# Test all conversion scripts
+cmake --build build --target test-conversion-scripts
+
+# Or test individually
+cmake --build build --target test-convert-single-script      # Validates convert-single.sh
+cmake --build build --target test-apptainer-local-script     # Validates test-apptainer-local.sh
+```
+
+**Script Validation Tests:**
+
+- Bash syntax validation
+- Executable permissions
+- Help output functionality
+- Error handling correctness
+- Required functions present
+- Logging functionality
+- Command-line options support
+
+**Use for:** CI/CD pipelines, development verification, pre-commit checks
+
+### Testing Converted Images (Production Validation)
+
+Test actual Apptainer images after conversion (requires converted images):
 
 **Quick Local Testing:**
 
@@ -370,19 +397,22 @@ cmake --build build --target test-cuda-apptainer    # CUDA functionality
 cmake --build build --target test-mpi-apptainer     # MPI functionality
 ```
 
+**Use for:** Pre-deployment validation, functionality verification, integration testing
+
 ### CMake Targets (Task 020)
 
-**Conversion Workflow Scripts:**
+**Script Validation (Tests the scripts themselves):**
 
-- `convert-single` - Interactive single image conversion
-- `test-apptainer-local` - Quick local testing
+- `test-convert-single-script` - Validate convert-single.sh correctness
+- `test-apptainer-local-script` - Validate test-apptainer-local.sh correctness
+- `test-conversion-scripts` - Validate all conversion workflow scripts
 
-**Comprehensive Test Suite:**
+**Comprehensive Test Suite (Tests converted images):**
 
 - `test-converted-images` - Image format and functionality tests
 - `test-cuda-apptainer` - CUDA functionality tests
 - `test-mpi-apptainer` - MPI functionality tests
-- `test-apptainer-all` - Run all test suites
+- `test-apptainer-all` - Run all Apptainer test suites
 
 **Complete Workflow:**
 
