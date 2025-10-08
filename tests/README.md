@@ -31,13 +31,13 @@ modular test execution. This pattern enables flexible testing workflows and debu
 
 Every test framework should implement these commands:
 
+- `e2e` or `end-to-end` - Run complete end-to-end test (start cluster → deploy ansible → run tests → stop cluster)
 - `start-cluster` - Start the test cluster independently (keeps cluster running)
 - `stop-cluster` - Stop and destroy the test cluster
 - `deploy-ansible` - Deploy via Ansible on running cluster (assumes cluster exists)
 - `run-tests` - Run test suite on deployed cluster (assumes deployment complete)
 - `list-tests` - List all available individual test scripts
 - `run-test NAME` - Run a specific individual test by name
-- `full-test` - Run complete end-to-end test suite (default behavior)
 - `status` - Show current cluster status and configuration
 - `help` - Display comprehensive usage information
 
@@ -54,6 +54,12 @@ Every test framework should implement these commands:
 # Reference implementation: test-dcgm-monitoring-framework.sh
 # All test frameworks should follow this pattern
 
+# Complete end-to-end test with automatic cleanup (default, recommended for CI/CD)
+./test-example-framework.sh
+./test-example-framework.sh e2e          # Explicit
+./test-example-framework.sh end-to-end   # Alternative syntax
+
+# Modular workflow for debugging (keeps cluster running between steps):
 # 1. Start cluster and keep it running for debugging
 ./test-example-framework.sh start-cluster
 
@@ -74,21 +80,18 @@ Every test framework should implement these commands:
 
 # 7. Clean up when done
 ./test-example-framework.sh stop-cluster
-
-# Or run everything at once (default)
-./test-example-framework.sh
-./test-example-framework.sh full-test  # Explicit
 ```
 
 ### Benefits of CLI Pattern
 
-1. **Debugging**: Keep cluster running between test iterations
-2. **Development**: Deploy once, run tests multiple times
-3. **Incremental Testing**: Test individual phases independently
-4. **Focused Testing**: List and run individual tests for granular debugging
-5. **CI/CD Integration**: Different pipeline stages can use different commands
-6. **Manual Validation**: Deploy with Ansible, validate manually before running tests
-7. **Test Discovery**: Easy discovery of all available tests via list-tests command
+1. **CI/CD Integration**: Use `e2e` command for automated testing with full cleanup
+2. **Debugging**: Keep cluster running between test iterations using individual commands
+3. **Development**: Deploy once, run tests multiple times with modular commands
+4. **Incremental Testing**: Test individual phases independently
+5. **Focused Testing**: List and run individual tests for granular debugging
+6. **Different Pipeline Stages**: Use different commands for different CI/CD stages
+7. **Manual Validation**: Deploy with Ansible, validate manually before running tests
+8. **Test Discovery**: Easy discovery of all available tests via list-tests command
 
 ### Implementation Reference
 
@@ -97,6 +100,9 @@ See `test-dcgm-monitoring-framework.sh` (Task 018) and `test-container-registry-
 ```bash
 # View help and available commands
 ./test-dcgm-monitoring-framework.sh --help
+
+# Complete end-to-end test with cleanup (CI/CD mode)
+./test-dcgm-monitoring-framework.sh e2e
 
 # Example workflow for debugging
 ./test-dcgm-monitoring-framework.sh start-cluster      # Start once
@@ -114,15 +120,14 @@ See `test-dcgm-monitoring-framework.sh` (Task 018) and `test-container-registry-
 
 When creating new test frameworks (e.g., `test-container-registry-framework.sh` for Task 021):
 
-- ✅ Implement all standard commands (`start-cluster`, `stop-cluster`, `deploy-ansible`, `run-tests`, etc.)
+- ✅ **Implement `e2e` or `end-to-end` command** - Complete test with cleanup (start → deploy → test → stop)
+- ✅ Implement all standard commands (`start-cluster`, `stop-cluster`, `deploy-ansible`, `run-tests`, `status`)
 - ✅ **Implement `list-tests` command** - Show all available individual test scripts
 - ✅ **Implement `run-test NAME` command** - Run specific individual tests by name
 - ✅ Support all standard options (`--help`, `--verbose`, `--no-cleanup`, `--interactive`)
-- ✅ Provide comprehensive `--help` output with examples including list-tests and run-test
+- ✅ Provide comprehensive `--help` output with examples including e2e, list-tests, and run-test
 - ✅ Allow modular execution of test phases
-- ✅ Support both full-test and incremental workflows
-- ✅ Include status command for debugging
-- ✅ Provide test discovery capability via list-tests
+- ✅ Make `e2e` the default behavior when no command is specified
 
 **Existing Test Frameworks:**
 
