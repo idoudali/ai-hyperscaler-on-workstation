@@ -138,6 +138,7 @@ When creating new test frameworks (e.g., `test-container-registry-framework.sh` 
 - ✅ `test-container-registry-framework.sh` (Task 021) - CLI pattern implemented
 - ✅ `test-slurm-controller-framework.sh` (Task 010) - CLI pattern implemented
 - ✅ `test-slurm-compute-framework.sh` (Task 022) - CLI pattern implemented
+- ✅ `test-gpu-gres-framework.sh` (Task 023) - CLI pattern implemented
 - ✅ `test-grafana-framework.sh` (Task 017) - CLI pattern implemented
 - ✅ `test-slurm-accounting-framework.sh` (Task 019) - CLI pattern implemented
 - ✅ `test-container-runtime-framework.sh` (Task 008/009) - CLI pattern implemented
@@ -229,7 +230,15 @@ These tests validate HPC compute node components:
    make test-container-comprehensive
    ```
 
-3. **PCIe Passthrough Test** - Validate GPU passthrough (requires GPU hardware)
+3. **GPU GRES Test** - Validate GPU resource scheduling configuration (Task 023)
+
+   ```bash
+   ./test-gpu-gres-framework.sh e2e
+   # OR
+   make test-gpu-gres
+   ```
+
+4. **PCIe Passthrough Test** - Validate GPU passthrough (requires GPU hardware)
 
    ```bash
    ./test-pcie-passthrough-framework.sh e2e
@@ -274,6 +283,7 @@ make test-ansible-roles
 # Phase 3: Compute Nodes
 ./test-slurm-compute-framework.sh e2e
 ./test-container-runtime-framework.sh e2e
+./test-gpu-gres-framework.sh e2e
 ./test-pcie-passthrough-framework.sh e2e
 
 # Phase 4: Advanced Integration
@@ -771,7 +781,36 @@ GPU passthrough validation for HPC compute nodes:
 ./test-pcie-passthrough-framework.sh run-test check-gpu-visibility.sh
 ```
 
-### 10. Integration Test (`test_integration.sh`)
+### 10. GPU GRES Test (`test-gpu-gres-framework.sh`)
+
+GPU resource scheduling validation for HPC compute nodes (Task 023):
+
+- **Purpose**: Validates GPU GRES (Generic Resource Scheduling) configuration in HPC compute images
+- **Components**: GRES configuration, GPU detection, GPU scheduling
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, HPC compute image
+
+**Validation Coverage:**
+
+- **GRES Configuration**: Configuration file deployment, syntax validation, directory structure
+- **GPU Detection**: PCI device detection, NVIDIA device files, GPU visibility
+- **GPU Scheduling**: SLURM GPU resource scheduling, job allocation, resource management
+
+```bash
+# Run GPU GRES tests
+./test-gpu-gres-framework.sh
+
+# Options and modular commands
+./test-gpu-gres-framework.sh --help
+./test-gpu-gres-framework.sh e2e                 # Complete test with cleanup
+./test-gpu-gres-framework.sh start-cluster       # Start cluster independently
+./test-gpu-gres-framework.sh deploy-ansible      # Deploy GRES configuration
+./test-gpu-gres-framework.sh run-tests           # Run tests on existing cluster
+./test-gpu-gres-framework.sh list-tests          # List available tests
+./test-gpu-gres-framework.sh run-test check-gres-configuration.sh
+```
+
+### 11. Integration Test (`test_integration.sh`)
 
 End-to-end integration validation:
 
@@ -969,6 +1008,7 @@ These tests directly support the HPC SLURM task list validation:
 
 - **Container Runtime**: `test_container_runtime.sh` and `make test-container-comprehensive`
 - **Monitoring Stack (Task 015)**: `test-monitoring-stack-framework.sh` and `make test-monitoring-stack`
+- **GPU GRES (Task 023)**: `test-gpu-gres-framework.sh` and `make test-gpu-gres`
 - **Base Images**: `test_base_images.sh`
 - **General Infrastructure**: `test_integration.sh` and `test_ansible_roles.sh`
 - **AI-HOW CLI**: `test_ai_how_cli.sh`, `test_config_validation.sh`, `test_pcie_validation.sh`
@@ -1001,6 +1041,31 @@ The `make test-monitoring-stack` target runs comprehensive validation for the Pr
 - Simplified test execution while maintaining full test coverage
 
 See `docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
+
+### GPU GRES Comprehensive Testing
+
+The `make test-gpu-gres` target runs comprehensive validation for GPU GRES (Generic Resource Scheduling) configuration
+(Task 023):
+
+1. **GRES Configuration**: Validates configuration file deployment, syntax, and directory structure
+2. **GPU Detection**: Tests PCI device detection, NVIDIA device files, and GPU visibility
+3. **GPU Scheduling**: Validates SLURM GPU resource scheduling and job allocation
+4. **Integration**: Tests GRES integration with SLURM controller and scheduler
+5. **End-to-End Deployment**: Tests complete cluster deployment with GRES configuration via Ansible provisioning
+
+**Test Coverage:**
+
+- Configuration file validation (`/etc/slurm/gres.conf`)
+- GPU detection utilities (lspci, nvidia-smi)
+- SLURM GRES integration (`GresTypes` in `slurm.conf`)
+- Node resource reporting (`scontrol show node`)
+- GPU scheduling capability (`sinfo -o "%N %G"`)
+- Configuration consistency checks
+
+**Documentation:**
+
+See `docs/GPU-GRES-WORKFLOW.md` for detailed workflow documentation and
+`docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
 
 ## Troubleshooting
 

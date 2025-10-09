@@ -17,6 +17,14 @@
     - slurm-compute-configure
     - configure
 
+- name: Include SLURM GRES configuration
+  include_tasks: gres.yml
+  when: slurm_gres_enabled | default(false) | bool
+  tags:
+    - slurm-compute
+    - slurm-gres
+    - gres
+
 - name: Display SLURM compute node setup complete
   debug:
     msg: |

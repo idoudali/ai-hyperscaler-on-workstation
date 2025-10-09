@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -18,6 +18,12 @@ help:
 	@echo "  test-slurm-compute-tests   - Run SLURM compute tests only"
 	@echo "  test-slurm-compute-stop    - Stop SLURM compute test cluster"
 	@echo "  test-slurm-compute-status  - Show SLURM compute test cluster status"
+	@echo "  test-gpu-gres          - Run GPU GRES tests (full workflow)"
+	@echo "  test-gpu-gres-start    - Start GPU GRES test cluster"
+	@echo "  test-gpu-gres-deploy   - Deploy GPU GRES Ansible configuration"
+	@echo "  test-gpu-gres-tests    - Run GPU GRES tests only"
+	@echo "  test-gpu-gres-stop     - Stop GPU GRES test cluster"
+	@echo "  test-gpu-gres-status   - Show GPU GRES test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -120,6 +126,36 @@ test-slurm-compute-stop:
 test-slurm-compute-status:
 	@echo "Checking SLURM compute test cluster status..."
 	@./test-slurm-compute-framework.sh status
+
+# Run GPU GRES tests (Task 023) - full workflow
+test-gpu-gres:
+	@echo "Running GPU GRES tests (full workflow)..."
+	@./test-gpu-gres-framework.sh
+
+# Start GPU GRES test cluster
+test-gpu-gres-start:
+	@echo "Starting GPU GRES test cluster..."
+	@./test-gpu-gres-framework.sh start-cluster
+
+# Deploy GPU GRES Ansible configuration
+test-gpu-gres-deploy:
+	@echo "Deploying GPU GRES Ansible configuration..."
+	@./test-gpu-gres-framework.sh deploy-ansible
+
+# Run GPU GRES tests only (assumes cluster deployed)
+test-gpu-gres-tests:
+	@echo "Running GPU GRES tests..."
+	@./test-gpu-gres-framework.sh run-tests
+
+# Stop GPU GRES test cluster
+test-gpu-gres-stop:
+	@echo "Stopping GPU GRES test cluster..."
+	@./test-gpu-gres-framework.sh stop-cluster
+
+# Show GPU GRES test cluster status
+test-gpu-gres-status:
+	@echo "Checking GPU GRES test cluster status..."
+	@./test-gpu-gres-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:

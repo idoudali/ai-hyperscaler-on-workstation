@@ -1,0 +1,104 @@
+---
+# SLURM GPU GRES Runtime Configuration Playbook
+# Task 023: GPU Resources (GRES) Configuration
+# This playbook deploys GPU resource configuration to SLURM compute nodes at runtime
+
+- name: Configure SLURM GPU GRES on Compute Nodes
+  hosts: compute_nodes
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Force runtime mode (not Packer build)
+    packer_build: false
+
+    # GRES Configuration
+    slurm_gres_enabled: true
+    slurm_gres_autodetect: false  # Set to true to use NVML auto-detection
+    slurm_gres_gpu_type: "gpu"
+    slurm_gres_shared: false
+
+    # GPU Device Configuration (example - override in inventory)
+    # slurm_gres_gpu_devices:
+    #   - device_file: /dev/nvidia0
+    #     type: rtx4090
+    #   - device_file: /dev/nvidia1
+    #     type: rtx4090
+
+  pre_tasks:
+    - name: Display runtime configuration mode
+      ansible.builtin.debug:
+        msg: |
+          ===================================
+          SLURM GRES Runtime Configuration
+          ===================================
+          Mode: Runtime Deployment (packer_build=false)
+          Target: {{ inventory_hostname }}
+          GRES Enabled: {{ slurm_gres_enabled }}
+          Auto-detection: {{ slurm_gres_autodetect }}
+          GPU Type: {{ slurm_gres_gpu_type }}
+          ===================================
+      tags:
+        - always
+
+    - name: Wait for system to be ready
+      ansible.builtin.wait_for:
+        timeout: 10
+      delegate_to: localhost
+      become: no
+      tags:
+        - always
+
+  tasks:
+    - name: Include GRES configuration tasks
+      ansible.builtin.include_role:
+        name: slurm-compute
+        tasks_from: gres.yml
+      tags:
+        - slurm-gres
+        - gres-config
+
+    - name: Ensure slurmd service is restarted if needed
+      ansible.builtin.service:
+        name: slurmd
+        state: restarted
+        enabled: yes
+      when: ansible_facts.services['slurmd.service'] is defined
+      tags:
+        - slurm-gres
+        - service
+
+  post_tasks:
+    - name: Wait for slurmd to be ready
+      ansible.builtin.wait_for:
+        timeout: 30
+      delegate_to: localhost
+      become: no
+      tags:
+        - always
+
+    - name: Verify slurmd service status
+      ansible.builtin.service:
+        name: slurmd
+        state: started
+      register: slurmd_status
+      tags:
+        - always
+
+    - name: Display GRES configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ===================================
+          GRES Configuration Complete
+          ===================================
+          Node: {{ inventory_hostname }}
+          Service: {{ slurmd_status.status.ActiveState | default('unknown') }}
+          Configuration: /etc/slurm/gres.conf
+
+          Next Steps:
+          1. Verify GPU detection: scontrol show node {{ inventory_hostname }}
+          2. Check GRES resources: sinfo -o "%N %G"
+          3. Test GPU allocation: srun --gres=gpu:1 nvidia-smi
+          ===================================
+      tags:
+        - always

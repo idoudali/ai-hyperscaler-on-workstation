@@ -46,7 +46,7 @@ repos:
     rev: v0.9.0.6
     hooks:
       - id: shellcheck
-        args: ['-e', 'SC1091']  # Disable "not following" sourced files
+        args: ['-e', 'SC1091', '-e', 'SC2317']  # Disable "not following" sourced files and "unreachable command" (false positive for indirect function calls)
 
   # CMake formatting
   - repo: https://github.com/cheshirekow/cmake-format-precommit

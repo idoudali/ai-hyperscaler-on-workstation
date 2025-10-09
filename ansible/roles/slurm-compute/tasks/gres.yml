@@ -1,0 +1,86 @@
+---
+# SLURM Compute Role - GRES Configuration Tasks
+# Task 023: GPU Resources (GRES) Configuration
+# This file handles the configuration of GPU resources for SLURM
+
+- name: GRES configuration block
+  when: slurm_gres_enabled | default(false) | bool
+  block:
+    - name: Create GRES configuration directory
+      ansible.builtin.file:
+        path: /etc/slurm
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      tags:
+        - slurm-compute
+        - slurm-gres
+        - gres-config
+
+    - name: Install GPU detection utilities (if not in build mode)
+      ansible.builtin.apt:
+        name:
+          - pciutils
+          - lshw
+        state: present
+        update_cache: no
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm-compute
+        - slurm-gres
+        - gres-install
+
+    - name: Deploy GRES configuration template
+      ansible.builtin.template:
+        src: gres.conf.j2
+        dest: /etc/slurm/gres.conf
+        mode: '0644'
+        owner: root
+        group: root
+        backup: yes
+      when: not (packer_build | default(false) | bool)
+      notify: restart slurmd
+      tags:
+        - slurm-compute
+        - slurm-gres
+        - gres-config
+
+    - name: Verify GRES configuration syntax
+      ansible.builtin.command:
+        cmd: slurmd -C
+      changed_when: false
+      failed_when: false
+      register: gres_config_check
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm-compute
+        - slurm-gres
+        - gres-validate
+
+    - name: Display GRES configuration status
+      ansible.builtin.debug:
+        msg: |
+          GRES Configuration Status:
+          {% if (packer_build | default(false)) | bool %}
+          - Build Mode: GRES templates prepared but not deployed
+          - GPU detection utilities installed
+          - Configuration will be applied at runtime
+          {% else %}
+          - Runtime Mode: GRES configuration deployed
+          - Configuration file: /etc/slurm/gres.conf
+          - Auto-detection: {{ slurm_gres_autodetect | default(false) }}
+          - GPU type: {{ slurm_gres_gpu_type | default('gpu') }}
+          - Configuration check: {{ gres_config_check.rc | default('Not performed') }}
+          {% endif %}
+      tags:
+        - slurm-compute
+        - slurm-gres
+
+- name: Display GRES disabled message
+  ansible.builtin.debug:
+    msg: "GRES configuration skipped - slurm_gres_enabled is false or not set"
+  when: not (slurm_gres_enabled | default(false) | bool)
+  tags:
+    - slurm-compute
+    - slurm-gres
