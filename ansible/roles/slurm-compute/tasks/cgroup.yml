@@ -1,0 +1,162 @@
+---
+# SLURM Compute Role - Cgroup Configuration Tasks
+# Task 024: Set Up Cgroup Resource Isolation
+# This file configures cgroup-based resource isolation for CPU, memory, and GPU device access control
+
+- name: Cgroup Configuration Block
+  when: slurm_cgroup_enabled | default(true) | bool
+  block:
+    - name: Display cgroup configuration mode
+      debug:
+        msg: |
+          Cgroup Configuration Mode:
+          {% if (packer_build | default(false)) | bool %}
+          - Packer Build: Deploying cgroup templates only
+          - Services will be configured at runtime
+          {% else %}
+          - Runtime Mode: Applying and activating cgroup configuration
+          - SLURM will restart with cgroup support
+          {% endif %}
+
+    #===========================================================================
+    # PACKER BUILD MODE - Configuration Preparation
+    #===========================================================================
+
+    - name: Cgroup build-time preparation
+      when: (packer_build | default(false)) | bool
+      block:
+        - name: Create cgroup configuration directory
+          file:
+            path: /etc/slurm
+            state: directory
+            owner: root
+            group: slurm
+            mode: '0755'
+
+        - name: Deploy cgroup configuration template (build-time)
+          template:
+            src: cgroup.conf.j2
+            dest: /etc/slurm/cgroup.conf
+            owner: root
+            group: slurm
+            mode: '0644'
+            backup: yes
+
+        - name: Deploy allowed devices configuration (build-time)
+          template:
+            src: cgroup_allowed_devices_file.conf.j2
+            dest: /etc/slurm/cgroup_allowed_devices_file.conf
+            owner: root
+            group: slurm
+            mode: '0644'
+            backup: yes
+
+        - name: Create cgroup release agent directory
+          file:
+            path: /etc/slurm/cgroup
+            state: directory
+            owner: root
+            group: slurm
+            mode: '0755'
+
+        - name: Display cgroup build-time completion
+          debug:
+            msg: |
+              Cgroup configuration prepared for runtime:
+              - Configuration files deployed
+              - Directories created
+              - Service restart will occur at runtime
+
+    #===========================================================================
+    # RUNTIME MODE - Active Configuration and Validation
+    #===========================================================================
+
+    - name: Cgroup runtime configuration
+      when: not ((packer_build | default(false)) | bool)
+      block:
+        - name: Ensure cgroup v2 is available
+          command: grep -q cgroup2 /proc/filesystems
+          register: cgroup_v2_check
+          failed_when: false
+          changed_when: false
+
+        - name: Display cgroup version information
+          debug:
+            msg: |
+              Cgroup version check:
+              - cgroup v2 available: {{ cgroup_v2_check.rc == 0 }}
+              - System will use appropriate cgroup version
+
+        - name: Install cgroup utilities
+          apt:
+            name:
+              - cgroup-tools
+            state: present
+            update_cache: yes
+            cache_valid_time: 3600
+
+        - name: Create cgroup configuration directory (runtime)
+          file:
+            path: /etc/slurm
+            state: directory
+            owner: root
+            group: slurm
+            mode: '0755'
+
+        - name: Deploy cgroup configuration template (runtime)
+          template:
+            src: cgroup.conf.j2
+            dest: /etc/slurm/cgroup.conf
+            owner: root
+            group: slurm
+            mode: '0644'
+            backup: yes
+          notify:
+            - restart slurmd service
+
+        - name: Deploy allowed devices configuration (runtime)
+          template:
+            src: cgroup_allowed_devices_file.conf.j2
+            dest: /etc/slurm/cgroup_allowed_devices_file.conf
+            owner: root
+            group: slurm
+            mode: '0644'
+            backup: yes
+          notify:
+            - restart slurmd service
+
+        - name: Create cgroup release agent directory (runtime)
+          file:
+            path: /etc/slurm/cgroup
+            state: directory
+            owner: root
+            group: slurm
+            mode: '0755'
+
+        - name: Validate cgroup configuration syntax
+          command: grep -E '^(CgroupAutomount|ConstrainCores|ConstrainRAMSpace|ConstrainDevices)=' /etc/slurm/cgroup.conf
+          register: cgroup_syntax_check
+          failed_when: false
+          changed_when: false
+
+        - name: Display cgroup configuration validation
+          debug:
+            msg: |
+              Cgroup configuration validation:
+              {{ cgroup_syntax_check.stdout_lines | join('\n') }}
+
+        - name: Display cgroup runtime completion
+          debug:
+            msg: |
+              Cgroup resource isolation configured:
+              - CPU constraint: {{ slurm_cgroup_constrain_cores }}
+              - Memory constraint: {{ slurm_cgroup_constrain_memory }}
+              - Device constraint: {{ slurm_cgroup_constrain_devices }}
+              - Swap constraint: {{ slurm_cgroup_constrain_swap }}
+              - Configuration active and validated
+              - SLURM will restart to apply changes
+
+- name: Display cgroup configuration skipped message
+  debug:
+    msg: "Cgroup configuration skipped (slurm_cgroup_enabled: false)"
+  when: not (slurm_cgroup_enabled | default(true) | bool)

@@ -22,6 +22,28 @@ slurm_cgroup_enabled: true
 slurm_cgroup_constrain_cores: true
 slurm_cgroup_constrain_memory: true
 slurm_cgroup_constrain_devices: true
+slurm_cgroup_constrain_swap: false
+
+# Cgroup advanced configuration
+slurm_cgroup_automount: "yes"
+slurm_cgroup_release_agent_dir: "/etc/slurm/cgroup"
+slurm_cgroup_allowed_devices_file: "/etc/slurm/cgroup_allowed_devices_file.conf"
+slurm_cgroup_task_affinity: "yes"
+slurm_cgroup_min_ram_mb: 100
+slurm_cgroup_memory_swappiness: 0
+
+# Cgroup device access control
+slurm_cgroup_allow_all_gpus: true
+slurm_infiniband_enabled: false
+slurm_cgroup_allow_block_devices: false
+
+# Cgroup custom devices (optional)
+# slurm_cgroup_custom_devices:
+#   - path: "/dev/custom0"
+#     type: "c"
+#     major: "240"
+#     minor: "0"
+#     perms: "rwm"
 
 # Container runtime integration
 slurm_container_enabled: true

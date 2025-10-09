@@ -1,0 +1,177 @@
+---
+# SLURM Cgroup Runtime Configuration Playbook
+# Task 024: Set Up Cgroup Resource Isolation
+#
+# This playbook applies cgroup configuration to running SLURM compute nodes
+# Follows the Standard Test Framework Pattern established in Task 018
+#
+# Usage:
+#   ansible-playbook playbooks/playbook-cgroup-runtime-config.yml \
+#     -i inventories/hpc/hosts.yml \
+#     -e "packer_build=false"
+#
+# IMPORTANT: This playbook MUST be run with packer_build=false
+# It is designed for runtime configuration of live VMs only
+
+- name: Cgroup Runtime Configuration - Pre-validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Verify runtime deployment mode
+      assert:
+        that:
+          - not ((packer_build | default(false)) | bool)
+        fail_msg: |
+          ERROR: This playbook is for RUNTIME deployment only!
+          It must be run with packer_build=false on live VMs.
+          Do NOT run this during Packer image builds.
+        success_msg: "Runtime deployment mode confirmed"
+
+    - name: Display cgroup runtime configuration information
+      debug:
+        msg: |
+          ====================================================================
+          SLURM Cgroup Runtime Configuration
+          ====================================================================
+
+          This playbook will:
+          1. Deploy cgroup configuration to compute nodes
+          2. Configure resource isolation for CPU, memory, and devices
+          3. Restart SLURM services to apply changes
+          4. Validate cgroup configuration
+
+          Target hosts: {{ groups['compute'] | default(['No compute nodes defined']) | join(', ') }}
+
+          Configuration settings:
+          - CPU constraint: {{ slurm_cgroup_constrain_cores | default('yes') }}
+          - Memory constraint: {{ slurm_cgroup_constrain_memory | default('yes') }}
+          - Device constraint: {{ slurm_cgroup_constrain_devices | default('yes') }}
+          - Swap constraint: {{ slurm_cgroup_constrain_swap | default('no') }}
+          - Task affinity: {{ slurm_cgroup_task_affinity | default('yes') }}
+
+          ====================================================================
+
+- name: Configure Cgroup Resource Isolation on SLURM Compute Nodes
+  hosts: compute
+  become: true
+  gather_facts: true
+  vars:
+    # Force runtime mode
+    packer_build: false
+
+  pre_tasks:
+    - name: Display target node information
+      debug:
+        msg: |
+          Configuring cgroup on: {{ inventory_hostname }}
+          Node type: {{ hpc_node_type | default('compute') }}
+          Cgroup enabled: {{ slurm_cgroup_enabled | default(true) }}
+
+    - name: Verify SLURM compute packages installed
+      package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - slurmd
+        - slurm-client
+      check_mode: yes
+      register: slurm_packages_check
+      failed_when: false
+
+    - name: Display package verification results
+      debug:
+        msg: |
+          SLURM packages verification:
+          {% for result in slurm_packages_check.results %}
+          - {{ result.item }}: {{ 'OK' if not result.changed else 'MISSING' }}
+          {% endfor %}
+
+  roles:
+    - role: slurm-compute
+      tags:
+        - slurm-compute
+        - cgroup
+
+  post_tasks:
+    - name: Verify cgroup configuration files
+      stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/slurm/cgroup.conf
+        - /etc/slurm/cgroup_allowed_devices_file.conf
+      register: cgroup_files_check
+
+    - name: Display cgroup configuration file status
+      debug:
+        msg: |
+          Cgroup configuration files:
+          {% for result in cgroup_files_check.results %}
+          - {{ result.item }}: {{ 'Present' if result.stat.exists else 'MISSING' }}
+          {% endfor %}
+
+    - name: Validate cgroup configuration syntax
+      command: grep -E '^(CgroupAutomount|ConstrainCores|ConstrainRAMSpace|ConstrainDevices)=' /etc/slurm/cgroup.conf
+      register: cgroup_validation
+      changed_when: false
+      failed_when: false
+
+    - name: Display cgroup configuration validation
+      debug:
+        msg: |
+          Cgroup configuration validation:
+          {% if cgroup_validation.rc == 0 %}
+          Configuration syntax valid:
+          {{ cgroup_validation.stdout_lines | join('\n') }}
+          {% else %}
+          WARNING: Could not validate configuration
+          {% endif %}
+
+    - name: Check slurmd service status
+      systemd:
+        name: slurmd
+      register: slurmd_status
+      failed_when: false
+
+    - name: Display slurmd service status
+      debug:
+        msg: |
+          slurmd service status: {{ slurmd_status.status.ActiveState | default('unknown') }}
+          {% if slurmd_status.status.ActiveState == 'active' %}
+          Service is running correctly
+          {% else %}
+          WARNING: Service may need manual restart
+          {% endif %}
+
+- name: Cgroup Runtime Configuration - Post-validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display cgroup runtime configuration completion
+      debug:
+        msg: |
+          ====================================================================
+          Cgroup Runtime Configuration Complete
+          ====================================================================
+
+          Cgroup resource isolation has been configured on all compute nodes.
+
+          Next steps:
+          1. Verify cgroup functionality with test jobs
+          2. Monitor resource isolation with: scontrol show config | grep -i cgroup
+          3. Test CPU isolation: srun --cpus-per-task=2 stress -c 2 -t 60
+          4. Test memory isolation: srun --mem=1G stress -m 1 --vm-bytes 1G -t 60
+          5. Test GPU isolation: srun --gres=gpu:1 nvidia-smi
+
+          Configuration files:
+          - /etc/slurm/cgroup.conf
+          - /etc/slurm/cgroup_allowed_devices_file.conf
+
+          Test framework:
+          - Run comprehensive tests: make test-cgroup-isolation
+
+          For troubleshooting:
+          - Check SLURM logs: journalctl -u slurmd -n 100
+          - Verify cgroup mount: mount | grep cgroup
+          - Check device access: ls -la /dev/nvidia* (on GPU nodes)
+
+          ====================================================================

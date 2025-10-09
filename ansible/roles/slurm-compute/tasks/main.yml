@@ -25,6 +25,14 @@
     - slurm-gres
     - gres
 
+- name: Include cgroup resource isolation configuration
+  include_tasks: cgroup.yml
+  when: slurm_cgroup_enabled | default(true) | bool
+  tags:
+    - slurm-compute
+    - slurm-cgroup
+    - cgroup
+
 - name: Display SLURM compute node setup complete
   debug:
     msg: |

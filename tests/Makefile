@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -24,6 +24,12 @@ help:
 	@echo "  test-gpu-gres-tests    - Run GPU GRES tests only"
 	@echo "  test-gpu-gres-stop     - Stop GPU GRES test cluster"
 	@echo "  test-gpu-gres-status   - Show GPU GRES test cluster status"
+	@echo "  test-cgroup-isolation  - Run cgroup resource isolation tests (full workflow)"
+	@echo "  test-cgroup-isolation-start   - Start cgroup isolation test cluster"
+	@echo "  test-cgroup-isolation-deploy  - Deploy cgroup Ansible configuration"
+	@echo "  test-cgroup-isolation-tests   - Run cgroup isolation tests only"
+	@echo "  test-cgroup-isolation-stop    - Stop cgroup isolation test cluster"
+	@echo "  test-cgroup-isolation-status  - Show cgroup isolation test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -156,6 +162,36 @@ test-gpu-gres-stop:
 test-gpu-gres-status:
 	@echo "Checking GPU GRES test cluster status..."
 	@./test-gpu-gres-framework.sh status
+
+# Run cgroup isolation tests (Task 024) - full workflow
+test-cgroup-isolation:
+	@echo "Running cgroup resource isolation tests (full workflow)..."
+	@./test-cgroup-isolation-framework.sh
+
+# Start cgroup isolation test cluster
+test-cgroup-isolation-start:
+	@echo "Starting cgroup isolation test cluster..."
+	@./test-cgroup-isolation-framework.sh start-cluster
+
+# Deploy cgroup Ansible configuration
+test-cgroup-isolation-deploy:
+	@echo "Deploying cgroup Ansible configuration..."
+	@./test-cgroup-isolation-framework.sh deploy-ansible
+
+# Run cgroup isolation tests only (assumes cluster deployed)
+test-cgroup-isolation-tests:
+	@echo "Running cgroup isolation tests..."
+	@./test-cgroup-isolation-framework.sh run-tests
+
+# Stop cgroup isolation test cluster
+test-cgroup-isolation-stop:
+	@echo "Stopping cgroup isolation test cluster..."
+	@./test-cgroup-isolation-framework.sh stop-cluster
+
+# Show cgroup isolation test cluster status
+test-cgroup-isolation-status:
+	@echo "Checking cgroup isolation test cluster status..."
+	@./test-cgroup-isolation-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:

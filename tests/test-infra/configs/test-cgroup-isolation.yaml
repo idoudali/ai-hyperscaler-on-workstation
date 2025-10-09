@@ -1,0 +1,142 @@
+# Test Configuration for Cgroup Resource Isolation Testing
+# Task 024: Set Up Cgroup Resource Isolation
+# This configuration deploys a minimal SLURM cluster for testing cgroup functionality
+
+clusters:
+  hpc:
+    name: "test-cgroup-isolation-hpc"
+    description: "Test cluster for cgroup resource isolation validation"
+    base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+
+    # Network configuration - isolated test network
+    network:
+      name: "test-cgroup-net"
+      bridge: "virbr-cgroup"
+      subnet: "192.168.190.0/24"
+      dhcp_range:
+        start: "192.168.190.100"
+        end: "192.168.190.200"
+
+    # Controller node configuration
+    controller:
+      name: "test-cgroup-controller"
+      hostname: "cgroup-controller"
+      ip_address: "192.168.190.10"
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+      node_type: "controller"
+
+    # Compute nodes configuration - 2 nodes for testing
+    compute_nodes:
+      - name: "test-cgroup-compute-01"
+        hostname: "cgroup-compute-01"
+        ip: "192.168.190.21"
+        cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 30
+        node_type: "compute"
+
+        # Simulated GPU passthrough for testing device isolation
+        pcie_passthrough:
+          enabled: false  # Disabled for cgroup-specific testing
+          devices: []
+
+      - name: "test-cgroup-compute-02"
+        hostname: "cgroup-compute-02"
+        ip: "192.168.190.22"
+        cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 30
+        node_type: "compute"
+
+        # No GPU on second node
+        pcie_passthrough:
+          enabled: false
+          devices: []
+
+    # SLURM configuration
+    slurm_config:
+      partitions: ["compute"]
+      default_partition: "compute"
+      max_job_time: "4:00:00"
+      gres_types: []
+
+    # SSH configuration
+    ssh:
+      user: "debian"
+      private_key_path: "~/.ssh/id_rsa"
+      public_key_path: "~/.ssh/id_rsa.pub"
+      port: 22
+
+    # Storage configuration
+    storage:
+      pool_name: "test-cgroup-pool"
+      pool_path: "/var/lib/libvirt/images/test-cgroup"
+
+  # Cloud cluster (minimal - required by schema)
+  cloud:
+    name: "test-cgroup-cloud"
+    description: "Minimal cloud cluster (schema requirement)"
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+
+    # Network configuration
+    network:
+      name: "test-cgroup-cloud-net"
+      bridge: "virbr-cgcloud"
+      subnet: "192.168.191.0/24"
+      dhcp_range:
+        start: "192.168.191.100"
+        end: "192.168.191.200"
+
+    # Control plane (minimal)
+    control_plane:
+      name: "test-cgroup-k8s-control"
+      hostname: "cgroup-k8s-control"
+      ip_address: "192.168.191.10"
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 20
+
+    # Worker nodes (minimal - required by schema)
+    worker_nodes:
+      cpu:
+        - name: "test-cgroup-k8s-worker-01"
+          hostname: "cgroup-k8s-worker-01"
+          ip_address: "192.168.191.21"
+          cpu_cores: 2
+          memory_gb: 4
+          disk_gb: 20
+      gpu: []
+
+    # Kubernetes configuration
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+
+    # SSH configuration
+    ssh:
+      user: "debian"
+      private_key_path: "~/.ssh/id_rsa"
+      public_key_path: "~/.ssh/id_rsa.pub"
+      port: 22
+
+    # Storage configuration
+    storage:
+      pool_name: "test-cgroup-cloud-pool"
+      pool_path: "/var/lib/libvirt/images/test-cgroup-cloud"
+
+# Test-specific settings
+test_settings:
+  cluster_startup_timeout: 600  # 10 minutes for cluster startup
+  ssh_connection_timeout: 300   # 5 minutes for SSH connectivity
+  ansible_deployment_timeout: 1800  # 30 minutes for Ansible deployment
+  test_execution_timeout: 1200  # 20 minutes for test execution
+
+  # Cgroup-specific test settings
+  cgroup_tests:
+    cpu_stress_duration: 60     # Seconds to run CPU stress tests
+    memory_test_size_mb: 512    # Memory allocation for testing
+    cpu_cores_to_test: 2        # Number of CPU cores to test with
