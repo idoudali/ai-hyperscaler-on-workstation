@@ -46,6 +46,7 @@ USAGE:
     $0 [OPTIONS] [COMMAND]
 
 COMMANDS:
+    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
     start-cluster     Start the HPC cluster independently
     stop-cluster      Stop and destroy the HPC cluster
     deploy-ansible    Deploy container registry via Ansible (assumes cluster is running)
@@ -53,7 +54,6 @@ COMMANDS:
     run-tests         Run container registry tests on deployed cluster
     list-tests        List all available individual test scripts
     run-test NAME     Run a specific individual test by name
-    full-test         Run complete test suite (default behavior)
     status            Show cluster status
     help              Show this help message
 
@@ -81,17 +81,18 @@ TEST PHASES (for run-tests command):
     all               Run all three test suites (default for run-tests)
 
 EXAMPLES:
-    # Run complete test suite (default)
+    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
     $0
-    $0 full-test
+    $0 e2e
+    $0 end-to-end
 
-    # Modular workflow for debugging
+    # Modular workflow for debugging (keeps cluster running)
     $0 start-cluster          # Start cluster once
     $0 deploy-ansible         # Deploy registry infrastructure
     $0 deploy-images          # Build and deploy container images
-    $0 run-tests              # Run all tests
+    $0 run-tests              # Run all tests (can repeat)
     $0 run-tests --phase infrastructure  # Run specific phase
-    $0 stop-cluster           # Clean up
+    $0 stop-cluster           # Clean up when done
 
     # List and run individual tests
     $0 list-tests             # Show all available test scripts
@@ -102,19 +103,24 @@ EXAMPLES:
     $0 status
 
     # Logging level examples
-    $0 --verbose run-tests                     # Verbose output
+    $0 --verbose e2e                           # End-to-end with verbose output
     $0 -v run-tests                            # Verbose (short form)
     $0 --quiet run-tests                       # Minimal output
     $0 -q start-cluster                        # Quiet mode (short form)
-    $0 --log-level debug full-test             # Maximum verbosity with trace
+    $0 --log-level debug e2e                   # Maximum verbosity with trace
     $0 --log-level verbose deploy-ansible      # Detailed Ansible output
 
-WORKFLOW:
-    1. Start cluster:     $0 start-cluster
-    2. Deploy Ansible:    $0 deploy-ansible
-    3. Deploy images:     $0 deploy-images
-    4. Run tests:         $0 run-tests [--phase PHASE]
-    5. Stop cluster:      $0 stop-cluster
+WORKFLOWS:
+    End-to-End (Default):
+        $0                    # Complete test with cleanup
+        $0 e2e                # Explicit
+
+    Manual/Debugging:
+        1. Start cluster:     $0 start-cluster
+        2. Deploy Ansible:    $0 deploy-ansible
+        3. Deploy images:     $0 deploy-images
+        4. Run tests:         $0 run-tests [--phase PHASE]
+        5. Stop cluster:      $0 stop-cluster
 
 CONFIGURATION:
     Test Controller: $TEST_CONTROLLER
@@ -189,7 +195,7 @@ export TEST_IMAGE="${TEST_IMAGE:-pytorch-cuda12.1-mpi4.1.sif}"
 # Global variables for command line options
 export NO_CLEANUP=false
 INTERACTIVE=false
-COMMAND="full-test"
+COMMAND="e2e"
 TEST_PHASE="all"
 TEST_NAME=""
 LOG_LEVEL="normal"  # quiet, normal, verbose, debug
@@ -245,7 +251,7 @@ parse_arguments() {
                 export TEST_IMAGE
                 shift 2
                 ;;
-            start-cluster|stop-cluster|deploy-ansible|deploy-images|run-tests|list-tests|full-test|status|help)
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|deploy-images|run-tests|list-tests|status|help)
                 COMMAND="$1"
                 shift
                 ;;
@@ -1190,6 +1196,108 @@ main() {
             show_status
             exit 0
             ;;
+        "e2e"|"end-to-end")
+            # End-to-end test with cleanup
+            log "Starting End-to-End Test (with automatic cleanup)"
+            log "Configuration:"
+            log "  Test Controller: $TEST_CONTROLLER"
+            log "  Registry Base: $REGISTRY_BASE_PATH"
+            log "  Test Config: $TEST_CONFIG"
+            log "  Log directory: $LOG_DIR"
+            echo ""
+
+            # Setup virtual environment
+            if ! setup_virtual_environment; then
+                log_error "Failed to setup virtual environment"
+                exit 1
+            fi
+
+            export VIRTUAL_ENV_PATH="$PROJECT_ROOT/.venv"
+            export PATH="$VIRTUAL_ENV_PATH/bin:$PATH"
+            log "Virtual environment activated"
+            echo ""
+
+            # Validate files exist
+            if [[ ! -f "$TEST_CONFIG" ]]; then
+                log_error "Test configuration file not found: $TEST_CONFIG"
+                exit 1
+            fi
+
+            # Step 1: Start cluster
+            log "=========================================="
+            log "STEP 1: Starting HPC Cluster"
+            log "=========================================="
+            if ! start_cluster_wrapper; then
+                log_error "Failed to start cluster"
+                exit 1
+            fi
+            echo ""
+
+            # Step 2: Deploy container registry
+            log "=========================================="
+            log "STEP 2: Deploying Container Registry"
+            log "=========================================="
+            if ! deploy_ansible; then
+                log_error "Failed to deploy container registry"
+                # Don't exit - try to continue with tests and cleanup
+            fi
+            echo ""
+
+            # Step 3: Deploy container images
+            log "=========================================="
+            log "STEP 3: Deploying Container Images"
+            log "=========================================="
+            if ! deploy_images; then
+                log_error "Failed to deploy container images"
+                # Don't exit - try to continue with tests and cleanup
+            fi
+            echo ""
+
+            # Step 4: Run tests
+            log "=========================================="
+            log "STEP 4: Running Container Registry Tests"
+            log "=========================================="
+            local test_result=0
+            if ! run_tests; then
+                test_result=1
+            fi
+            echo ""
+
+            # Step 5: Stop cluster (cleanup)
+            log "=========================================="
+            log "STEP 5: Stopping and Cleaning Up Cluster"
+            log "=========================================="
+            if ! stop_cluster_wrapper; then
+                log_error "Failed to stop cluster cleanly"
+                # Continue to report test results even if cleanup failed
+            fi
+            echo ""
+
+            # Final results
+            local end_time
+            end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+
+            echo ""
+            log "=========================================="
+            if [[ $test_result -eq 0 ]]; then
+                log_success "End-to-End Test: ALL TESTS PASSED"
+                log_success "Container Registry Test Framework: ALL TESTS PASSED"
+                log_success "Task 021 validation completed successfully"
+            else
+                log_error "End-to-End Test: SOME TESTS FAILED"
+                log_error "Check individual test logs in $LOG_DIR"
+            fi
+            echo ""
+            echo "=========================================="
+            echo "$FRAMEWORK_NAME completed at: $(date)"
+            echo "Exit code: $test_result"
+            echo "Total duration: ${duration}s"
+            echo "All logs saved to: $LOG_DIR"
+            echo "=========================================="
+
+            exit $test_result
+            ;;
         "start-cluster")
             if start_cluster_wrapper; then
                 log_success "Cluster started successfully"
@@ -1255,95 +1363,6 @@ main() {
                 log_error "Test failed"
                 exit 1
             fi
-            ;;
-        "full-test")
-            # Original full test behavior
-            log "Starting Container Registry Test Framework (Task 021 Validation)"
-            log "Configuration:"
-            log "  Test Controller: $TEST_CONTROLLER"
-            log "  Registry Base: $REGISTRY_BASE_PATH"
-            log "  Test Config: $TEST_CONFIG"
-            log "  Log directory: $LOG_DIR"
-            echo ""
-
-            # Setup virtual environment
-            if ! setup_virtual_environment; then
-                log_error "Failed to setup virtual environment"
-                exit 1
-            fi
-
-            export VIRTUAL_ENV_PATH="$PROJECT_ROOT/.venv"
-            export PATH="$VIRTUAL_ENV_PATH/bin:$PATH"
-            log "Virtual environment activated"
-            echo ""
-
-            # Validate files exist
-            if [[ ! -f "$REGISTRY_PLAYBOOK" ]]; then
-                log_error "Registry playbook not found: $REGISTRY_PLAYBOOK"
-                exit 1
-            fi
-
-            # Step 1: Start cluster
-            log "=========================================="
-            log "STEP 1: Starting HPC Cluster"
-            log "=========================================="
-            if ! start_cluster_wrapper; then
-                log_warning "Cluster start failed - assuming external cluster management"
-            fi
-            echo ""
-
-            # Step 2: Deploy container registry
-            log "=========================================="
-            log "STEP 2: Deploying Container Registry Infrastructure"
-            log "=========================================="
-            if ! deploy_container_registry "$TEST_CONFIG"; then
-                log_error "Failed to deploy container registry"
-            fi
-            echo ""
-
-            # Step 3: Deploy container images
-            log "=========================================="
-            log "STEP 3: Deploying Container Images"
-            log "=========================================="
-            if ! deploy_images; then
-                log_warning "Failed to deploy container images - tests may fail"
-            fi
-            echo ""
-
-            # Step 4: Run tests
-            log "=========================================="
-            log "STEP 4: Running Container Registry Tests"
-            log "=========================================="
-            local test_result=0
-            if ! run_container_registry_tests "$TEST_PHASE"; then
-                test_result=1
-            fi
-            echo ""
-
-            # Final results
-            local end_time
-            end_time=$(date +%s)
-            local duration=$((end_time - start_time))
-
-            echo ""
-            log "=========================================="
-            if [[ $test_result -eq 0 ]]; then
-                log_success "Test Framework: ALL TESTS PASSED"
-                log_success "Container Registry Test Framework: ALL TESTS PASSED"
-                log_success "Task 021 validation completed successfully"
-            else
-                log_error "Test Framework: SOME TESTS FAILED"
-                log_error "Check individual test logs in $LOG_DIR"
-            fi
-            echo ""
-            echo "=========================================="
-            echo "$FRAMEWORK_NAME completed at: $(date)"
-            echo "Exit code: $test_result"
-            echo "Total duration: ${duration}s"
-            echo "All logs saved to: $LOG_DIR"
-            echo "=========================================="
-
-            exit $test_result
             ;;
         *)
             log_error "Unknown command: $COMMAND"

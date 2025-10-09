@@ -112,7 +112,7 @@
         - accounting
         - database
 
-  when: install_database | default(true)
+  when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller
@@ -252,7 +252,7 @@
         - accounting
         - slurmdbd
 
-  when: install_database | default(true)
+  when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller
@@ -318,7 +318,7 @@
         - accounting
         - init
 
-  when: install_database | default(true)
+  when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller
@@ -370,7 +370,7 @@
         - accounting
         - validation
 
-  when: install_database | default(true)
+  when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller

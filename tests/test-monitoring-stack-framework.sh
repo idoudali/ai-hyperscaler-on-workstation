@@ -16,11 +16,11 @@ USAGE:
     $0 [OPTIONS] [COMMAND]
 
 COMMANDS:
+    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
     start-cluster     Start the HPC cluster independently
     stop-cluster      Stop and destroy the HPC cluster
     deploy-ansible    Deploy monitoring stack via Ansible (assumes cluster is running)
     run-tests         Deploy and run monitoring stack tests
-    full-test         Run complete test suite (default behavior)
     status            Show cluster status
     help              Show this help message
 
@@ -31,29 +31,28 @@ OPTIONS:
     --interactive     Enable interactive cleanup prompts
 
 EXAMPLES:
-    # Run complete test suite (default)
+    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
     $0
+    $0 e2e
+    $0 end-to-end
 
-    # Start cluster independently
-    $0 start-cluster
+    # Modular workflow for debugging (keeps cluster running)
+    $0 start-cluster          # Start cluster
+    $0 deploy-ansible         # Deploy monitoring stack
+    $0 run-tests              # Run tests (can repeat)
+    $0 status                 # Check status
+    $0 stop-cluster           # Clean up when done
 
-    # Deploy Ansible on running cluster
-    $0 deploy-ansible
+WORKFLOWS:
+    End-to-End (Default):
+        $0                    # Complete test with cleanup
+        $0 e2e                # Explicit
 
-    # Run tests on deployed cluster
-    $0 run-tests
-
-    # Stop cluster
-    $0 stop-cluster
-
-    # Check cluster status
-    $0 status
-
-WORKFLOW:
-    1. Start cluster:     $0 start-cluster
-    2. Deploy Ansible:    $0 deploy-ansible
-    3. Run tests:         $0 run-tests
-    4. Stop cluster:      $0 stop-cluster
+    Manual/Debugging:
+        1. Start cluster:     $0 start-cluster
+        2. Deploy Ansible:    $0 deploy-ansible
+        3. Run tests:         $0 run-tests
+        4. Stop cluster:      $0 stop-cluster
 
 CONFIGURATION:
     Test Config: $TEST_CONFIG
@@ -105,7 +104,7 @@ MASTER_TEST_SCRIPT="run-monitoring-stack-tests.sh"
 
 # Global variables for command line options
 INTERACTIVE=false
-COMMAND="full-test"
+COMMAND="e2e"
 
 # Parse command line arguments
 parse_arguments() {
@@ -127,7 +126,7 @@ parse_arguments() {
                 INTERACTIVE=true
                 shift
                 ;;
-            start-cluster|stop-cluster|deploy-ansible|run-tests|full-test|status|help)
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|status|help)
                 COMMAND="$1"
                 shift
                 ;;
@@ -458,6 +457,103 @@ main() {
             show_status
             exit 0
             ;;
+        "e2e"|"end-to-end")
+            # End-to-end test with cleanup
+            log "Starting End-to-End Test (with automatic cleanup)"
+            log "Configuration: $TEST_CONFIG"
+            log "Target VM Pattern: $TARGET_VM_PATTERN"
+            log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
+            log "Log directory: $LOG_DIR"
+            echo ""
+
+            # Setup virtual environment for Ansible
+            if ! setup_virtual_environment; then
+                log_error "Failed to setup virtual environment"
+                exit 1
+            fi
+
+            # Export virtual environment for use in shared utilities
+            export VIRTUAL_ENV_PATH="$PROJECT_ROOT/.venv"
+            export PATH="$VIRTUAL_ENV_PATH/bin:$PATH"
+            log "Virtual environment activated for Ansible operations"
+            echo ""
+
+            # Validate configuration files exist
+            if [[ ! -f "$TEST_CONFIG" ]]; then
+                log_error "Test configuration file not found: $TEST_CONFIG"
+                exit 1
+            fi
+
+            if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+                log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
+                exit 1
+            fi
+
+            # Step 1: Start cluster
+            log "=========================================="
+            log "STEP 1: Starting HPC Cluster"
+            log "=========================================="
+            if ! start_cluster; then
+                log_error "Failed to start cluster"
+                exit 1
+            fi
+            echo ""
+
+            # Step 2: Deploy monitoring stack
+            log "=========================================="
+            log "STEP 2: Deploying Monitoring Stack"
+            log "=========================================="
+            if ! deploy_monitoring_stack "$TEST_CONFIG"; then
+                log_error "Failed to deploy monitoring stack"
+                # Don't exit - try to run tests and cleanup anyway
+            fi
+            echo ""
+
+            # Step 3: Run tests
+            log "=========================================="
+            log "STEP 3: Running Monitoring Stack Tests"
+            log "=========================================="
+            local test_result=0
+            if ! run_monitoring_tests "$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "$MASTER_TEST_SCRIPT"; then
+                test_result=1
+            fi
+            echo ""
+
+            # Step 4: Stop cluster (cleanup)
+            log "=========================================="
+            log "STEP 4: Stopping and Cleaning Up Cluster"
+            log "=========================================="
+            if ! stop_cluster; then
+                log_error "Failed to stop cluster cleanly"
+                # Continue to report test results even if cleanup failed
+            fi
+            echo ""
+
+            # Final results
+            local end_time
+            end_time=$(date +%s)
+            local duration=$((end_time - start_time))
+
+            echo ""
+            log "=========================================="
+            if [[ $test_result -eq 0 ]]; then
+                log_success "End-to-End Test: ALL TESTS PASSED"
+                log_success "Monitoring Stack Test Framework: ALL TESTS PASSED"
+                log_success "Task 015 validation completed successfully"
+            else
+                log_error "End-to-End Test: SOME TESTS FAILED"
+                log_error "Check individual test logs in $LOG_DIR"
+            fi
+            echo ""
+            echo "=========================================="
+            echo "$FRAMEWORK_NAME completed at: $(date)"
+            echo "Exit code: $test_result"
+            echo "Total duration: ${duration}s"
+            echo "All logs saved to: $LOG_DIR"
+            echo "=========================================="
+
+            exit $test_result
+            ;;
         "start-cluster")
             if start_cluster; then
                 log_success "Cluster started successfully"
@@ -491,93 +587,6 @@ main() {
                 exit 0
             else
                 log_error "Tests failed"
-                exit 1
-            fi
-            ;;
-        "full-test")
-            # Original full test behavior
-            log "Starting Monitoring Stack Test Framework (Task 015 Validation)"
-            log "Configuration: $TEST_CONFIG"
-            log "Target VM Pattern: $TARGET_VM_PATTERN"
-            log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
-            log "Log directory: $LOG_DIR"
-            echo ""
-
-            # Setup virtual environment for Ansible
-            if ! setup_virtual_environment; then
-                log_error "Failed to setup virtual environment"
-                exit 1
-            fi
-
-            # Export virtual environment for use in shared utilities
-            export VIRTUAL_ENV_PATH="$PROJECT_ROOT/.venv"
-            export PATH="$VIRTUAL_ENV_PATH/bin:$PATH"
-            log "Virtual environment activated for Ansible operations"
-            echo ""
-
-            # Validate configuration files exist
-            if [[ ! -f "$TEST_CONFIG" ]]; then
-                log_error "Test configuration file not found: $TEST_CONFIG"
-                exit 1
-            fi
-
-            if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
-                log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
-                exit 1
-            fi
-
-            # Check if controller and compute images exist (optional warning)
-            local controller_image_path="$PROJECT_ROOT/build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
-            if [[ ! -f "$controller_image_path" ]]; then
-                log_warning "HPC controller image not found at: $controller_image_path"
-                log_warning "You may need to build the controller image first: make build-hpc-controller-image"
-            fi
-
-            local compute_image_path="$PROJECT_ROOT/build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
-            if [[ ! -f "$compute_image_path" ]]; then
-                log_warning "HPC compute image not found at: $compute_image_path"
-                log_warning "You may need to build the compute image first: make build-hpc-compute-image"
-            fi
-
-            # Run the complete test framework using shared utilities
-            log "Executing test framework using shared utilities..."
-
-            if run_test_framework "$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "$MASTER_TEST_SCRIPT"; then
-                local end_time
-                end_time=$(date +%s)
-                local duration=$((end_time - start_time))
-
-                echo ""
-                log "=========================================="
-                log_success "Test Framework: ALL TESTS PASSED"
-                log_success "Monitoring Stack Test Framework: ALL TESTS PASSED"
-                log_success "Task 015 validation completed successfully"
-                echo ""
-                echo "=========================================="
-                echo "$FRAMEWORK_NAME completed at: $(date)"
-                echo "Exit code: 0"
-                echo "Total duration: ${duration}s"
-                echo "All logs saved to: $LOG_DIR"
-                echo "=========================================="
-
-                exit 0
-            else
-                local end_time
-                end_time=$(date +%s)
-                local duration=$((end_time - start_time))
-
-                echo ""
-                log "=========================================="
-                log_error "Test Framework: SOME TESTS FAILED"
-                log_error "Check individual test logs in $LOG_DIR"
-                echo ""
-                echo "=========================================="
-                echo "$FRAMEWORK_NAME completed at: $(date)"
-                echo "Exit code: 1"
-                echo "Total duration: ${duration}s"
-                echo "All logs saved to: $LOG_DIR"
-                echo "=========================================="
-
                 exit 1
             fi
             ;;

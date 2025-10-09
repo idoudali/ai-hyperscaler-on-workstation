@@ -131,9 +131,320 @@ When creating new test frameworks (e.g., `test-container-registry-framework.sh` 
 
 **Existing Test Frameworks:**
 
+**Category 1: Full CLI API Standard (list-tests, run-test commands implemented):**
+
 - ✅ `test-dcgm-monitoring-framework.sh` (Task 018) - Reference implementation
 - ✅ `test-monitoring-stack-framework.sh` (Task 015) - CLI pattern implemented
 - ✅ `test-container-registry-framework.sh` (Task 021) - CLI pattern implemented
+- ✅ `test-slurm-controller-framework.sh` (Task 010) - CLI pattern implemented
+- ✅ `test-grafana-framework.sh` (Task 017) - CLI pattern implemented
+- ✅ `test-slurm-accounting-framework.sh` (Task 019) - CLI pattern implemented
+- ✅ `test-container-runtime-framework.sh` (Task 008/009) - CLI pattern implemented
+- ✅ `test-pcie-passthrough-framework.sh` (GPU Passthrough) - CLI pattern implemented
+
+## Test Execution Order
+
+### Recommended Test Execution Sequence
+
+The test frameworks should be executed in the following order to ensure proper validation and avoid conflicts:
+
+#### Phase 1: Foundation Tests (Prerequisites)
+
+1. **Pre-commit Validation** - Run first to catch syntax errors early
+
+   ```bash
+   make test-precommit
+   ```
+
+2. **Base Images Test** - Build and validate base images (required for all cluster tests)
+
+   ```bash
+   make test-base-images
+   # OR
+   ./test_base_images.sh
+   ```
+
+3. **Integration Test** - Validate project structure and consistency
+
+   ```bash
+   make test-integration
+   # OR
+   ./test_integration.sh
+   ```
+
+4. **Ansible Roles Test** - Validate role structure and integration
+
+   ```bash
+   make test-ansible-roles
+   # OR
+   ./test_ansible_roles.sh
+   ```
+
+#### Phase 2: Core Infrastructure Tests (HPC Controller)
+
+These tests validate HPC controller components and should run before compute node tests:
+
+1. **SLURM Controller Test** - Validate SLURM controller installation (Task 010)
+
+   ```bash
+   ./test-slurm-controller-framework.sh e2e
+   ```
+
+2. **SLURM Job Accounting Test** - Validate job accounting after SLURM controller (Task 019)
+
+   ```bash
+   ./test-slurm-accounting-framework.sh e2e
+   ```
+
+3. **Monitoring Stack Test** - Validate Prometheus monitoring (Task 015)
+
+   ```bash
+   ./test-monitoring-stack-framework.sh e2e
+   # OR
+   make test-monitoring-stack
+   ```
+
+4. **Grafana Test** - Validate Grafana dashboards after monitoring stack (Task 017)
+
+   ```bash
+   ./test-grafana-framework.sh e2e
+   ```
+
+#### Phase 3: Compute Node Tests
+
+These tests validate HPC compute node components:
+
+1. **Container Runtime Test** - Validate Apptainer/Singularity (Task 008/009)
+
+   ```bash
+   ./test-container-runtime-framework.sh e2e
+   # OR
+   make test-container-comprehensive
+   ```
+
+2. **PCIe Passthrough Test** - Validate GPU passthrough (requires GPU hardware)
+
+   ```bash
+   ./test-pcie-passthrough-framework.sh e2e
+   ```
+
+#### Phase 4: Advanced Integration Tests
+
+These tests validate complete system integration:
+
+1. **Container Registry Test** - Validate container registry and SLURM integration (Task 021)
+
+   ```bash
+   ./test-container-registry-framework.sh e2e
+   ```
+
+2. **DCGM Monitoring Test** - Validate GPU monitoring (Task 018)
+
+   ```bash
+   ./test-dcgm-monitoring-framework.sh e2e
+   ```
+
+### Complete Test Suite Execution
+
+#### Sequential Execution (Recommended for CI/CD)
+
+```bash
+# Complete test suite in proper order
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation/tests
+
+# Phase 1: Foundation
+make test-precommit
+make test-base-images
+make test-integration
+make test-ansible-roles
+
+# Phase 2: Core Infrastructure (Controller)
+./test-slurm-controller-framework.sh e2e
+./test-slurm-accounting-framework.sh e2e
+./test-monitoring-stack-framework.sh e2e
+./test-grafana-framework.sh e2e
+
+# Phase 3: Compute Nodes
+./test-container-runtime-framework.sh e2e
+./test-pcie-passthrough-framework.sh e2e
+
+# Phase 4: Advanced Integration
+./test-container-registry-framework.sh e2e
+./test-dcgm-monitoring-framework.sh e2e
+```
+
+#### Quick Validation (Essential Tests Only)
+
+```bash
+# Fast validation for development workflow
+make test-precommit              # Syntax and linting
+make test-quick                  # Quick integration
+./test-slurm-controller-framework.sh e2e  # Core functionality
+```
+
+#### Category-Specific Execution
+
+**Category 1: Full CLI API Standard Tests**
+
+```bash
+# Run all Category 1 frameworks (automated script)
+./run-all-category1-tests.sh
+
+# Or manually in sequence
+./test-slurm-controller-framework.sh e2e
+./test-grafana-framework.sh e2e
+./test-slurm-accounting-framework.sh e2e
+./test-container-runtime-framework.sh e2e
+./test-pcie-passthrough-framework.sh e2e
+```
+
+**Monitoring and Observability Stack**
+
+```bash
+# Test monitoring infrastructure in order
+./test-monitoring-stack-framework.sh e2e      # Prometheus first
+./test-grafana-framework.sh e2e               # Grafana depends on Prometheus
+./test-dcgm-monitoring-framework.sh e2e       # GPU monitoring (if applicable)
+```
+
+**Container Infrastructure Stack**
+
+```bash
+# Test container infrastructure in order
+./test-container-runtime-framework.sh e2e     # Runtime first
+./test-container-registry-framework.sh e2e    # Registry with SLURM integration
+```
+
+### Test Dependencies and Rationale
+
+#### Why This Order Matters
+
+1. **Pre-commit First**: Catches syntax errors before spending time on integration tests
+2. **Base Images Early**: All cluster-based tests require base images
+3. **Integration Before Cluster**: Validates project structure before deploying clusters
+4. **SLURM Controller Before Accounting**: Accounting requires functional SLURM controller
+5. **Monitoring Before Grafana**: Grafana depends on Prometheus/monitoring infrastructure
+6. **Controller Before Compute**: Compute nodes require controller for job scheduling
+7. **Container Runtime Before Registry**: Registry tests assume runtime is functional
+
+#### Test Isolation
+
+Each test framework is designed to be independent and can be run standalone, but running in order:
+
+- Validates dependencies progressively
+- Catches integration issues early
+- Provides logical debugging workflow
+- Matches typical deployment sequence
+
+#### Resource Considerations
+
+**Parallel Execution**: Not recommended for cluster-based tests as they:
+
+- Compete for system resources (CPU, memory, disk)
+- May conflict on VM names or network ports
+- Share the same virtualization infrastructure
+
+**Sequential Execution**: Recommended because:
+
+- Tests include automatic cleanup between runs
+- Resource usage is predictable
+- Failures are easier to diagnose
+- Matches CI/CD pipeline constraints
+
+### Development Workflow Examples
+
+#### Daily Development Workflow
+
+```bash
+# Quick validation during feature development
+make test-precommit                    # Fast: ~30 seconds
+make test-quick                        # Fast: ~2-5 minutes
+
+# Test specific component you're working on
+./test-slurm-controller-framework.sh e2e  # ~10-20 minutes
+```
+
+#### Before Committing Changes
+
+```bash
+# Full validation before commit
+make test-precommit                    # Syntax and linting
+make test                             # Core integration
+./test-<affected-component>-framework.sh e2e  # Specific component test
+```
+
+#### Complete Pre-Release Validation
+
+```bash
+# Run all tests in proper order (allow 2-4 hours)
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation/tests
+
+# Foundation
+make test-precommit && \
+make test-base-images && \
+make test-integration && \
+make test-ansible-roles && \
+
+# Core Infrastructure
+./test-slurm-controller-framework.sh e2e && \
+./test-slurm-accounting-framework.sh e2e && \
+./test-monitoring-stack-framework.sh e2e && \
+./test-grafana-framework.sh e2e && \
+
+# Compute Nodes
+./test-container-runtime-framework.sh e2e && \
+./test-pcie-passthrough-framework.sh e2e && \
+
+# Advanced Integration
+./test-container-registry-framework.sh e2e && \
+./test-dcgm-monitoring-framework.sh e2e
+
+echo "All tests completed successfully!"
+```
+
+#### Debugging Failed Tests
+
+```bash
+# If a test fails, use modular commands to debug
+./test-slurm-controller-framework.sh start-cluster    # Start once
+./test-slurm-controller-framework.sh deploy-ansible   # Deploy changes
+./test-slurm-controller-framework.sh run-tests        # Test repeatedly
+./test-slurm-controller-framework.sh list-tests       # Find failing test
+./test-slurm-controller-framework.sh run-test check-slurm-installation.sh
+./test-slurm-controller-framework.sh stop-cluster     # Cleanup
+```
+
+### Makefile Targets (Convenience Wrappers)
+
+```bash
+# Quick validation
+make test-quick          # Foundation tests only
+
+# Core validation
+make test               # Core infrastructure tests
+
+# Complete validation
+make test-all           # All tests including builds
+
+# Specific components
+make test-base-images
+make test-ansible-roles
+make test-monitoring-stack
+make test-container-comprehensive
+```
+
+### Time Estimates
+
+| Test Phase | Duration | Tests |
+|------------|----------|-------|
+| Pre-commit | ~30 seconds | Syntax, linting |
+| Foundation | ~30-90 minutes | Base images, integration, Ansible |
+| Core Infrastructure | ~40-80 minutes | SLURM, accounting, monitoring, Grafana |
+| Compute Nodes | ~20-40 minutes | Container runtime, PCIe |
+| Advanced Integration | ~20-40 minutes | Registry, DCGM |
+| **Total** | **~2-4 hours** | Complete suite |
+
+**Note**: Times vary based on system performance and whether base images need rebuilding.
 
 ## Test script list
 
@@ -331,7 +642,127 @@ make test-monitoring-stack
 ./test-monitoring-stack-framework.sh run-tests          # Run tests on existing cluster
 ```
 
-### 5. Integration Test (`test_integration.sh`)
+### 5. SLURM Controller Test (`test-slurm-controller-framework.sh`)
+
+SLURM controller installation and functionality validation (Task 010):
+
+- **Purpose**: Validates SLURM controller installation in HPC controller images
+- **Components**: SLURM controller service, configuration, job scheduling
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, HPC controller image
+
+```bash
+# Run SLURM controller tests
+./test-slurm-controller-framework.sh
+
+# Options and modular commands
+./test-slurm-controller-framework.sh --help
+./test-slurm-controller-framework.sh e2e                 # Complete test with cleanup
+./test-slurm-controller-framework.sh start-cluster       # Start cluster independently
+./test-slurm-controller-framework.sh deploy-ansible      # Deploy SLURM controller
+./test-slurm-controller-framework.sh run-tests           # Run tests on existing cluster
+./test-slurm-controller-framework.sh list-tests          # List available tests
+./test-slurm-controller-framework.sh run-test check-slurm-installation.sh
+```
+
+### 6. Grafana Test (`test-grafana-framework.sh`)
+
+Grafana dashboard platform implementation and validation (Task 017):
+
+- **Purpose**: Validates Grafana installation and functionality in HPC controller images
+- **Components**: Grafana server, dashboards, monitoring integration
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, HPC controller image
+
+```bash
+# Run Grafana tests
+./test-grafana-framework.sh
+
+# Options and modular commands
+./test-grafana-framework.sh --help
+./test-grafana-framework.sh e2e                 # Complete test with cleanup
+./test-grafana-framework.sh start-cluster       # Start cluster independently
+./test-grafana-framework.sh deploy-ansible      # Deploy monitoring stack with Grafana
+./test-grafana-framework.sh run-tests           # Run tests on existing cluster
+./test-grafana-framework.sh list-tests          # List available tests
+./test-grafana-framework.sh run-test check-grafana-installation.sh
+```
+
+### 7. SLURM Job Accounting Test (`test-slurm-accounting-framework.sh`)
+
+SLURM job accounting configuration and validation (Task 019):
+
+- **Purpose**: Validates SLURM job accounting functionality in HPC controller images
+- **Components**: SLURM accounting database, slurmdbd, job tracking
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, HPC controller image
+
+```bash
+# Run SLURM accounting tests
+./test-slurm-accounting-framework.sh
+
+# Options and modular commands
+./test-slurm-accounting-framework.sh --help
+./test-slurm-accounting-framework.sh e2e                 # Complete test with cleanup
+./test-slurm-accounting-framework.sh start-cluster       # Start cluster independently
+./test-slurm-accounting-framework.sh deploy-ansible      # Deploy SLURM accounting
+./test-slurm-accounting-framework.sh run-tests           # Run tests on existing cluster
+./test-slurm-accounting-framework.sh list-tests          # List available tests
+./test-slurm-accounting-framework.sh run-test check-job-accounting.sh
+```
+
+### 8. Container Runtime Test (`test-container-runtime-framework.sh`)
+
+Container runtime installation and security validation (Task 008/009):
+
+- **Purpose**: Validates Apptainer/Singularity container runtime in HPC compute images
+- **Components**: Container runtime, dependencies, security policies
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, HPC compute image
+
+**Validation Coverage:**
+
+- **Task 008**: Apptainer installation, version, dependencies, execution capabilities
+- **Task 009**: Security configuration, privilege escalation prevention, filesystem restrictions
+
+```bash
+# Run container runtime tests
+./test-container-runtime-framework.sh
+
+# Options and modular commands
+./test-container-runtime-framework.sh --help
+./test-container-runtime-framework.sh e2e                 # Complete test with cleanup
+./test-container-runtime-framework.sh start-cluster       # Start cluster independently
+./test-container-runtime-framework.sh deploy-ansible      # Deploy container runtime
+./test-container-runtime-framework.sh run-tests           # Run tests on existing cluster
+./test-container-runtime-framework.sh list-tests          # List available tests
+./test-container-runtime-framework.sh run-test check-singularity-install.sh
+```
+
+### 9. PCIe Passthrough Test (`test-pcie-passthrough-framework.sh`)
+
+GPU passthrough validation for HPC compute nodes:
+
+- **Purpose**: Validates PCIe GPU passthrough in HPC compute images
+- **Components**: GPU visibility, passthrough configuration, GPU workloads
+- **Duration**: 10-20 minutes (includes cluster deployment)
+- **Prerequisites**: AI-HOW tool, dev container, HPC compute image, GPU hardware
+
+```bash
+# Run PCIe passthrough tests
+./test-pcie-passthrough-framework.sh
+
+# Options and modular commands
+./test-pcie-passthrough-framework.sh --help
+./test-pcie-passthrough-framework.sh e2e                 # Complete test with cleanup
+./test-pcie-passthrough-framework.sh start-cluster       # Start cluster independently
+./test-pcie-passthrough-framework.sh deploy-ansible      # Deploy GPU passthrough
+./test-pcie-passthrough-framework.sh run-tests           # Run tests on existing cluster
+./test-pcie-passthrough-framework.sh list-tests          # List available tests
+./test-pcie-passthrough-framework.sh run-test check-gpu-visibility.sh
+```
+
+### 10. Integration Test (`test_integration.sh`)
 
 End-to-end integration validation:
 

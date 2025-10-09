@@ -190,6 +190,176 @@ EOF
     fi
 }
 
+# Run Ansible playbooks on cluster (controller and compute nodes)
+# This function is called by deploy_ansible_on_cluster in ansible-utils.sh
+run_ansible_on_cluster() {
+    local config_file="$1"
+
+    [[ -z "$config_file" ]] && {
+        log_error "run_ansible_on_cluster: config_file parameter required"
+        return 1
+    }
+
+    [[ ! -f "$config_file" ]] && {
+        log_error "Configuration file not found: $config_file"
+        return 1
+    }
+
+    log "Running Ansible playbooks on cluster using config: $config_file"
+
+    # Get cluster name from config file
+    local cluster_name
+    if ! cluster_name=$(parse_cluster_name "$config_file" "${LOG_DIR:-$(pwd)}" "hpc"); then
+        log_error "Failed to get cluster name from configuration"
+        return 1
+    fi
+
+    log "Cluster name: $cluster_name"
+
+    # Get all VMs for the cluster
+    local vm_list
+    vm_list=$(virsh list --name --state-running | grep "^${cluster_name}" || true)
+
+    if [[ -z "$vm_list" ]]; then
+        log_error "No running VMs found for cluster: $cluster_name"
+        return 1
+    fi
+
+    # Create temporary Ansible inventory file
+    local temp_inventory
+    temp_inventory=$(mktemp)
+
+    # Build inventory with separate arrays for organization
+    local controllers=()
+    local compute_nodes=()
+
+    while IFS= read -r vm_name; do
+        if [[ -z "$vm_name" ]]; then continue; fi
+
+        local vm_ip
+        vm_ip=$(get_vm_ip "$vm_name")
+
+        if [[ -z "$vm_ip" ]]; then
+            log_warning "Could not get IP for VM: $vm_name"
+            continue
+        fi
+
+        # Determine VM role and add to appropriate array
+        if [[ "$vm_name" == *"controller"* ]]; then
+            controllers+=("${vm_name} ansible_host=${vm_ip} ansible_user=${SSH_USER:-admin}")
+        elif [[ "$vm_name" == *"compute"* ]]; then
+            compute_nodes+=("${vm_name} ansible_host=${vm_ip} ansible_user=${SSH_USER:-admin}")
+        fi
+    done <<< "$vm_list"
+
+    # Write inventory file
+    echo "[hpc_controllers]" > "$temp_inventory"
+    for controller in "${controllers[@]}"; do
+        echo "$controller" >> "$temp_inventory"
+    done
+
+    echo "" >> "$temp_inventory"
+    echo "[hpc_compute_nodes]" >> "$temp_inventory"
+    for compute in "${compute_nodes[@]}"; do
+        echo "$compute" >> "$temp_inventory"
+    done
+
+    # Add common variables
+    cat >> "$temp_inventory" << EOF
+
+[all:vars]
+ansible_ssh_private_key_file=${SSH_KEY_PATH}
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+install_monitoring_stack=true
+install_slurm_controller=true
+install_slurm_compute=true
+install_container_runtime=true
+install_gpu_support=true
+install_database=true
+packer_build=false
+EOF
+
+    log "Generated Ansible inventory:"
+    while IFS= read -r line; do log "  $line"; done < "$temp_inventory"
+
+    # Wait for SSH connectivity on all nodes
+    log "Waiting for SSH connectivity on all nodes..."
+    for vm_name in $vm_list; do
+        local vm_ip
+        vm_ip=$(get_vm_ip "$vm_name")
+        if ! wait_for_vm_ssh "$vm_ip" "$vm_name"; then
+            log_error "SSH connectivity failed for $vm_name"
+            rm -f "$temp_inventory"
+            return 1
+        fi
+    done
+
+    # Run Ansible playbooks from ansible directory to use proper ansible.cfg
+    local playbook_result=0
+    local original_dir
+    original_dir=$(pwd)
+    local ansible_dir="$PROJECT_ROOT/ansible"
+    cd "$ansible_dir" || {
+        log_error "Could not change to ansible directory: $ansible_dir"
+        rm -f "$temp_inventory"
+        return 1
+    }
+
+    # Set environment variables for Ansible
+    export ANSIBLE_CONFIG="$ansible_dir/ansible.cfg"
+    log "Using Ansible config: $ANSIBLE_CONFIG"
+
+    # Setup Ansible command using uv (consistent with ai-how usage)
+    local ansible_cmd="uv run ansible-playbook"
+    log "Using Ansible via uv: $ansible_cmd"
+
+    # Run controller playbook
+    local controller_count
+    controller_count=$(grep -c "controller" "$temp_inventory" || echo "0")
+    if [[ "$controller_count" -gt 0 ]]; then
+        log "Running HPC controller playbook..."
+        if ! $ansible_cmd -i "$temp_inventory" \
+            playbooks/playbook-hpc-controller.yml \
+            --limit hpc_controllers \
+            -v; then
+            log_error "Controller playbook failed"
+            playbook_result=1
+        else
+            log_success "Controller playbook completed successfully"
+        fi
+    fi
+
+    # Run compute playbook
+    local compute_count
+    compute_count=$(grep -c "compute" "$temp_inventory" || echo "0")
+    if [[ "$compute_count" -gt 0 ]]; then
+        log "Running HPC compute playbook..."
+        if ! $ansible_cmd -i "$temp_inventory" \
+            playbooks/playbook-hpc-compute.yml \
+            --limit hpc_compute_nodes \
+            -v; then
+            log_error "Compute playbook failed"
+            playbook_result=1
+        else
+            log_success "Compute playbook completed successfully"
+        fi
+    fi
+
+    # Return to original directory
+    cd "$original_dir" || true
+
+    # Clean up temp inventory
+    rm -f "$temp_inventory"
+
+    if [[ $playbook_result -eq 0 ]]; then
+        log_success "Ansible deployment completed successfully"
+        return 0
+    else
+        log_error "Ansible deployment failed"
+        return 1
+    fi
+}
+
 # Test framework main execution function
 run_test_framework() {
     test_config="$1"  # Make it global for cleanup trap
@@ -744,6 +914,246 @@ deploy_ansible_playbook() {
     fi
 }
 
+# =============================================================================
+# Test Discovery and Execution Functions (Added for refactoring)
+# =============================================================================
+
+# List all test scripts in a directory with descriptions
+list_tests_in_directory() {
+    local test_dir="$1"
+    local test_pattern="${2:-*.sh}"
+
+    [[ -z "$test_dir" ]] && {
+        log_error "list_tests_in_directory: test_dir parameter required"
+        return 1
+    }
+
+    if [[ ! -d "$test_dir" ]]; then
+        log_error "Test directory not found: $test_dir"
+        return 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}Available Test Scripts:${NC}"
+    echo "  Location: $test_dir"
+    echo ""
+
+    local tests
+    mapfile -t tests < <(find "$test_dir" -name "$test_pattern" -type f 2>/dev/null | sort)
+
+    if [[ ${#tests[@]} -eq 0 ]]; then
+        echo "  No test scripts found matching pattern: $test_pattern"
+        return 1
+    fi
+
+    for test in "${tests[@]}"; do
+        local test_name
+        test_name=$(basename "$test")
+
+        # Try to extract test description from script comments
+        local test_desc
+        test_desc=$(grep -m1 "^# Test:" "$test" 2>/dev/null | sed 's/^# Test: //' || \
+                   grep -m1 "^#.*Test" "$test" 2>/dev/null | sed 's/^# //' || \
+                   grep -m1 "^# Description:" "$test" 2>/dev/null | sed 's/^# Description: //' || \
+                   echo "")
+
+        echo "  • $test_name"
+        [[ -n "$test_desc" ]] && echo "    $test_desc"
+    done
+    echo ""
+
+    return 0
+}
+
+# Execute a single test script by name
+execute_single_test_by_name() {
+    local test_dir="$1"
+    local test_name="$2"
+
+    [[ -z "$test_dir" ]] && {
+        log_error "execute_single_test_by_name: test_dir parameter required"
+        return 1
+    }
+
+    [[ -z "$test_name" ]] && {
+        log_error "execute_single_test_by_name: test_name parameter required"
+        log "Use list_tests_in_directory to see available tests"
+        return 1
+    }
+
+    log "Running individual test: $test_name"
+
+    # Find the test script
+    local test_path="$test_dir/$test_name"
+
+    if [[ ! -f "$test_path" ]]; then
+        log_error "Test not found: $test_name"
+        log "Available tests:"
+        list_tests_in_directory "$test_dir"
+        return 1
+    fi
+
+    # Make executable if not already
+    if [[ ! -x "$test_path" ]]; then
+        chmod +x "$test_path" || {
+            log_error "Failed to make test executable: $test_path"
+            return 1
+        }
+    fi
+
+    log "Found test: $test_path"
+    log "Executing test..."
+    echo ""
+
+    # Execute the test
+    if "$test_path"; then
+        echo ""
+        log_success "Test passed: $test_name"
+        return 0
+    else
+        echo ""
+        log_error "Test failed: $test_name"
+        return 1
+    fi
+}
+
+# Validate test script exists
+validate_test_exists() {
+    local test_dir="$1"
+    local test_name="$2"
+
+    [[ -z "$test_dir" || -z "$test_name" ]] && {
+        log_error "validate_test_exists: test_dir and test_name required"
+        return 1
+    }
+
+    local test_path="$test_dir/$test_name"
+
+    if [[ -f "$test_path" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Format and display test listing (wrapper for consistent formatting)
+format_test_listing() {
+    local test_dir="$1"
+    local category_name="${2:-Test Scripts}"
+    local test_pattern="${3:-*.sh}"
+
+    echo ""
+    echo -e "${BLUE}$category_name${NC}"
+
+    list_tests_in_directory "$test_dir" "$test_pattern"
+}
+
+# Run master test script wrapper
+run_master_tests() {
+    local test_dir="$1"
+    local master_script="$2"
+
+    [[ -z "$test_dir" ]] && {
+        log_error "run_master_tests: test_dir parameter required"
+        return 1
+    }
+
+    [[ -z "$master_script" ]] && {
+        log_error "run_master_tests: master_script parameter required"
+        return 1
+    }
+
+    local master_path="$test_dir/$master_script"
+
+    if [[ ! -f "$master_path" ]]; then
+        log_error "Master test script not found: $master_path"
+        return 1
+    fi
+
+    if [[ ! -x "$master_path" ]]; then
+        chmod +x "$master_path" || {
+            log_error "Failed to make master script executable: $master_path"
+            return 1
+        }
+    fi
+
+    log "Executing master test script: $master_script"
+
+    # Execute the master test script
+    if "$master_path"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Test suite execution with error aggregation
+run_test_suite() {
+    local test_dir="$1"
+    local test_pattern="${2:-*.sh}"
+
+    [[ -z "$test_dir" ]] && {
+        log_error "run_test_suite: test_dir parameter required"
+        return 1
+    }
+
+    if [[ ! -d "$test_dir" ]]; then
+        log_error "Test directory not found: $test_dir"
+        return 1
+    fi
+
+    log "Running test suite from: $test_dir"
+    log "Test pattern: $test_pattern"
+
+    local tests
+    mapfile -t tests < <(find "$test_dir" -name "$test_pattern" -type f 2>/dev/null | sort)
+
+    if [[ ${#tests[@]} -eq 0 ]]; then
+        log_warning "No tests found matching pattern: $test_pattern"
+        return 0
+    fi
+
+    log "Found ${#tests[@]} test(s) to execute"
+    echo ""
+
+    local failed_tests=()
+    local passed_tests=()
+
+    for test in "${tests[@]}"; do
+        local test_name
+        test_name=$(basename "$test")
+
+        log "Running test: $test_name"
+
+        if execute_single_test_by_name "$test_dir" "$test_name"; then
+            passed_tests+=("$test_name")
+        else
+            failed_tests+=("$test_name")
+        fi
+        echo ""
+    done
+
+    # Summary
+    echo "========================================"
+    log "Test Suite Summary:"
+    log "  Total: ${#tests[@]}"
+    log "  Passed: ${#passed_tests[@]}"
+    log "  Failed: ${#failed_tests[@]}"
+
+    if [[ ${#failed_tests[@]} -eq 0 ]]; then
+        log_success "All tests passed!"
+        return 0
+    else
+        log_error "Failed tests:"
+        for failed in "${failed_tests[@]}"; do
+            log_error "  - $failed"
+        done
+        return 1
+    fi
+}
+
 # Export main functions for use in other scripts
 export -f run_test_framework check_test_prerequisites cleanup_test_framework
 export -f generate_ansible_inventory extract_ips_from_inventory wait_for_inventory_nodes_ssh deploy_ansible_playbook
+export -f list_tests_in_directory execute_single_test_by_name validate_test_exists
+export -f format_test_listing run_master_tests run_test_suite

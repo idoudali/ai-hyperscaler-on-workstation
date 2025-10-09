@@ -1,445 +1,412 @@
 #!/bin/bash
+#
 # SLURM Job Accounting Test Framework
-# Task 017: Configure SLURM Job Accounting
-# This script provides a comprehensive test framework for SLURM job accounting functionality
+# Task 019 - Configure SLURM Job Accounting
+# Test framework for validating SLURM job accounting functionality in HPC controller images
+#
 
 set -euo pipefail
 
-# Script configuration
-SCRIPT_NAME="test-slurm-accounting-framework.sh"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${LOG_DIR:-${SCRIPT_DIR}/logs}"
-TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-
-# Default configuration
-DEFAULT_CONFIG="tests/test-infra/configs/test-slurm-accounting.yaml"
-DEFAULT_CLUSTER_NAME="test-slurm-accounting"
-DEFAULT_TIMEOUT=600
-DEFAULT_CLEANUP=true
-
-# Test configuration
-TEST_CONFIG="${TEST_CONFIG:-$DEFAULT_CONFIG}"
-CLUSTER_NAME="${CLUSTER_NAME:-$DEFAULT_CLUSTER_NAME}"
-TEST_TIMEOUT="${TEST_TIMEOUT:-$DEFAULT_TIMEOUT}"
-CLEANUP_ON_EXIT="${CLEANUP_ON_EXIT:-$DEFAULT_CLEANUP}"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_PASSED=0
-TESTS_FAILED=0
-TESTS_SKIPPED=0
-
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-# Test result functions
-test_passed() {
-    ((TESTS_PASSED++))
-    log_success "✓ $1"
-}
-
-test_failed() {
-    ((TESTS_FAILED++))
-    log_error "✗ $1"
-}
-
-test_skipped() {
-    ((TESTS_SKIPPED++))
-    log_warning "⚠ $1"
-}
-
-# Cleanup function
-cleanup() {
-    if [[ "$CLEANUP_ON_EXIT" == "true" ]]; then
-        log_info "Cleaning up test environment..."
-
-        # Stop cluster if running
-        if command -v ai-how >/dev/null 2>&1; then
-            if ai-how hpc status "$CLUSTER_NAME" >/dev/null 2>&1; then
-                log_info "Stopping test cluster: $CLUSTER_NAME"
-                ai-how hpc stop "$CLUSTER_NAME" || true
-                ai-how hpc destroy "$CLUSTER_NAME" || true
-            fi
-        fi
-
-        # Kill any running test jobs
-        if command -v squeue >/dev/null 2>&1; then
-            squeue -u "$(whoami)" --format="%i" --noheader | xargs -r scancel 2>/dev/null || true
-        fi
-    fi
-}
-
-# Set up logging
-setup_logging() {
-    mkdir -p "$LOG_DIR"
-    LOG_FILE="${LOG_DIR}/${SCRIPT_NAME}_${TIMESTAMP}.log"
-    log_info "Starting SLURM Job Accounting test framework"
-    log_info "Log file: $LOG_FILE"
-    log_info "Test timeout: ${TEST_TIMEOUT}s"
-}
-
-# Show usage information
-show_usage() {
+# Help message
+show_help() {
     cat << EOF
-Usage: $0 [OPTIONS]
+SLURM Job Accounting Test Framework - Task 019 Validation
 
-SLURM Job Accounting Test Framework
-Task 017: Configure SLURM Job Accounting
+USAGE:
+    $0 [OPTIONS] [COMMAND]
+
+COMMANDS:
+    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
+    start-cluster     Start the HPC cluster independently
+    stop-cluster      Stop and destroy the HPC cluster
+    deploy-ansible    Deploy SLURM accounting via Ansible (assumes cluster is running)
+    run-tests         Run SLURM accounting tests on deployed cluster
+    list-tests        List all available individual test scripts
+    run-test NAME     Run a specific individual test by name
+    status            Show cluster status
+    help              Show this help message
 
 OPTIONS:
-    -c, --config FILE        Test configuration file (default: $DEFAULT_CONFIG)
-    -n, --cluster-name NAME  Cluster name (default: $DEFAULT_CLUSTER_NAME)
-    -t, --timeout SECONDS    Test timeout in seconds (default: $DEFAULT_TIMEOUT)
-    --no-cleanup            Don't cleanup cluster after tests
-    --quick                 Run quick tests only (reduced timeout)
-    --verbose               Enable verbose output
-    -h, --help              Show this help message
+    -h, --help        Show this help message
+    -v, --verbose     Enable verbose output
+    --no-cleanup      Skip cleanup after test completion
+    --interactive     Enable interactive cleanup prompts
 
 EXAMPLES:
-    $0                                    # Run with default configuration
-    $0 --config custom-config.yaml       # Use custom configuration
-    $0 --quick --no-cleanup              # Quick test without cleanup
-    $0 --timeout 1200 --verbose          # Extended timeout with verbose output
+    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
+    $0
+    $0 e2e
+    $0 end-to-end
+
+    # Modular workflow for debugging (keeps cluster running)
+    $0 start-cluster          # Start cluster
+    $0 deploy-ansible         # Deploy SLURM accounting
+    $0 run-tests              # Run tests (can repeat)
+    $0 list-tests             # Show all available tests
+    $0 run-test check-job-accounting.sh  # Run specific test
+    $0 status                 # Check status
+    $0 stop-cluster           # Clean up when done
+
+WORKFLOWS:
+    End-to-End (Default):
+        $0                    # Complete test with cleanup
+        $0 e2e                # Explicit
+
+    Manual/Debugging:
+        1. Start cluster:     $0 start-cluster
+        2. Deploy Ansible:    $0 deploy-ansible
+        3. Run tests:         $0 run-tests
+        4. Stop cluster:      $0 stop-cluster
+
+CONFIGURATION:
+    Test Config: $TEST_CONFIG
+    Log Directory: logs/slurm-accounting-test-run-*
+    VM Pattern: $TARGET_VM_PATTERN
 
 EOF
 }
+
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Framework configuration
+FRAMEWORK_NAME="SLURM Job Accounting Test Framework"
+
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Validate PROJECT_ROOT before setting up environment variables
+if [[ ! -d "$PROJECT_ROOT" ]]; then
+    echo "Error: Invalid PROJECT_ROOT directory: $PROJECT_ROOT"
+    exit 1
+fi
+
+# Source shared utilities
+UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
+
+# Set up environment variables for shared utilities AFTER validation
+export PROJECT_ROOT
+export TESTS_DIR="$PROJECT_ROOT/tests"
+export SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa"
+export SSH_USER="admin"
+export CLEANUP_REQUIRED=false
+export INTERACTIVE_CLEANUP=false
+export TEST_NAME="slurm-accounting"
+
+# Source all required utilities
+for util in log-utils.sh cluster-utils.sh test-framework-utils.sh ansible-utils.sh; do
+    if [[ ! -f "$UTILS_DIR/$util" ]]; then
+        echo "Error: Shared utility not found: $UTILS_DIR/$util"
+        exit 1
+    fi
+    # shellcheck source=./test-infra/utils/
+    source "$UTILS_DIR/$util"
+done
+
+# Test configuration
+TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-slurm-accounting.yaml"
+TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/slurm-accounting"
+TARGET_VM_PATTERN="controller"
+MASTER_TEST_SCRIPT="run-slurm-accounting-tests.sh"
+
+# Global variables for command line options
+INTERACTIVE=false
+COMMAND="e2e"
+TEST_TO_RUN=""
 
 # Parse command line arguments
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -c|--config)
-                TEST_CONFIG="$2"
-                shift 2
-                ;;
-            -n|--cluster-name)
-                CLUSTER_NAME="$2"
-                shift 2
-                ;;
-            -t|--timeout)
-                TEST_TIMEOUT="$2"
-                shift 2
-                ;;
-            --no-cleanup)
-                CLEANUP_ON_EXIT="false"
-                shift
-                ;;
-            --quick)
-                TEST_TIMEOUT=300
-                shift
-                ;;
-            --verbose)
-                set -x
-                shift
-                ;;
             -h|--help)
-                show_usage
+                show_help
                 exit 0
                 ;;
+            -v|--verbose)
+                export VERBOSE=true
+                shift
+                ;;
+            --no-cleanup)
+                export CLEANUP_REQUIRED=false
+                shift
+                ;;
+            --interactive)
+                INTERACTIVE=true
+                export INTERACTIVE_CLEANUP=true
+                shift
+                ;;
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|list-tests|status|help)
+                COMMAND="$1"
+                shift
+                ;;
+            run-test)
+                COMMAND="run-test"
+                if [[ $# -gt 1 ]]; then
+                    TEST_TO_RUN="$2"
+                    shift 2
+                else
+                    log_error "run-test requires a test name"
+                    echo "Usage: $0 run-test <test-name>"
+                    echo "Use: $0 list-tests to see available tests"
+                    exit 1
+                fi
+                ;;
             *)
-                log_error "Unknown option: $1"
-                show_usage
+                echo "Error: Unknown option '$1'"
+                echo "Use '$0 --help' for usage information"
                 exit 1
                 ;;
         esac
     done
 }
 
-# Validate prerequisites
-validate_prerequisites() {
-    log_info "Validating prerequisites..."
+# Initialize logging
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+init_logging "$TIMESTAMP" "logs" "slurm-accounting"
 
-    # Check if ai-how is available
-    if ! command -v ai-how >/dev/null 2>&1; then
-        test_failed "ai-how command not found. Please install AI-HOW CLI first."
+
+
+
+# Run tests on deployed cluster
+run_tests() {
+    log "Running SLURM accounting tests on deployed cluster..."
+
+    # Validate files exist
+    if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+        log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
         return 1
     fi
-    test_passed "ai-how CLI available"
 
-    # Check if configuration file exists
+    # Run master test script
+    log "Executing master test script: $MASTER_TEST_SCRIPT"
+    if ! run_master_tests "$TEST_SCRIPTS_DIR" "$MASTER_TEST_SCRIPT"; then
+        log_error "Tests failed"
+        return 1
+    fi
+
+    log_success "All tests passed"
+    return 0
+}
+
+
+
+
+# Run complete end-to-end test with cleanup
+run_full_test() {
+    local start_time
+    start_time=$(date +%s)
+
+    echo ""
+    echo -e "${BLUE}==========================================${NC}"
+    echo -e "${BLUE}  $FRAMEWORK_NAME${NC}"
+    echo -e "${BLUE}==========================================${NC}"
+    echo ""
+
+    log "Logging initialized: $LOG_DIR"
+    log "$FRAMEWORK_NAME Starting"
+    log "Working directory: $PROJECT_ROOT"
+    echo ""
+
+    log "Starting SLURM Job Accounting Test Framework (Task 019 Validation)"
+    log "Configuration: $TEST_CONFIG"
+    log "Target VM Pattern: $TARGET_VM_PATTERN"
+    log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
+    log "Log directory: $LOG_DIR"
+    echo ""
+
+    # Validate configuration files exist
     if [[ ! -f "$TEST_CONFIG" ]]; then
-        test_failed "Test configuration file not found: $TEST_CONFIG"
-        return 1
-    fi
-    test_passed "Test configuration file exists"
-
-    # Validate configuration file
-    if ! ai-how validate "$TEST_CONFIG" >/dev/null 2>&1; then
-        test_failed "Test configuration file validation failed"
-        return 1
-    fi
-    test_passed "Test configuration file is valid"
-
-    # Check if base images exist
-    local hpc_image="build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
-    local cloud_image="build/packer/cloud-base/cloud-base/cloud-base.qcow2"
-
-    if [[ -f "$hpc_image" ]]; then
-        test_passed "HPC controller image exists"
-    else
-        test_failed "HPC controller image not found: $hpc_image"
+        log_error "Test configuration file not found: $TEST_CONFIG"
         return 1
     fi
 
-    if [[ -f "$cloud_image" ]]; then
-        test_passed "Cloud base image exists"
-    else
-        test_failed "Cloud base image not found: $cloud_image"
-        return 1
-    fi
-}
-
-# Deploy test cluster
-deploy_cluster() {
-    log_info "Deploying test cluster: $CLUSTER_NAME"
-
-    # Create cluster
-    if ai-how hpc create "$CLUSTER_NAME" --config "$TEST_CONFIG" >/dev/null 2>&1; then
-        test_passed "Cluster created successfully"
-    else
-        test_failed "Failed to create cluster"
-        return 1
+    # Check if test scripts directory exists (create if missing)
+    if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+        log_warning "Test scripts directory not found: $TEST_SCRIPTS_DIR"
+        log "Creating test scripts directory..."
+        mkdir -p "$TEST_SCRIPTS_DIR"
     fi
 
-    # Wait for cluster to be ready
-    log_info "Waiting for cluster to be ready..."
-    local wait_time=0
-    while [[ $wait_time -lt $TEST_TIMEOUT ]]; do
-        if ai-how hpc status "$CLUSTER_NAME" | grep -q "running"; then
-            test_passed "Cluster is running"
-            break
-        fi
+    # Check if controller image exists (optional warning)
+    local controller_image_path="$PROJECT_ROOT/build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+    if [[ ! -f "$controller_image_path" ]]; then
+        log_warning "HPC controller image not found at: $controller_image_path"
+        log_warning "You may need to build the controller image first: make build-hpc-controller-image"
+    fi
 
-        sleep 10
-        ((wait_time += 10))
+    # Run the complete test workflow
+    log "Executing end-to-end test workflow..."
 
-        if [[ $wait_time -ge $TEST_TIMEOUT ]]; then
-            test_failed "Cluster failed to start within timeout"
-            return 1
-        fi
-    done
-
-    # Get cluster information
-    log_info "Cluster information:"
-    ai-how hpc status "$CLUSTER_NAME" | tee -a "$LOG_FILE"
-}
-
-# Get cluster VM information
-get_cluster_info() {
-    log_info "Getting cluster VM information..."
-
-    # Get VM IPs using virsh
-    local vms
-    vms=$(virsh list --name | grep "$CLUSTER_NAME" || true)
-
-    if [[ -z "$vms" ]]; then
-        test_failed "No VMs found for cluster: $CLUSTER_NAME"
+    # Start cluster
+    if ! start_cluster; then
+        log_error "Failed to start cluster"
         return 1
     fi
 
-    # Get VM IPs
-    local vm_ips=()
-    while IFS= read -r vm; do
-        if [[ -n "$vm" ]]; then
-            local vm_ip
-            vm_ip=$(virsh domifaddr "$vm" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1 || true)
-            if [[ -n "$vm_ip" ]]; then
-                vm_ips+=("$vm_ip")
-                log_info "Found VM: $vm at $vm_ip"
-            fi
-        fi
-    done <<< "$vms"
-
-    if [[ ${#vm_ips[@]} -eq 0 ]]; then
-        test_failed "No VM IPs found"
+    # Deploy Ansible
+    if ! deploy_ansible; then
+        log_error "Failed to deploy Ansible"
+        stop_cluster  # Cleanup on failure
         return 1
     fi
 
-    # Test SSH connectivity
-    for vm_ip in "${vm_ips[@]}"; do
-        log_info "Testing SSH connectivity to $vm_ip..."
-        local ssh_timeout=60
-        local ssh_wait=0
-
-        while [[ $ssh_wait -lt $ssh_timeout ]]; do
-            if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$vm_ip" "echo 'SSH working'" >/dev/null 2>&1; then
-                test_passed "SSH connectivity to $vm_ip"
-                break
-            fi
-
-            sleep 5
-            ((ssh_wait += 5))
-
-            if [[ $ssh_wait -ge $ssh_timeout ]]; then
-                test_failed "SSH connectivity to $vm_ip failed"
-            fi
-        done
-    done
-}
-
-# Run job accounting tests
-run_accounting_tests() {
-    log_info "Running job accounting tests..."
-
-    # Find controller VM
-    local controller_ip
-    controller_ip=$(virsh list --name | grep "$CLUSTER_NAME" | grep -i controller | head -1 | xargs -I {} virsh domifaddr {} | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1 || true)
-
-    if [[ -z "$controller_ip" ]]; then
-        test_failed "Controller VM IP not found"
-        return 1
+    # Run tests
+    local test_result=0
+    if ! run_tests; then
+        log_error "Tests failed"
+        test_result=1
     fi
 
-    log_info "Controller IP: $controller_ip"
-
-    # Copy test script to controller
-    local test_script="tests/suites/slurm-controller/check-job-accounting.sh"
-    if [[ -f "$test_script" ]]; then
-        scp -o StrictHostKeyChecking=no "$test_script" "$controller_ip:/tmp/" >/dev/null 2>&1
-        test_passed "Test script copied to controller"
-    else
-        test_failed "Test script not found: $test_script"
-        return 1
+    # Stop cluster (cleanup)
+    if ! stop_cluster; then
+        log_warning "Failed to stop cluster, manual cleanup may be needed"
     fi
 
-    # Run job accounting tests on controller
-    log_info "Running job accounting validation tests on controller..."
-    if ssh -o StrictHostKeyChecking=no "$controller_ip" "chmod +x /tmp/check-job-accounting.sh && /tmp/check-job-accounting.sh" | tee -a "$LOG_FILE"; then
-        test_passed "Job accounting tests completed"
-    else
-        test_failed "Job accounting tests failed"
-        return 1
-    fi
-}
+    local end_time
+    end_time=$(date +%s)
+    local duration=$((end_time - start_time))
 
-# Run comprehensive validation
-run_comprehensive_validation() {
-    log_info "Running comprehensive validation..."
-
-    # Find controller VM
-    local controller_ip
-    controller_ip=$(virsh list --name | grep "$CLUSTER_NAME" | grep -i controller | head -1 | xargs -I {} virsh domifaddr {} | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1 || true)
-
-    if [[ -z "$controller_ip" ]]; then
-        test_failed "Controller VM IP not found"
-        return 1
-    fi
-
-    # Test SLURM services
-    log_info "Testing SLURM services..."
-    if ssh -o StrictHostKeyChecking=no "$controller_ip" "systemctl is-active slurmctld slurmdbd mariadb" >/dev/null 2>&1; then
-        test_passed "All SLURM services are active"
-    else
-        test_failed "Some SLURM services are not active"
-    fi
-
-    # Test database connectivity
-    log_info "Testing database connectivity..."
-    if ssh -o StrictHostKeyChecking=no "$controller_ip" "mysql -u slurm -pslurm -e 'SELECT 1;' slurm_acct_db" >/dev/null 2>&1; then
-        test_passed "Database connectivity working"
-    else
-        test_failed "Database connectivity failed"
-    fi
-
-    # Test accounting commands
-    log_info "Testing accounting commands..."
-    if ssh -o StrictHostKeyChecking=no "$controller_ip" "sacctmgr show cluster" >/dev/null 2>&1; then
-        test_passed "sacctmgr command working"
-    else
-        test_failed "sacctmgr command failed"
-    fi
-
-    if ssh -o StrictHostKeyChecking=no "$controller_ip" "sacct --format=JobID,JobName,State" >/dev/null 2>&1; then
-        test_passed "sacct command working"
-    else
-        test_failed "sacct command failed"
-    fi
-
-    # Test job submission and accounting
-    log_info "Testing job submission and accounting..."
-    local job_id
-    job_id=$(ssh -o StrictHostKeyChecking=no "$controller_ip" "srun --job-name=test-accounting --time=1:00 echo 'test job' 2>/dev/null | grep -o '[0-9]\+' | head -1" || true)
-
-    if [[ -n "$job_id" ]]; then
-        test_passed "Test job submitted (JobID: $job_id)"
-
-        # Wait for job to complete
-        sleep 10
-
-        # Check if job appears in accounting
-        if ssh -o StrictHostKeyChecking=no "$controller_ip" "sacct --job=$job_id --format=JobID,JobName,State" >/dev/null 2>&1; then
-            test_passed "Job appears in accounting records"
-        else
-            test_failed "Job not found in accounting records"
-        fi
-    else
-        test_failed "Failed to submit test job"
-    fi
-}
-
-# Print test summary
-print_summary() {
-    local total_tests=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))
-
-    echo
-    log_info "=== Test Summary ==="
-    log_info "Total tests: $total_tests"
-    log_success "Passed: $TESTS_PASSED"
-    log_error "Failed: $TESTS_FAILED"
-    log_warning "Skipped: $TESTS_SKIPPED"
-
-    if [[ $TESTS_FAILED -eq 0 ]]; then
-        log_success "All tests passed! SLURM job accounting is working correctly."
+    echo ""
+    log "=========================================="
+    if [[ $test_result -eq 0 ]]; then
+        log_success "Test Framework: ALL TESTS PASSED"
+        log_success "SLURM Job Accounting Test Framework: ALL TESTS PASSED"
+        log_success "Task 019 validation completed successfully"
+        echo ""
+        echo "=========================================="
+        echo "$FRAMEWORK_NAME completed at: $(date)"
+        echo "Exit code: 0"
+        echo "Total duration: ${duration}s"
+        echo "All logs saved to: $LOG_DIR"
+        echo "=========================================="
         return 0
     else
-        log_error "Some tests failed. Please check the configuration and logs."
+        log_error "Test Framework: SOME TESTS FAILED"
+        log_error "Check individual test logs in $LOG_DIR"
+        echo ""
+        echo "=========================================="
+        echo "$FRAMEWORK_NAME completed at: $(date)"
+        echo "Exit code: 1"
+        echo "Total duration: ${duration}s"
+        echo "All logs saved to: $LOG_DIR"
+        echo "=========================================="
         return 1
     fi
 }
 
 # Main execution
 main() {
-    # Set up signal handling
-    trap cleanup EXIT INT TERM
-
-    # Parse arguments
+    # Parse command line arguments
     parse_arguments "$@"
 
-    # Set up logging
-    setup_logging
+    # Handle different commands
+    case "$COMMAND" in
+        "help")
+            show_help
+            exit 0
+            ;;
+        "status")
+            show_cluster_status "$TEST_CONFIG"
+            exit 0
+            ;;
+        "e2e"|"end-to-end")
+            # End-to-end test with cleanup
+            log "Starting End-to-End Test (with automatic cleanup)"
+            log "Configuration: $TEST_CONFIG"
+            log "Target VM Pattern: $TARGET_VM_PATTERN"
+            log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
+            log "Log directory: $LOG_DIR"
+            echo ""
 
-    # Run tests
-    validate_prerequisites
-    deploy_cluster
-    get_cluster_info
-    run_accounting_tests
-    run_comprehensive_validation
-
-    # Print summary
-    print_summary
+            if run_full_test; then
+                log_success "End-to-end test completed successfully"
+                exit 0
+            else
+                log_error "End-to-end test failed"
+                exit 1
+            fi
+            ;;
+        "start-cluster")
+            # Start cluster only
+            log "Starting cluster independently..."
+            if start_cluster_interactive "$TEST_CONFIG" "$INTERACTIVE"; then
+                log_success "Cluster started successfully"
+                log ""
+                log "Next steps:"
+                log "  1. Deploy Ansible: $0 deploy-ansible"
+                log "  2. Run tests: $0 run-tests"
+                log ""
+                exit 0
+            else
+                log_error "Failed to start cluster"
+                exit 1
+            fi
+            ;;
+        "stop-cluster")
+            # Stop cluster
+            log "Stopping cluster..."
+            if stop_cluster_interactive "$TEST_CONFIG" "$INTERACTIVE"; then
+                log_success "Cluster stopped successfully"
+                exit 0
+            else
+                log_error "Failed to stop cluster"
+                exit 1
+            fi
+            ;;
+        "deploy-ansible")
+            # Deploy ansible on running cluster
+            log "Deploying Ansible on running cluster..."
+            if deploy_ansible_full_workflow "$TEST_CONFIG" "$TARGET_VM_PATTERN"; then
+                log_success "Ansible deployment completed"
+                log ""
+                log "Next step:"
+                log "  1. Run tests: $0 run-tests"
+                log ""
+                exit 0
+            else
+                log_error "Ansible deployment failed"
+                exit 1
+            fi
+            ;;
+        "run-tests")
+            # Run tests on deployed cluster
+            log "Running tests on deployed cluster..."
+            if run_tests; then
+                log_success "Tests completed successfully"
+                exit 0
+            else
+                log_error "Tests failed"
+                exit 1
+            fi
+            ;;
+        "list-tests")
+            # List available tests
+            list_tests_in_directory "$TEST_SCRIPTS_DIR" "Test Scripts" "$0"
+            exit 0
+            ;;
+        "run-test")
+            # Run specific test
+            if [[ -z "$TEST_TO_RUN" ]]; then
+                log_error "Test name required for run-test command"
+                echo "Usage: $0 run-test <test-name>"
+                echo "Use: $0 list-tests to see available tests"
+                exit 1
+            fi
+            if execute_single_test_by_name "$TEST_TO_RUN" "$TEST_SCRIPTS_DIR" "$0"; then
+                log_success "Test passed: $TEST_TO_RUN"
+                exit 0
+            else
+                log_error "Test failed: $TEST_TO_RUN"
+                exit 1
+            fi
+            ;;
+        *)
+            log_error "Unknown command: $COMMAND"
+            show_help
+            exit 1
+            ;;
+    esac
 }
 
-# Run main function if script is executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
+# Execute main function
+main "$@"

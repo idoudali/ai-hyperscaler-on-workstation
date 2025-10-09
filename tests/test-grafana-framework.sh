@@ -1,221 +1,416 @@
 #!/bin/bash
-# Grafana Test Framework Integration
-# Integrates Grafana testing with the established test framework from Task 004
-# Part of the Task 016 Grafana implementation
+#
+# Grafana Test Framework
+# Task 017 - Grafana Dashboard Platform Implementation and Validation
+# Test framework for validating Grafana installation and functionality in HPC controller images
+#
 
 set -euo pipefail
 
-# Source the test framework utilities
+# Help message
+show_help() {
+    cat << EOF
+Grafana Test Framework - Task 017 Validation
+
+USAGE:
+    $0 [OPTIONS] [COMMAND]
+
+COMMANDS:
+    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
+    start-cluster     Start the HPC cluster independently
+    stop-cluster      Stop and destroy the HPC cluster
+    deploy-ansible    Deploy monitoring stack with Grafana via Ansible (assumes cluster is running)
+    run-tests         Run Grafana tests on deployed cluster
+    list-tests        List all available individual test scripts
+    run-test NAME     Run a specific individual test by name
+    status            Show cluster status
+    help              Show this help message
+
+OPTIONS:
+    -h, --help        Show this help message
+    -v, --verbose     Enable verbose output
+    --no-cleanup      Skip cleanup after test completion
+    --interactive     Enable interactive cleanup prompts
+
+EXAMPLES:
+    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
+    $0
+    $0 e2e
+    $0 end-to-end
+
+    # Modular workflow for debugging (keeps cluster running)
+    $0 start-cluster          # Start cluster
+    $0 deploy-ansible         # Deploy monitoring stack with Grafana
+    $0 run-tests              # Run tests (can repeat)
+    $0 list-tests             # Show all available tests
+    $0 run-test check-grafana-installation.sh  # Run specific test
+    $0 status                 # Check status
+    $0 stop-cluster           # Clean up when done
+
+WORKFLOWS:
+    End-to-End (Default):
+        $0                    # Complete test with cleanup
+        $0 e2e                # Explicit
+
+    Manual/Debugging:
+        1. Start cluster:     $0 start-cluster
+        2. Deploy Ansible:    $0 deploy-ansible
+        3. Run tests:         $0 run-tests
+        4. Stop cluster:      $0 stop-cluster
+
+CONFIGURATION:
+    Test Config: $TEST_CONFIG
+    Log Directory: logs/grafana-test-run-*
+    VM Pattern: $TARGET_VM_PATTERN
+
+EOF
+}
+
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Framework configuration
+FRAMEWORK_NAME="Grafana Test Framework"
+
+# Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/test-infra/utils/test-framework-utils.sh"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Script configuration
-TEST_CONFIG="${TEST_CONFIG:-tests/test-infra/configs/test-monitoring-stack.yaml}"
-export TEST_LOG_PREFIX="grafana-framework"
-TEST_SUITE_NAME="Grafana Framework Integration Test"
+# Validate PROJECT_ROOT before setting up environment variables
+if [[ ! -d "$PROJECT_ROOT" ]]; then
+    echo "Error: Invalid PROJECT_ROOT directory: $PROJECT_ROOT"
+    exit 1
+fi
 
-# Command line options
-export VERBOSE=0
-HELP=0
-CLEANUP=1
-CLUSTER_NAME="test-grafana-$(date '+%Y%m%d-%H%M%S')"
+# Source shared utilities
+UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
+
+# Set up environment variables for shared utilities AFTER validation
+export PROJECT_ROOT
+export TESTS_DIR="$PROJECT_ROOT/tests"
+export SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa"
+export SSH_USER="admin"
+export CLEANUP_REQUIRED=false
+export INTERACTIVE_CLEANUP=false
+export TEST_NAME="grafana"
+
+# Source all required utilities
+for util in log-utils.sh cluster-utils.sh test-framework-utils.sh ansible-utils.sh; do
+    if [[ ! -f "$UTILS_DIR/$util" ]]; then
+        echo "Error: Shared utility not found: $UTILS_DIR/$util"
+        exit 1
+    fi
+    # shellcheck source=./test-infra/utils/
+    source "$UTILS_DIR/$util"
+done
+
+# Test configuration
+TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-monitoring-stack.yaml"
+TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/monitoring-stack"
+TARGET_VM_PATTERN="controller"
+
+# Global variables for command line options
+INTERACTIVE=false
+COMMAND="e2e"
+TEST_TO_RUN=""
 
 # Parse command line arguments
+parse_arguments() {
 while [[ $# -gt 0 ]]; do
     case $1 in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
         -v|--verbose)
-            export VERBOSE=1
+                export VERBOSE=true
             shift
             ;;
-        -c|--config)
-            TEST_CONFIG="$2"
-            shift 2
-            ;;
-        -n|--name)
-            CLUSTER_NAME="$2"
-            shift 2
-            ;;
-        --no-cleanup)
-            CLEANUP=0
+            --no-cleanup)
+                export CLEANUP_REQUIRED=false
+                shift
+                ;;
+            --interactive)
+                INTERACTIVE=true
+                export INTERACTIVE_CLEANUP=true
             shift
             ;;
-        -h|--help)
-            HELP=1
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|list-tests|status|help)
+                COMMAND="$1"
             shift
             ;;
-        *)
-            echo "Unknown option: $1" >&2
+            run-test)
+                COMMAND="run-test"
+                if [[ $# -gt 1 ]]; then
+                    TEST_TO_RUN="$2"
+                    shift 2
+                else
+                    log_error "run-test requires a test name"
+                    echo "Usage: $0 run-test <test-name>"
+                    echo "Use: $0 list-tests to see available tests"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "Error: Unknown option '$1'"
+                echo "Use '$0 --help' for usage information"
             exit 1
             ;;
     esac
 done
-
-# Show help if requested
-if [[ $HELP -eq 1 ]]; then
-    cat << EOF
-Grafana Framework Integration Test
-
-Usage: $0 [OPTIONS]
-
-Options:
-    -v, --verbose    Enable verbose output
-    -c, --config     Specify test configuration file (default: tests/test-infra/configs/test-monitoring-stack.yaml)
-    -n, --name       Cluster name for testing (default: auto-generated)
-    -h, --help       Show this help message
-    --no-cleanup     Don't cleanup cluster after testing
-
-Description:
-    Tests Grafana installation and functionality using real ai-how cluster deployment.
-    This test creates a temporary cluster, installs monitoring stack with Grafana,
-    validates the installation, then cleans up.
-
-Prerequisites:
-    - ai-how CLI installed and configured
-    - Base images built (hpc-controller with Grafana)
-    - Test configuration file available
-    - Sufficient resources for cluster deployment
-
-Examples:
-    $0                          # Run with default settings
-    $0 -v                       # Run with verbose output
-    $0 -c custom-config.yaml    # Use custom test configuration
-    $0 --no-cleanup             # Keep cluster for debugging
-
-EOF
-    exit 0
-fi
+}
 
 # Initialize logging
-init_logging "$(date '+%Y-%m-%d_%H-%M-%S')" "tests/logs" "grafana-framework"
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+init_logging "$TIMESTAMP" "logs" "grafana"
 
-log_info "=== $TEST_SUITE_NAME ==="
-log_info "Test Configuration: $TEST_CONFIG"
-log_info "Cluster Name: $CLUSTER_NAME"
+# Run tests on deployed cluster
+run_tests() {
+    log "Running Grafana tests on deployed cluster..."
 
-# Validate prerequisites
-validate_prerequisites() {
-    log_info "Validating prerequisites..."
-
-    # Check ai-how CLI
-    if ! command -v ai-how >/dev/null 2>&1; then
-        log_error "ai-how CLI not found. Please install AI-HOW CLI first."
-        exit 1
-    fi
-
-    # Check test configuration
-    if [[ ! -f "$TEST_CONFIG" ]]; then
-        log_error "Test configuration not found: $TEST_CONFIG"
-        exit 1
-    fi
-
-    # Validate configuration
-    if ! uv run ai-how validate "$TEST_CONFIG" >/dev/null 2>&1; then
-        log_error "Test configuration validation failed"
-        exit 1
-    fi
-
-    log_success "Prerequisites validation completed"
-}
-
-# Deploy test cluster
-deploy_test_cluster() {
-    log_info "Deploying test cluster: $CLUSTER_NAME"
-
-    # Create cluster with monitoring stack
-    if ! uv run ai-how hpc create "$TEST_CONFIG" --name "$CLUSTER_NAME" --monitoring; then
-        log_error "Failed to create test cluster"
+    # Validate files exist
+    if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+        log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
         return 1
     fi
 
-    # Wait for cluster to be ready
-    log_info "Waiting for cluster to be ready..."
-    sleep 30
+    # Run Grafana-specific tests
+    log "Executing Grafana test scripts..."
+    local test_passed=true
 
-    # Get VM IPs
-    if ! get_cluster_vm_ips "$CLUSTER_NAME"; then
-        log_error "Failed to get cluster VM IPs"
-        return 1
-    fi
-
-    log_success "Test cluster deployed successfully"
-}
-
-# Test Grafana installation on controller
-test_grafana_on_controller() {
-    log_info "Testing Grafana installation on controller node..."
-
-    local controller_ip="${VM_IPS[0]:-}"
-
-    if [[ -z "$controller_ip" ]]; then
-        log_error "No controller IP available"
-        return 1
-    fi
-
-    # Wait for SSH access
-    if ! wait_for_ssh "$controller_ip" "grafana-test"; then
-        log_error "SSH not available on controller"
-        return 1
-    fi
-
-    # Copy Grafana test scripts to controller
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "$SCRIPT_DIR/suites/monitoring-stack/check-grafana-installation.sh" \
-        "$controller_ip:/tmp/" 2>/dev/null
-
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "$SCRIPT_DIR/suites/monitoring-stack/check-grafana-functionality.sh" \
-        "$controller_ip:/tmp/" 2>/dev/null
-
-    # Run installation tests
-    log_info "Running Grafana installation tests on controller..."
-    if ssh_execute "$controller_ip" "cd /tmp && chmod +x check-grafana-installation.sh && ./check-grafana-installation.sh"; then
-        log_success "Grafana installation tests passed"
-    else
-        log_error "Grafana installation tests failed"
-        return 1
-    fi
-
-    # Run functionality tests
-    log_info "Running Grafana functionality tests on controller..."
-    if ssh_execute "$controller_ip" "cd /tmp && chmod +x check-grafana-functionality.sh && ./check-grafana-functionality.sh"; then
-        log_success "Grafana functionality tests passed"
-    else
-        log_error "Grafana functionality tests failed"
-        return 1
-    fi
-}
-
-# Cleanup function
-cleanup() {
-    if [[ $CLEANUP -eq 1 ]]; then
-        log_info "Cleaning up test cluster: $CLUSTER_NAME"
-
-        if uv run ai-how hpc destroy "$CLUSTER_NAME" >/dev/null 2>&1; then
-            log_success "Test cluster destroyed successfully"
-        else
-            log_warning "Failed to destroy test cluster (manual cleanup may be needed)"
+    # Run installation test
+    if [[ -x "$TEST_SCRIPTS_DIR/check-grafana-installation.sh" ]]; then
+        log "Running Grafana installation test..."
+        if ! "$TEST_SCRIPTS_DIR/check-grafana-installation.sh"; then
+            log_error "Grafana installation test failed"
+            test_passed=false
         fi
+    fi
+
+    # Run functionality test
+    if [[ -x "$TEST_SCRIPTS_DIR/check-grafana-functionality.sh" ]]; then
+        log "Running Grafana functionality test..."
+        if ! "$TEST_SCRIPTS_DIR/check-grafana-functionality.sh"; then
+            log_error "Grafana functionality test failed"
+            test_passed=false
+        fi
+    fi
+
+    if [[ "$test_passed" == "true" ]]; then
+        log_success "All tests passed"
+        return 0
     else
-        log_info "Skipping cluster cleanup as requested"
+        log_error "Some tests failed"
+        return 1
     fi
 }
 
-# Main test execution
-main() {
-    # Set up cleanup trap
-    trap cleanup EXIT
+# Run complete end-to-end test with cleanup
+run_full_test() {
+    local start_time
+    start_time=$(date +%s)
+
+    echo ""
+    echo -e "${BLUE}==========================================${NC}"
+    echo -e "${BLUE}  $FRAMEWORK_NAME${NC}"
+    echo -e "${BLUE}==========================================${NC}"
+    echo ""
+
+    log "Logging initialized: $LOG_DIR"
+    log "$FRAMEWORK_NAME Starting"
+    log "Working directory: $PROJECT_ROOT"
+    echo ""
+
+    log "Starting Grafana Test Framework (Task 017 Validation)"
+    log "Configuration: $TEST_CONFIG"
+    log "Target VM Pattern: $TARGET_VM_PATTERN"
+    log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
+    log "Log directory: $LOG_DIR"
+    echo ""
+
+    # Validate configuration files exist
+    if [[ ! -f "$TEST_CONFIG" ]]; then
+        log_error "Test configuration file not found: $TEST_CONFIG"
+        return 1
+    fi
+
+    if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+        log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
+        return 1
+    fi
+
+    # Run the complete test workflow
+    log "Executing end-to-end test workflow..."
+
+    # Start cluster
+    if ! start_cluster; then
+        log_error "Failed to start cluster"
+        return 1
+    fi
+
+    # Deploy Ansible
+    if ! deploy_ansible; then
+        log_error "Failed to deploy Ansible"
+        stop_cluster  # Cleanup on failure
+        return 1
+    fi
 
     # Run tests
-    run_test "Prerequisites Validation" validate_prerequisites
-    run_test "Test Cluster Deployment" deploy_test_cluster
-    run_test "Grafana Installation Test" test_grafana_on_controller
+    local test_result=0
+    if ! run_tests; then
+        log_error "Tests failed"
+        test_result=1
+    fi
 
-    print_test_summary
+    # Stop cluster (cleanup)
+    if ! stop_cluster; then
+        log_warning "Failed to stop cluster, manual cleanup may be needed"
+    fi
 
-    log_success "Grafana framework integration test completed successfully"
+    local end_time
+    end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+
+    echo ""
+    log "=========================================="
+    if [[ $test_result -eq 0 ]]; then
+        log_success "Test Framework: ALL TESTS PASSED"
+        log_success "Grafana Test Framework: ALL TESTS PASSED"
+        log_success "Task 017 validation completed successfully"
+        echo ""
+        echo "=========================================="
+        echo "$FRAMEWORK_NAME completed at: $(date)"
+        echo "Exit code: 0"
+        echo "Total duration: ${duration}s"
+        echo "All logs saved to: $LOG_DIR"
+        echo "=========================================="
+        return 0
+    else
+        log_error "Test Framework: SOME TESTS FAILED"
+        log_error "Check individual test logs in $LOG_DIR"
+        echo ""
+        echo "=========================================="
+        echo "$FRAMEWORK_NAME completed at: $(date)"
+        echo "Exit code: 1"
+        echo "Total duration: ${duration}s"
+        echo "All logs saved to: $LOG_DIR"
+        echo "=========================================="
+        return 1
+    fi
 }
 
-# Run main function if script is executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Main execution
+main() {
+    # Parse command line arguments
+    parse_arguments "$@"
+
+    # Handle different commands
+    case "$COMMAND" in
+        "help")
+            show_help
+            exit 0
+            ;;
+        "status")
+            show_cluster_status "$TEST_CONFIG"
+            exit 0
+            ;;
+        "e2e"|"end-to-end")
+            # End-to-end test with cleanup
+            log "Starting End-to-End Test (with automatic cleanup)"
+            log "Configuration: $TEST_CONFIG"
+            log "Target VM Pattern: $TARGET_VM_PATTERN"
+            log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
+            log "Log directory: $LOG_DIR"
+            echo ""
+
+            if run_full_test; then
+                log_success "End-to-end test completed successfully"
+                exit 0
+            else
+                log_error "End-to-end test failed"
+                exit 1
+            fi
+            ;;
+        "start-cluster")
+            # Start cluster only
+            log "Starting cluster independently..."
+            if start_cluster_interactive "$TEST_CONFIG" "$INTERACTIVE"; then
+                log_success "Cluster started successfully"
+                log ""
+                log "Next steps:"
+                log "  1. Deploy Ansible: $0 deploy-ansible"
+                log "  2. Run tests: $0 run-tests"
+                log ""
+                exit 0
+            else
+                log_error "Failed to start cluster"
+                exit 1
+            fi
+            ;;
+        "stop-cluster")
+            # Stop cluster
+            log "Stopping cluster..."
+            if stop_cluster_interactive "$TEST_CONFIG" "$INTERACTIVE"; then
+                log_success "Cluster stopped successfully"
+                exit 0
+            else
+                log_error "Failed to stop cluster"
+                exit 1
+            fi
+            ;;
+        "deploy-ansible")
+            # Deploy ansible on running cluster
+            log "Deploying Ansible on running cluster..."
+            if deploy_ansible_full_workflow "$TEST_CONFIG" "$TARGET_VM_PATTERN"; then
+                log_success "Ansible deployment completed"
+                log ""
+                log "Next step:"
+                log "  1. Run tests: $0 run-tests"
+                log ""
+                exit 0
+            else
+                log_error "Ansible deployment failed"
+                exit 1
+            fi
+            ;;
+        "run-tests")
+            # Run tests on deployed cluster
+            log "Running tests on deployed cluster..."
+            if run_tests; then
+                log_success "Tests completed successfully"
+                exit 0
+            else
+                log_error "Tests failed"
+                exit 1
+            fi
+            ;;
+        "list-tests")
+            # List available tests
+            list_tests_in_directory "$TEST_SCRIPTS_DIR" "Grafana Test Scripts" "$0"
+            exit 0
+            ;;
+        "run-test")
+            # Run specific test
+            if [[ -z "$TEST_TO_RUN" ]]; then
+                log_error "Test name required for run-test command"
+                echo "Usage: $0 run-test <test-name>"
+                echo "Use: $0 list-tests to see available tests"
+                exit 1
+            fi
+            if execute_single_test_by_name "$TEST_TO_RUN" "$TEST_SCRIPTS_DIR" "$0"; then
+                log_success "Test passed: $TEST_TO_RUN"
+                exit 0
+            else
+                log_error "Test failed: $TEST_TO_RUN"
+                exit 1
+            fi
+            ;;
+        *)
+            log_error "Unknown command: $COMMAND"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function
     main "$@"
-fi

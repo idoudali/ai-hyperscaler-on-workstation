@@ -254,6 +254,22 @@ show_cleanup_instructions() {
     echo ""
 }
 
+# Simple wait for cluster to be ready (wrapper for wait_for_cluster_vms)
+# Used by ansible-utils for compatibility
+wait_for_cluster_ready() {
+    local config_file="$1"
+    # Note: vm_pattern parameter ($2) is accepted for compatibility but not used in current implementation
+    local timeout="${3:-300}"
+
+    [[ -z "$config_file" ]] && {
+        log_error "wait_for_cluster_ready: config_file parameter required"
+        return 1
+    }
+
+    # Call wait_for_cluster_vms with default cluster type
+    wait_for_cluster_vms "$config_file" "hpc" "$timeout"
+}
+
 wait_for_cluster_vms() {
     local config_file="$1"
     local cluster_type="${2:-hpc}"  # "hpc" or "cloud"
@@ -514,8 +530,183 @@ manual_cluster_cleanup() {
     fi
 }
 
+# =============================================================================
+# Interactive Cluster Lifecycle Management (Added for refactoring)
+# =============================================================================
+
+# Check if cluster is already running (non-invasive check)
+check_cluster_status() {
+    local config="$1"
+
+    # Simple check: look for VMs matching common patterns
+    if virsh list --name --state-running 2>/dev/null | grep -qE "(controller|compute|hpc|test)"; then
+        return 0  # Cluster is running
+    else
+        return 1  # No cluster found
+    fi
+}
+
+# Start cluster with interactive confirmation
+start_cluster_interactive() {
+    local config="$1"
+    local interactive="${2:-false}"
+
+    [[ -z "$config" ]] && {
+        log_error "start_cluster_interactive: config parameter required"
+        return 1
+    }
+
+    log "Starting HPC cluster..."
+
+    # Check if cluster is already running
+    if check_cluster_status "$config" 2>/dev/null; then
+        log_warning "Cluster appears to be already running"
+        if [[ "$interactive" == "true" ]]; then
+            read -p "Continue anyway? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log "Aborted by user"
+                return 0
+            fi
+        else
+            log_warning "Continuing with cluster start (use --interactive for confirmation)"
+        fi
+    fi
+
+    # Change to project root before running ai-how
+    cd "$PROJECT_ROOT" || {
+        log_error "Failed to change to project root: $PROJECT_ROOT"
+        return 1
+    }
+
+    # Resolve config path
+    local resolved_config
+    if ! resolved_config=$(resolve_test_config_path "$config"); then
+        return 1
+    fi
+
+    log "Deploying cluster using ai-how with config: $resolved_config"
+
+    # Use start_cluster function from this file
+    if start_cluster "$resolved_config"; then
+        log_success "Cluster started successfully"
+        return 0
+    else
+        log_error "Failed to start cluster"
+        return 1
+    fi
+}
+
+# Stop cluster with interactive confirmation
+stop_cluster_interactive() {
+    local config="$1"
+    local interactive="${2:-false}"
+
+    [[ -z "$config" ]] && {
+        log_error "stop_cluster_interactive: config parameter required"
+        return 1
+    }
+
+    log "Stopping HPC cluster..."
+
+    # Interactive confirmation
+    if [[ "$interactive" == "true" ]]; then
+        read -p "Are you sure you want to stop the cluster? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log "Aborted by user"
+            return 0
+        fi
+    fi
+
+    # Change to project root before running ai-how
+    cd "$PROJECT_ROOT" || {
+        log_error "Failed to change to project root: $PROJECT_ROOT"
+        return 1
+    }
+
+    # Resolve config path
+    local resolved_config
+    if ! resolved_config=$(resolve_test_config_path "$config"); then
+        return 1
+    fi
+
+    log "Destroying cluster using ai-how with config: $resolved_config"
+
+    # Use destroy_cluster function from this file
+    if destroy_cluster "$resolved_config"; then
+        log_success "Cluster stopped successfully"
+        return 0
+    else
+        log_error "Failed to stop cluster"
+        return 1
+    fi
+}
+
+# Show cluster status using ai-how
+show_cluster_status() {
+    local config="$1"
+
+    [[ -z "$config" ]] && {
+        log_error "show_cluster_status: config parameter required"
+        return 1
+    }
+
+    log "Checking cluster status..."
+    echo ""
+
+    cd "$PROJECT_ROOT" || {
+        log_error "Failed to change to project root: $PROJECT_ROOT"
+        return 1
+    }
+
+    # Resolve config path
+    local resolved_config
+    if ! resolved_config=$(resolve_test_config_path "$config"); then
+        return 1
+    fi
+
+    # Use ai-how to show status (if available)
+    if command -v ai-how >/dev/null 2>&1; then
+        uv run ai-how hpc status "$resolved_config" 2>&1 || {
+            log_warning "ai-how status command failed, falling back to virsh"
+            virsh list --all
+        }
+    else
+        # Fallback to virsh
+        log_warning "ai-how not found, using virsh"
+        virsh list --all
+    fi
+}
+
+# Complete cluster lifecycle workflow
+run_cluster_lifecycle() {
+    local config="$1"
+    local action="$2"  # start, stop, status
+    local interactive="${3:-false}"
+
+    case "$action" in
+        start)
+            start_cluster_interactive "$config" "$interactive"
+            ;;
+        stop)
+            stop_cluster_interactive "$config" "$interactive"
+            ;;
+        status)
+            show_cluster_status "$config"
+            ;;
+        *)
+            log_error "Unknown action: $action"
+            log "Valid actions: start, stop, status"
+            return 1
+            ;;
+    esac
+}
+
 # Export functions for use in other scripts
 export -f resolve_test_config_path start_cluster destroy_cluster verify_cluster_cleanup check_cluster_not_running
-export -f show_cleanup_instructions wait_for_cluster_vms cleanup_cluster_on_exit
+export -f show_cleanup_instructions wait_for_cluster_ready wait_for_cluster_vms cleanup_cluster_on_exit
 export -f ask_manual_cleanup manual_cluster_cleanup
 export -f get_cluster_plan_data parse_cluster_name parse_expected_vms get_vm_specifications
+export -f check_cluster_status start_cluster_interactive stop_cluster_interactive
+export -f show_cluster_status run_cluster_lifecycle

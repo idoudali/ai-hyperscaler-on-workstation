@@ -16,11 +16,11 @@ USAGE:
     $0 [OPTIONS] [COMMAND]
 
 COMMANDS:
+    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
     start-cluster     Start the HPC cluster independently
     stop-cluster      Stop and destroy the HPC cluster
     deploy-ansible    Deploy DCGM monitoring via Ansible (assumes cluster is running)
     run-tests         Run DCGM monitoring tests on deployed cluster
-    full-test         Run complete test suite (default behavior)
     status            Show cluster status
     help              Show this help message
 
@@ -31,29 +31,28 @@ OPTIONS:
     --interactive     Enable interactive cleanup prompts
 
 EXAMPLES:
-    # Run complete test suite (default)
+    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
     $0
+    $0 e2e
+    $0 end-to-end
 
-    # Start cluster independently
-    $0 start-cluster
+    # Modular workflow for debugging (keeps cluster running)
+    $0 start-cluster          # Start cluster
+    $0 deploy-ansible         # Deploy DCGM monitoring
+    $0 run-tests              # Run tests (can repeat)
+    $0 status                 # Check status
+    $0 stop-cluster           # Clean up when done
 
-    # Deploy Ansible on running cluster
-    $0 deploy-ansible
+WORKFLOWS:
+    End-to-End (Default):
+        $0                    # Complete test with cleanup
+        $0 e2e                # Explicit
 
-    # Run tests on deployed cluster
-    $0 run-tests
-
-    # Stop cluster
-    $0 stop-cluster
-
-    # Check cluster status
-    $0 status
-
-WORKFLOW:
-    1. Start cluster:     $0 start-cluster
-    2. Deploy Ansible:    $0 deploy-ansible
-    3. Run tests:         $0 run-tests
-    4. Stop cluster:      $0 stop-cluster
+    Manual/Debugging:
+        1. Start cluster:     $0 start-cluster
+        2. Deploy Ansible:    $0 deploy-ansible
+        3. Run tests:         $0 run-tests
+        4. Stop cluster:      $0 stop-cluster
 
 CONFIGURATION:
     Test Config: $TEST_CONFIG
@@ -85,10 +84,6 @@ fi
 
 # Source shared utilities
 UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
-if [[ ! -f "$UTILS_DIR/test-framework-utils.sh" ]]; then
-    echo "Error: Shared utilities not found at $UTILS_DIR/test-framework-utils.sh"
-    exit 1
-fi
 
 # Set up environment variables for shared utilities AFTER validation
 export PROJECT_ROOT
@@ -99,8 +94,15 @@ export CLEANUP_REQUIRED=false
 export INTERACTIVE_CLEANUP=false
 export TEST_NAME="dcgm-monitoring"
 
-# shellcheck source=./test-infra/utils/test-framework-utils.sh
-source "$UTILS_DIR/test-framework-utils.sh"
+# Source all required utilities
+for util in log-utils.sh cluster-utils.sh test-framework-utils.sh ansible-utils.sh; do
+    if [[ ! -f "$UTILS_DIR/$util" ]]; then
+        echo "Error: Shared utility not found: $UTILS_DIR/$util"
+        exit 1
+    fi
+    # shellcheck source=./test-infra/utils/
+    source "$UTILS_DIR/$util"
+done
 
 # Test configuration
 TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-dcgm-monitoring.yaml"
@@ -113,7 +115,7 @@ RUNTIME_PLAYBOOK="$PROJECT_ROOT/ansible/playbooks/playbook-dcgm-runtime-config.y
 
 # Global variables for command line options
 INTERACTIVE=false
-COMMAND="full-test"
+COMMAND="e2e"
 
 # Parse command line arguments
 parse_arguments() {
@@ -135,7 +137,7 @@ parse_arguments() {
                 INTERACTIVE=true
                 shift
                 ;;
-            start-cluster|stop-cluster|deploy-ansible|run-tests|full-test|status|help)
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|status|help)
                 COMMAND="$1"
                 shift
                 ;;
@@ -540,45 +542,9 @@ main() {
             show_status
             exit 0
             ;;
-        "start-cluster")
-            if start_cluster; then
-                log_success "Cluster started successfully"
-                exit 0
-            else
-                log_error "Failed to start cluster"
-                exit 1
-            fi
-            ;;
-        "stop-cluster")
-            if stop_cluster; then
-                log_success "Cluster stopped successfully"
-                exit 0
-            else
-                log_error "Failed to stop cluster"
-                exit 1
-            fi
-            ;;
-        "deploy-ansible")
-            if deploy_ansible; then
-                log_success "Ansible deployment completed successfully"
-                exit 0
-            else
-                log_error "Ansible deployment failed"
-                exit 1
-            fi
-            ;;
-        "run-tests")
-            if run_tests; then
-                log_success "Tests completed successfully"
-                exit 0
-            else
-                log_error "Tests failed"
-                exit 1
-            fi
-            ;;
-        "full-test")
-            # Original full test behavior
-            log "Starting DCGM Monitoring Test Framework (Task 018 Validation)"
+        "e2e"|"end-to-end")
+            # End-to-end test with cleanup
+            log "Starting End-to-End Test (with automatic cleanup)"
             log "Configuration: $TEST_CONFIG"
             log "Target VM Pattern: $TARGET_VM_PATTERN"
             log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
@@ -614,19 +580,6 @@ main() {
                 exit 1
             fi
 
-            # Check if controller and compute images exist (optional warning)
-            local controller_image_path="$PROJECT_ROOT/build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
-            if [[ ! -f "$controller_image_path" ]]; then
-                log_warning "HPC controller image not found at: $controller_image_path"
-                log_warning "You may need to build the controller image first: make build-hpc-controller-image"
-            fi
-
-            local compute_image_path="$PROJECT_ROOT/build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
-            if [[ ! -f "$compute_image_path" ]]; then
-                log_warning "HPC compute image not found at: $compute_image_path"
-                log_warning "You may need to build the compute image first: make build-hpc-compute-image"
-            fi
-
             # Step 1: Start cluster
             log "=========================================="
             log "STEP 1: Starting HPC Cluster"
@@ -643,7 +596,7 @@ main() {
             log "=========================================="
             if ! deploy_dcgm_monitoring "$TEST_CONFIG"; then
                 log_error "Failed to deploy DCGM monitoring"
-                # Don't exit - try to run tests anyway
+                # Don't exit - try to run tests and cleanup anyway
             fi
             echo ""
 
@@ -657,6 +610,16 @@ main() {
             fi
             echo ""
 
+            # Step 4: Stop cluster (cleanup)
+            log "=========================================="
+            log "STEP 4: Stopping and Cleaning Up Cluster"
+            log "=========================================="
+            if ! stop_cluster; then
+                log_error "Failed to stop cluster cleanly"
+                # Continue to report test results even if cleanup failed
+            fi
+            echo ""
+
             # Final results
             local end_time
             end_time=$(date +%s)
@@ -665,11 +628,11 @@ main() {
             echo ""
             log "=========================================="
             if [[ $test_result -eq 0 ]]; then
-                log_success "Test Framework: ALL TESTS PASSED"
+                log_success "End-to-End Test: ALL TESTS PASSED"
                 log_success "DCGM Monitoring Test Framework: ALL TESTS PASSED"
                 log_success "Task 018 validation completed successfully"
             else
-                log_error "Test Framework: SOME TESTS FAILED"
+                log_error "End-to-End Test: SOME TESTS FAILED"
                 log_error "Check individual test logs in $LOG_DIR"
             fi
             echo ""
@@ -681,6 +644,42 @@ main() {
             echo "=========================================="
 
             exit $test_result
+            ;;
+        "start-cluster")
+            if start_cluster; then
+                log_success "Cluster started successfully"
+                exit 0
+            else
+                log_error "Failed to start cluster"
+                exit 1
+            fi
+            ;;
+        "stop-cluster")
+            if stop_cluster; then
+                log_success "Cluster stopped successfully"
+                exit 0
+            else
+                log_error "Failed to stop cluster"
+                exit 1
+            fi
+            ;;
+        "deploy-ansible")
+            if deploy_ansible; then
+                log_success "Ansible deployment completed successfully"
+                exit 0
+            else
+                log_error "Ansible deployment failed"
+                exit 1
+            fi
+            ;;
+        "run-tests")
+            if run_tests; then
+                log_success "Tests completed successfully"
+                exit 0
+            else
+                log_error "Tests failed"
+                exit 1
+            fi
             ;;
         *)
             log_error "Unknown command: $COMMAND"

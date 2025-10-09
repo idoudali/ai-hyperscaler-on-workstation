@@ -1,274 +1,406 @@
 #!/bin/bash
 #
-# Container Runtime Test Framework - Task 004 Integration
-# Automated testing framework for container runtime using Task 004 framework patterns
-# Task 008 compliant test orchestration with ai-how cluster deployment
+# Container Runtime Test Framework
+# Task 008/009 - Container Runtime Installation and Security Validation
+# Test framework for validating container runtime (Apptainer/Singularity) in HPC compute images
 #
 
 set -euo pipefail
 
-PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-
-# =============================================================================
-# Configuration
-# =============================================================================
-
-SCRIPT_DIR="$(dirname "$0")"
-PROJECT_ROOT="$(realpath "$SCRIPT_DIR/..")"
-TESTS_DIR="$PROJECT_ROOT/tests"
-TEST_CONFIG="test-infra/configs/test-container-runtime.yaml"
-TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/container-runtime"
-
-# Create unique log directory per run using LOG_DIR pattern
-RUN_TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-TEST_NAME="container-runtime"
-LOG_DIR="$PROJECT_ROOT/tests/logs/${TEST_NAME}-test-run-$RUN_TIMESTAMP"
-mkdir -p "$LOG_DIR"
-
-SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa"
-SSH_USER="admin"  # Adjust based on your base image
-SSH_OPTS="-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
-
-# Target VM configuration - focus on container-enabled compute nodes
-TARGET_VM_PATTERN="compute"
-
-# Timeouts (in seconds) - handled by framework utilities
-
-# Source shared utilities
-if [[ -f "$TESTS_DIR/test-infra/utils/test-framework-utils.sh" ]]; then
-    # shellcheck source=test-infra/utils/test-framework-utils.sh
-    source "$TESTS_DIR/test-infra/utils/test-framework-utils.sh"
-else
-    echo "Error: Shared test framework utilities not found"
-    echo "Expected: $TESTS_DIR/test-infra/utils/test-framework-utils.sh"
-    exit 1
-fi
-
-# Export configuration for shared utilities
-export PROJECT_ROOT TESTS_DIR LOG_DIR SSH_KEY_PATH SSH_USER SSH_OPTS TEST_NAME
-export CLEANUP_REQUIRED=false INTERACTIVE_CLEANUP=false
-
-# =============================================================================
-# Container Runtime Specific Functions
-# =============================================================================
-
-show_usage() {
+# Help message
+show_help() {
     cat << EOF
-Container Runtime Test Framework (Task 008)
+Container Runtime Test Framework - Task 008/009 Validation
 
 USAGE:
-    $0 [OPTIONS]
+    $0 [OPTIONS] [COMMAND]
 
-DESCRIPTION:
-    Automated testing framework for container runtime validation using Task 004
-    framework patterns. Tests container runtime installation, execution, and
-    security on ai-how deployed clusters.
-
-    This framework validates Task 008 and Task 009 requirements:
-    • Apptainer binary installed and functional (>= 1.4.2)
-    • All dependencies installed (fuse, squashfs-tools, uidmap, libfuse2, libseccomp2)
-    • Container execution capabilities (pull, run, bind mounts)
-    • Security configuration properly applied
-    • Privilege escalation prevention
-    • Host filesystem access restrictions
-    • Security policies validation
-    • Integration with SLURM scheduling
+COMMANDS:
+    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
+    start-cluster     Start the HPC cluster independently
+    stop-cluster      Stop and destroy the HPC cluster
+    deploy-ansible    Deploy container runtime via Ansible (assumes cluster is running)
+    run-tests         Run container runtime tests on deployed cluster
+    list-tests        List all available individual test scripts
+    run-test NAME     Run a specific individual test by name
+    status            Show cluster status
+    help              Show this help message
 
 OPTIONS:
-    --help, -h              Show this help message
-    --config CONFIG         Use specific test configuration (default: $TEST_CONFIG)
-    --ssh-user USER         SSH username (default: $SSH_USER)
-    --ssh-key KEY           SSH private key path (default: $SSH_KEY_PATH)
-    --target-vm PATTERN     Target VM pattern (default: $TARGET_VM_PATTERN)
-    --no-cleanup            Don't cleanup on failure (for debugging)
-    --verbose, -v           Enable verbose output
-    --quick                 Run only essential tests
+    -h, --help        Show this help message
+    -v, --verbose     Enable verbose output
+    --no-cleanup      Skip cleanup after test completion
+    --interactive     Enable interactive cleanup prompts
 
 EXAMPLES:
-    # Run with default configuration (recommended)
+    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
     $0
+    $0 e2e
+    $0 end-to-end
 
-    # Run with custom configuration
-    $0 --config test-infra/configs/test-custom.yaml
+    # Modular workflow for debugging (keeps cluster running)
+    $0 start-cluster          # Start cluster
+    $0 deploy-ansible         # Deploy container runtime
+    $0 run-tests              # Run tests (can repeat)
+    $0 list-tests             # Show all available tests
+    $0 run-test check-singularity-install.sh  # Run specific test
+    $0 status                 # Check status
+    $0 stop-cluster           # Clean up when done
 
-    # Run with different target VMs
-    $0 --target-vm "container-runtime"
+WORKFLOWS:
+    End-to-End (Default):
+        $0                    # Complete test with cleanup
+        $0 e2e                # Explicit
 
-    # Debug mode (no auto-cleanup on failure)
-    $0 --no-cleanup --verbose
+    Manual/Debugging:
+        1. Start cluster:     $0 start-cluster
+        2. Deploy Ansible:    $0 deploy-ansible
+        3. Run tests:         $0 run-tests
+        4. Stop cluster:      $0 stop-cluster
 
-PREREQUISITES:
-    - ai-how tool installed and working
-    - virsh command available
-    - SSH key pair configured
-    - Base VM images built (Packer)
-    - Container runtime role deployed in Ansible
+CONFIGURATION:
+    Test Config: $TEST_CONFIG
+    Log Directory: logs/container-runtime-test-run-*
+    VM Pattern: $TARGET_VM_PATTERN
 
-TEST VALIDATION:
-    The framework validates these Task 008 and Task 009 components:
-    ✓ Container runtime installation and version
-    ✓ Required dependencies installed
-    ✓ Container execution capabilities
-    ✓ Security policy enforcement
+VALIDATION:
+    Task 008: Container Runtime Installation
+      ✓ Apptainer binary installed and functional (>= 1.4.2)
+      ✓ All dependencies installed (fuse, squashfs-tools, uidmap, etc.)
+      ✓ Container execution capabilities (pull, run, bind mounts)
+      ✓ Integration with SLURM scheduling
+
+    Task 009: Container Security Configuration
+      ✓ Security configuration properly applied
     ✓ Privilege escalation prevention
     ✓ Host filesystem access restrictions
     ✓ Security policies validation
-    ✓ SLURM integration (if available)
-
-LOG FILES:
-    Test logs are saved to: $LOG_DIR
-    - framework-main.log: Main framework execution
-    - cluster-start.log, cluster-destroy.log: Cluster operations
-    - test-results-<vm-name>.log: Individual VM test results
-    - remote-logs-<vm-name>/: Remote VM test execution logs
-    - vm-connection-info/: VM connection commands and debugging info
-
-EXIT CODES:
-    0: All tests passed successfully
-    1: Some tests failed or framework error
-
-FRAMEWORK INTEGRATION:
-    This test integrates with the Task 004 framework by:
-    • Using shared cluster management utilities
-    • Following Task 004 logging patterns
-    • Providing consistent VM orchestration
-    • Supporting ai-how cluster deployment workflow
-    • Including comprehensive Task 009 security validation
 
 EOF
 }
 
-# Container runtime specific test execution
-run_container_runtime_tests() {
-    log "Starting Container Runtime Test Framework (Task 008 & Task 009 Validation)"
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Framework configuration
+FRAMEWORK_NAME="Container Runtime Test Framework"
+
+# Get script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Validate PROJECT_ROOT before setting up environment variables
+if [[ ! -d "$PROJECT_ROOT" ]]; then
+    echo "Error: Invalid PROJECT_ROOT directory: $PROJECT_ROOT"
+    exit 1
+fi
+
+# Source shared utilities
+UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
+
+# Set up environment variables for shared utilities AFTER validation
+export PROJECT_ROOT
+export TESTS_DIR="$PROJECT_ROOT/tests"
+export SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa"
+export SSH_USER="admin"
+export CLEANUP_REQUIRED=false
+export INTERACTIVE_CLEANUP=false
+export TEST_NAME="container-runtime"
+
+# Source all required utilities
+for util in log-utils.sh cluster-utils.sh test-framework-utils.sh ansible-utils.sh; do
+    if [[ ! -f "$UTILS_DIR/$util" ]]; then
+        echo "Error: Shared utility not found: $UTILS_DIR/$util"
+        exit 1
+    fi
+    # shellcheck source=./test-infra/utils/
+    source "$UTILS_DIR/$util"
+done
+
+# Test configuration
+TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-container-runtime.yaml"
+TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/container-runtime"
+TARGET_VM_PATTERN="compute"
+MASTER_TEST_SCRIPT="run-container-runtime-tests.sh"
+
+# Global variables for command line options
+INTERACTIVE=false
+COMMAND="e2e"
+TEST_TO_RUN=""
+
+# Parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--verbose)
+                export VERBOSE=true
+                shift
+                ;;
+            --no-cleanup)
+                export CLEANUP_REQUIRED=false
+                shift
+                ;;
+            --interactive)
+                INTERACTIVE=true
+                export INTERACTIVE_CLEANUP=true
+                shift
+                ;;
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|list-tests|status|help)
+                COMMAND="$1"
+                shift
+                ;;
+            run-test)
+                COMMAND="run-test"
+                if [[ $# -gt 1 ]]; then
+                    TEST_TO_RUN="$2"
+                    shift 2
+                else
+                    log_error "run-test requires a test name"
+                    echo "Usage: $0 run-test <test-name>"
+                    echo "Use: $0 list-tests to see available tests"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "Error: Unknown option '$1'"
+                echo "Use '$0 --help' for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Initialize logging
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+init_logging "$TIMESTAMP" "logs" "container-runtime"
+
+
+
+
+# Run tests on deployed cluster
+run_tests() {
+    log "Running container runtime tests on deployed cluster..."
+
+    # Validate files exist
+    if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+        log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
+        return 1
+    fi
+
+    # Run master test script
+    log "Executing master test script: $MASTER_TEST_SCRIPT"
+    if ! run_master_tests "$TEST_SCRIPTS_DIR" "$MASTER_TEST_SCRIPT"; then
+        log_error "Tests failed"
+        return 1
+    fi
+
+    log_success "All tests passed"
+    return 0
+}
+
+
+
+
+# Run complete end-to-end test with cleanup
+run_full_test() {
+    local start_time
+    start_time=$(date +%s)
+
+    echo ""
+    echo -e "${BLUE}==========================================${NC}"
+    echo -e "${BLUE}  $FRAMEWORK_NAME${NC}"
+    echo -e "${BLUE}==========================================${NC}"
+    echo ""
+
+    log "Logging initialized: $LOG_DIR"
+    log "$FRAMEWORK_NAME Starting"
+    log "Working directory: $PROJECT_ROOT"
+    echo ""
+
+    log "Starting Container Runtime Test Framework (Task 008/009 Validation)"
     log "Configuration: $TEST_CONFIG"
     log "Target VM Pattern: $TARGET_VM_PATTERN"
     log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
     log "Log directory: $LOG_DIR"
-    echo
+    echo ""
 
-    # Use the shared test framework utilities
-    if run_test_framework "$TESTS_DIR/$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "run-container-runtime-tests.sh"; then
+    # Validate configuration files exist
+    if [[ ! -f "$TEST_CONFIG" ]]; then
+        log_error "Test configuration file not found: $TEST_CONFIG"
+        return 1
+    fi
+
+    if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
+        log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
+        return 1
+    fi
+
+    # Check if compute image exists (optional warning)
+    local compute_image_path="$PROJECT_ROOT/build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+    if [[ ! -f "$compute_image_path" ]]; then
+        log_warning "HPC compute image not found at: $compute_image_path"
+        log_warning "You may need to build the compute image first: make build-hpc-compute-image"
+    fi
+
+    # Run the complete test framework using shared utilities
+    log "Executing test framework using shared utilities..."
+
+    if run_test_framework "$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "$MASTER_TEST_SCRIPT"; then
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+
+        echo ""
+        log "=========================================="
+        log_success "Test Framework: ALL TESTS PASSED"
         log_success "Container Runtime Test Framework: ALL TESTS PASSED"
         log_success "Task 008 and Task 009 validation completed successfully"
+        echo ""
+        echo "=========================================="
+        echo "$FRAMEWORK_NAME completed at: $(date)"
+        echo "Exit code: 0"
+        echo "Total duration: ${duration}s"
+        echo "All logs saved to: $LOG_DIR"
+        echo "=========================================="
+
         return 0
     else
-        log_warning "Container Runtime Test Framework: TESTS FAILED"
-        log_warning "Task 008 and Task 009 validation failed - check logs for details"
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+
+        echo ""
+        log "=========================================="
+        log_error "Test Framework: SOME TESTS FAILED"
+        log_error "Check individual test logs in $LOG_DIR"
+        echo ""
+        echo "=========================================="
+        echo "$FRAMEWORK_NAME completed at: $(date)"
+        echo "Exit code: 1"
+        echo "Total duration: ${duration}s"
+        echo "All logs saved to: $LOG_DIR"
+        echo "=========================================="
+
         return 1
     fi
 }
 
-# Quick test mode - runs essential tests only
-run_quick_tests() {
-    log "Running quick container runtime validation..."
-
-    # Run only the installation check
-    local quick_script="check-singularity-install.sh"
-
-    if run_test_framework "$TESTS_DIR/$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "$quick_script"; then
-        log_success "Quick container runtime test: PASSED"
-        return 0
-    else
-        log_warning "Quick container runtime test: FAILED"
-        return 1
-    fi
-}
-
-# =============================================================================
-# CLI Interface and Main Execution
-# =============================================================================
-
+# Main execution
+main() {
 # Parse command line arguments
-QUICK_MODE=false
+    parse_arguments "$@"
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --help|-h)
-            show_usage
+    # Handle different commands
+    case "$COMMAND" in
+        "help")
+            show_help
             exit 0
             ;;
-        --config)
-            TEST_CONFIG="$2"
-            shift 2
+        "status")
+            show_cluster_status "$TEST_CONFIG"
+            exit 0
             ;;
-        --ssh-user)
-            SSH_USER="$2"
-            export SSH_USER
-            shift 2
+        "e2e"|"end-to-end")
+            # End-to-end test with cleanup
+            log "Starting End-to-End Test (with automatic cleanup)"
+            log "Configuration: $TEST_CONFIG"
+            log "Target VM Pattern: $TARGET_VM_PATTERN"
+            log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
+            log "Log directory: $LOG_DIR"
+            echo ""
+
+            if run_full_test; then
+                log_success "End-to-end test completed successfully"
+                exit 0
+            else
+                log_error "End-to-end test failed"
+                exit 1
+            fi
             ;;
-        --ssh-key)
-            SSH_KEY_PATH="$2"
-            export SSH_KEY_PATH
-            shift 2
+        "start-cluster")
+            # Start cluster only
+            log "Starting cluster independently..."
+            if start_cluster_interactive "$TEST_CONFIG" "$INTERACTIVE"; then
+                log_success "Cluster started successfully"
+                log ""
+                log "Next steps:"
+                log "  1. Deploy Ansible: $0 deploy-ansible"
+                log "  2. Run tests: $0 run-tests"
+                log ""
+                exit 0
+            else
+                log_error "Failed to start cluster"
+                exit 1
+            fi
             ;;
-        --target-vm)
-            TARGET_VM_PATTERN="$2"
-            shift 2
+        "stop-cluster")
+            # Stop cluster
+            log "Stopping cluster..."
+            if stop_cluster_interactive "$TEST_CONFIG" "$INTERACTIVE"; then
+                log_success "Cluster stopped successfully"
+                exit 0
+            else
+                log_error "Failed to stop cluster"
+                exit 1
+            fi
             ;;
-        --no-cleanup)
-            trap - EXIT INT TERM
-            shift
+        "deploy-ansible")
+            # Deploy ansible on running cluster
+            log "Deploying Ansible on running cluster..."
+            if deploy_ansible_full_workflow "$TEST_CONFIG" "$TARGET_VM_PATTERN"; then
+                log_success "Ansible deployment completed"
+                log ""
+                log "Next step:"
+                log "  1. Run tests: $0 run-tests"
+                log ""
+                exit 0
+            else
+                log_error "Ansible deployment failed"
+                exit 1
+            fi
             ;;
-        --verbose|-v)
-            set -x
-            export VERBOSE_MODE=true
-            shift
+        "run-tests")
+            # Run tests on deployed cluster
+            log "Running tests on deployed cluster..."
+            if run_tests; then
+                log_success "Tests completed successfully"
+                exit 0
+            else
+                log_error "Tests failed"
+                exit 1
+            fi
             ;;
-        --quick)
-            QUICK_MODE=true
-            shift
+        "list-tests")
+            # List available tests
+            list_tests_in_directory "$TEST_SCRIPTS_DIR" "Test Scripts" "$0"
+            exit 0
+            ;;
+        "run-test")
+            # Run specific test
+            if [[ -z "$TEST_TO_RUN" ]]; then
+                log_error "Test name required for run-test command"
+                echo "Usage: $0 run-test <test-name>"
+                echo "Use: $0 list-tests to see available tests"
+                exit 1
+            fi
+            if execute_single_test_by_name "$TEST_TO_RUN" "$TEST_SCRIPTS_DIR" "$0"; then
+                log_success "Test passed: $TEST_TO_RUN"
+                exit 0
+            else
+                log_error "Test failed: $TEST_TO_RUN"
+                exit 1
+            fi
             ;;
         *)
-            log_error "Unknown option: $1"
-            show_usage
+            log_error "Unknown command: $COMMAND"
+            show_help
             exit 1
             ;;
     esac
-done
+}
 
-# =============================================================================
-# Main Execution
-# =============================================================================
-
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    # Change to project root directory for consistent relative path handling
-    cd "$PROJECT_ROOT" || {
-        echo "Error: Failed to change to project root: $PROJECT_ROOT"
-        exit 1
-    }
-
-    # Initialize logging
-    init_logging "$RUN_TIMESTAMP" "tests/logs" "$TEST_NAME"
-
-    log "Container Runtime Test Framework Starting"
-    log "Working directory: $(pwd)"
-    echo
-
-    # Execute appropriate test mode
-    if [[ "$QUICK_MODE" == "true" ]]; then
-        if run_quick_tests; then
-            main_exit_code=0
-        else
-            main_exit_code=1
-        fi
-    else
-        if run_container_runtime_tests; then
-            main_exit_code=0
-        else
-            main_exit_code=1
-        fi
-    fi
-
-    # Final completion message
-    {
-        echo
-        echo "=================================================="
-        echo "Container Runtime Test Framework completed at: $(date)"
-        echo "Exit code: $main_exit_code"
-        echo "All logs saved to: $LOG_DIR"
-        echo "=================================================="
-    } | tee -a "$LOG_DIR/framework-main.log"
-
-    exit $main_exit_code
-fi
+# Execute main function
+main "$@"
