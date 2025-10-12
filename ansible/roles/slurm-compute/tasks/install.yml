@@ -15,7 +15,7 @@
   become: true
   register: slurm_compute_package_install
   notify:
-    - restart slurmd service
+    - restart slurmd
 
 - name: Install SLURM container runtime support packages
   apt:
@@ -27,7 +27,7 @@
     - slurm_container_enabled | default(true)
     - container_install_method | default("skip") != "skip"
   notify:
-    - restart slurmd service
+    - restart slurmd
 
 - name: Display container runtime installation note
   debug:

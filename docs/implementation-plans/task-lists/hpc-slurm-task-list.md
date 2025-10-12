@@ -6,7 +6,7 @@ tasks for individual execution and testing.
 **Status:** Task Breakdown Complete - Implementation In Progress
 **Updated:** 2025-10-09
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 23 (
+**Completed Tasks:** 24 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -30,6 +30,7 @@ tasks for individual execution and testing.
   TASK-022,
   TASK-023,
   TASK-024,
+  TASK-025,
   )
 
 ## Overview
@@ -4282,13 +4283,16 @@ make test-cgroup-isolation-status
 
 ---
 
-#### Task 025: Create Failure Detection Scripts
+#### Task 025: Create Failure Detection Scripts ✅ COMPLETED
 
 - **ID**: TASK-025
 - **Phase**: 2 - Compute Integration
 - **Dependencies**: TASK-017
 - **Estimated Time**: 6 hours
 - **Difficulty**: Advanced
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-10-12
+- **Branch**: `feature/task-025-job-scripts`
 
 **Description:** Implement SLURM epilog/prolog scripts for job completion
 analysis and distributed training failure debugging, following the Standard Test Framework Pattern.
@@ -4338,12 +4342,12 @@ analysis and distributed training failure debugging, following the Standard Test
 
 **Validation Criteria:**
 
-- [ ] Epilog/prolog scripts execute on job events
-- [ ] Failure diagnosis captures relevant information
-- [ ] Debug information stored in structured format
-- [ ] Common failure patterns detected automatically
-- [ ] Scripts integrated with SLURM job lifecycle
-- [ ] Proper separation of build-time and runtime tasks
+- [x] Epilog/prolog scripts execute on job events
+- [x] Failure diagnosis captures relevant information
+- [x] Debug information stored in structured format
+- [x] Common failure patterns detected automatically
+- [x] Scripts integrated with SLURM job lifecycle
+- [x] Proper separation of build-time and runtime tasks
 
 **Test Framework (Following Standard Pattern):**
 

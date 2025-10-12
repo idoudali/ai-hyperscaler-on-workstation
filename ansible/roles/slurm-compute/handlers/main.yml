@@ -2,7 +2,7 @@
 # SLURM Compute Node Handlers
 # Task 022: Service restart handlers
 
-- name: restart slurmd service
+- name: restart slurmd
   systemd:
     name: slurmd
     state: restarted

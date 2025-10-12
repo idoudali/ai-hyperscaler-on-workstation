@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# SLURM Prolog Script - Job Initialization
+# Task 025: Failure Detection Scripts
+# Executes before each SLURM job starts on compute nodes
+#
+# Environment variables provided by SLURM:
+#   SLURM_JOB_ID: Job ID
+#   SLURM_JOB_NAME: Job name
+#   SLURM_JOB_USER: User who submitted the job
+#   SLURM_JOB_UID: User ID
+#   SLURM_JOB_GID: Group ID
+#   SLURM_JOB_NODELIST: List of nodes allocated to the job
+#   SLURM_JOB_PARTITION: Partition name
+#   SLURM_JOB_ACCOUNT: Account name
+#
+
+set -euo pipefail
+
+# Configuration
+PROLOG_LOG_DIR="/var/log/slurm/prolog"
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+
+# Ensure log directory exists
+mkdir -p "$PROLOG_LOG_DIR"
+
+# Log file for this job
+JOB_LOG="$PROLOG_LOG_DIR/job-${SLURM_JOB_ID:-unknown}-${TIMESTAMP}.log"
+
+# Logging function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$JOB_LOG"
+}
+
+# Job information logging
+log "============================================"
+log "SLURM Prolog - Job Initialization"
+log "============================================"
+log "Job ID: ${SLURM_JOB_ID:-N/A}"
+log "Job Name: ${SLURM_JOB_NAME:-N/A}"
+log "User: ${SLURM_JOB_USER:-N/A} (UID: ${SLURM_JOB_UID:-N/A})"
+log "Partition: ${SLURM_JOB_PARTITION:-N/A}"
+log "Account: ${SLURM_JOB_ACCOUNT:-N/A}"
+log "Node List: ${SLURM_JOB_NODELIST:-N/A}"
+log "Timestamp: $TIMESTAMP"
+log "============================================"
+
+# Function to validate GPU availability
+validate_gpu_availability() {
+    log "Validating GPU availability..."
+
+    if command -v nvidia-smi &> /dev/null; then
+        log "NVIDIA GPUs detected:"
+        nvidia-smi --query-gpu=index,name,memory.total,driver_version \
+            --format=csv,noheader 2>&1 | tee -a "$JOB_LOG" || log "Failed to query GPUs"
+
+        # Check MIG mode
+        if nvidia-smi mig -lgi &> /dev/null; then
+            log "MIG instances available:"
+            nvidia-smi mig -lgi 2>&1 | tee -a "$JOB_LOG" || true
+        fi
+    else
+        log "No NVIDIA GPUs detected or nvidia-smi not available"
+    fi
+}
+
+# Function to validate container runtime
+validate_container_runtime() {
+    log "Validating container runtime..."
+
+    if command -v apptainer &> /dev/null; then
+        log "Apptainer available:"
+        apptainer --version 2>&1 | tee -a "$JOB_LOG"
+    elif command -v singularity &> /dev/null; then
+        log "Singularity available:"
+        singularity --version 2>&1 | tee -a "$JOB_LOG"
+    else
+        log "No container runtime available"
+    fi
+}
+
+# Function to check MPI setup
+check_mpi_setup() {
+    log "Checking MPI setup..."
+
+    # Check for OpenMPI
+    if command -v mpirun &> /dev/null; then
+        log "MPI available:"
+        mpirun --version 2>&1 | head -2 | tee -a "$JOB_LOG" || true
+    else
+        log "mpirun not available"
+    fi
+
+    # Check PMIx library
+    if [ -f "/usr/lib/x86_64-linux-gnu/libpmix.so.2" ]; then
+        log "PMIx library available"
+        ls -lh /usr/lib/x86_64-linux-gnu/libpmix.so* 2>&1 | tee -a "$JOB_LOG" || true
+    else
+        log "PMIx library not found"
+    fi
+}
+
+# Function to check network connectivity
+check_network_connectivity() {
+    log "Checking network connectivity..."
+
+    # Check network interfaces
+    log "Active network interfaces:"
+    ip addr show | grep -E "^[0-9]+:|inet " | tee -a "$JOB_LOG" || true
+
+    # Check if this is a multi-node job
+    if [ -n "${SLURM_JOB_NODELIST:-}" ] && echo "$SLURM_JOB_NODELIST" | grep -q ","; then
+        log "Multi-node job detected"
+
+        # Test inter-node connectivity (if possible)
+        local first_node
+        first_node=$(echo "$SLURM_JOB_NODELIST" | cut -d',' -f1 | sed 's/\[.*//')
+
+        if [ -n "$first_node" ] && [ "$first_node" != "$(hostname)" ]; then
+            log "Testing connectivity to $first_node..."
+            if ping -c 1 -W 2 "$first_node" &> /dev/null; then
+                log "  ✓ Connectivity OK to $first_node"
+            else
+                log "  ✗ Connectivity issue to $first_node"
+            fi
+        fi
+    else
+        log "Single-node job"
+    fi
+}
+
+# Function to validate distributed training environment
+validate_distributed_training_requirements() {
+    log "Validating distributed training requirements..."
+
+    # Check for required libraries
+    local required_libs=(
+        "libnccl.so"
+        "libcudart.so"
+        "libcublas.so"
+    )
+
+    log "Checking CUDA/NCCL libraries:"
+    for lib in "${required_libs[@]}"; do
+        if ldconfig -p | grep -q "$lib"; then
+            log "  ✓ $lib available"
+        else
+            log "  ✗ $lib not found"
+        fi
+    done
+}
+
+# Function to check disk space
+check_disk_space() {
+    log "Checking disk space..."
+
+    # Check key directories
+    local dirs=(
+        "/tmp"
+        "/var/tmp"
+        "/scratch"
+        "${HOME:-/home/$SLURM_JOB_USER}"
+    )
+
+    log "Disk space status:"
+    for dir in "${dirs[@]}"; do
+        if [ -d "$dir" ]; then
+            df -h "$dir" 2>&1 | tail -1 | tee -a "$JOB_LOG" || true
+        fi
+    done
+}
+
+# Function to check system resources
+check_system_resources() {
+    log "Checking system resources..."
+
+    # Memory
+    log "Available memory:"
+    free -h | tee -a "$JOB_LOG" || true
+
+    # CPU
+    log "CPU information:"
+    lscpu | grep -E "^CPU\(s\)|Model name|Thread|Core|Socket" | tee -a "$JOB_LOG" || true
+
+    # Load average
+    log "System load:"
+    uptime | tee -a "$JOB_LOG" || true
+}
+
+# Function to check cgroup isolation
+check_cgroup_isolation() {
+    log "Checking cgroup isolation..."
+
+    # Check if job is in a cgroup
+    if [ -n "${SLURM_JOB_ID:-}" ]; then
+        local cgroup_path="/sys/fs/cgroup/system.slice/slurmstepd.scope/job_${SLURM_JOB_ID}"
+
+        if [ -d "$cgroup_path" ]; then
+            log "Job cgroup found: $cgroup_path"
+        else
+            # Try alternative paths
+            find /sys/fs/cgroup -name "*${SLURM_JOB_ID}*" 2>/dev/null | head -5 | tee -a "$JOB_LOG" || log "No cgroup found"
+        fi
+    fi
+}
+
+# Function to prepare job environment
+prepare_job_environment() {
+    log "Preparing job environment..."
+
+    # Ensure scratch directory exists if configured
+    if [ -n "${SLURM_JOB_USER:-}" ]; then
+        local scratch_dir="/scratch/${SLURM_JOB_USER}"
+        if [ ! -d "$scratch_dir" ]; then
+            log "Creating scratch directory: $scratch_dir"
+            mkdir -p "$scratch_dir" 2>&1 | tee -a "$JOB_LOG" || log "Failed to create scratch directory"
+            chown "${SLURM_JOB_UID:-0}:${SLURM_JOB_GID:-0}" "$scratch_dir" 2>&1 | tee -a "$JOB_LOG" || true
+        fi
+    fi
+}
+
+# Main execution
+main() {
+    # Execute all checks
+    validate_gpu_availability
+    validate_container_runtime
+    check_mpi_setup
+    check_network_connectivity
+    validate_distributed_training_requirements
+    check_disk_space
+    check_system_resources
+    check_cgroup_isolation
+    prepare_job_environment
+
+    log "============================================"
+    log "Prolog completed for job ${SLURM_JOB_ID:-unknown}"
+    log "Log file: $JOB_LOG"
+    log "Job ready to start"
+    log "============================================"
+}
+
+# Execute main function
+main
+
+# Always exit 0 to allow job to start
+exit 0

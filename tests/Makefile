@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -30,6 +30,12 @@ help:
 	@echo "  test-cgroup-isolation-tests   - Run cgroup isolation tests only"
 	@echo "  test-cgroup-isolation-stop    - Stop cgroup isolation test cluster"
 	@echo "  test-cgroup-isolation-status  - Show cgroup isolation test cluster status"
+	@echo "  test-job-scripts       - Run SLURM job scripts tests (full workflow)"
+	@echo "  test-job-scripts-start - Start job scripts test cluster"
+	@echo "  test-job-scripts-deploy - Deploy job scripts Ansible configuration"
+	@echo "  test-job-scripts-tests - Run job scripts tests only"
+	@echo "  test-job-scripts-stop  - Stop job scripts test cluster"
+	@echo "  test-job-scripts-status - Show job scripts test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -192,6 +198,36 @@ test-cgroup-isolation-stop:
 test-cgroup-isolation-status:
 	@echo "Checking cgroup isolation test cluster status..."
 	@./test-cgroup-isolation-framework.sh status
+
+# Run SLURM job scripts tests (Task 025) - full workflow
+test-job-scripts:
+	@echo "Running SLURM job scripts tests (full workflow)..."
+	@./test-job-scripts-framework.sh
+
+# Start job scripts test cluster
+test-job-scripts-start:
+	@echo "Starting job scripts test cluster..."
+	@./test-job-scripts-framework.sh start-cluster
+
+# Deploy job scripts Ansible configuration
+test-job-scripts-deploy:
+	@echo "Deploying job scripts Ansible configuration..."
+	@./test-job-scripts-framework.sh deploy-ansible
+
+# Run job scripts tests only (assumes cluster deployed)
+test-job-scripts-tests:
+	@echo "Running job scripts tests..."
+	@./test-job-scripts-framework.sh run-tests
+
+# Stop job scripts test cluster
+test-job-scripts-stop:
+	@echo "Stopping job scripts test cluster..."
+	@./test-job-scripts-framework.sh stop-cluster
+
+# Show job scripts test cluster status
+test-job-scripts-status:
+	@echo "Checking job scripts test cluster status..."
+	@./test-job-scripts-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:

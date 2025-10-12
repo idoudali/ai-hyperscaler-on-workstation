@@ -33,6 +33,13 @@
     - slurm-cgroup
     - cgroup
 
+- name: Include SLURM job scripts configuration
+  include_tasks: job-scripts.yml
+  tags:
+    - slurm-compute
+    - slurm-job-scripts
+    - job-scripts
+
 - name: Display SLURM compute node setup complete
   debug:
     msg: |

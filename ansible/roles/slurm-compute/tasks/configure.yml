@@ -61,7 +61,7 @@
   become: true
   register: slurm_config_deployed
   notify:
-    - restart slurmd service
+    - restart slurmd
 
 - name: Create container images directory
   file:
@@ -94,7 +94,7 @@
   become: true
   when: slurm_cgroup_enabled | default(true)
   notify:
-    - restart slurmd service
+    - restart slurmd
 
 - name: Enable slurmd service
   systemd:

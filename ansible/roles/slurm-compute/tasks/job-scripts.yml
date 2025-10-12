@@ -1,0 +1,174 @@
+---
+# SLURM Job Scripts Configuration
+# Task 025: Epilog/Prolog Scripts for Failure Detection
+# Deploy and configure SLURM job scripts for failure detection and debugging
+
+- name: Create SLURM job scripts directory
+  file:
+    path: /usr/local/slurm/scripts
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Deploy epilog script template
+  template:
+    src: epilog.sh.j2
+    dest: /usr/local/slurm/scripts/epilog.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Deploy prolog script template
+  template:
+    src: prolog.sh.j2
+    dest: /usr/local/slurm/scripts/prolog.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Create SLURM job debug tools directory
+  file:
+    path: /usr/local/slurm/tools
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Deploy failure diagnosis tool
+  copy:
+    src: diagnose_training_failure.py
+    dest: /usr/local/slurm/tools/diagnose_training_failure.py
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Create job debug logs directory
+  file:
+    path: /var/log/slurm/job-debug
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Create job epilog logs directory
+  file:
+    path: /var/log/slurm/epilog
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+- name: Create job prolog logs directory
+  file:
+    path: /var/log/slurm/prolog
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: '0755'
+  tags:
+    - slurm-job-scripts
+    - job-scripts-install
+
+# Runtime-only tasks (only execute when not in Packer build mode)
+- name: Configure SLURM to use epilog script
+  lineinfile:
+    path: /etc/slurm/slurm.conf
+    regexp: '^Epilog='
+    line: 'Epilog=/usr/local/slurm/scripts/epilog.sh'
+    state: present
+  when: not (packer_build | default(false) | bool)
+  notify: restart slurmd
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime
+
+- name: Configure SLURM to use prolog script
+  lineinfile:
+    path: /etc/slurm/slurm.conf
+    regexp: '^Prolog='
+    line: 'Prolog=/usr/local/slurm/scripts/prolog.sh'
+    state: present
+  when: not (packer_build | default(false) | bool)
+  notify: restart slurmd
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime
+
+- name: Ensure SLURM configuration is valid
+  command: slurmd -C
+  register: slurmd_config_check
+  changed_when: false
+  failed_when: false
+  when: not (packer_build | default(false) | bool)
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime
+
+- name: Display SLURM configuration check result
+  debug:
+    msg: |
+      SLURM Configuration Check:
+      {{ slurmd_config_check.stdout }}
+  when:
+    - not (packer_build | default(false) | bool)
+    - slurmd_config_check is defined
+    - slurmd_config_check.rc == 0
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime
+
+- name: Verify epilog script is configured
+  shell: |
+    grep -E '^Epilog=' /etc/slurm/slurm.conf || echo "Not configured"
+  register: epilog_config
+  changed_when: false
+  when: not (packer_build | default(false) | bool)
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime
+
+- name: Verify prolog script is configured
+  shell: |
+    grep -E '^Prolog=' /etc/slurm/slurm.conf || echo "Not configured"
+  register: prolog_config
+  changed_when: false
+  when: not (packer_build | default(false) | bool)
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime
+
+- name: Display job scripts configuration status
+  debug:
+    msg: |
+      Job Scripts Configuration:
+      - Epilog: {{ epilog_config.stdout | default('Not checked (packer_build mode)') }}
+      - Prolog: {{ prolog_config.stdout | default('Not checked (packer_build mode)') }}
+      - Debug logs: /var/log/slurm/job-debug
+      - Epilog logs: /var/log/slurm/epilog
+      - Prolog logs: /var/log/slurm/prolog
+  when: not (packer_build | default(false) | bool)
+  tags:
+    - slurm-job-scripts
+    - job-scripts-runtime

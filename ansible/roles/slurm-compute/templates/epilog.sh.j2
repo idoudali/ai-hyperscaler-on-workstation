@@ -1,0 +1,230 @@
+#!/bin/bash
+#
+# SLURM Epilog Script - Job Completion Analysis
+# Task 025: Failure Detection Scripts
+# Executes after each SLURM job completes on compute nodes
+#
+# Environment variables provided by SLURM:
+#   SLURM_JOB_ID: Job ID
+#   SLURM_JOB_NAME: Job name
+#   SLURM_JOB_USER: User who submitted the job
+#   SLURM_JOB_UID: User ID
+#   SLURM_JOB_GID: Group ID
+#   SLURM_JOB_NODELIST: List of nodes allocated to the job
+#   SLURM_JOB_EXIT_CODE: Exit code of the job
+#   SLURM_JOB_EXIT_CODE2: Exit code of the job (alternative)
+#
+
+set -euo pipefail
+
+# Configuration
+EPILOG_LOG_DIR="/var/log/slurm/epilog"
+DEBUG_LOG_DIR="/var/log/slurm/job-debug"
+DIAGNOSIS_TOOL="/usr/local/slurm/tools/diagnose_training_failure.py"
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+
+# Ensure log directories exist
+mkdir -p "$EPILOG_LOG_DIR" "$DEBUG_LOG_DIR"
+
+# Log file for this job
+JOB_LOG="$EPILOG_LOG_DIR/job-${SLURM_JOB_ID:-unknown}-${TIMESTAMP}.log"
+DEBUG_JSON="$DEBUG_LOG_DIR/job-${SLURM_JOB_ID:-unknown}-${TIMESTAMP}.json"
+
+# Logging function
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$JOB_LOG"
+}
+
+# Job information logging
+log "============================================"
+log "SLURM Epilog - Job Completion Analysis"
+log "============================================"
+log "Job ID: ${SLURM_JOB_ID:-N/A}"
+log "Job Name: ${SLURM_JOB_NAME:-N/A}"
+log "User: ${SLURM_JOB_USER:-N/A} (UID: ${SLURM_JOB_UID:-N/A})"
+log "Node List: ${SLURM_JOB_NODELIST:-N/A}"
+log "Exit Code: ${SLURM_JOB_EXIT_CODE:-N/A}"
+log "Timestamp: $TIMESTAMP"
+log "============================================"
+
+# Function to check GPU utilization
+check_gpu_utilization() {
+    log "Checking GPU utilization..."
+
+    if command -v nvidia-smi &> /dev/null; then
+        log "GPU Status:"
+        nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,temperature.gpu,power.draw \
+            --format=csv,noheader,nounits 2>&1 | tee -a "$JOB_LOG" || true
+    else
+        log "nvidia-smi not available - GPU monitoring skipped"
+    fi
+}
+
+# Function to check for MIG GPU instances
+check_mig_instances() {
+    log "Checking MIG GPU instances..."
+
+    if command -v nvidia-smi &> /dev/null; then
+        log "MIG Instances:"
+        nvidia-smi mig -lgi 2>&1 | tee -a "$JOB_LOG" || log "MIG not enabled or available"
+    fi
+}
+
+# Function to validate container execution
+validate_container_execution() {
+    log "Validating container execution..."
+
+    # Check for Apptainer/Singularity processes
+    if pgrep -f "apptainer\|singularity" > /dev/null 2>&1; then
+        log "Container processes found:"
+        pgrep -fa "apptainer\|singularity" | tee -a "$JOB_LOG" || true
+    else
+        log "No container processes detected"
+    fi
+
+    # Check container runtime availability
+    if command -v apptainer &> /dev/null; then
+        apptainer --version | tee -a "$JOB_LOG"
+    elif command -v singularity &> /dev/null; then
+        singularity --version | tee -a "$JOB_LOG"
+    else
+        log "No container runtime available"
+    fi
+}
+
+# Function to check MPI communication
+check_mpi_communication() {
+    log "Checking MPI communication status..."
+
+    # Check for MPI processes
+    if pgrep -f "mpirun\|mpiexec\|orterun" > /dev/null 2>&1; then
+        log "MPI processes found:"
+        pgrep -fa "mpirun\|mpiexec\|orterun" | tee -a "$JOB_LOG" || true
+    else
+        log "No MPI processes detected"
+    fi
+
+    # Check PMIx library availability
+    if [ -f "/usr/lib/x86_64-linux-gnu/libpmix.so.2" ]; then
+        log "PMIx library available"
+    else
+        log "PMIx library not found"
+    fi
+}
+
+# Function to validate distributed training environment
+validate_distributed_training_env() {
+    log "Validating distributed training environment..."
+
+    # Check for PyTorch/NCCL environment variables
+    local env_vars=(
+        "MASTER_ADDR"
+        "MASTER_PORT"
+        "WORLD_SIZE"
+        "RANK"
+        "LOCAL_RANK"
+        "NCCL_DEBUG"
+        "NCCL_SOCKET_IFNAME"
+    )
+
+    log "Distributed training environment variables:"
+    for var in "${env_vars[@]}"; do
+        if [ -n "${!var:-}" ]; then
+            log "  $var=${!var}"
+        else
+            log "  $var=<not set>"
+        fi
+    done
+}
+
+# Function to detect failure patterns
+detect_failure_patterns() {
+    local exit_code="${SLURM_JOB_EXIT_CODE:-0}"
+
+    log "Detecting failure patterns..."
+    log "Job exit code: $exit_code"
+
+    if [ "$exit_code" != "0" ]; then
+        log "Job failed with exit code: $exit_code"
+
+        # Run Python failure diagnosis tool
+        if [ -x "$DIAGNOSIS_TOOL" ]; then
+            log "Running failure diagnosis tool..."
+            python3 "$DIAGNOSIS_TOOL" \
+                --job-id "${SLURM_JOB_ID:-unknown}" \
+                --exit-code "$exit_code" \
+                --output "$DEBUG_JSON" \
+                2>&1 | tee -a "$JOB_LOG" || log "Diagnosis tool failed"
+        else
+            log "Diagnosis tool not available: $DIAGNOSIS_TOOL"
+        fi
+
+        # Common failure patterns
+        log "Common failure indicators:"
+
+        # Check for OOM killer
+        if dmesg | tail -100 | grep -i "out of memory\|oom" > /dev/null 2>&1; then
+            log "  - OUT OF MEMORY detected in dmesg"
+        fi
+
+        # Check for GPU errors
+        if command -v nvidia-smi &> /dev/null; then
+            if nvidia-smi --query-gpu=pci.bus_id --format=csv,noheader | \
+                xargs -I {} dmesg | grep -i "gpu\|nvidia" | tail -20 > /dev/null 2>&1; then
+                log "  - GPU-related messages in dmesg"
+            fi
+        fi
+
+        # Check for network issues
+        if dmesg | tail -100 | grep -i "network\|connection\|timeout" > /dev/null 2>&1; then
+            log "  - Network-related messages in dmesg"
+        fi
+    else
+        log "Job completed successfully (exit code: 0)"
+    fi
+}
+
+# Function to collect system state
+collect_system_state() {
+    log "Collecting system state..."
+
+    # Memory usage
+    log "Memory usage:"
+    free -h | tee -a "$JOB_LOG" || true
+
+    # CPU load
+    log "CPU load:"
+    uptime | tee -a "$JOB_LOG" || true
+
+    # Disk usage
+    log "Disk usage:"
+    df -h / /tmp /var 2>&1 | tee -a "$JOB_LOG" || true
+
+    # Process count
+    log "Process count:"
+    ps aux | wc -l | tee -a "$JOB_LOG" || true
+}
+
+# Main execution
+main() {
+    # Execute all checks
+    check_gpu_utilization
+    check_mig_instances
+    validate_container_execution
+    check_mpi_communication
+    validate_distributed_training_env
+    detect_failure_patterns
+    collect_system_state
+
+    log "============================================"
+    log "Epilog completed for job ${SLURM_JOB_ID:-unknown}"
+    log "Log file: $JOB_LOG"
+    [ -f "$DEBUG_JSON" ] && log "Debug JSON: $DEBUG_JSON"
+    log "============================================"
+}
+
+# Execute main function
+main
+
+# Always exit 0 to not interfere with job status
+exit 0
