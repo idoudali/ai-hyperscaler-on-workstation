@@ -143,6 +143,7 @@ When creating new test frameworks (e.g., `test-container-registry-framework.sh` 
 - ✅ `test-slurm-accounting-framework.sh` (Task 019) - CLI pattern implemented
 - ✅ `test-container-runtime-framework.sh` (Task 008/009) - CLI pattern implemented
 - ✅ `test-pcie-passthrough-framework.sh` (GPU Passthrough) - CLI pattern implemented
+- ✅ `test-container-integration-framework.sh` (Task 026) - CLI pattern implemented
 
 ## Test Execution Order
 
@@ -254,7 +255,15 @@ These tests validate complete system integration:
    ./test-container-registry-framework.sh e2e
    ```
 
-2. **DCGM Monitoring Test** - Validate GPU monitoring (Task 018)
+2. **Container Integration Test** - Validate containerized ML/AI workloads (Task 026)
+
+   ```bash
+   ./test-container-integration-framework.sh e2e
+   ```
+
+   **Note**: Requires pre-built container images (see Build Dependencies in section 11)
+
+3. **DCGM Monitoring Test** - Validate GPU monitoring (Task 018)
 
    ```bash
    ./test-dcgm-monitoring-framework.sh e2e
@@ -288,6 +297,7 @@ make test-ansible-roles
 
 # Phase 4: Advanced Integration
 ./test-container-registry-framework.sh e2e
+./test-container-integration-framework.sh e2e    # Requires pre-built containers
 ./test-dcgm-monitoring-framework.sh e2e
 ```
 
@@ -394,8 +404,8 @@ make test                             # Core integration
 #### Complete Pre-Release Validation
 
 ```bash
-# Run all tests in proper order (allow 2-4 hours)
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation/tests
+# Run all tests in proper order (allow 2.5-5 hours + container build time)
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2/tests
 
 # Foundation
 make test-precommit && \
@@ -414,8 +424,16 @@ make test-ansible-roles && \
 ./test-container-runtime-framework.sh e2e && \
 ./test-pcie-passthrough-framework.sh e2e && \
 
+# Build container images (required for container integration tests)
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
+make config && \
+make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1" && \
+make run-docker COMMAND="cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1" && \
+
 # Advanced Integration
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2/tests
 ./test-container-registry-framework.sh e2e && \
+./test-container-integration-framework.sh e2e && \
 ./test-dcgm-monitoring-framework.sh e2e
 
 echo "All tests completed successfully!"
@@ -460,10 +478,14 @@ make test-container-comprehensive
 | Foundation | ~30-90 minutes | Base images, integration, Ansible |
 | Core Infrastructure | ~40-80 minutes | SLURM, accounting, monitoring, Grafana |
 | Compute Nodes | ~20-40 minutes | Container runtime, PCIe |
-| Advanced Integration | ~20-40 minutes | Registry, DCGM |
-| **Total** | **~2-4 hours** | Complete suite |
+| Advanced Integration | ~45-70 minutes | Registry, container integration, DCGM |
+| **Total** | **~2.5-5 hours** | Complete suite |
 
-**Note**: Times vary based on system performance and whether base images need rebuilding.
+**Notes**:
+
+- Times vary based on system performance and whether base images need rebuilding
+- Container integration tests require pre-built container images (add ~30-60 minutes for initial build)
+- Advanced Integration phase includes container registry deployment and container image distribution
 
 ## Test script list
 
@@ -810,7 +832,87 @@ GPU resource scheduling validation for HPC compute nodes (Task 023):
 ./test-gpu-gres-framework.sh run-test check-gres-configuration.sh
 ```
 
-### 11. Integration Test (`test_integration.sh`)
+### 11. Container Integration Test (`test-container-integration-framework.sh`)
+
+Container integration validation for PyTorch CUDA, MPI, and GPU access (Task 026):
+
+- **Purpose**: Validates containerized ML/AI workload execution within HPC SLURM environment
+- **Components**: PyTorch + CUDA, MPI communication, distributed training, SLURM integration
+- **Duration**: 15-30 minutes (includes cluster deployment and comprehensive validation)
+- **Prerequisites**: AI-HOW tool, dev container, HPC compute image, **built container images**
+
+**Build Dependencies (MUST be completed before running tests):**
+
+These containers must be built and deployed before running container integration tests:
+
+```bash
+# Step 1: Build Docker image (Task 019)
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
+make config
+make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1"
+
+# Step 2: Convert to Apptainer SIF format (Task 020)
+make run-docker COMMAND="cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1"
+
+# Step 3: Verify built images
+docker images | grep pytorch-cuda12.1-mpi4.1
+ls -lh build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
+
+# Step 4: Deploy to cluster (Task 021)
+cd tests
+make test-container-registry-deploy
+
+# Step 5: Verify deployment
+ssh hpc-controller "ls -lh /opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif"
+```
+
+**Required Infrastructure (must be deployed):**
+
+- ✅ **TASK-021**: Container Registry Infrastructure
+- ✅ **TASK-022**: SLURM Compute Node Installation
+- ✅ **TASK-023**: GPU Resources (GRES) Configuration
+- ✅ **TASK-024**: Cgroup Resource Isolation
+
+**Validation Coverage:**
+
+- **Container Functionality**: Basic execution, Python environment, PyTorch import, file system access
+- **PyTorch CUDA Integration**: CUDA availability, GPU device detection, tensor operations, memory allocation
+- **MPI Communication**: MPI runtime, multi-process execution, point-to-point, collective operations
+- **Distributed Training**: Process groups, DistributedDataParallel, NCCL backend, multi-node coordination
+- **SLURM Integration**: Container execution via srun/sbatch, GPU GRES, resource isolation, multi-node jobs
+
+```bash
+# Run container integration tests
+./test-container-integration-framework.sh
+
+# Options and modular commands
+./test-container-integration-framework.sh --help
+./test-container-integration-framework.sh e2e                 # Complete test with cleanup
+./test-container-integration-framework.sh start-cluster       # Start cluster independently
+./test-container-integration-framework.sh deploy-ansible      # Deploy validation configuration
+./test-container-integration-framework.sh run-tests           # Run tests on existing cluster
+./test-container-integration-framework.sh list-tests          # List available tests
+./test-container-integration-framework.sh run-test check-pytorch-cuda-integration.sh
+
+# Makefile convenience targets
+cd tests
+make test-container-integration                               # Full workflow
+make test-container-integration-start                         # Start cluster
+make test-container-integration-deploy                        # Deploy configuration
+make test-container-integration-tests                         # Run tests
+make test-container-integration-stop                          # Stop cluster
+make test-container-integration-status                        # Show status
+```
+
+**Important Notes:**
+
+- GPU tests will skip gracefully if GPU hardware is not available (expected in test environments)
+- Container images MUST be built before running tests (see Build Dependencies above)
+- SLURM compute nodes must be deployed and registered
+- Container registry must be deployed with images distributed to all compute nodes
+- See `docs/CONTAINER-INTEGRATION-TESTING.md` for comprehensive documentation
+
+### 12. Integration Test (`test_integration.sh`)
 
 End-to-end integration validation:
 
@@ -1006,10 +1108,16 @@ run_test "New functionality" test_new_functionality
 
 These tests directly support the HPC SLURM task list validation:
 
-- **Container Runtime**: `test_container_runtime.sh` and `make test-container-comprehensive`
+- **Base Images (Task 001)**: `test_base_images.sh`
+- **Container Runtime (Task 008/009)**: `test_container_runtime.sh` and `make test-container-comprehensive`
+- **SLURM Controller (Task 010)**: `test-slurm-controller-framework.sh`
 - **Monitoring Stack (Task 015)**: `test-monitoring-stack-framework.sh` and `make test-monitoring-stack`
+- **Grafana (Task 017)**: `test-grafana-framework.sh`
+- **SLURM Accounting (Task 019)**: `test-slurm-accounting-framework.sh`
+- **Container Registry (Task 021)**: `test-container-registry-framework.sh`
+- **SLURM Compute (Task 022)**: `test-slurm-compute-framework.sh`
 - **GPU GRES (Task 023)**: `test-gpu-gres-framework.sh` and `make test-gpu-gres`
-- **Base Images**: `test_base_images.sh`
+- **Container Integration (Task 026)**: `test-container-integration-framework.sh` and `make test-container-integration`
 - **General Infrastructure**: `test_integration.sh` and `test_ansible_roles.sh`
 - **AI-HOW CLI**: `test_ai_how_cli.sh`, `test_config_validation.sh`, `test_pcie_validation.sh`
 
@@ -1065,6 +1173,47 @@ The `make test-gpu-gres` target runs comprehensive validation for GPU GRES (Gene
 **Documentation:**
 
 See `docs/GPU-GRES-WORKFLOW.md` for detailed workflow documentation and
+`docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
+
+### Container Integration Comprehensive Testing
+
+The `make test-container-integration` target runs comprehensive validation for containerized ML/AI workload execution
+(Task 026):
+
+1. **Container Functionality**: Tests basic container execution, Python environment, PyTorch import, and file system access
+2. **PyTorch CUDA Integration**: Validates CUDA availability, GPU device detection, tensor operations, and memory allocation
+3. **MPI Communication**: Tests MPI runtime, multi-process execution, point-to-point communication, and collective operations
+4. **Distributed Training**: Validates process groups, DistributedDataParallel, NCCL backend, and multi-node coordination
+5. **SLURM Integration**: Tests container execution via srun/sbatch, GPU GRES allocation, resource
+isolation, and multi-node jobs
+6. **End-to-End Deployment**: Tests complete cluster deployment with container integration via Ansible provisioning
+
+**Test Coverage:**
+
+- Container image accessibility and runtime availability (40+ individual validation checks)
+- PyTorch framework with CUDA integration (GPU tests skip gracefully without hardware)
+- MPI library functionality and multi-process communication
+- Distributed training environment setup (process groups, data parallelism)
+- SLURM scheduling with containers and GPU resources
+
+**Build Dependencies:**
+
+Container integration tests require pre-built container images:
+
+```bash
+# 1. Build Docker image (Task 019)
+make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1"
+
+# 2. Convert to Apptainer SIF (Task 020)
+make run-docker COMMAND="cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1"
+
+# 3. Deploy to cluster (Task 021)
+cd tests && make test-container-registry-deploy
+```
+
+**Documentation:**
+
+See `docs/CONTAINER-INTEGRATION-TESTING.md` for comprehensive testing guide and
 `docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
 
 ## Troubleshooting

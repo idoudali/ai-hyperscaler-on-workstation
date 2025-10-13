@@ -1,0 +1,251 @@
+---
+# Test configuration for container integration validation
+# Task 026: Create Container Validation Tests
+# Validates PyTorch CUDA, MPI functionality, and GPU access within containers
+
+version: "1.0"
+metadata:
+  name: "container-integration-test"
+  description: "Comprehensive container integration validation with SLURM, GPU, and distributed training"
+
+global: {}
+
+# HPC Cluster configuration for container integration testing
+clusters:
+  hpc:
+    name: "test-container-integration"
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+
+    # Network configuration (isolated test subnet)
+    network:
+      subnet: "192.168.220.0/24"
+      bridge: "virbr220"
+
+    # Hardware acceleration configuration
+    hardware:
+      acceleration:
+        enable_kvm: true
+        enable_nested: false
+        cpu_model: "host-passthrough"
+        cpu_features:
+          - "+vmx"
+          - "+svm"
+          - "+sse4.1"
+          - "+sse4.2"
+          - "+avx"
+          - "+avx2"
+        numa_topology: null
+        cpu_topology:
+          sockets: 1
+          cores: 4
+          threads: 1
+        performance:
+          enable_hugepages: false
+          hugepage_size: "2M"
+          cpu_pinning: false
+          memory_backing: "default"
+
+    # Controller node - hosts SLURM controller and container registry
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 60  # Extra space for container images
+      base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+      ip_address: "192.168.220.10"
+
+    # Compute nodes - execute containerized workloads with GPU access
+    compute_nodes:
+      - name: "compute-01"
+        cpu_cores: 6
+        memory_gb: 12
+        disk_gb: 200
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        ip: "192.168.220.21"
+        # GPU passthrough configuration for container testing
+        gpu:
+          enabled: true
+          devices:
+            - type: "nvidia-mig"
+              id: "0"
+              mig_profile: "1g.5gb"
+
+      - name: "compute-02"
+        cpu_cores: 6
+        memory_gb: 12
+        disk_gb: 200
+        base_image_path: "build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2"
+        ip: "192.168.220.22"
+        # GPU passthrough configuration for container testing
+        gpu:
+          enabled: true
+          devices:
+            - type: "nvidia-mig"
+              id: "1"
+              mig_profile: "1g.5gb"
+
+    # SLURM configuration for container execution with GPU resources
+    slurm_config:
+      partitions: ["gpu", "compute"]
+      default_partition: "gpu"
+      max_job_time: "2:00:00"
+
+    # GPU GRES configuration
+    gres_config:
+      enabled: true
+      gpu_types:
+        - name: "mig"
+          count_per_node: 1
+          file: "/dev/nvidia0"
+
+    # Container registry specific configuration
+    container_registry:
+      enabled: true
+      base_path: "/opt/containers"
+      sync_method: "rsync"
+      subdirectories:
+        - "ml-frameworks"
+        - "custom-images"
+        - "base-images"
+
+  # Empty cloud cluster (required by schema but not used in this test)
+  cloud:
+    name: "test-cloud-empty"
+    base_image_path: "build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2"
+    network:
+      subnet: "192.168.221.0/24"
+      bridge: "virbr221"
+    control_plane:
+      cpu_cores: 2
+      memory_gb: 4
+      disk_gb: 30
+      ip_address: "192.168.221.10"
+    worker_nodes:
+      cpu: []
+      gpu: []
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+
+# Test-specific configuration
+test:
+  # Target pattern for container integration testing
+  target_pattern: "container-integration"
+
+  # Test suite configuration
+  test_suite: "container-integration"
+  test_timeout: 1800  # 30 minutes for comprehensive integration tests
+
+  # Test categories to run
+  test_categories:
+    - "container-functionality"      # Basic container execution and environment
+    - "pytorch-cuda"                 # PyTorch with CUDA integration
+    - "mpi-communication"            # MPI multi-process communication
+    - "distributed-training"         # Distributed training environment setup
+    - "slurm-integration"           # SLURM + container + GPU integration
+
+  # Test environment variables
+  environment:
+    SLURM_VERSION: "23.11.4"
+    PYTORCH_VERSION: "2.1.0"
+    CUDA_VERSION: "12.1"
+    MPI_VERSION: "4.1"
+    TEST_CONTAINER_INTEGRATION: "true"
+    TEST_GPU_ACCESS: "true"
+    TEST_MPI_COMMUNICATION: "true"
+    TEST_DISTRIBUTED_TRAINING: "true"
+    CONTAINER_REGISTRY_PATH: "/opt/containers/ml-frameworks"
+    TEST_CONTAINER_IMAGE: "pytorch-cuda12.1-mpi4.1.sif"
+
+# Container test configuration
+containers:
+  test_images:
+    - name: "pytorch-cuda12.1-mpi4.1"
+      path: "/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif"
+      type: "apptainer"
+      required: true
+      capabilities:
+        - "pytorch"
+        - "cuda"
+        - "mpi"
+        - "distributed"
+
+# Build configuration
+build:
+  enabled: false  # Tests assume pre-built images and deployed containers
+  requires:
+    - "hpc-controller image"
+    - "hpc-compute image"
+    - "pytorch-cuda12.1-mpi4.1 container (Docker + Apptainer)"
+
+# Dependencies (must be deployed before running tests)
+dependencies:
+  required_tasks:
+    - "TASK-019: PyTorch Container with CUDA 12.1 + MPI 4.1"
+    - "TASK-020: Docker to Apptainer Conversion"
+    - "TASK-021: Container Registry Infrastructure"
+    - "TASK-022: SLURM Compute Node Installation"
+    - "TASK-023: GPU Resources (GRES) Configuration"
+    - "TASK-024: Cgroup Resource Isolation"
+
+  required_infrastructure:
+    - "SLURM controller operational"
+    - "SLURM compute nodes registered"
+    - "GPU GRES configured and visible"
+    - "Cgroup isolation active"
+    - "Container registry deployed"
+    - "Container images distributed to compute nodes"
+    - "Apptainer runtime available on compute nodes"
+
+# Performance and timeout settings
+timeouts:
+  vm_start: 300           # 5 minutes to start VMs
+  ssh_ready: 120          # 2 minutes for SSH to be ready
+  ansible_deploy: 900     # 15 minutes for Ansible deployment
+  container_pull: 300     # 5 minutes to sync container images
+  test_execution: 1800    # 30 minutes for comprehensive test execution
+  pytorch_init: 120       # 2 minutes for PyTorch initialization
+  mpi_startup: 60         # 1 minute for MPI processes to start
+  distributed_training: 300  # 5 minutes for distributed training tests
+
+# Logging configuration
+logging:
+  level: "INFO"
+  capture_vm_logs: true
+  save_test_artifacts: true
+  save_container_logs: true
+  save_slurm_logs: true
+  capture_gpu_metrics: true
+
+# Validation criteria
+validation:
+  container_execution:
+    - "Container starts successfully"
+    - "Python environment accessible"
+    - "PyTorch library importable"
+    - "File system permissions correct"
+
+  pytorch_cuda:
+    - "PyTorch version matches expected"
+    - "CUDA available in PyTorch"
+    - "GPU devices detected"
+    - "Tensor operations on GPU functional"
+
+  mpi_communication:
+    - "MPI library functional"
+    - "Multi-process communication works"
+    - "PMIx integration active"
+    - "Message passing between ranks successful"
+
+  distributed_training:
+    - "Environment variables set correctly"
+    - "NCCL backend available"
+    - "Multi-node coordination functional"
+    - "Process group initialization successful"
+
+  slurm_integration:
+    - "SLURM job submission successful"
+    - "GPU allocation via GRES works"
+    - "Container execution within SLURM job"
+    - "Resource isolation enforced"
+    - "No permission errors"

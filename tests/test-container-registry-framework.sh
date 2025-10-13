@@ -171,9 +171,9 @@ export TEST_NAME="container-registry"
 # shellcheck source=./test-infra/utils/test-framework-utils.sh
 source "$UTILS_DIR/test-framework-utils.sh"
 
-# Test configuration
-TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-container-registry.yaml"
-TARGET_VM_PATTERN="test-container-registry"
+# Test configuration (can be overridden via environment variable)
+TEST_CONFIG="${TEST_CONFIG:-$PROJECT_ROOT/tests/test-infra/configs/test-container-registry.yaml}"
+TARGET_VM_PATTERN="${TARGET_VM_PATTERN:-test-container-registry}"
 
 # Test suite paths
 SUITE_1_RUNNER="$TESTS_DIR/suites/container-registry/run-ansible-infrastructure-tests.sh"
@@ -533,7 +533,14 @@ deploy_ansible() {
 
 # Deploy container images to cluster
 deploy_images() {
-    log "Deploying container images to cluster..."
+    log "=========================================="
+    log "Container Image Deployment"
+    log "=========================================="
+    log "This will:"
+    log "  1. Configure CMake build system"
+    log "  2. Build all Docker container images"
+    log "  3. Convert images to Apptainer SIF format"
+    log "  4. Deploy images to cluster via SSH/rsync"
     log ""
 
     # Check if cluster is running
@@ -689,34 +696,55 @@ deploy_images() {
     log "Deploying SIF images to cluster registry..."
     log "Target: $controller_target:$REGISTRY_PATH"
 
-    # Use the deploy-all.sh script with proper parameters
-    local deploy_script="$PROJECT_ROOT/containers/scripts/deploy-all.sh"
-    if [[ ! -x "$deploy_script" ]]; then
-        log_error "Deployment script not found or not executable: $deploy_script"
+    # Check if SSH key exists before attempting deployment
+    if [[ ! -f "$SSH_KEY_PATH" ]]; then
+        log_error "SSH key not found: $SSH_KEY_PATH"
+        log "This usually means the cluster has not been started with ai-how"
+        log "Please ensure:"
+        log "  1. Cluster is running: $0 start-cluster"
+        log "  2. SSH keys were generated during cluster creation"
         cd "$original_dir" || true
         return 1
     fi
 
-    # For now, we'll use manual deployment since deploy-all.sh expects a config file
-    # and we have controller_target in user@host format
+    # Verify SSH key permissions
+    local key_perms
+    key_perms=$(stat -c "%a" "$SSH_KEY_PATH" 2>/dev/null || stat -f "%OLp" "$SSH_KEY_PATH" 2>/dev/null)
+    if [[ "$key_perms" != "600" ]] && [[ "$key_perms" != "400" ]]; then
+        log_warning "SSH key permissions are $key_perms (should be 600)"
+        chmod 600 "$SSH_KEY_PATH" 2>/dev/null || true
+    fi
+
+    # Check if SIF files exist before attempting deployment
+    local sif_files
+    sif_files=$(find "$sif_dir" -name "*.sif" -type f 2>/dev/null | wc -l)
+    if [[ $sif_files -eq 0 ]]; then
+        log_error "No SIF files found in $sif_dir"
+        log "Please ensure container images are built and converted first"
+        cd "$original_dir" || true
+        return 1
+    fi
+    log "Found $sif_files SIF file(s) to deploy"
+
+    # Deploy using rsync with proper SSH options
     # Note: Using -rltvz instead of -a to avoid permission/ownership issues with non-root users
     # -r: recursive, -l: copy symlinks as symlinks, -t: preserve timestamps, -v: verbose, -z: compress
-    local deploy_cmd="rsync -rltvz --progress -e 'ssh -i $SSH_KEY_PATH -o StrictHostKeyChecking=no' $sif_dir/*.sif $controller_target:$REGISTRY_PATH/"
-    log_verbose "Running: $deploy_cmd"
+    log "Deploying to: $controller_target:$REGISTRY_PATH/"
 
-    if ! eval "$deploy_cmd" 2>&1; then
+    if ! rsync -rltvz --progress \
+        -e "ssh -i $SSH_KEY_PATH -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+        "$sif_dir"/*.sif "$controller_target:$REGISTRY_PATH/"; then
         local exit_code=$?
         log_error "Failed to deploy images to cluster (exit code: $exit_code)"
-        log_error "Failed command: $deploy_cmd"
+        log ""
         log "This may be due to:"
-        log "  - SSH connectivity issues"
+        log "  - SSH connectivity issues (check: ssh -i $SSH_KEY_PATH $controller_target 'echo OK')"
         log "  - Insufficient permissions on target directory"
-        log "  - No SIF images found to deploy"
+        log "  - Target directory does not exist: $REGISTRY_PATH"
         log "  - Network issues"
         log ""
-        log "Verify:"
-        log "  - SSH access: ssh -i $SSH_KEY_PATH $controller_target 'echo OK'"
-        log "  - Target directory exists: ssh -i $SSH_KEY_PATH $controller_target 'ls -ld $REGISTRY_PATH'"
+        log "Verify cluster is accessible:"
+        log "  ssh -i $SSH_KEY_PATH $controller_target 'ls -ld $REGISTRY_PATH'"
         cd "$original_dir" || true
         return 1
     fi
@@ -729,15 +757,35 @@ deploy_images() {
     log "=========================================="
     log "Checking deployed images on cluster..."
 
-    local ssh_opts="-i $SSH_KEY_PATH -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+    # Check if SSH key exists
+    if [[ ! -f "$SSH_KEY_PATH" ]]; then
+        log_error "SSH key not found: $SSH_KEY_PATH"
+        log "This usually means the cluster has not been started with ai-how"
+        log "Please ensure:"
+        log "  1. Cluster is running: $0 start-cluster"
+        log "  2. SSH keys were generated during cluster creation"
+        cd "$original_dir" || true
+        return 1
+    fi
+
+    # Construct SSH options as an array for proper argument passing
+    local ssh_opts=(-i "$SSH_KEY_PATH" -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR)
 
     local deployed_images
-    if ! deployed_images=$(ssh "$ssh_opts" "$controller_target" "ls -lh \$REGISTRY_PATH/*.sif 2>/dev/null"); then
-        log_warning "Could not list deployed images"
-        log_warning "Command failed: ssh $ssh_opts $controller_target 'ls -lh $REGISTRY_PATH/*.sif'"
+    # shellcheck disable=SC2029  # $REGISTRY_PATH intentionally expands on client side
+    if ! deployed_images=$(ssh "${ssh_opts[@]}" "$controller_target" "ls -lh $REGISTRY_PATH/*.sif 2>/dev/null"); then
+        log_error "Could not list deployed images - SSH connection failed"
+        log_error "Command failed: ssh -i $SSH_KEY_PATH $controller_target 'ls -lh $REGISTRY_PATH/*.sif'"
+        log ""
+        log "This indicates the deployment likely failed. Common causes:"
+        log "  - SSH key permissions incorrect (should be 600)"
+        log "  - Controller not accessible at: $controller_target"
+        log "  - Registry path does not exist: $REGISTRY_PATH"
+        cd "$original_dir" || true
+        return 1
     elif [[ -z "$deployed_images" ]]; then
-        log_warning "No SIF images found in $REGISTRY_PATH"
-        log "This might indicate a deployment issue"
+        log_error "No SIF images found in $REGISTRY_PATH"
+        log "This indicates the deployment failed - images were not transferred"
         cd "$original_dir" || true
         return 1
     else

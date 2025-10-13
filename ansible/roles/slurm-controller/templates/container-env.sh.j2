@@ -1,0 +1,236 @@
+#!/bin/bash
+# SLURM Container Environment Configuration
+# Task 013: Container Runtime Configuration
+#
+# This file provides environment variables for container usage in SLURM jobs
+# Source this file in job scripts or set as prolog/epilog
+#
+# Usage in job script:
+#   #!/bin/bash
+#   source /etc/slurm/container-env.sh
+#   $SLURM_CONTAINER_EXEC $SLURM_CONTAINER_IMAGE python train.py
+
+#=============================================================================
+# Container Runtime Configuration
+#=============================================================================
+
+# Container runtime binary (apptainer or singularity)
+export SLURM_CONTAINER_RUNTIME="{{ singularity_runtime_path | default('/usr/bin/apptainer') }}"
+
+# Container image storage path
+export SLURM_CONTAINER_IMAGE_PATH="{{ singularity_image_path | default('/opt/containers') }}"
+
+# Container execution command template
+export SLURM_CONTAINER_EXEC="${SLURM_CONTAINER_RUNTIME} exec"
+
+#=============================================================================
+# Container Features
+#=============================================================================
+
+# GPU support
+export SLURM_CONTAINER_ENABLE_GPU="{{ singularity_enable_gpu | default('true') }}"
+
+# Overlay filesystem
+export SLURM_CONTAINER_ENABLE_OVERLAY="{{ singularity_enable_overlay | default('true') }}"
+
+# NVIDIA GPU support (--nv flag)
+export SLURM_CONTAINER_ENABLE_NV="{{ singularity_enable_nv | default('true') }}"
+
+#=============================================================================
+# Mount Configuration
+#=============================================================================
+
+# Mount home directory
+export SLURM_CONTAINER_MOUNT_HOME="{{ singularity_mount_home | default('true') }}"
+
+# Mount temporary directory
+export SLURM_CONTAINER_MOUNT_TMP="{{ singularity_mount_tmp | default('true') }}"
+
+# Mount system directories (advanced)
+export SLURM_CONTAINER_MOUNT_SYS="{{ singularity_mount_sys | default('false') }}"
+export SLURM_CONTAINER_MOUNT_PROC="{{ singularity_mount_proc | default('false') }}"
+export SLURM_CONTAINER_MOUNT_DEV="{{ singularity_mount_dev | default('false') }}"
+
+# Additional bind mounts
+{% if singularity_bind_paths | default([]) | length > 0 %}
+export SLURM_CONTAINER_BIND_PATHS="{{ singularity_bind_paths | join(',') }}"
+{% else %}
+export SLURM_CONTAINER_BIND_PATHS=""
+{% endif %}
+
+#=============================================================================
+# Security Settings
+#=============================================================================
+
+# SUID support (should be false for security)
+export SLURM_CONTAINER_ALLOW_SUID="{{ singularity_allow_suid | default('false') }}"
+
+# Container isolation
+export SLURM_CONTAINER_CONTAIN="{{ singularity_contain | default('true') }}"
+
+# Writable container
+export SLURM_CONTAINER_WRITABLE="{{ singularity_writable | default('false') }}"
+
+# User namespace
+export SLURM_CONTAINER_USERNS="{{ singularity_userns | default('false') }}"
+
+#=============================================================================
+# Networking
+#=============================================================================
+
+# Network mode (none, bridge, etc.)
+export SLURM_CONTAINER_NETWORK="{{ singularity_network | default('none') }}"
+
+{% if singularity_dns | default([]) | length > 0 %}
+# DNS servers
+export SLURM_CONTAINER_DNS="{{ singularity_dns | join(',') }}"
+{% endif %}
+
+#=============================================================================
+# GPU Configuration
+#=============================================================================
+
+{% if singularity_enable_gpu | default('true') == 'true' %}
+# GPU device access
+export SLURM_CONTAINER_GPU_DEVICE_ACCESS="{{ singularity_gpu_device_access | default('yes') }}"
+
+# GPU isolation mode
+export SLURM_CONTAINER_GPU_ISOLATION="{{ singularity_gpu_isolation | default('auto') }}"
+
+{% if singularity_cuda_version | default('') != '' %}
+# CUDA version
+export SLURM_CONTAINER_CUDA_VERSION="{{ singularity_cuda_version }}"
+{% endif %}
+{% endif %}
+
+#=============================================================================
+# Resource Constraints
+#=============================================================================
+
+{% if singularity_max_memory | default('') != '' %}
+export SLURM_CONTAINER_MAX_MEMORY="{{ singularity_max_memory }}"
+{% endif %}
+
+{% if singularity_max_cpus | default('') != '' %}
+export SLURM_CONTAINER_MAX_CPUS="{{ singularity_max_cpus }}"
+{% endif %}
+
+{% if singularity_timeout | default('') != '' %}
+export SLURM_CONTAINER_TIMEOUT="{{ singularity_timeout }}"
+{% endif %}
+
+#=============================================================================
+# Temporary Directories
+#=============================================================================
+
+export SLURM_CONTAINER_TMPFS="{{ singularity_tmpfs | default('true') }}"
+
+{% if singularity_workdir | default('') != '' %}
+export SLURM_CONTAINER_WORKDIR="{{ singularity_workdir }}"
+{% endif %}
+
+#=============================================================================
+# Container Registries
+#=============================================================================
+
+{% if singularity_registries | default([]) | length > 0 %}
+export SLURM_CONTAINER_REGISTRIES="{{ singularity_registries | join(' ') }}"
+{% endif %}
+
+#=============================================================================
+# Logging and Debugging
+#=============================================================================
+
+export SLURM_CONTAINER_DEBUG="{{ singularity_debug | default('false') }}"
+export SLURM_CONTAINER_VERBOSE="{{ singularity_verbose | default('false') }}"
+export SLURM_CONTAINER_CLEANUP="{{ singularity_cleanup | default('true') }}"
+
+#=============================================================================
+# Custom Environment Variables for Containers
+#=============================================================================
+
+{% if singularity_env_vars | default([]) | length > 0 %}
+{% for env_var in singularity_env_vars %}
+export {{ env_var }}
+{% endfor %}
+{% endif %}
+
+#=============================================================================
+# Helper Functions
+#=============================================================================
+
+# Function to build container execution command with common flags
+build_container_cmd() {
+    local image="$1"
+    shift
+    local cmd="$SLURM_CONTAINER_RUNTIME exec"
+
+    # Add GPU support if enabled
+    if [ "$SLURM_CONTAINER_ENABLE_GPU" = "true" ] && [ "$SLURM_CONTAINER_ENABLE_NV" = "true" ]; then
+        cmd="$cmd --nv"
+    fi
+
+    # Add overlay if enabled
+    if [ "$SLURM_CONTAINER_ENABLE_OVERLAY" = "true" ]; then
+        cmd="$cmd --overlay"
+    fi
+
+    # Add bind paths if specified
+    if [ -n "$SLURM_CONTAINER_BIND_PATHS" ]; then
+        IFS=',' read -ra BINDS <<< "$SLURM_CONTAINER_BIND_PATHS"
+        for bind in "${BINDS[@]}"; do
+            cmd="$cmd --bind $bind"
+        done
+    fi
+
+    # Add containment if enabled
+    if [ "$SLURM_CONTAINER_CONTAIN" = "true" ]; then
+        cmd="$cmd --contain"
+    fi
+
+    # Add image and remaining arguments
+    cmd="$cmd $image $@"
+
+    echo "$cmd"
+}
+
+# Function to verify container image exists
+verify_container_image() {
+    local image="$1"
+    if [ ! -f "$image" ]; then
+        echo "Error: Container image not found: $image" >&2
+        return 1
+    fi
+    return 0
+}
+
+#=============================================================================
+# Example Usage
+#=============================================================================
+#
+# Basic container execution:
+#   source /etc/slurm/container-env.sh
+#   IMAGE="${SLURM_CONTAINER_IMAGE_PATH}/pytorch-cuda12.1-mpi4.1.sif"
+#   $SLURM_CONTAINER_EXEC --nv $IMAGE python train.py
+#
+# Using helper function:
+#   source /etc/slurm/container-env.sh
+#   IMAGE="${SLURM_CONTAINER_IMAGE_PATH}/pytorch-cuda12.1-mpi4.1.sif"
+#   CMD=$(build_container_cmd "$IMAGE" python train.py)
+#   eval $CMD
+#
+# MPI with containers:
+#   source /etc/slurm/container-env.sh
+#   IMAGE="${SLURM_CONTAINER_IMAGE_PATH}/pytorch-cuda12.1-mpi4.1.sif"
+#   srun -n 4 $SLURM_CONTAINER_EXEC --nv $IMAGE python -m mpi4py train_distributed.py
+#
+#=============================================================================
+
+# Validate configuration
+if [ ! -x "$SLURM_CONTAINER_RUNTIME" ]; then
+    echo "Warning: Container runtime not found: $SLURM_CONTAINER_RUNTIME" >&2
+fi
+
+if [ ! -d "$SLURM_CONTAINER_IMAGE_PATH" ]; then
+    echo "Warning: Container image path not found: $SLURM_CONTAINER_IMAGE_PATH" >&2
+fi

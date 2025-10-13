@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -11,7 +11,12 @@ help:
 	@echo "  test-all               - Run comprehensive test suite including builds"
 	@echo "  test-base-images       - Run base images build tests"
 	@echo "  test-container-runtime - Run container runtime tests"
-	@echo "  test-slurm-controller  - Run SLURM controller installation tests"
+	@echo "  test-slurm-controller  - Run SLURM controller installation tests (full workflow)"
+	@echo "  test-slurm-controller-start - Start SLURM controller test cluster"
+	@echo "  test-slurm-controller-deploy - Deploy SLURM controller Ansible configuration"
+	@echo "  test-slurm-controller-tests - Run SLURM controller tests only"
+	@echo "  test-slurm-controller-stop - Stop SLURM controller test cluster"
+	@echo "  test-slurm-controller-status - Show SLURM controller test cluster status"
 	@echo "  test-slurm-compute     - Run SLURM compute node tests (full workflow)"
 	@echo "  test-slurm-compute-start   - Start SLURM compute test cluster"
 	@echo "  test-slurm-compute-deploy  - Deploy SLURM compute Ansible configuration"
@@ -36,6 +41,13 @@ help:
 	@echo "  test-job-scripts-tests - Run job scripts tests only"
 	@echo "  test-job-scripts-stop  - Stop job scripts test cluster"
 	@echo "  test-job-scripts-status - Show job scripts test cluster status"
+	@echo "  test-container-integration - Run container integration tests (full workflow)"
+	@echo "  test-container-integration-start - Start container integration test cluster"
+	@echo "  test-container-integration-deploy - Deploy container integration Ansible configuration"
+	@echo "  test-container-registry-deploy - Build and deploy container images to test cluster"
+	@echo "  test-container-integration-tests - Run container integration tests only"
+	@echo "  test-container-integration-stop - Stop container integration test cluster"
+	@echo "  test-container-integration-status - Show container integration test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -104,10 +116,35 @@ test-container-runtime:
 	@echo "Running container runtime tests..."
 	@./test-container-runtime-framework.sh
 
-# Run SLURM controller tests
+# Run SLURM controller tests (full workflow)
 test-slurm-controller:
 	@echo "Running SLURM controller tests..."
 	@./test-slurm-controller-framework.sh
+
+# Start SLURM controller test cluster
+test-slurm-controller-start:
+	@echo "Starting SLURM controller test cluster..."
+	@./test-slurm-controller-framework.sh start-cluster
+
+# Deploy SLURM controller Ansible configuration
+test-slurm-controller-deploy:
+	@echo "Deploying SLURM controller Ansible configuration..."
+	@./test-slurm-controller-framework.sh deploy-ansible
+
+# Run SLURM controller tests only (assumes cluster deployed)
+test-slurm-controller-tests:
+	@echo "Running SLURM controller tests..."
+	@./test-slurm-controller-framework.sh run-tests
+
+# Stop SLURM controller test cluster
+test-slurm-controller-stop:
+	@echo "Stopping SLURM controller test cluster..."
+	@./test-slurm-controller-framework.sh stop-cluster
+
+# Show SLURM controller test cluster status
+test-slurm-controller-status:
+	@echo "Checking SLURM controller test cluster status..."
+	@./test-slurm-controller-framework.sh status
 
 # Run SLURM compute node tests (full workflow) (Task 022)
 test-slurm-compute:
@@ -228,6 +265,43 @@ test-job-scripts-stop:
 test-job-scripts-status:
 	@echo "Checking job scripts test cluster status..."
 	@./test-job-scripts-framework.sh status
+
+# Run container integration tests (Task 026) - full workflow
+test-container-integration:
+	@echo "Running container integration tests (full workflow)..."
+	@./test-container-integration-framework.sh
+
+# Start container integration test cluster
+test-container-integration-start:
+	@echo "Starting container integration test cluster..."
+	@./test-container-integration-framework.sh start-cluster
+
+# Deploy container integration Ansible configuration
+test-container-integration-deploy:
+	@echo "Deploying container integration Ansible configuration..."
+	@./test-container-integration-framework.sh deploy-ansible
+
+# Build and deploy container images to test cluster (Task 026)
+test-container-registry-deploy:
+	@echo "Building and deploying container images to test cluster..."
+	@TEST_CONFIG="$(PWD)/test-infra/configs/test-container-integration.yaml" \
+	 TARGET_VM_PATTERN="test-container-integration" \
+	 ./test-container-registry-framework.sh deploy-images
+
+# Run container integration tests only (assumes cluster deployed)
+test-container-integration-tests:
+	@echo "Running container integration tests..."
+	@./test-container-integration-framework.sh run-tests
+
+# Stop container integration test cluster
+test-container-integration-stop:
+	@echo "Stopping container integration test cluster..."
+	@./test-container-integration-framework.sh stop-cluster
+
+# Show container integration test cluster status
+test-container-integration-status:
+	@echo "Checking container integration test cluster status..."
+	@./test-container-integration-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:

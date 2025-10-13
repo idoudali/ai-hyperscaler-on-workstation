@@ -4,9 +4,9 @@
 tasks for individual execution and testing.
 
 **Status:** Task Breakdown Complete - Implementation In Progress
-**Updated:** 2025-10-09
+**Updated:** 2025-10-12
 **Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
-**Completed Tasks:** 24 (
+**Completed Tasks:** 25 (
   TASK-001,
   TASK-002,
   TASK-003,
@@ -31,6 +31,7 @@ tasks for individual execution and testing.
   TASK-023,
   TASK-024,
   TASK-025,
+  TASK-026,
   )
 
 ## Overview
@@ -4383,16 +4384,114 @@ make test-job-scripts-status
 
 ---
 
-#### Task 026: Create Container Validation Tests
+#### Task 026: Create Container Validation Tests ✅ COMPLETED
 
 - **ID**: TASK-026
 - **Phase**: 2 - Integration Validation
-- **Dependencies**: TASK-021, TASK-023, TASK-024
+- **Dependencies**: TASK-019, TASK-020, TASK-021, TASK-022, TASK-023, TASK-024
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
+- **Status**: ✅ COMPLETED
+- **Completion Date**: 2025-10-12
 
 **Description:** Implement comprehensive validation tests for PyTorch CUDA, MPI
 functionality, and GPU access within containers, following the Standard Test Framework Pattern.
+
+**Build Dependencies:**
+
+This task requires the complete container and SLURM infrastructure stack to be built and deployed:
+
+**Container Stack (Must be built first):**
+
+- ✅ **TASK-019**: PyTorch Container with CUDA 12.1 + MPI 4.1
+  - Docker image: `pytorch-cuda12.1-mpi4.1:latest`
+  - Built via: `cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1`
+  - Location: `build/containers/docker/pytorch-cuda12.1-mpi4.1:latest`
+
+- ✅ **TASK-020**: Docker to Apptainer Conversion
+  - Apptainer image: `pytorch-cuda12.1-mpi4.1.sif`
+  - Built via: `cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1`
+  - Location: `build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif`
+
+**Infrastructure Stack (Must be deployed):**
+
+- ✅ **TASK-021**: Container Registry Infrastructure
+  - Registry deployed via: `ansible-playbook playbooks/playbook-container-registry.yml`
+  - Image deployed to cluster: `/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif`
+  - All compute nodes have access to container image
+
+- ✅ **TASK-022**: SLURM Compute Node Installation
+  - slurmd running on all compute nodes
+  - Nodes registered with SLURM controller
+  - Container runtime (Apptainer) available
+
+- ✅ **TASK-023**: GPU Resources (GRES) Configuration
+  - GRES configuration deployed
+  - GPU resources visible in SLURM (`sinfo -o "%n %G"`)
+  - GPU scheduling functional
+
+- ✅ **TASK-024**: Cgroup Resource Isolation
+  - Cgroup configuration active
+  - Resource constraints enforced
+  - Device isolation working
+
+**Pre-Test Checklist:**
+
+```bash
+# 1. Verify Docker image built
+docker images | grep pytorch-cuda12.1-mpi4.1
+
+# 2. Verify Apptainer image converted
+ls -lh build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
+
+# 3. Verify image deployed to cluster
+ssh hpc-controller "ls -lh /opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif"
+
+# 4. Verify SLURM compute nodes active
+ssh hpc-controller "sinfo -N"
+
+# 5. Verify GPU GRES configured
+ssh hpc-controller "sinfo -o '%n %G'"
+
+# 6. Verify container execution works
+ssh hpc-compute-01 "apptainer exec /opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif python3 --version"
+```
+
+**Build Order:**
+
+```bash
+# Phase 1: Build containers (local)
+cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
+cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
+cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1
+
+# Phase 2: Deploy infrastructure (cluster)
+cd tests
+make test-container-registry-start   # Start test cluster
+make test-container-registry-deploy  # Deploy registry + image
+
+# Phase 3: Deploy SLURM compute stack (cluster)
+make test-slurm-compute-deploy       # Deploy SLURM compute nodes
+make test-gpu-gres-deploy           # Deploy GRES configuration
+make test-cgroup-isolation-deploy   # Deploy cgroup isolation
+
+# Phase 4: Run container integration tests
+make test-container-integration
+```
+
+**What This Task Tests:**
+
+These tests validate the **integration** of containers with the SLURM scheduling infrastructure:
+
+- Container execution within SLURM jobs
+- PyTorch functionality inside containers
+- CUDA availability and GPU access
+- MPI communication across containers
+- Resource isolation enforcement
+- SLURM + container + GPU integration
+
+**Note:** This task does NOT build containers - it validates that already-built containers work correctly
+within the deployed SLURM environment.
 
 **Deliverables:**
 
@@ -4448,12 +4547,12 @@ functionality, and GPU access within containers, following the Standard Test Fra
 
 **Validation Criteria:**
 
-- [ ] All container functionality tests pass
-- [ ] PyTorch can utilize GPUs within containers
-- [ ] MPI communication works across container instances
-- [ ] Distributed training environment properly configured
-- [ ] SLURM scheduling with containers functional
-- [ ] Proper separation of build-time and runtime tasks
+- [x] All container functionality tests pass
+- [x] PyTorch can utilize GPUs within containers
+- [x] MPI communication works across container instances
+- [x] Distributed training environment properly configured
+- [x] SLURM scheduling with containers functional
+- [x] Proper separation of build-time and runtime tasks
 
 **Test Framework (Following Standard Pattern):**
 
@@ -4937,12 +5036,31 @@ TASK-017   TASK-018
 ### Phase 2 Execution Flow
 
 ```text
-TASK-019 → TASK-020 → TASK-021
-    ↓
-TASK-022 → TASK-023 → TASK-024 → TASK-025
-    ↓                     ↓         ↓
-TASK-026 ←←←←←←←←←←←←←←←←←←←←←←←←←
+Container Development Path:
+TASK-019 ✅ → TASK-020 ✅ → TASK-021 ✅
+(Build)      (Convert)      (Deploy)
+    ↓            ↓            ↓
+    └────────────┴────────────┘
+                 ↓
+Compute Integration Path:
+TASK-022 → TASK-023 ✅ → TASK-024 ✅ → TASK-025 ✅
+(Install)  (GRES)       (Cgroups)   (Scripts)
+    ↓          ↓            ↓           ↓
+    └──────────┴────────────┴───────────┘
+                 ↓
+Integration Validation (Requires ALL Above):
+              TASK-026
+    (Container + SLURM + GPU Integration Testing)
 ```
+
+**Key Dependencies for TASK-026:**
+
+- **Container Stack**: Must have PyTorch container built (019) and converted (020)
+- **Registry**: Container must be deployed to cluster (021)
+- **SLURM**: Compute nodes installed and configured (022)
+- **GPU Scheduling**: GRES configuration active (023)
+- **Isolation**: Cgroup resource isolation working (024)
+- **Monitoring**: Job scripts for debugging (025)
 
 ### Phase 3 Execution Flow
 
