@@ -114,21 +114,21 @@ nav:
   - Getting Started:
       - Overview: python-dependencies-setup.md
   - Design Documents:
-      - Project Plan: design-docs/project-plan.md
-      - Hyperscaler on Workstation: design-docs/hyperscaler-on-workstation.md
-      - Open Source Solutions: design-docs/open-source-solutions.md
-      - Task 0.1 Implementation: design-docs/task-0.1-implementation-plan.md
-      - Task 0.2 Implementation: design-docs/task-0.2-implementation-plan.md
-  - Implementation Plans:
-      - HPC SLURM Deployment: implementation-plans/hpc-slurm-deployment.md
-      - HPC VM Management Plan: implementation-plans/hpc-vm-management-plan.md
-      - HPC Implementation Complete: implementation-plans/hpc-implementation-complete.md
-      - Logging Enhancement Summary: implementation-plans/logging-enhancement-summary.md
-      - Enhanced Logging Guide: implementation-plans/enhanced-logging-guide.md
-      - Subprocess Logging Improvements: implementation-plans/subprocess-logging-improvements.md
-      - Absolute Imports Migration: implementation-plans/absolute-imports-migration.md
-      - Task Lists:
-          - HPC SLURM Task List: implementation-plans/task-lists/hpc-slurm-task-list.md
+      # - Project Plan: design-docs/project-plan.md
+      # - Hyperscaler on Workstation: design-docs/hyperscaler-on-workstation.md
+      # - Open Source Solutions: design-docs/open-source-solutions.md
+      # - Task 0.1 Implementation: design-docs/task-0.1-implementation-plan.md
+      # - Task 0.2 Implementation: design-docs/task-0.2-implementation-plan.md
+  # - Implementation Plans:
+  #     - HPC SLURM Deployment: implementation-plans/hpc-slurm-deployment.md
+  #     - HPC VM Management Plan: implementation-plans/hpc-vm-management-plan.md
+  #     - HPC Implementation Complete: implementation-plans/hpc-implementation-complete.md
+  #     - Logging Enhancement Summary: implementation-plans/logging-enhancement-summary.md
+  #     - Enhanced Logging Guide: implementation-plans/enhanced-logging-guide.md
+  #     - Subprocess Logging Improvements: implementation-plans/subprocess-logging-improvements.md
+  #     - Absolute Imports Migration: implementation-plans/absolute-imports-migration.md
+  #     - Task Lists:
+  #         - HPC SLURM Task List: implementation-plans/task-lists/hpc-slurm-task-list.md
   - Components:
       - Ansible:
           - Overview: components/ansible/README.md

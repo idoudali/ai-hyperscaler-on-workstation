@@ -3,9 +3,9 @@
 **Objective:** Break down HPC SLURM deployment into granular, self-contained
 tasks for individual execution and testing.
 
-**Status:** Task Breakdown Complete - Implementation In Progress
-**Updated:** 2025-10-12
-**Total Tasks:** 31 individual tasks across 4 phases (includes TASK-010.1, TASK-010.2)
+**Status:** Infrastructure Consolidation Phase - Refactoring In Progress
+**Updated:** 2025-10-15
+**Total Tasks:** 44 individual tasks across 6 phases (includes TASK-010.1, TASK-010.2, TASK-027 through TASK-044)
 **Completed Tasks:** 25 (
   TASK-001,
   TASK-002,
@@ -33,6 +33,11 @@ tasks for individual execution and testing.
   TASK-025,
   TASK-026,
   )
+**Storage Tasks:** 2 tasks (TASK-027, TASK-028) - Phase 3: HIGH priority
+**Consolidation Tasks:** 8 tasks (TASK-029 through TASK-036) - Phase 4: HIGH priority
+**Integration Testing Tasks:** 4 tasks (TASK-037 through TASK-040) - Phase 5: HIGH priority
+**Final Validation Tasks:** 4 tasks (TASK-041 through TASK-044) - Phase 6: HIGH priority
+**Optional Tasks:** 1 task (TASK-006)
 
 ## Overview
 
@@ -4589,375 +4594,1576 @@ make test-container-integration-status
 
 ---
 
-## Phase 3: Integration Testing & Validation (Tasks 027-030)
+## Phase 3: Infrastructure Enhancements (Tasks 027-028)
 
-### End-to-End Integration Testing
+**Priority:** HIGH - Required infrastructure components
 
-#### Task 027: Execute Full-Stack Integration Testing
+**Objective:** Deploy critical storage infrastructure for high-performance HPC operations
+
+**Estimated Duration:** 1-2 weeks
+
+### Advanced Storage Integration
+
+#### Task 027: Implement Virtio-FS Host Directory Sharing
 
 - **ID**: TASK-027
-- **Phase**: 3 - Integration Testing
-- **Dependencies**: TASK-005, TASK-018, TASK-026
-- **Estimated Time**: 3 hours
-- **Difficulty**: Intermediate-Advanced
-
-**Description:** Execute comprehensive full-stack integration testing using all
-established test frameworks with complete HPC SLURM deployment validation, following
-the Standard Test Framework Pattern.
-
-**Deliverables:**
-
-- ✅ `tests/suites/full-stack-integration/check-complete-deployment.sh` - Full deployment validation
-- ✅ `tests/suites/full-stack-integration/check-component-integration.sh` - Component integration tests
-- ✅ `tests/suites/full-stack-integration/check-end-to-end-workflows.sh` - E2E workflow tests
-- ✅ `tests/suites/full-stack-integration/check-performance-baseline.sh` - Performance validation
-- ✅ `tests/suites/full-stack-integration/run-full-stack-integration-tests.sh` - Master test runner
-- ✅ `tests/test-full-stack-integration-framework.sh` - Unified test framework
-- ✅ `tests/test-infra/configs/test-full-stack-integration.yaml` - Full-stack test configuration
-- ✅ `docs/FULL-STACK-INTEGRATION-TESTING.md` - Integration testing documentation
-- ✅ Performance and reliability baseline documentation
-
-**Framework-Based Integration Testing:**
-
-Using established framework to validate:
-
-- Complete HPC SLURM stack (controller + compute nodes)
-- Container runtime integration with SLURM scheduling
-- GPU resource management and allocation
-- Monitoring stack integration (Prometheus, Grafana, DCGM)
-- Multi-node distributed workload execution
-- End-to-end job submission workflows
-
-**Validation Criteria:**
-
-- [ ] Full-stack deployment validates using established framework
-- [ ] All component test suites pass in integrated environment
-- [ ] Production-scale workloads execute successfully
-- [ ] Performance metrics meet baseline requirements
-- [ ] System resilience validated under load testing
-- [ ] All previous test frameworks execute successfully
-
-**Test Framework (Following Standard Pattern):**
-
-```bash
-# Option 1: Full workflow (default - create + deploy + test all)
-cd tests && make test-full-stack-integration
-
-# Option 2: Phased workflow (for debugging)
-make test-full-stack-integration-start   # Start cluster
-make test-full-stack-integration-deploy  # Deploy full Ansible config
-make test-full-stack-integration-tests   # Run comprehensive tests
-make test-full-stack-integration-stop    # Stop cluster
-
-# Option 3: Check status
-make test-full-stack-integration-status
-
-# Option 4: Direct commands
-./test-full-stack-integration-framework.sh start-cluster
-./test-full-stack-integration-framework.sh deploy-ansible
-./test-full-stack-integration-framework.sh run-tests
-./test-full-stack-integration-framework.sh stop-cluster
-
-# Option 5: Run all individual test frameworks
-make test-all  # Runs all established test frameworks sequentially
-```
-
-**Framework-Based Success Criteria:**
-
-- All test suites pass using established framework pattern
-- Full-stack deployment completes within framework timeout limits
-- Performance test suite validates system under production-scale loads
-- Framework logging captures comprehensive system state for analysis
-- All individual component tests pass in integrated environment
-- Unified test framework validates entire stack
-
----
-
-#### Task 028: Execute Comprehensive Validation Suite
-
-- **ID**: TASK-028
-- **Phase**: 3 - Integration Testing
-- **Dependencies**: TASK-027
-- **Estimated Time**: 6 hours
-- **Difficulty**: Advanced
-
-**Description:** Run comprehensive test suite validating all task implementations
-and system functionality across all established test frameworks, following the
-Standard Test Framework Pattern.
-
-**Deliverables:**
-
-- ✅ `tests/suites/comprehensive-validation/run-all-test-frameworks.sh` - Execute all frameworks
-- ✅ `tests/suites/comprehensive-validation/check-service-integration.sh` - Service integration validation
-- ✅ `tests/suites/comprehensive-validation/check-failure-scenarios.sh` - Failure handling tests
-- ✅ `tests/suites/comprehensive-validation/check-performance-metrics.sh` - Performance validation
-- ✅ `tests/suites/comprehensive-validation/generate-validation-report.sh` - Report generation
-- ✅ `tests/test-comprehensive-validation-framework.sh` - Unified comprehensive test framework
-- ✅ `tests/test-infra/configs/test-comprehensive-validation.yaml` - Comprehensive test configuration
-- ✅ `docs/COMPREHENSIVE-VALIDATION-REPORT.md` - Complete validation report template
-- ✅ Complete test results and analysis documentation
-
-**Test Categories (All Following Standard Pattern):**
-
-1. **Service Integration Tests**: All services communicate properly
-2. **Container Execution Tests**: Various container scenarios work
-3. **GPU Resource Tests**: GPU scheduling and utilization
-4. **MPI Communication Tests**: Multi-node distributed jobs
-5. **Monitoring Integration Tests**: Metrics collection and alerting
-6. **Failure Recovery Tests**: System behavior under failure conditions
-7. **All Component Tests**: Execute all individual test frameworks
-
-**Validation Criteria:**
-
-- [ ] All integration tests pass
-- [ ] Performance metrics within acceptable ranges
-- [ ] Failure scenarios handled gracefully
-- [ ] Resource utilization optimized
-- [ ] All individual test frameworks pass
-- [ ] Complete test coverage of all task deliverables
-
-**Test Framework (Following Standard Pattern):**
-
-```bash
-# Option 1: Full comprehensive validation workflow
-cd tests && make test-comprehensive-validation
-
-# Option 2: Run all individual test frameworks sequentially
-make test-all
-
-# Option 3: Phased comprehensive validation
-make test-comprehensive-validation-start   # Start cluster
-make test-comprehensive-validation-deploy  # Deploy all configs
-make test-comprehensive-validation-tests   # Run all tests
-make test-comprehensive-validation-stop    # Stop cluster
-
-# Option 4: Generate validation report
-make test-comprehensive-validation-report
-
-# Option 5: Individual framework execution
-./test-comprehensive-validation-framework.sh start-cluster
-./test-comprehensive-validation-framework.sh deploy-ansible
-./test-comprehensive-validation-framework.sh run-tests
-./test-comprehensive-validation-framework.sh generate-report
-./test-comprehensive-validation-framework.sh stop-cluster
-```
-
-**Comprehensive Test Execution Plan:**
-
-```bash
-# Execute all established test frameworks
-make test-monitoring-stack          # Task 015
-make test-dcgm-monitoring          # Task 018
-make test-slurm-controller         # Task 010.2
-make test-slurm-accounting         # Task 017
-make test-pytorch-container        # Task 019
-make test-container-build          # Task 020
-make test-container-registry       # Task 021
-make test-slurm-compute           # Task 022
-make test-gpu-gres                # Task 023
-make test-cgroup-isolation        # Task 024
-make test-job-scripts             # Task 025
-make test-container-integration   # Task 026
-make test-full-stack-integration  # Task 027
-```
-
-**Success Criteria:**
-
-- >95% of tests pass across all frameworks
-- Performance within 20% of baseline expectations
-- All failure scenarios handled without system crash
-- Complete test coverage of all task deliverables
-- All individual test frameworks execute successfully
-- Unified comprehensive validation report generated
-- System demonstrates production readiness
-
----
-
-#### Task 029: Create Production Deployment Documentation
-
-- **ID**: TASK-029
-- **Phase**: 3 - Documentation
-- **Dependencies**: TASK-028
+- **Phase**: 3 - Infrastructure Enhancements
+- **Dependencies**: TASK-010.1 (HPC Controller Image), TASK-001 (Base Images)
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: HIGH
 
-**Description:** Generate comprehensive documentation for production deployment
-based on validated test results, documenting the Standard Test Framework Pattern
-for all implementations.
+**Description:** Configure virtio-fs filesystem sharing to mount host directories
+directly into the HPC controller VM, enabling seamless access to host datasets,
+containers, and development files without network overhead.
 
 **Deliverables:**
 
-- ✅ `docs/PRODUCTION-DEPLOYMENT-GUIDE.md` - Complete deployment guide
-- ✅ `docs/CONFIGURATION-TEMPLATES.md` - All configuration templates and examples
-- ✅ `docs/TROUBLESHOOTING-GUIDE.md` - Troubleshooting and maintenance procedures
-- ✅ `docs/PERFORMANCE-TUNING.md` - Performance tuning recommendations
-- ✅ `docs/STANDARD-TEST-FRAMEWORK-PATTERN.md` - Standard testing approach documentation
-- ✅ `docs/ANSIBLE-WORKFLOW-GUIDE.md` - Packer build vs runtime deployment guide
-- ✅ `docs/PRODUCTION-READINESS-CHECKLIST.md` - Complete readiness checklist
-- ✅ Configuration validation scripts for production
+- ✅ `python/ai_how/src/ai_how/vm_management/templates/controller.xml.j2` - Updated with virtio-fs configuration
+- ✅ `ansible/roles/virtio-fs-mount/tasks/main.yml` - Virtio-fs mount configuration
+- ✅ `ansible/roles/virtio-fs-mount/tasks/setup-mounts.yml` - Mount point setup and fstab configuration
+- ✅ `ansible/roles/virtio-fs-mount/defaults/main.yml` - Default mount configurations
+- ✅ `ansible/playbooks/playbook-virtio-fs-runtime-config.yml` - Runtime mount configuration
+- ✅ `tests/suites/virtio-fs/check-virtio-fs-config.sh` - Configuration validation
+- ✅ `tests/suites/virtio-fs/check-mount-functionality.sh` - Mount operation tests
+- ✅ `tests/suites/virtio-fs/check-performance.sh` - I/O performance validation
+- ✅ `tests/suites/virtio-fs/run-virtio-fs-tests.sh` - Master test runner
+- ✅ `tests/test-virtio-fs-framework.sh` - Unified test framework
+- ✅ `tests/test-infra/configs/test-virtio-fs.yaml` - Virtio-fs test configuration
+- ✅ `docs/VIRTIO-FS-INTEGRATION.md` - Virtio-fs setup and usage documentation
 
-**Documentation Components:**
+**Virtio-FS Configuration:**
 
-1. **Deployment Instructions**
-   - Step-by-step deployment guide using Ansible playbooks
-   - Packer image building procedures
-   - Runtime configuration application
-   - Standard Test Framework Pattern implementation
-
-2. **Configuration Management**
-   - Hardware and software requirements
-   - Network and security configuration
-   - All Ansible role configurations
-   - Template customization guide
-
-3. **Operations and Maintenance**
-   - Monitoring and alerting setup
-   - Backup and recovery procedures
-   - Scaling and optimization guidelines
-   - Troubleshooting common issues
-
-4. **Testing and Validation**
-   - Test framework usage guide
-   - How to add new test suites
-   - Continuous integration setup
-   - Production validation procedures
+```xml
+<!-- Add to controller.xml.j2 VM template -->
+{% if virtio_fs_mounts is defined and virtio_fs_mounts|length > 0 %}
+<!-- Virtio-FS Host Directory Sharing -->
+{% for mount in virtio_fs_mounts %}
+<filesystem type='mount' accessmode='passthrough'>
+  <driver type='virtiofs' queue='1024'/>
+  <source dir='{{ mount.host_path }}'/>
+  <target dir='{{ mount.tag }}'/>
+  {% if mount.readonly | default(false) %}
+  <readonly/>
+  {% endif %}
+</filesystem>
+{% endfor %}
+{% endif %}
+```
 
 **Validation Criteria:**
 
-- [ ] Documentation complete and accurate
-- [ ] All configuration examples tested
-- [ ] Troubleshooting procedures validated
-- [ ] Production readiness checklist created
-- [ ] Standard Test Framework Pattern documented
-- [ ] All workflow documentation completed
+- [ ] Virtio-fs kernel modules loaded
+- [ ] Mount points created and configured
+- [ ] Directories mounted with correct permissions
+- [ ] Read/write operations function correctly
+- [ ] Performance meets or exceeds NFS baseline
+- [ ] Mounts persist across reboots (via fstab)
+- [ ] Error handling for missing host directories
 
-**Documentation Validation:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Validate all configuration examples
-cd docs && ./scripts/validate-config-examples.sh
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-virtio-fs
 
-# Test troubleshooting procedures
-./scripts/test-troubleshooting-scenarios.sh
+# Option 2: Phased workflow (for debugging)
+make test-virtio-fs-start   # Start cluster
+make test-virtio-fs-deploy  # Deploy Ansible config
+make test-virtio-fs-tests   # Run tests
+make test-virtio-fs-stop    # Stop cluster
 
-# Check documentation completeness
-./scripts/validate-documentation-coverage.sh
-
-# Verify all code examples in documentation
-./scripts/validate-code-examples.sh
-
-# Check markdown formatting
-markdownlint docs/**/*.md
+# Option 3: Direct commands
+./test-virtio-fs-framework.sh start-cluster
+./test-virtio-fs-framework.sh deploy-ansible
+./test-virtio-fs-framework.sh run-tests
+./test-virtio-fs-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
 
-- Documentation enables successful production deployment
-- All examples and procedures tested and working
-- Troubleshooting covers common scenarios
-- Clear migration path from test to production
-- Standard Test Framework Pattern clearly documented
-- All workflow documentation complete and accurate
-- Production readiness checklist comprehensive
+- All mount points accessible from HPC controller
+- I/O performance superior to NFS (>1GB/s read/write)
+- No permission or ownership issues
+- Mounts survive VM reboots
+- Comprehensive testing validates all functionality
+- Documentation complete and accurate
+
+**Use Cases:**
+
+1. **Datasets**: Share large ML/AI datasets from host to VMs
+2. **Containers**: Access Apptainer images without copying
+3. **Development**: Edit code on host, run in VM instantly
+4. **Build Artifacts**: Share build outputs across host and VMs
+5. **Logs**: Collect VM logs directly to host for analysis
 
 ---
 
-#### Task 030: Conduct Final Integration Validation
+#### Task 028: Deploy BeeGFS Parallel Filesystem
 
-- **ID**: TASK-030
-- **Phase**: 3 - Final Validation
-- **Dependencies**: TASK-029
-- **Estimated Time**: 3 hours
-- **Difficulty**: Intermediate
+- **ID**: TASK-028
+- **Phase**: 3 - Infrastructure Enhancements
+- **Dependencies**: TASK-022 (SLURM Compute Nodes), TASK-037 (Full-Stack Integration)
+- **Estimated Time**: 8 hours
+- **Difficulty**: Advanced
+- **Status**: Pending
+- **Priority**: HIGH
 
-**Description:** Perform final validation of complete system against original
-requirements and success criteria, ensuring all Standard Test Framework Pattern
-implementations are validated and production-ready.
+**Description:** Deploy BeeGFS parallel filesystem across all HPC cluster nodes to provide
+high-performance shared storage for ML/AI workloads, replacing or augmenting NFS with
+distributed storage that scales with cluster size.
 
 **Deliverables:**
 
-- ✅ `docs/FINAL-VALIDATION-REPORT.md` - Complete system validation report
-- ✅ `docs/REQUIREMENTS-TRACEABILITY-MATRIX.md` - Requirements coverage matrix
-- ✅ `docs/PERFORMANCE-BENCHMARK-RESULTS.md` - Performance validation results
-- ✅ `docs/PRODUCTION-READINESS-ASSESSMENT.md` - Production readiness evaluation
-- ✅ `tests/scripts/final-requirements-validation.sh` - Requirements validation script
-- ✅ `tests/scripts/final-performance-benchmark.sh` - Performance benchmark script
-- ✅ `tests/scripts/final-security-validation.sh` - Security validation script
-- ✅ `tests/scripts/generate-final-assessment.sh` - Assessment report generation
-- ✅ Complete system sign-off documentation
+- `ansible/roles/beegfs-mgmt/tasks/main.yml` - Management service deployment
+- `ansible/roles/beegfs-meta/tasks/main.yml` - Metadata service deployment
+- `ansible/roles/beegfs-storage/tasks/main.yml` - Storage service deployment
+- `ansible/roles/beegfs-client/tasks/main.yml` - Client mount configuration
+- `ansible/playbooks/playbook-beegfs-runtime-config.yml` - BeeGFS cluster deployment
+- `tests/suites/beegfs/check-beegfs-services.sh` - Service validation
+- `tests/suites/beegfs/check-filesystem-operations.sh` - Filesystem I/O tests
+- `tests/suites/beegfs/check-performance-scaling.sh` - Performance benchmarks
+- `tests/suites/beegfs/run-beegfs-tests.sh` - Master test runner
+- `tests/test-beegfs-framework.sh` - Unified test framework
+- `tests/test-infra/configs/test-beegfs.yaml` - BeeGFS test configuration
+- `docs/BEEGFS-DEPLOYMENT.md` - BeeGFS setup and operations guide
 
-**Final Validation Areas:**
+**BeeGFS Architecture:**
 
-- All original requirements satisfied
-- System performance meets specifications
-- Security and isolation working properly
-- Monitoring and observability complete
-- Documentation accurate and complete
-- Production deployment ready
-- All test frameworks validated
-- Standard Test Framework Pattern implemented consistently
+```text
+HPC Controller:
+- Management Service (beegfs-mgmtd)
+- Metadata Service (beegfs-meta)
+
+Compute Nodes:
+- Storage Service (beegfs-storage) - distributed across nodes
+- Client Service (beegfs-client) - on all nodes
+
+Benefits:
+- Parallel I/O: Multiple nodes serving data simultaneously
+- No single point of failure: Metadata + storage distributed
+- Linear scaling: Performance grows with node count
+- POSIX compliant: Drop-in NFS replacement
+```
 
 **Validation Criteria:**
 
-- [ ] All requirements met and verified
-- [ ] Performance benchmarks achieved
-- [ ] Security validation passed
-- [ ] Complete system traceability
-- [ ] All test frameworks passing
-- [ ] Standard Test Framework Pattern verified
-- [ ] Production readiness confirmed
+- [ ] Management service running on controller
+- [ ] Metadata service running on controller
+- [ ] Storage services running on all compute nodes
+- [ ] Client service running on all nodes
+- [ ] BeeGFS filesystem mounted on all nodes
+- [ ] Read/write operations functional
+- [ ] Performance exceeds NFS baseline
+- [ ] No single point of failure
+- [ ] Services survive node reboots
 
-**Final Validation Execution:**
-
-```bash
-# Execute final comprehensive validation
-cd tests && make final-validation
-
-# Final requirements validation
-./scripts/final-requirements-validation.sh
-
-# Performance benchmark validation
-./scripts/final-performance-benchmark.sh
-
-# Security and isolation validation
-./scripts/final-security-validation.sh
-
-# Execute all test frameworks one final time
-make test-all
-
-# Generate final assessment report
-./scripts/generate-final-assessment.sh
-
-# Verify production readiness
-./scripts/verify-production-readiness.sh
-```
-
-**Requirements Traceability Validation:**
+**Test Framework (Following Standard Pattern):**
 
 ```bash
-# Validate all original requirements against implementations
-./scripts/trace-requirements.sh --comprehensive
+# Option 1: Full workflow (default - create + deploy + test)
+cd tests && make test-beegfs
 
-# Verify all tasks completed
-./scripts/check-task-completion.sh
+# Option 2: Phased workflow (for debugging)
+make test-beegfs-start   # Start cluster
+make test-beegfs-deploy  # Deploy Ansible config
+make test-beegfs-tests   # Run tests
+make test-beegfs-stop    # Stop cluster
 
-# Validate all deliverables present
-./scripts/verify-deliverables.sh
-
-# Check test coverage
-./scripts/check-test-coverage.sh
+# Option 3: Direct commands
+./test-beegfs-framework.sh start-cluster
+./test-beegfs-framework.sh deploy-ansible
+./test-beegfs-framework.sh run-tests
+./test-beegfs-framework.sh stop-cluster
 ```
 
 **Success Criteria:**
 
-- 100% requirements coverage validated
-- Performance meets or exceeds specifications
-- Security model properly implemented
-- System ready for production deployment
-- All test frameworks passing consistently
-- Standard Test Framework Pattern verified across all tasks
-- Complete documentation and traceability
-- Production readiness assessment approved
+- BeeGFS services running on all nodes
+- Filesystem mounted and accessible from all nodes
+- Sequential read performance >2GB/s per node
+- Aggregate performance scales linearly with nodes
+- Metadata operations exceed 10,000 ops/sec
+- ML training data loading faster than NFS baseline
+- No single point of failure (metadata+storage distributed)
+- Unified test framework validates all functionality
+- Performance benchmarks documented
+
+**Use Cases:**
+
+1. **ML Training Data**: Stream large datasets (ImageNet, COCO) at >5GB/s
+2. **Model Checkpoints**: Fast parallel writes from distributed training
+3. **Shared Scratch**: High-performance temporary storage for jobs
+4. **Container Images**: Shared Apptainer image storage across nodes
+5. **Home Directories**: Shared user home directories with good performance
+
+---
+
+## Phase 4: Infrastructure Consolidation & Cleanup (Tasks 029-036)
+
+**Priority:** HIGH - Execute these tasks AFTER storage infrastructure is deployed
+
+**Objective:** Consolidate Ansible playbooks and test frameworks into streamlined, maintainable structure
+
+**Estimated Duration:** 2-3 weeks
+
+### Consolidation Goals
+
+1. **Ansible Simplification**: 10+ playbooks → 3 focused playbooks (70% reduction)
+   - 2 Packer playbooks (controller + compute)
+   - 1 unified runtime configuration playbook
+
+2. **Test Framework Cleanup**: 15+ frameworks → 3 streamlined frameworks (80% reduction)
+   - Delete 25 obsolete files (13 frameworks + 10 configs + 2 helpers)
+   - Unified test execution model
+   - All test suites preserved and functional
+
+3. **Maintainability**: Clean architecture with no deprecated code
+
+### Ansible Playbook Consolidation
+
+#### Task 029: Create HPC Packer Controller Playbook
+
+- **ID**: TASK-029
+- **Phase**: 4 - Infrastructure Consolidation
+- **Dependencies**: TASK-010.1, TASK-015, TASK-017
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create unified Packer build playbook for HPC controller images, consolidating multiple
+component playbooks into single streamlined build process.
+
+**Deliverables:**
+
+- `ansible/playbooks/playbook-hpc-packer-controller.yml` - Unified controller Packer playbook
+- Consolidates roles: slurm-controller, monitoring-stack, hpc-base-packages, nvidia-gpu-drivers
+- Supports `packer_build=true` mode for install-only operations
+- Replaces `playbook-hpc-controller.yml` during Packer builds
+
+**Playbook Structure:**
+
+```yaml
+---
+- name: HPC Controller Packer Build
+  hosts: all
+  become: true
+  vars:
+    packer_build: true
+  roles:
+    - role: hpc-base-packages
+    - role: slurm-controller
+      vars:
+        install_only: true
+    - role: monitoring-stack
+      vars:
+        install_only: true
+```
+
+**Validation Criteria:**
+
+- [ ] Playbook creates functional controller image
+- [ ] All roles execute without errors
+- [ ] SLURM controller components installed
+- [ ] Monitoring stack (Prometheus, Grafana, Node Exporter) installed
+- [ ] Image size reasonable and optimized
+- [ ] No runtime services started during build
+
+**Test Commands:**
+
+```bash
+# Test playbook with Packer
+cd packer/hpc-controller
+packer build hpc-controller.pkr.hcl
+
+# Verify image built successfully
+ls -lh ../../build/packer/hpc-controller/
+```
+
+---
+
+#### Task 030: Create HPC Packer Compute Playbook
+
+- **ID**: TASK-030
+- **Phase**: 4 - Infrastructure Consolidation
+- **Dependencies**: TASK-008, TASK-022
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create unified Packer build playbook for HPC compute images, consolidating compute node
+components into single streamlined build process.
+
+**Deliverables:**
+
+- `ansible/playbooks/playbook-hpc-packer-compute.yml` - Unified compute Packer playbook
+- Consolidates roles: slurm-compute, container-runtime, monitoring-stack, nvidia-gpu-drivers
+- Supports `packer_build=true` mode for install-only operations
+- Replaces `playbook-hpc-compute.yml` during Packer builds
+
+**Playbook Structure:**
+
+```yaml
+---
+- name: HPC Compute Packer Build
+  hosts: all
+  become: true
+  vars:
+    packer_build: true
+  roles:
+    - role: hpc-base-packages
+    - role: nvidia-gpu-drivers
+      when: gpu_enabled | default(false)
+    - role: container-runtime
+    - role: slurm-compute
+      vars:
+        install_only: true
+    - role: monitoring-stack
+      vars:
+        install_only: true
+        node_exporter_only: true
+```
+
+**Validation Criteria:**
+
+- [ ] Playbook creates functional compute image
+- [ ] All roles execute without errors
+- [ ] SLURM compute components installed
+- [ ] Apptainer/Singularity installed
+- [ ] Node Exporter installed
+- [ ] GPU drivers installed (if enabled)
+- [ ] No runtime services started during build
+
+**Test Commands:**
+
+```bash
+# Test playbook with Packer
+cd packer/hpc-compute
+packer build hpc-compute.pkr.hcl
+
+# Verify image built successfully
+ls -lh ../../build/packer/hpc-compute/
+```
+
+---
+
+#### Task 031: Create Unified Runtime Configuration Playbook
+
+- **ID**: TASK-031
+- **Phase**: 4 - Infrastructure Consolidation
+- **Dependencies**: TASK-022, TASK-023, TASK-024, TASK-025
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create single unified playbook for complete HPC cluster runtime configuration,
+consolidating 6 specialized runtime playbooks into one maintainable file.
+
+**Deliverables:**
+
+- `ansible/playbooks/playbook-hpc-runtime.yml` - Unified runtime configuration playbook
+- Consolidates all runtime configuration tasks
+- Supports controller and compute node configuration
+- GPU-conditional tasks for GRES and DCGM
+- Replaces 6 runtime-specific playbooks
+
+**Consolidates These Playbooks:**
+
+1. `playbook-slurm-compute-runtime-config.yml`
+2. `playbook-cgroup-runtime-config.yml`
+3. `playbook-gres-runtime-config.yml`
+4. `playbook-job-scripts-runtime-config.yml`
+5. `playbook-dcgm-runtime-config.yml`
+6. `playbook-container-validation-runtime-config.yml`
+
+**Playbook Structure:**
+
+```yaml
+---
+- name: HPC Runtime Configuration
+  hosts: all
+  become: true
+  vars:
+    packer_build: false
+  tasks:
+    # Controller configuration
+    - name: Configure SLURM controller services
+      import_role:
+        name: slurm-controller
+        tasks_from: configure
+      when: inventory_hostname in groups['hpc_controllers']
+
+    # Compute node configuration
+    - name: Configure SLURM compute services
+      import_role:
+        name: slurm-compute
+        tasks_from: configure
+      when: inventory_hostname in groups['compute_nodes']
+
+    - name: Configure cgroup isolation
+      import_role:
+        name: slurm-compute
+        tasks_from: cgroup
+      when: inventory_hostname in groups['compute_nodes']
+
+    - name: Configure GPU GRES
+      import_role:
+        name: slurm-compute
+        tasks_from: gres
+      when:
+        - inventory_hostname in groups['compute_nodes']
+        - gpu_enabled | default(false)
+```
+
+**Validation Criteria:**
+
+- [ ] Playbook configures complete cluster successfully
+- [ ] Controller services start and run correctly
+- [ ] Compute nodes register with controller
+- [ ] Cgroup isolation configured properly
+- [ ] GPU GRES configured (if GPUs present)
+- [ ] Job scripts deployed and functional
+- [ ] DCGM monitoring active (if GPUs present)
+- [ ] All original functionality preserved
+
+**Test Commands:**
+
+```bash
+# Test runtime configuration
+cd ansible
+ansible-playbook -i inventories/test playbooks/playbook-hpc-runtime.yml
+
+# Verify cluster operational
+ssh controller "sinfo"
+ssh controller "scontrol show config | grep ProctrackType"
+```
+
+---
+
+#### Task 032: Update Packer Templates for New Playbooks
+
+- **ID**: TASK-032
+- **Phase**: 4 - Infrastructure Consolidation
+- **Dependencies**: TASK-029, TASK-030
+- **Estimated Time**: 1 hour
+- **Difficulty**: Junior
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Update Packer HCL templates to reference new consolidated playbooks instead of old playbook names.
+
+**Deliverables:**
+
+- Update `packer/hpc-controller/hpc-controller.pkr.hcl`
+- Update `packer/hpc-compute/hpc-compute.pkr.hcl`
+- Test Packer builds with new playbook references
+- Verify images build successfully
+
+**Changes Required:**
+
+**File:** `packer/hpc-controller/hpc-controller.pkr.hcl`
+
+```hcl
+# OLD
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-controller.yml"
+}
+
+# NEW
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-packer-controller.yml"
+}
+```
+
+**File:** `packer/hpc-compute/hpc-compute.pkr.hcl`
+
+```hcl
+# OLD
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-compute.yml"
+}
+
+# NEW
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-packer-compute.yml"
+}
+```
+
+**Validation Criteria:**
+
+- [ ] Controller Packer build completes successfully
+- [ ] Compute Packer build completes successfully
+- [ ] Images are functionally identical to previous builds
+- [ ] No Ansible errors during provisioning
+
+**Test Commands:**
+
+```bash
+# Build controller image
+cd packer/hpc-controller
+packer build hpc-controller.pkr.hcl
+
+# Build compute image
+cd ../hpc-compute
+packer build hpc-compute.pkr.hcl
+```
+
+---
+
+#### Task 033: Delete Obsolete Ansible Playbooks
+
+- **ID**: TASK-033
+- **Phase**: 4 - Infrastructure Consolidation
+- **Dependencies**: TASK-029, TASK-030, TASK-031, TASK-032
+- **Estimated Time**: 1 hour
+- **Difficulty**: Junior
+- **Status**: Pending
+- **Priority**: MEDIUM (after validation)
+
+**Description:** Remove obsolete Ansible playbooks after confirming new consolidated playbooks work correctly.
+
+**Deliverables:**
+
+- `ansible/playbooks/playbook-hpc-packer-controller.yml` - Unified controller Packer playbook
+- Consolidates roles: slurm-controller, monitoring-stack, hpc-base-packages, nvidia-gpu-drivers
+- Supports `packer_build=true` mode for install-only operations
+- Replaces `playbook-hpc-controller.yml` during Packer builds
+
+**Playbook Structure:**
+
+```yaml
+---
+- name: HPC Controller Packer Build
+  hosts: all
+  become: true
+  vars:
+    packer_build: true
+  roles:
+    - role: hpc-base-packages
+    - role: slurm-controller
+      vars:
+        install_only: true
+    - role: monitoring-stack
+      vars:
+        install_only: true
+```
+
+**Validation Criteria:**
+
+- [ ] Playbook creates functional controller image
+- [ ] All roles execute without errors
+- [ ] SLURM controller components installed
+- [ ] Monitoring stack (Prometheus, Grafana, Node Exporter) installed
+- [ ] Image size reasonable and optimized
+- [ ] No runtime services started during build
+
+**Test Commands:**
+
+```bash
+# Test playbook with Packer
+cd packer/hpc-controller
+packer build hpc-controller.pkr.hcl
+
+# Verify image built successfully
+ls -lh ../../build/packer/hpc-controller/
+```
+
+---
+
+#### Task 034: Create HPC Packer Compute Playbook
+
+- **ID**: TASK-034
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-008, TASK-022
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create unified Packer build playbook for HPC compute images, consolidating compute node
+components into single streamlined build process.
+
+**Deliverables:**
+
+- `ansible/playbooks/playbook-hpc-packer-compute.yml` - Unified compute Packer playbook
+- Consolidates roles: slurm-compute, container-runtime, monitoring-stack, nvidia-gpu-drivers
+- Supports `packer_build=true` mode for install-only operations
+- Replaces `playbook-hpc-compute.yml` during Packer builds
+
+**Playbook Structure:**
+
+```yaml
+---
+- name: HPC Compute Packer Build
+  hosts: all
+  become: true
+  vars:
+    packer_build: true
+  roles:
+    - role: hpc-base-packages
+    - role: nvidia-gpu-drivers
+      when: gpu_enabled | default(false)
+    - role: container-runtime
+    - role: slurm-compute
+      vars:
+        install_only: true
+    - role: monitoring-stack
+      vars:
+        install_only: true
+        node_exporter_only: true
+```
+
+**Validation Criteria:**
+
+- [ ] Playbook creates functional compute image
+- [ ] All roles execute without errors
+- [ ] SLURM compute components installed
+- [ ] Apptainer/Singularity installed
+- [ ] Node Exporter installed
+- [ ] GPU drivers installed (if enabled)
+- [ ] No runtime services started during build
+
+**Test Commands:**
+
+```bash
+# Test playbook with Packer
+cd packer/hpc-compute
+packer build hpc-compute.pkr.hcl
+
+# Verify image built successfully
+ls -lh ../../build/packer/hpc-compute/
+```
+
+---
+
+#### Task 035: Create Unified Runtime Configuration Playbook
+
+- **ID**: TASK-035
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-022, TASK-023, TASK-024, TASK-025
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create single unified playbook for complete HPC cluster runtime configuration,
+consolidating 6 specialized runtime playbooks into one maintainable file.
+
+**Deliverables:**
+
+- `ansible/playbooks/playbook-hpc-runtime.yml` - Unified runtime configuration playbook
+- Consolidates all runtime configuration tasks
+- Supports controller and compute node configuration
+- GPU-conditional tasks for GRES and DCGM
+- Replaces 6 runtime-specific playbooks
+
+**Consolidates These Playbooks:**
+
+1. `playbook-slurm-compute-runtime-config.yml`
+2. `playbook-cgroup-runtime-config.yml`
+3. `playbook-gres-runtime-config.yml`
+4. `playbook-job-scripts-runtime-config.yml`
+5. `playbook-dcgm-runtime-config.yml`
+6. `playbook-container-validation-runtime-config.yml`
+
+**Playbook Structure:**
+
+```yaml
+---
+- name: HPC Runtime Configuration
+  hosts: all
+  become: true
+  vars:
+    packer_build: false
+  tasks:
+    # Controller configuration
+    - name: Configure SLURM controller services
+      import_role:
+        name: slurm-controller
+        tasks_from: configure
+      when: inventory_hostname in groups['hpc_controllers']
+
+    - name: Start monitoring stack
+      import_role:
+        name: monitoring-stack
+        tasks_from: configure
+      when: inventory_hostname in groups['hpc_controllers']
+
+    # Compute node configuration
+    - name: Configure SLURM compute services
+      import_role:
+        name: slurm-compute
+        tasks_from: configure
+      when: inventory_hostname in groups['compute_nodes']
+
+    - name: Configure cgroup isolation
+      import_role:
+        name: slurm-compute
+        tasks_from: cgroup
+      when: inventory_hostname in groups['compute_nodes']
+
+    - name: Configure GPU GRES
+      import_role:
+        name: slurm-compute
+        tasks_from: gres
+      when:
+        - inventory_hostname in groups['compute_nodes']
+        - gpu_enabled | default(false)
+
+    - name: Deploy job scripts
+      import_role:
+        name: slurm-compute
+        tasks_from: job-scripts
+      when: inventory_hostname in groups['compute_nodes']
+
+    - name: Configure DCGM monitoring
+      import_role:
+        name: monitoring-stack
+        tasks_from: dcgm
+      when:
+        - inventory_hostname in groups['compute_nodes']
+        - gpu_enabled | default(false)
+```
+
+**Validation Criteria:**
+
+- [ ] Playbook configures complete cluster successfully
+- [ ] Controller services start and run correctly
+- [ ] Compute nodes register with controller
+- [ ] Cgroup isolation configured properly
+- [ ] GPU GRES configured (if GPUs present)
+- [ ] Job scripts deployed and functional
+- [ ] DCGM monitoring active (if GPUs present)
+- [ ] All original functionality preserved
+
+**Test Commands:**
+
+```bash
+# Test runtime configuration
+cd ansible
+ansible-playbook -i inventories/test playbooks/playbook-hpc-runtime.yml
+
+# Verify cluster operational
+ssh controller "sinfo"
+ssh controller "scontrol show config | grep ProctrackType"
+```
+
+---
+
+#### Task 036: Update Packer Templates for New Playbooks
+
+- **ID**: TASK-036
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-033, TASK-034
+- **Estimated Time**: 1 hour
+- **Difficulty**: Junior
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Update Packer HCL templates to reference new consolidated playbooks instead of old playbook names.
+
+**Deliverables:**
+
+- Update `packer/hpc-controller/hpc-controller.pkr.hcl`
+- Update `packer/hpc-compute/hpc-compute.pkr.hcl`
+- Test Packer builds with new playbook references
+- Verify images build successfully
+
+**Changes Required:**
+
+**File:** `packer/hpc-controller/hpc-controller.pkr.hcl`
+
+```hcl
+# OLD
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-controller.yml"
+}
+
+# NEW
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-packer-controller.yml"
+}
+```
+
+**File:** `packer/hpc-compute/hpc-compute.pkr.hcl`
+
+```hcl
+# OLD
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-compute.yml"
+}
+
+# NEW
+provisioner "ansible" {
+  playbook_file = "../../ansible/playbooks/playbook-hpc-packer-compute.yml"
+}
+```
+
+**Validation Criteria:**
+
+- [ ] Controller Packer build completes successfully
+- [ ] Compute Packer build completes successfully
+- [ ] Images are functionally identical to previous builds
+- [ ] No Ansible errors during provisioning
+
+**Test Commands:**
+
+```bash
+# Build controller image
+cd packer/hpc-controller
+packer build hpc-controller.pkr.hcl
+
+# Build compute image
+cd ../hpc-compute
+packer build hpc-compute.pkr.hcl
+```
+
+---
+
+#### Task 037: Delete Obsolete Ansible Playbooks
+
+- **ID**: TASK-037
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-033, TASK-034, TASK-035, TASK-036
+- **Estimated Time**: 1 hour
+- **Difficulty**: Junior
+- **Status**: Pending
+- **Priority**: MEDIUM (after validation)
+
+**Description:** Remove obsolete Ansible playbooks after confirming new consolidated playbooks work correctly.
+
+**Files to Delete (9 playbooks):**
+
+1. `ansible/playbooks/playbook-hpc.yml` - Generic, outdated
+2. `ansible/playbooks/playbook-slurm-compute-runtime-config.yml` - Consolidated into runtime playbook
+3. `ansible/playbooks/playbook-cgroup-runtime-config.yml` - Consolidated into runtime playbook
+4. `ansible/playbooks/playbook-gres-runtime-config.yml` - Consolidated into runtime playbook
+5. `ansible/playbooks/playbook-job-scripts-runtime-config.yml` - Consolidated into runtime playbook
+6. `ansible/playbooks/playbook-dcgm-runtime-config.yml` - Consolidated into runtime playbook
+7. `ansible/playbooks/playbook-container-validation-runtime-config.yml` - Consolidated into runtime playbook
+8. `ansible/playbooks/playbook-hpc-controller.yml` - Replaced by packer-controller playbook
+9. `ansible/playbooks/playbook-hpc-compute.yml` - Replaced by packer-compute playbook
+
+**Keep These Playbooks:**
+
+- `playbook-cloud.yml` - Separate Kubernetes infrastructure
+- `playbook-container-registry.yml` - Optional infrastructure component
+- `playbook-hpc-packer-controller.yml` - NEW
+- `playbook-hpc-packer-compute.yml` - NEW
+- `playbook-hpc-runtime.yml` - NEW
+
+**Additional Updates:**
+
+- Update `ansible/README.md` to document new playbook structure
+- Remove references to old playbooks in documentation
+- Verify no scripts reference deleted playbooks
+
+**Validation Criteria:**
+
+- [ ] All 9 obsolete playbooks deleted
+- [ ] No broken references in codebase
+- [ ] ansible/README.md updated
+- [ ] Documentation reflects new structure
+- [ ] Grep confirms no remaining references
+
+**Test Commands:**
+
+```bash
+# Verify no references to old playbooks
+cd ansible
+grep -r "playbook-hpc-controller.yml" . --exclude-dir=.git
+grep -r "playbook-cgroup-runtime-config.yml" . --exclude-dir=.git
+
+# Verify README updated
+cat README.md | grep -i "playbook"
+```
+
+---
+
+### Test Framework Consolidation
+
+#### Task 038: Create Unified HPC Runtime Test Framework
+
+- **ID**: TASK-038
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-035
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create unified test framework for HPC runtime configuration, consolidating 6 specialized
+runtime test frameworks into single streamlined framework.
+
+**Deliverables:**
+
+- `tests/test-hpc-runtime-framework.sh` - Unified runtime test framework
+- `tests/test-infra/configs/test-hpc-runtime.yaml` - Unified test configuration
+- Standard CLI: e2e, start-cluster, stop-cluster, deploy-ansible, run-tests, list-tests, run-test, status
+- Orchestrates all runtime test suites
+
+**Replaces These Frameworks (6 files):**
+
+1. `test-cgroup-isolation-framework.sh`
+2. `test-gpu-gres-framework.sh`
+3. `test-job-scripts-framework.sh`
+4. `test-dcgm-monitoring-framework.sh`
+5. `test-container-integration-framework.sh`
+6. `test-slurm-compute-framework.sh`
+
+**Test Suites Orchestrated:**
+
+```bash
+1. suites/slurm-compute/run-slurm-compute-tests.sh
+2. suites/cgroup-isolation/run-cgroup-isolation-tests.sh
+3. suites/gpu-gres/run-gpu-gres-tests.sh [conditional on GPU]
+4. suites/dcgm-monitoring/run-dcgm-monitoring-tests.sh [conditional on GPU]
+5. suites/job-scripts/run-job-scripts-tests.sh
+6. suites/container-integration/run-container-integration-tests.sh
+```
+
+**Test Configuration:**
+
+**File:** `tests/test-infra/configs/test-hpc-runtime.yaml`
+
+```yaml
+version: "1.0"
+clusters:
+  hpc:
+    controller:
+      hostname: "test-hpc-runtime-controller"
+      ip_address: "192.168.220.10"
+      memory: 4096
+      cpus: 4
+    compute_nodes:
+      - hostname: "test-hpc-runtime-compute01"
+        ip_address: "192.168.220.20"
+        memory: 8192
+        cpus: 8
+```
+
+**Validation Criteria:**
+
+- [ ] Framework implements standard CLI pattern
+- [ ] All 6 test suites execute correctly
+- [ ] GPU tests skip gracefully when no GPU present
+- [ ] Test results properly aggregated and reported
+- [ ] Cluster lifecycle management works
+- [ ] Uses playbook-hpc-runtime.yml for deployment
+
+**Test Commands:**
+
+```bash
+# Test complete workflow
+cd tests
+./test-hpc-runtime-framework.sh e2e
+
+# Test individual commands
+./test-hpc-runtime-framework.sh start-cluster
+./test-hpc-runtime-framework.sh deploy-ansible
+./test-hpc-runtime-framework.sh run-tests
+./test-hpc-runtime-framework.sh stop-cluster
+```
+
+---
+
+#### Task 039: Create HPC Packer Test Frameworks
+
+- **ID**: TASK-039
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-033, TASK-034
+- **Estimated Time**: 5 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Create test frameworks for HPC Packer image builds, consolidating 5 component-focused
+frameworks into 2 image-focused frameworks.
+
+**Deliverables:**
+
+- `tests/test-hpc-packer-controller-framework.sh` - Controller Packer test framework
+- `tests/test-hpc-packer-compute-framework.sh` - Compute Packer test framework
+- `tests/test-infra/configs/test-hpc-packer-controller.yaml` - Controller test config
+- `tests/test-infra/configs/test-hpc-packer-compute.yaml` - Compute test config
+- Standard CLI pattern for both frameworks
+
+**Replaces These Frameworks (5 files):**
+
+1. `test-slurm-controller-framework.sh` - Controller component
+2. `test-slurm-accounting-framework.sh` - Controller component
+3. `test-monitoring-stack-framework.sh` - Controller component
+4. `test-grafana-framework.sh` - Controller component
+5. `test-container-runtime-framework.sh` - Compute component
+
+**Controller Framework Test Suites:**
+
+```bash
+1. suites/slurm-controller/run-slurm-controller-tests.sh
+2. suites/monitoring-stack/run-monitoring-stack-tests.sh
+```
+
+**Compute Framework Test Suites:**
+
+```bash
+1. suites/container-runtime/run-container-runtime-tests.sh
+```
+
+**Test Configurations:**
+
+**File:** `tests/test-infra/configs/test-hpc-packer-controller.yaml`
+
+```yaml
+version: "1.0"
+clusters:
+  hpc:
+    controller:
+      hostname: "test-packer-controller"
+      ip_address: "192.168.220.50"
+      memory: 4096
+      cpus: 4
+```
+
+**File:** `tests/test-infra/configs/test-hpc-packer-compute.yaml`
+
+```yaml
+version: "1.0"
+clusters:
+  hpc:
+    compute_nodes:
+      - hostname: "test-packer-compute01"
+        ip_address: "192.168.220.60"
+        memory: 8192
+        cpus: 8
+```
+
+**Validation Criteria:**
+
+- [ ] Both frameworks implement standard CLI pattern
+- [ ] Controller framework tests all controller components
+- [ ] Compute framework tests all compute components
+- [ ] Test suites execute without errors
+- [ ] Proper test reporting and logging
+- [ ] Uses new Packer playbooks for image builds
+
+**Test Commands:**
+
+```bash
+# Test controller framework
+cd tests
+./test-hpc-packer-controller-framework.sh e2e
+
+# Test compute framework
+./test-hpc-packer-compute-framework.sh e2e
+```
+
+---
+
+#### Task 040: Update Test Makefile and Delete Obsolete Tests
+
+- **ID**: TASK-040
+- **Phase**: 5 - Infrastructure Consolidation
+- **Dependencies**: TASK-038, TASK-039
+- **Estimated Time**: 2 hours
+- **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: MEDIUM (after validation)
+
+**Description:** Update test Makefile with new consolidated targets and remove obsolete test frameworks,
+configs, and helper scripts.
+
+**Makefile Updates:**
+
+**File:** `tests/Makefile`
+
+**Add new targets:**
+
+```makefile
+# HPC Runtime Tests (consolidated)
+test-hpc-runtime:
+ @./test-hpc-runtime-framework.sh
+
+test-hpc-runtime-start:
+ @./test-hpc-runtime-framework.sh start-cluster
+
+test-hpc-runtime-deploy:
+ @./test-hpc-runtime-framework.sh deploy-ansible
+
+test-hpc-runtime-tests:
+ @./test-hpc-runtime-framework.sh run-tests
+
+test-hpc-runtime-stop:
+ @./test-hpc-runtime-framework.sh stop-cluster
+
+# HPC Packer Tests
+test-hpc-packer-controller:
+ @./test-hpc-packer-controller-framework.sh
+
+test-hpc-packer-compute:
+ @./test-hpc-packer-compute-framework.sh
+```
+
+**Update main targets:**
+
+```makefile
+test: \
+  test-integration \
+  test-ansible-roles \
+  test-hpc-runtime \
+  test-container-registry
+
+test-all: \
+  test-base-images \
+  test-hpc-packer-controller \
+  test-hpc-packer-compute \
+  test-hpc-runtime \
+  test-container-registry \
+  test-pcie-passthrough \
+  test-ansible-roles \
+  test-integration
+```
+
+**Remove old targets (all variants):**
+
+- test-cgroup-isolation*
+- test-gpu-gres*
+- test-job-scripts*
+- test-dcgm-monitoring*
+- test-container-integration*
+- test-slurm-compute*
+- test-slurm-controller*
+- test-slurm-accounting*
+- test-monitoring-stack*
+- test-grafana*
+- test-container-runtime*
+
+**Files to Delete:**
+
+**Test Frameworks (13 files):**
+
+```bash
+tests/test-cgroup-isolation-framework.sh
+tests/test-gpu-gres-framework.sh
+tests/test-job-scripts-framework.sh
+tests/test-dcgm-monitoring-framework.sh
+tests/test-container-integration-framework.sh
+tests/test-slurm-compute-framework.sh
+tests/test-slurm-controller-framework.sh
+tests/test-slurm-accounting-framework.sh
+tests/test-monitoring-stack-framework.sh
+tests/test-grafana-framework.sh
+tests/test-container-runtime-framework.sh
+tests/test-grafana.sh
+tests/validate-grafana-implementation.sh
+```
+
+**Test Configs (10 files):**
+
+```bash
+tests/test-infra/configs/test-cgroup-isolation.yaml
+tests/test-infra/configs/test-gpu-gres.yaml
+tests/test-infra/configs/test-job-scripts.yaml
+tests/test-infra/configs/test-dcgm-monitoring.yaml
+tests/test-infra/configs/test-container-integration.yaml
+tests/test-infra/configs/test-slurm-compute.yaml
+tests/test-infra/configs/test-slurm-controller.yaml
+tests/test-infra/configs/test-slurm-accounting.yaml
+tests/test-infra/configs/test-monitoring-stack.yaml
+tests/test-infra/configs/test-container-runtime.yaml
+```
+
+**Helper Scripts (2 files):**
+
+```bash
+tests/validate-slurm-pmix-config.sh
+tests/setup-test-environment.sh
+```
+
+**Total: 25 files deleted**
+
+**Additional Updates:**
+
+- Update `tests/README.md` with new framework structure
+- Remove references to old frameworks in documentation
+- Add migration notes for users of old test commands
+
+**Validation Criteria:**
+
+- [ ] All new Makefile targets work correctly
+- [ ] Old targets removed from Makefile
+- [ ] All 25 obsolete files deleted
+- [ ] No broken references to deleted files
+- [ ] tests/README.md updated
+- [ ] Documentation reflects new structure
+
+**Test Commands:**
+
+```bash
+# Test new Makefile targets
+cd tests
+make test-hpc-runtime
+make test-hpc-packer-controller
+make test-hpc-packer-compute
+make test-all
+
+# Verify no references to old frameworks
+grep -r "test-cgroup-isolation-framework" . --exclude-dir=.git
+grep -r "test-gpu-gres-framework" . --exclude-dir=.git
+```
+
+---
+
+## Phase 6: Final Validation & Completion (Tasks 041-044)
+
+**Priority:** HIGH - Execute after storage and consolidation complete
+
+**Objective:** Validate consolidated infrastructure and complete remaining documentation
+
+**Estimated Duration:** 1-2 weeks
+
+### Integration Testing with Consolidated Structure
+
+#### Task 041: Execute Consolidated Full-Stack Integration Testing
+
+- **ID**: TASK-041
+- **Phase**: 6 - Final Validation
+- **Dependencies**: TASK-038, TASK-039, TASK-040
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+- **Supersedes**: TASK-027 (updated for consolidated structure)
+
+**Description:** Validate complete HPC system using new consolidated frameworks, ensuring all components
+work together correctly with simplified structure.
+
+**Deliverables:**
+
+- Run `test-hpc-packer-controller` successfully
+- Run `test-hpc-packer-compute` successfully
+- Run `test-hpc-runtime` successfully
+- Run `test-container-registry` successfully
+- Validate all test suites pass
+- Document any integration issues
+- Generate integration test report
+
+**Validation Workflow:**
+
+```bash
+cd tests
+
+# Test Packer image builds
+echo "Testing controller Packer build..."
+make test-hpc-packer-controller
+
+echo "Testing compute Packer build..."
+make test-hpc-packer-compute
+
+# Test runtime configuration
+echo "Testing runtime configuration..."
+make test-hpc-runtime
+
+# Test container infrastructure
+echo "Testing container registry..."
+make test-container-registry
+```
+
+**Validation Criteria:**
+
+- [ ] Controller Packer tests pass
+- [ ] Compute Packer tests pass
+- [ ] Runtime configuration tests pass
+- [ ] Container registry tests pass
+- [ ] All test suites execute without errors
+- [ ] SLURM cluster fully functional
+- [ ] Container workloads execute correctly
+- [ ] GPU GRES works (if GPUs present)
+- [ ] Monitoring stack operational
+- [ ] No regressions from consolidation
+
+**Success Criteria:**
+
+- All frameworks execute successfully
+- Complete HPC cluster deploys correctly
+- All original functionality preserved
+- No errors in consolidated playbooks
+- Test execution time reasonable
+- Clear, actionable error messages
+
+---
+
+#### Task 042: Execute Comprehensive Validation Suite
+
+- **ID**: TASK-042
+- **Phase**: 6 - Final Validation
+- **Dependencies**: TASK-041
+- **Estimated Time**: 4 hours
+- **Difficulty**: Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+- **Supersedes**: TASK-028 (updated for consolidated structure)
+
+**Description:** Execute complete test suite validating all consolidated components, ensuring comprehensive
+coverage and production readiness.
+
+**Deliverables:**
+
+- Run `make test-all` successfully
+- Validate all 3 new frameworks operate correctly
+- Confirm all test suites in `suites/` execute properly
+- Validate consolidated playbooks work correctly
+- Generate comprehensive validation report
+- Identify any remaining issues
+
+**Test Execution:**
+
+```bash
+cd tests
+
+# Run complete test suite
+make test-all > validation-report.log 2>&1
+
+# Review results
+less validation-report.log
+
+# Check for failures
+grep -i "fail\|error" validation-report.log
+```
+
+**Test Coverage:**
+
+1. **Foundation Tests:**
+   - Base image builds
+   - Ansible roles validation
+   - Integration tests
+
+2. **Packer Build Tests:**
+   - Controller image build and validation
+   - Compute image build and validation
+
+3. **Runtime Configuration Tests:**
+   - SLURM compute configuration
+   - Cgroup isolation
+   - GPU GRES (conditional)
+   - DCGM monitoring (conditional)
+   - Job scripts
+   - Container integration
+
+4. **Infrastructure Tests:**
+   - Container registry
+   - PCIe passthrough (if applicable)
+
+**Validation Criteria:**
+
+- [ ] `make test-all` completes without errors
+- [ ] All 3 consolidated frameworks functional
+- [ ] All test suites in `suites/` execute correctly
+- [ ] Packer builds produce working images
+- [ ] Runtime configuration deploys successfully
+- [ ] No missing test coverage
+- [ ] Performance acceptable
+- [ ] All validation criteria from individual tests met
+
+**Success Criteria:**
+
+- Test suite completion rate: 100%
+- Test pass rate: ≥95% (allowing for environment-specific skips)
+- No critical failures
+- Comprehensive test coverage maintained
+- Clear documentation of any skipped tests
+
+---
+
+#### Task 043: Update Consolidation Documentation
+
+- **ID**: TASK-043
+- **Phase**: 6 - Final Validation
+- **Dependencies**: TASK-042
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: HIGH
+- **Supersedes**: TASK-029 (updated for consolidated structure)
+
+**Description:** Update all documentation to reflect consolidated Ansible playbooks and test frameworks,
+providing clear guidance for users of the new structure.
+
+**Files to Update:**
+
+1. `ansible/README.md`
+   - Document 3 new playbooks
+   - Remove references to deleted playbooks
+   - Add usage examples
+   - Explain packer_build mode
+
+2. `tests/README.md`
+   - Document 3 new test frameworks
+   - Remove references to deleted frameworks
+   - Update test execution examples
+   - Add framework CLI documentation
+
+3. `docs/ANSIBLE-PLAYBOOK-GUIDE.md` (create if needed)
+   - Comprehensive playbook documentation
+   - Usage patterns and examples
+   - Role integration details
+   - Troubleshooting guide
+
+4. `docs/TESTING-GUIDE.md` (create if needed)
+   - Test framework documentation
+   - Test execution workflows
+   - Debugging procedures
+   - Test suite descriptions
+
+5. `README.md` (project root)
+   - Update architecture overview
+   - Update quick start guide
+   - Update testing section
+   - Add consolidation notes
+
+6. `docs/MIGRATION-GUIDE.md` (create)
+   - Migration from old structure
+   - Breaking changes documentation
+   - Command mapping (old → new)
+   - Common issues and solutions
+
+**Key Documentation Updates:**
+
+**Ansible Playbooks:**
+
+- 3 playbooks replace 10+ old playbooks
+- Clear distinction: 2 Packer + 1 runtime
+- Role modular task inclusion explained
+- GPU-conditional execution documented
+
+**Test Frameworks:**
+
+- 3 frameworks replace 15+ old frameworks
+- Standard CLI pattern documented
+- Test suite orchestration explained
+- Makefile targets documented
+
+**Migration Guide:**
+
+- Old playbook → new playbook mapping
+- Old test target → new test target mapping
+- Breaking changes clearly listed
+- Update procedures documented
+
+**Validation Criteria:**
+
+- [ ] All documentation files updated
+- [ ] No references to deleted playbooks
+- [ ] No references to deleted frameworks
+- [ ] Migration guide complete and accurate
+- [ ] Examples tested and working
+- [ ] Architecture diagrams updated (if applicable)
+- [ ] Markdown formatting correct
+
+**Test Commands:**
+
+```bash
+# Verify no references to old names
+cd docs
+grep -r "playbook-cgroup-runtime-config" .
+grep -r "test-cgroup-isolation-framework" .
+
+# Check markdown formatting
+cd ..
+markdownlint docs/ ansible/README.md tests/README.md
+```
+
+---
+
+#### Task 044: Final Integration Validation
+
+- **ID**: TASK-044
+- **Phase**: 6 - Final Validation
+- **Dependencies**: TASK-043
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: Pending
+- **Priority**: HIGH
+- **Supersedes**: TASK-030 (updated for consolidated structure)
+
+**Description:** Perform final end-to-end validation of complete consolidated system, building Packer images
+with new playbooks and deploying complete cluster with runtime configuration.
+
+**Validation Workflow:**
+
+```bash
+# Step 1: Build Packer images with new playbooks
+cd packer/hpc-controller
+echo "Building controller image with playbook-hpc-packer-controller.yml..."
+packer build hpc-controller.pkr.hcl
+
+cd ../hpc-compute
+echo "Building compute image with playbook-hpc-packer-compute.yml..."
+packer build hpc-compute.pkr.hcl
+
+# Step 2: Test images with new frameworks
+cd ../../tests
+echo "Testing controller image..."
+make test-hpc-packer-controller
+
+echo "Testing compute image..."
+make test-hpc-packer-compute
+
+# Step 3: Deploy cluster and test runtime configuration
+echo "Testing runtime configuration..."
+make test-hpc-runtime
+
+# Step 4: Run complete test suite
+echo "Running complete test suite..."
+make test-all
+
+# Step 5: Validate container workloads
+echo "Testing container infrastructure..."
+make test-container-registry
+```
+
+**Deliverables:**
+
+- Complete Packer build with new playbooks
+- Functional controller and compute images
+- Deployed cluster with runtime configuration
+- All test suites passing
+- Final validation report
+- Production readiness assessment
+
+**Validation Criteria:**
+
+- [ ] Controller Packer build succeeds
+- [ ] Compute Packer build succeeds
+- [ ] Images are functionally complete
+- [ ] All consolidated test frameworks pass
+- [ ] Complete HPC cluster deploys correctly
+- [ ] SLURM controller and compute communicate
+- [ ] Container workloads execute on SLURM
+- [ ] GPU GRES functions properly (if GPUs available)
+- [ ] Monitoring stack operational
+- [ ] Documentation accurate and complete
+- [ ] No regressions from consolidation
+- [ ] All original functionality preserved
+
+**Success Criteria:**
+
+- All Packer builds complete successfully
+- All test frameworks pass validation
+- Complete HPC cluster fully operational
+- Container workloads execute without errors
+- GPU GRES scheduling works (if applicable)
+- Monitoring metrics collected correctly
+- Documentation matches implementation
+- System ready for production use
+- Consolidation goals achieved:
+  - 70% reduction in playbooks (10+ → 3)
+  - 80% reduction in frameworks (15+ → 3)
+  - No deprecated code
+  - Clean, maintainable structure
 
 ---
 
@@ -5062,10 +6268,98 @@ Integration Validation (Requires ALL Above):
 - **Isolation**: Cgroup resource isolation working (024)
 - **Monitoring**: Job scripts for debugging (025)
 
-### Phase 3 Execution Flow
+### Phase 3 Execution Flow (Storage Infrastructure)
 
 ```text
-TASK-027 → TASK-028 → TASK-029 → TASK-030
+Infrastructure Enhancements (Required):
+
+TASK-027 (Virtio-FS)
+    ↓
+    Depends on: TASK-010.1 (Controller Image), TASK-001 (Base Images)
+    Enables: Fast host-to-VM file sharing
+    Priority: HIGH
+    
+TASK-028 (BeeGFS)
+    ↓
+    Depends on: TASK-022 (Compute Nodes), TASK-037 (Full-Stack Integration)
+    Enables: High-performance distributed filesystem
+    Priority: HIGH
+    
+Note: These tasks provide critical storage infrastructure for HPC operations
+```
+
+### Phase 4 Execution Flow (Infrastructure Consolidation)
+
+```text
+Ansible Playbook Consolidation:
+TASK-029 (Packer Controller) → TASK-032 (Update Packer Templates)
+TASK-030 (Packer Compute)    ↗         ↓
+TASK-031 (Runtime Playbook) ────→ TASK-033 (Delete Old Playbooks)
+
+Test Framework Consolidation:
+TASK-034 (Runtime Test Framework) ──┐
+TASK-035 (Packer Test Frameworks) ──┤
+                                    ↓
+                              TASK-036 (Update Makefile & Delete Old Tests)
+
+Dependencies:
+- TASK-029 depends on: TASK-010.1, TASK-015, TASK-017
+- TASK-030 depends on: TASK-008, TASK-022
+- TASK-031 depends on: TASK-022, TASK-023, TASK-024, TASK-025
+- TASK-032 depends on: TASK-029, TASK-030
+- TASK-033 depends on: TASK-029, TASK-030, TASK-031, TASK-032
+- TASK-034 depends on: TASK-031
+- TASK-035 depends on: TASK-029, TASK-030
+- TASK-036 depends on: TASK-034, TASK-035
+
+Deliverables:
+- 3 new Ansible playbooks (2 Packer + 1 runtime)
+- 3 new test frameworks
+- 9 old playbooks deleted
+- 25 old test files deleted
+```
+
+### Phase 5 Execution Flow (Integration Testing & Validation)
+
+```text
+TASK-037 → TASK-038 → TASK-039 → TASK-040
+(Full-Stack) (Comprehensive) (Documentation) (Final Integration)
+
+Dependencies:
+- TASK-037 depends on: TASK-005, TASK-018, TASK-026
+- TASK-038 depends on: TASK-041 (or TASK-037 for legacy approach)
+- TASK-039 depends on: TASK-042 (or TASK-038 for legacy approach)
+- TASK-040 depends on: TASK-043 (or TASK-039 for legacy approach)
+
+Note: Phase 5 tasks (TASK-037 through TASK-040) are superseded by Phase 6 validation
+tasks. The new consolidated approach in Phase 6 uses streamlined frameworks and playbooks
+from Phase 4.
+```
+
+### Phase 6 Execution Flow (Final Validation & Completion)
+
+```text
+TASK-041 → TASK-042 → TASK-043 → TASK-044
+(Full-Stack) (Comprehensive) (Documentation) (Final Validation)
+
+Dependencies:
+- TASK-041 depends on: TASK-034, TASK-035, TASK-036
+- TASK-042 depends on: TASK-041
+- TASK-043 depends on: TASK-042
+- TASK-044 depends on: TASK-043
+
+Supersedes:
+- TASK-041 supersedes TASK-037 (uses consolidated frameworks)
+- TASK-042 supersedes TASK-038 (validates consolidated infrastructure)
+- TASK-043 supersedes TASK-039 (documents consolidated structure)
+- TASK-044 supersedes TASK-040 (validates with new playbooks)
+
+Deliverables:
+- Complete HPC cluster validated with consolidated frameworks
+- All test suites passing (≥95% pass rate)
+- Comprehensive documentation updated
+- Migration guide created
+- Production-ready system
 ```
 
 ## Success Metrics
