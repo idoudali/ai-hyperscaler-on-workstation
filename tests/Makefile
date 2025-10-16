@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-virtio-fs test-virtio-fs-start test-virtio-fs-deploy test-virtio-fs-tests test-virtio-fs-stop test-virtio-fs-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -48,6 +48,12 @@ help:
 	@echo "  test-container-integration-tests - Run container integration tests only"
 	@echo "  test-container-integration-stop - Stop container integration test cluster"
 	@echo "  test-container-integration-status - Show container integration test cluster status"
+	@echo "  test-virtio-fs         - Run virtio-fs host directory sharing tests (full workflow)"
+	@echo "  test-virtio-fs-start   - Start virtio-fs test cluster"
+	@echo "  test-virtio-fs-deploy  - Deploy virtio-fs Ansible configuration"
+	@echo "  test-virtio-fs-tests   - Run virtio-fs tests only"
+	@echo "  test-virtio-fs-stop    - Stop virtio-fs test cluster"
+	@echo "  test-virtio-fs-status  - Show virtio-fs test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -302,6 +308,36 @@ test-container-integration-stop:
 test-container-integration-status:
 	@echo "Checking container integration test cluster status..."
 	@./test-container-integration-framework.sh status
+
+# Run virtio-fs tests (Task 027) - full workflow
+test-virtio-fs:
+	@echo "Running virtio-fs host directory sharing tests (full workflow)..."
+	@./test-virtio-fs-framework.sh
+
+# Start virtio-fs test cluster
+test-virtio-fs-start:
+	@echo "Starting virtio-fs test cluster..."
+	@./test-virtio-fs-framework.sh start-cluster
+
+# Deploy virtio-fs Ansible configuration
+test-virtio-fs-deploy:
+	@echo "Deploying virtio-fs Ansible configuration..."
+	@./test-virtio-fs-framework.sh deploy-ansible
+
+# Run virtio-fs tests only (assumes cluster deployed)
+test-virtio-fs-tests:
+	@echo "Running virtio-fs tests..."
+	@./test-virtio-fs-framework.sh run-tests
+
+# Stop virtio-fs test cluster
+test-virtio-fs-stop:
+	@echo "Stopping virtio-fs test cluster..."
+	@./test-virtio-fs-framework.sh stop-cluster
+
+# Show virtio-fs test cluster status
+test-virtio-fs-status:
+	@echo "Checking virtio-fs test cluster status..."
+	@./test-virtio-fs-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:

@@ -750,6 +750,9 @@ class HPCClusterManager:
             pcie_passthrough=controller_config.get(
                 "pcie_passthrough"
             ),  # Controllers typically don't have PCIe passthrough
+            virtio_fs_mounts=controller_config.get(
+                "virtio_fs_mounts"
+            ),  # Virtio-FS host directory sharing
         )
 
         # Create VM
@@ -878,6 +881,7 @@ class HPCClusterManager:
         ip_address: str | None = None,
         gpu_mdev_uuid: str | None = None,
         pcie_passthrough: dict | None = None,
+        virtio_fs_mounts: list | None = None,
     ) -> str:
         """Generate VM XML configuration from template with hardware acceleration support."""
         try:
@@ -900,6 +904,8 @@ class HPCClusterManager:
                 "hardware": hardware_config,
                 # PCIe passthrough configuration (per-VM)
                 "pcie_passthrough": pcie_passthrough or {},
+                # Virtio-FS host directory sharing configuration (per-VM)
+                "virtio_fs_mounts": virtio_fs_mounts or [],
                 # MAC address generation for network
                 "mac_address": self._generate_mac_address(vm_name),
             }

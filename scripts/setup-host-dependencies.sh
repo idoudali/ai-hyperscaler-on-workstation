@@ -132,6 +132,7 @@ install_debian_packages() {
         qemu-system-x86 \
         qemu-utils \
         software-properties-common \
+        virtiofsd \
         wget
 
     log_info "System packages installed successfully."

@@ -1,0 +1,93 @@
+---
+# Setup virtio-fs mount points
+
+- name: Check if virtio-fs mounts are already mounted
+  ansible.builtin.command: "mount | grep -E '{{ item.tag }} on {{ item.mount_point }}'"
+  register: mount_check
+  changed_when: false
+  failed_when: false
+  loop: "{{ virtio_fs_mounts }}"
+  when:
+    - item.mount_point is defined
+    - item.tag is defined
+
+- name: Create mount point directories (if not already mounted)
+  ansible.builtin.file:
+    path: "{{ item.item.mount_point }}"
+    state: directory
+  become: true
+  loop: "{{ mount_check.results }}"
+  when:
+    - virtio_fs_create_mount_dirs | bool
+    - item.item.mount_point is defined
+    - item.rc != 0  # Only create if not already mounted
+
+- name: Mount virtio-fs filesystems
+  ansible.builtin.mount:
+    path: "{{ item.mount_point }}"
+    src: "{{ item.tag }}"
+    fstype: virtiofs
+    opts: "{{ item.options | default(virtio_fs_default_options) }}"
+    state: mounted
+  become: true
+  loop: "{{ virtio_fs_mounts }}"
+  when:
+    - item.mount_point is defined
+    - item.tag is defined
+  register: mount_result
+  ignore_errors: true
+
+- name: Display mount errors if any
+  ansible.builtin.debug:
+    msg: "Failed to mount {{ item.item.tag }} at {{ item.item.mount_point }}: {{ item.msg | default('Unknown error') }}"
+  loop: "{{ mount_result.results }}"
+  when:
+    - mount_result is defined
+    - item.failed is defined
+    - item.failed | bool
+
+- name: Add virtio-fs mounts to /etc/fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "{{ item.tag }} {{ item.mount_point }} virtiofs {{ item.options | default(virtio_fs_default_options) }} 0 0"
+    state: present
+    create: true
+    backup: true
+  become: true
+  loop: "{{ virtio_fs_mounts }}"
+  when:
+    - virtio_fs_persist_mounts | bool
+    - item.mount_point is defined
+    - item.tag is defined
+
+- name: Verify mount points are accessible
+  ansible.builtin.stat:
+    path: "{{ item.mount_point }}"
+  register: mount_verify
+  loop: "{{ virtio_fs_mounts }}"
+  when:
+    - item.mount_point is defined
+
+- name: Display mount verification results
+  ansible.builtin.debug:
+    msg: "Mount point {{ item.item.mount_point }} is {{ 'accessible' if item.stat.exists else 'NOT accessible' }}"
+  loop: "{{ mount_verify.results }}"
+  when:
+    - mount_verify is defined
+    - item.stat is defined
+
+- name: Set proper permissions on mounted filesystems (read-write only)
+  ansible.builtin.file:
+    path: "{{ item.mount_point }}"
+    state: directory
+    owner: "{{ item.owner | default(virtio_fs_default_owner) }}"
+    group: "{{ item.group | default(virtio_fs_default_group) }}"
+    mode: "{{ item.mode | default(virtio_fs_default_mode) }}"
+    recurse: false
+  become: true
+  loop: "{{ virtio_fs_mounts }}"
+  when:
+    - item.mount_point is defined
+    - not (item.readonly | default(false))
+    - mount_result is defined
+    - mount_result is succeeded or mount_result is skipped

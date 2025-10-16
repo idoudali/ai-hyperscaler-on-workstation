@@ -67,6 +67,58 @@
         }
       }
     },
+    "virtioFsMount": {
+      "type": "object",
+      "description": "Virtio-FS host directory sharing mount configuration",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "Unique identifier for the mount (used in virtiofs protocol)",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "host_path": {
+          "type": "string",
+          "description": "Absolute path on the host to share"
+        },
+        "mount_point": {
+          "type": "string",
+          "description": "Mount point path inside the guest VM",
+          "pattern": "^/.*$"
+        },
+        "readonly": {
+          "type": "boolean",
+          "description": "Mount as read-only",
+          "default": false
+        },
+        "owner": {
+          "type": "string",
+          "description": "Owner user for mount point (default: admin)",
+          "default": "admin"
+        },
+        "group": {
+          "type": "string",
+          "description": "Owner group for mount point (default: admin)",
+          "default": "admin"
+        },
+        "mode": {
+          "type": "string",
+          "description": "Permissions mode (default: 0755)",
+          "pattern": "^0[0-7]{3}$",
+          "default": "0755"
+        },
+        "options": {
+          "type": "string",
+          "description": "Mount options (default: rw,relatime)",
+          "default": "rw,relatime"
+        }
+      },
+      "required": ["tag", "host_path", "mount_point"]
+    },
+    "virtioFsMounts": {
+      "type": "array",
+      "description": "List of virtio-fs host directory mounts",
+      "items": { "$ref": "#/definitions/virtioFsMount" }
+    },
     "hardwareAcceleration": {
       "type": "object",
       "properties": {
@@ -184,6 +236,10 @@
         "base_image_path": {
           "$ref": "#/definitions/baseImagePath",
           "description": "Override the cluster default base image path for this controller node"
+        },
+        "virtio_fs_mounts": {
+          "$ref": "#/definitions/virtioFsMounts",
+          "description": "Virtio-FS host directory sharing mounts for the controller"
         }
       },
       "required": ["cpu_cores", "memory_gb", "disk_gb", "ip_address"]
@@ -195,6 +251,10 @@
         "memory_gb": { "type": "integer", "minimum": 1 },
         "disk_gb": { "type": "integer", "minimum": 10 },
         "pcie_passthrough": { "$ref": "#/definitions/pciePassthrough" },
+        "virtio_fs_mounts": {
+          "$ref": "#/definitions/virtioFsMounts",
+          "description": "Virtio-FS host directory sharing mounts (optional)"
+        },
         "base_image_path": {
           "$ref": "#/definitions/baseImagePath",
           "description": "Override the cluster default base image path for this VM"

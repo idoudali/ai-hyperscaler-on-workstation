@@ -1,0 +1,43 @@
+---
+# Default variables for virtio-fs-mount role
+
+# Virtio-FS mount configuration
+# Default mount points - override in playbook or host_vars
+virtio_fs_mounts: []
+# Example configuration:
+# virtio_fs_mounts:
+#   - tag: "datasets"
+#     mount_point: "/mnt/host-datasets"
+#     readonly: false
+#     owner: "admin"
+#     group: "admin"
+#     mode: "0755"
+#   - tag: "containers"
+#     mount_point: "/mnt/host-containers"
+#     readonly: true
+#     owner: "root"
+#     group: "root"
+#     mode: "0755"
+
+# Default mount options for virtio-fs
+virtio_fs_default_options: "rw,relatime"
+
+# Default owner/group/mode for mount points
+virtio_fs_default_owner: "admin"
+virtio_fs_default_group: "admin"
+virtio_fs_default_mode: "0755"
+
+# Whether to persist mounts in /etc/fstab
+virtio_fs_persist_mounts: true
+
+# Whether to create mount point directories if they don't exist
+virtio_fs_create_mount_dirs: true
+
+# Timeout for mount operations (seconds)
+virtio_fs_mount_timeout: 30
+
+# Service management during Packer builds
+# During builds, we only install and configure, but don't mount
+# Mounts will be activated during runtime configuration
+packer_build: false
+virtio_fs_perform_mounts: "{{ not ((packer_build | default(false)) | bool) }}"

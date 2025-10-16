@@ -1,0 +1,49 @@
+---
+# Main tasks for virtio-fs-mount role
+
+- name: Display virtio-fs-mount role execution mode
+  ansible.builtin.debug:
+    msg: "Virtio-FS Mount Role - Mode: {{ 'Packer Build (configuration only)' if (packer_build | default(false)) else 'Runtime (full mount configuration)' }}"
+
+- name: Ensure required packages are installed
+  ansible.builtin.apt:
+    name:
+      - fuse3
+      - util-linux
+    state: present
+    update_cache: true
+  become: true
+
+- name: Check if virtiofs kernel module is available
+  ansible.builtin.command: modinfo virtiofs
+  register: virtiofs_module_check
+  changed_when: false
+  failed_when: false
+
+- name: Display virtiofs module status
+  ansible.builtin.debug:
+    msg: "{{ 'Virtiofs module is available' if virtiofs_module_check.rc == 0 else 'Virtiofs module not found - ensure kernel supports it' }}"
+
+- name: Load virtiofs kernel module
+  ansible.builtin.modprobe:
+    name: virtiofs
+    state: present
+  become: true
+  when: virtiofs_module_check.rc == 0
+  ignore_errors: true
+
+- name: Include setup-mounts tasks
+  ansible.builtin.include_tasks: setup-mounts.yml
+  when:
+    - virtio_fs_mounts is defined
+    - virtio_fs_mounts | length > 0
+    - virtio_fs_perform_mounts | bool
+
+- name: Display skip message for Packer build
+  ansible.builtin.debug:
+    msg: "Skipping mount operations - running in Packer build mode"
+  when: packer_build | default(false)
+
+- name: Display completion message
+  ansible.builtin.debug:
+    msg: "Virtio-FS mount configuration completed successfully"
