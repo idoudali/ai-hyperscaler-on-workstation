@@ -1,0 +1,25 @@
+---
+# BeeGFS Management Service Role - Main Tasks
+
+- name: Include BeeGFS management service installation tasks
+  ansible.builtin.include_tasks: install.yml
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - install
+
+- name: Include BeeGFS management service configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - configure
+
+- name: Include BeeGFS management service startup tasks
+  ansible.builtin.include_tasks: service.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service

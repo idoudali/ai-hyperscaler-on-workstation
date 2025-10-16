@@ -1,0 +1,206 @@
+---
+# BeeGFS Metadata Service - Installation Tasks
+# Installs from pre-built packages only (no source build)
+
+- name: Check if BeeGFS metadata service is already installed
+  ansible.builtin.stat:
+    path: /usr/bin/beegfs-meta
+  register: beegfs_meta_installed
+  tags:
+    - beegfs
+    - beegfs-meta
+    - check
+
+- name: Check if packages directory exists on remote host
+  ansible.builtin.stat:
+    path: "{{ beegfs_packages_path }}"
+  register: packages_dir_check
+  when: not beegfs_meta_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-meta
+    - check
+
+- name: Check if pre-built packages exist on remote host
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: prebuilt_packages_check
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - packages_dir_check.stat.exists
+  tags:
+    - beegfs
+    - beegfs-meta
+    - check
+
+- name: Check if packages exist on Ansible controller (for runtime deployment)
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_source_dir | default('build/packages/beegfs') }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: controller_packages_check
+  delegate_to: localhost
+  become: false
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+  tags:
+    - beegfs
+    - beegfs-meta
+    - check
+
+- name: Create BeeGFS packages directory on remote host (for runtime deployment)
+  ansible.builtin.file:
+    path: "{{ beegfs_packages_path }}"
+    state: directory
+    mode: '0755'
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+    - controller_packages_check.matched | default(0) > 0
+  tags:
+    - beegfs
+    - beegfs-meta
+    - copy
+
+- name: Copy pre-built packages from Ansible controller to remote host
+  ansible.builtin.copy:
+    src: "{{ beegfs_packages_source_dir | default('build/packages/beegfs') }}/"
+    dest: "{{ beegfs_packages_path }}/"
+    mode: '0644'
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+    - controller_packages_check.matched | default(0) > 0
+  tags:
+    - beegfs
+    - beegfs-meta
+    - copy
+
+- name: Re-check if pre-built packages exist after copy
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: prebuilt_packages_check_final
+  when:
+    - not beegfs_meta_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-meta
+    - check
+
+- name: Fail if pre-built packages not found
+  ansible.builtin.fail:
+    msg: >-
+      BeeGFS pre-built packages not found at {{ beegfs_packages_path }}.
+      Expected: beegfs-common_{{ beegfs_version }}_*.deb
+      Checked on controller: {{ beegfs_packages_source_dir | default('build/packages/beegfs') }}
+      For Packer builds: Packages should be copied by Packer to /tmp/beegfs-packages/
+      For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - prebuilt_packages_check_final.matched | default(0) == 0
+  tags:
+    - beegfs
+    - beegfs-meta
+
+- name: Display package installation method
+  ansible.builtin.debug:
+    msg: "{{ 'BeeGFS metadata already installed, skipping' if beegfs_meta_installed.stat.exists else 'Installing BeeGFS metadata packages from ' + beegfs_packages_path }}"
+  tags:
+    - beegfs
+    - beegfs-meta
+
+- name: Find BeeGFS common package
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: beegfs_common_pkg
+  when: not beegfs_meta_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-meta
+    - install
+
+- name: Install BeeGFS common package
+  ansible.builtin.apt:
+    deb: "{{ beegfs_common_pkg.files[0].path }}"
+    state: present
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - beegfs_common_pkg.matched > 0
+  tags:
+    - beegfs
+    - beegfs-meta
+    - install
+
+- name: Find BeeGFS metadata service packages
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns:
+      - "beegfs-meta_{{ beegfs_version }}_*.deb"
+      - "beegfs-utils_{{ beegfs_version }}_*.deb"
+  register: beegfs_meta_pkgs
+  when: not beegfs_meta_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-meta
+    - install
+
+- name: Install BeeGFS metadata service packages
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
+  loop: "{{ beegfs_meta_pkgs.files }}"
+  when:
+    - not beegfs_meta_installed.stat.exists
+    - beegfs_meta_pkgs.matched > 0
+  tags:
+    - beegfs
+    - beegfs-meta
+    - install
+
+- name: Create BeeGFS metadata storage directory
+  ansible.builtin.file:
+    path: "{{ beegfs_meta_storage_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - beegfs
+    - beegfs-meta
+    - directories
+
+- name: Create BeeGFS metadata log directory
+  ansible.builtin.file:
+    path: "{{ beegfs_meta_log_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - beegfs
+    - beegfs-meta
+    - directories
+
+- name: Verify BeeGFS metadata service installation
+  ansible.builtin.command:
+    cmd: beegfs-meta --version
+  register: beegfs_meta_version
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-meta
+    - verify
+
+- name: Display installation status
+  ansible.builtin.debug:
+    msg: >-
+      BeeGFS metadata service installed successfully
+      (Version: {{ beegfs_meta_version.stdout_lines[0] if beegfs_meta_version.rc == 0 else 'unknown' }},
+      packer_build={{ packer_build }})
+  tags:
+    - beegfs
+    - beegfs-meta

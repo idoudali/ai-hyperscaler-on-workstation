@@ -91,6 +91,11 @@ variable "ssh_username" {
   description = "SSH username used by the communicator and Ansible"
 }
 
+variable "beegfs_packages_dir" {
+  type        = string
+  description = "Directory containing pre-built BeeGFS DEB packages"
+}
+
 # Local variables
 locals {
   output_directory = "${var.build_directory}"
@@ -177,6 +182,45 @@ build {
       "echo 'Waiting for cloud-init to complete...'",
       "cloud-init status --wait",
       "echo 'Cloud-init completed successfully'"
+    ]
+  }
+
+  # Copy pre-built BeeGFS packages to VM
+  provisioner "shell" {
+    inline = [
+      "echo 'Creating BeeGFS packages directory...'",
+      "sudo mkdir -p /tmp/beegfs-packages",
+      "sudo chown ${var.ssh_username}:${var.ssh_username} /tmp/beegfs-packages"
+    ]
+  }
+
+  provisioner "file" {
+    source = "${var.beegfs_packages_dir}/"
+    destination = "/tmp/beegfs-packages"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo 'BeeGFS packages copied to /tmp/beegfs-packages:'",
+      "ls -lh /tmp/beegfs-packages/*.deb | head -10"
+    ]
+  }
+
+  # Install BeeGFS packages (management, metadata, storage, client)
+  provisioner "ansible-local" {
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-beegfs-packer-install.yml"
+    playbook_dir = "${var.repo_tot_dir}/ansible"
+    role_paths = [
+      "${var.repo_tot_dir}/ansible/roles/beegfs-mgmt",
+      "${var.repo_tot_dir}/ansible/roles/beegfs-meta",
+      "${var.repo_tot_dir}/ansible/roles/beegfs-storage",
+      "${var.repo_tot_dir}/ansible/roles/beegfs-client"
+    ]
+    extra_arguments = [
+      "--extra-vars", "packer_build=true",
+      "--extra-vars", "install_only=true",
+      "--extra-vars", "beegfs_packages_path=/tmp/beegfs-packages",
+      "-v"
     ]
   }
 

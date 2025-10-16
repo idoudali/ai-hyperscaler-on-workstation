@@ -1,0 +1,90 @@
+---
+# BeeGFS Management Service - Service Management Tasks
+
+- name: Remove stale PID file if exists
+  ansible.builtin.file:
+    path: /var/run/beegfs-mgmtd.pid
+    state: absent
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Enable and start BeeGFS management service
+  ansible.builtin.systemd:
+    name: beegfs-mgmtd
+    enabled: "{{ beegfs_mgmt_service_enabled }}"
+    state: "{{ beegfs_mgmt_service_state }}"
+    daemon_reload: true
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Wait a moment for service to initialize
+  ansible.builtin.pause:
+    seconds: 3
+  when: beegfs_mgmt_service_state == "started"
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Check if BeeGFS management service is active
+  ansible.builtin.systemd:
+    name: beegfs-mgmtd
+  register: beegfs_mgmt_service_status
+  when: beegfs_mgmt_service_state == "started"
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Get BeeGFS management service logs if not running
+  ansible.builtin.command:
+    cmd: journalctl -u beegfs-mgmtd -n 50 --no-pager
+  register: beegfs_mgmt_logs
+  when:
+    - beegfs_mgmt_service_state == "started"
+    - beegfs_mgmt_service_status.status.ActiveState != "active"
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Display service logs if not running
+  ansible.builtin.debug:
+    msg: "{{ beegfs_mgmt_logs.stdout_lines }}"
+  when:
+    - beegfs_mgmt_service_state == "started"
+    - beegfs_mgmt_service_status.status.ActiveState != "active"
+    - beegfs_mgmt_logs.stdout_lines is defined
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Wait for BeeGFS management service to be ready
+  ansible.builtin.wait_for:
+    port: "{{ beegfs_mgmt_port }}"
+    host: 0.0.0.0
+    timeout: 60
+    delay: 5
+  when:
+    - beegfs_mgmt_service_state == "started"
+    - beegfs_mgmt_service_status.status.ActiveState == "active"
+  failed_when: false
+  ignore_errors: true
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Display service status
+  ansible.builtin.debug:
+    msg: "BeeGFS management service is {{ beegfs_mgmt_service_state }}"
+  tags:
+    - beegfs
+    - beegfs-mgmt

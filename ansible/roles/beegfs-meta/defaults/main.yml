@@ -1,0 +1,41 @@
+---
+# BeeGFS Metadata Service Role - Default Variables
+
+# BeeGFS version
+beegfs_version: "7.4.4"
+
+# Pre-built packages configuration
+# For Packer builds: packages are copied to /tmp/beegfs-packages/ by Packer
+# For runtime deployments: packages are copied from controller to VMs
+beegfs_packages_path: "/tmp/beegfs-packages"  # Path on remote VMs
+beegfs_packages_source_dir: "{{ (playbook_dir | default(inventory_dir)) }}/../../build/packages/beegfs"
+
+# Management service configuration
+beegfs_mgmt_host: "{{ groups['hpc_controller'][0] if groups['hpc_controller'] is defined else 'localhost' }}"
+beegfs_mgmt_port: 8008
+
+# Metadata service configuration
+beegfs_meta_port: 8005
+beegfs_meta_storage_directory: "/data/beegfs/beegfs_meta"
+beegfs_meta_log_directory: "/var/log/beegfs"
+beegfs_meta_log_level: 3  # 1=critical, 2=error, 3=warning, 4=info, 5=debug
+
+# Network configuration
+beegfs_meta_interfaces: "{{ ansible_default_ipv4.interface }}"
+beegfs_meta_tcp_only_filter: ""
+
+# Service management
+beegfs_meta_service_enabled: true
+beegfs_meta_service_state: started
+
+# Packer build mode
+packer_build: false
+install_only: "{{ packer_build }}"
+
+# Storage initialization
+beegfs_meta_force_init: false
+beegfs_meta_allow_first_run_init: true
+
+# Metadata service tuning
+beegfs_meta_target_num_threads: 4
+beegfs_meta_max_dir_entries: 5000000

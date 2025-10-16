@@ -1,0 +1,44 @@
+---
+# BeeGFS Client - Configuration Tasks
+
+- name: Configure BeeGFS client
+  ansible.builtin.template:
+    src: beegfs-client.conf.j2
+    dest: /etc/beegfs/beegfs-client.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - beegfs
+    - beegfs-client
+    - configuration
+
+- name: Configure BeeGFS helperd service
+  ansible.builtin.template:
+    src: beegfs-helperd.conf.j2
+    dest: /etc/beegfs/beegfs-helperd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - beegfs
+    - beegfs-client
+    - configuration
+
+- name: Enable BeeGFS helperd service
+  ansible.builtin.systemd:
+    name: beegfs-helperd
+    enabled: "{{ beegfs_client_service_enabled }}"
+    state: started
+    daemon_reload: true
+  tags:
+    - beegfs
+    - beegfs-client
+    - service
+
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: "BeeGFS client configured to mount {{ beegfs_client_mount_point }}"
+  tags:
+    - beegfs
+    - beegfs-client

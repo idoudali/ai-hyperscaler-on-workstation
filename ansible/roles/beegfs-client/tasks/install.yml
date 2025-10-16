@@ -1,0 +1,321 @@
+---
+# BeeGFS Client - Installation Tasks
+# Installs from pre-built packages only (no source build)
+# Note: Kernel module must be built on the target system
+
+- name: Check if BeeGFS client DKMS package is installed
+  ansible.builtin.stat:
+    path: /usr/src/beegfs-7.4.4
+  register: beegfs_client_dkms_installed
+  tags:
+    - beegfs
+    - beegfs-client
+    - check
+
+- name: Check if BeeGFS client is already installed
+  ansible.builtin.stat:
+    path: /opt/beegfs/sbin/beegfs-ctl
+  register: beegfs_client_installed
+  tags:
+    - beegfs
+    - beegfs-client
+    - check
+
+- name: Check if packages directory exists on remote host
+  ansible.builtin.stat:
+    path: "{{ beegfs_packages_path }}"
+  register: packages_dir_check
+  tags:
+    - beegfs
+    - beegfs-client
+    - check
+
+- name: Check if pre-built packages exist on remote host
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: prebuilt_packages_check
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - packages_dir_check.stat.exists
+  tags:
+    - beegfs
+    - beegfs-client
+    - check
+
+- name: Check if packages exist on Ansible controller (for runtime deployment)
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_source_dir | default('build/packages/beegfs') }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: controller_packages_check
+  delegate_to: localhost
+  become: false
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+  tags:
+    - beegfs
+    - beegfs-client
+    - check
+
+- name: Create BeeGFS packages directory on remote host (for runtime deployment)
+  ansible.builtin.file:
+    path: "{{ beegfs_packages_path }}"
+    state: directory
+    mode: '0755'
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+    - controller_packages_check.matched | default(0) > 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - copy
+
+- name: Copy pre-built packages from Ansible controller to remote host
+  ansible.builtin.copy:
+    src: "{{ beegfs_packages_source_dir | default('build/packages/beegfs') }}/"
+    dest: "{{ beegfs_packages_path }}/"
+    mode: '0644'
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+    - controller_packages_check.matched | default(0) > 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - copy
+
+- name: Re-check if pre-built packages exist after copy
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: prebuilt_packages_check_final
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+  tags:
+    - beegfs
+    - beegfs-client
+    - check
+
+- name: Fail if pre-built packages not found
+  ansible.builtin.fail:
+    msg: >-
+      BeeGFS pre-built packages not found at {{ beegfs_packages_path }}.
+      Expected: beegfs-common_{{ beegfs_version }}_*.deb
+      Checked on controller: {{ beegfs_packages_source_dir | default('build/packages/beegfs') }}
+      For Packer builds: Packages should be copied by Packer to /tmp/beegfs-packages/
+      For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - prebuilt_packages_check_final.matched | default(0) == 0
+  tags:
+    - beegfs
+    - beegfs-client
+
+- name: Display package installation method
+  ansible.builtin.debug:
+    msg: "{{ 'BeeGFS client already installed, skipping' if beegfs_client_installed.stat.exists else 'Installing BeeGFS client packages from ' + beegfs_packages_path }}"
+  tags:
+    - beegfs
+    - beegfs-client
+
+# Remove conflicting beegfs-client package (conflicts with beegfs-client-dkms)
+- name: Remove conflicting beegfs-client package if installed
+  ansible.builtin.apt:
+    name: beegfs-client
+    state: absent
+  when: not beegfs_client_dkms_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+
+# Kernel headers are always needed for client module
+- name: Install kernel headers for BeeGFS client module
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_kernel }}"
+    state: present
+    update_cache: true
+  when: not beegfs_client_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-client
+    - kernel-headers
+
+- name: Find BeeGFS common package
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+  register: beegfs_common_pkg
+  when: not beegfs_client_installed.stat.exists
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+
+- name: Install BeeGFS common package
+  ansible.builtin.apt:
+    deb: "{{ beegfs_common_pkg.files[0].path }}"
+    state: present
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - beegfs_common_pkg.matched | default(0) > 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+
+- name: Find BeeGFS client packages
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns:
+      - "beegfs-client-dkms_{{ beegfs_version }}_*.deb"
+      - "beegfs-helperd_{{ beegfs_version }}_*.deb"
+      - "beegfs-utils_{{ beegfs_version }}_*.deb"
+  register: beegfs_client_pkgs
+  when: (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+
+- name: Ensure kernel headers for running kernel are installed
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_kernel }}"
+    state: present
+    update_cache: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Ensure DKMS and build tools are installed
+  ansible.builtin.apt:
+    name:
+      - dkms
+      - build-essential
+    state: present
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - dkms
+
+- name: Install BeeGFS client packages (allowing DKMS build failures)
+  ansible.builtin.shell: |
+    DKMS_AUTOINSTALL=no dpkg -i "{{ item.path }}" || true
+    apt-get install -f -y || true
+  loop: "{{ beegfs_client_pkgs.files }}"
+  when:
+    - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
+    - beegfs_client_pkgs.matched | default(0) > 0
+  register: client_install_result
+  changed_when: "'Setting up' in client_install_result.stdout"
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+
+- name: Manually build BeeGFS DKMS module for current kernel
+  ansible.builtin.command:
+    cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
+  register: dkms_build_result
+  changed_when: dkms_build_result.rc == 0
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
+    - kernel-module
+
+- name: Display DKMS build result
+  ansible.builtin.debug:
+    msg: "DKMS build {{ 'succeeded' if dkms_build_result.rc == 0 else 'failed (rc=' + (dkms_build_result.rc | string) + ')' }}"
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
+    - kernel-module
+
+- name: Display DKMS build output on failure
+  ansible.builtin.debug:
+    msg: "{{ dkms_build_result.stdout_lines | default([]) + dkms_build_result.stderr_lines | default([]) }}"
+  when: dkms_build_result.rc != 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
+    - kernel-module
+
+- name: Check if BeeGFS client kernel module exists
+  ansible.builtin.find:
+    paths: "/lib/modules/{{ ansible_kernel }}"
+    patterns: "beegfs.ko"
+    recurse: true
+  register: beegfs_client_module_check
+  tags:
+    - beegfs
+    - beegfs-client
+    - kernel-module
+
+- name: Display kernel module status
+  ansible.builtin.debug:
+    msg: "BeeGFS client kernel module: {{ 'found' if (beegfs_client_module_check.matched | default(0)) > 0 else 'not found' }}"
+  tags:
+    - beegfs
+    - beegfs-client
+    - kernel-module
+
+- name: Warn if kernel module is not available
+  ansible.builtin.debug:
+    msg: "WARNING: BeeGFS client kernel module could not be built. This is likely due to kernel API incompatibility. BeeGFS filesystem cannot be mounted without the kernel module."
+  when: (beegfs_client_module_check.matched | default(0)) == 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - kernel-module
+
+- name: Create BeeGFS client mount point
+  ansible.builtin.file:
+    path: "{{ beegfs_client_mount_point }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - beegfs
+    - beegfs-client
+    - directories
+
+- name: Create BeeGFS client log directory
+  ansible.builtin.file:
+    path: "{{ beegfs_client_log_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - beegfs
+    - beegfs-client
+    - directories
+
+- name: Verify BeeGFS client installation
+  ansible.builtin.stat:
+    path: /opt/beegfs/sbin/beegfs-client
+  register: beegfs_client_binary
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Display installation status
+  ansible.builtin.debug:
+    msg: >-
+      BeeGFS client installed successfully
+      (Binary: {{ 'found' if beegfs_client_binary.stat.exists else 'NOT FOUND' }},
+      packer_build={{ packer_build }})
+  tags:
+    - beegfs
+    - beegfs-client

@@ -1,0 +1,42 @@
+---
+# BeeGFS Client Service Role - Default Variables
+
+# BeeGFS version
+beegfs_version: "7.4.4"
+
+# Pre-built packages configuration
+# For Packer builds: packages are copied to /tmp/beegfs-packages/ by Packer
+# For runtime deployments: packages are copied from controller to VMs
+beegfs_packages_path: "/tmp/beegfs-packages"  # Path on remote VMs
+beegfs_packages_source_dir: "{{ (playbook_dir | default(inventory_dir)) }}/../../build/packages/beegfs"
+
+# Management service configuration
+beegfs_mgmt_host: "{{ groups['hpc_controller'][0] if groups['hpc_controller'] is defined else 'localhost' }}"
+beegfs_mgmt_port: 8008
+
+# Client configuration
+beegfs_client_mount_point: "/mnt/beegfs"
+beegfs_client_log_directory: "/var/log/beegfs"
+beegfs_client_log_level: 3  # 1=critical, 2=error, 3=warning, 4=info, 5=debug
+
+# Mount options
+beegfs_client_mount_options: "cfgFile=/etc/beegfs/beegfs-client.conf,_netdev"
+beegfs_client_mount_enabled: true
+beegfs_client_mount_state: mounted
+
+# Network configuration
+beegfs_client_interfaces: "{{ ansible_default_ipv4.interface }}"
+beegfs_client_tcp_only_filter: ""
+
+# Service management
+beegfs_client_service_enabled: true
+
+# Packer build mode
+packer_build: false
+install_only: "{{ packer_build }}"
+
+# Client tuning
+beegfs_client_num_workers: 8
+beegfs_client_read_ahead_size: 2M
+beegfs_client_write_cache_size: 4M
+beegfs_client_max_conns: 12

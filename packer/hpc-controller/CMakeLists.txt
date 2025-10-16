@@ -53,6 +53,7 @@ set(PACKER_VARS
     -var "cloud_init_dir=${CLOUD_INIT_BUILD_DIR}"
     -var "ssh_keys_dir=${SSH_KEYS_DIR}"
     -var "ssh_username=${SSH_USERNAME}"
+    -var "beegfs_packages_dir=${BEEGFS_PACKAGES_SOURCE_DIR}"
 )
 
 
@@ -123,6 +124,7 @@ add_custom_command(
         init-hpc-controller-packer
         generate-packer-vars-hpc-controller
         ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-controller.sh
+        build-beegfs-packages
     USES_TERMINAL
     VERBATIM
 )

@@ -1,0 +1,25 @@
+---
+# BeeGFS Client Service Role - Main Tasks
+
+- name: Include BeeGFS client installation tasks
+  ansible.builtin.include_tasks: install.yml
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+
+- name: Include BeeGFS client configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-client
+    - configure
+
+- name: Include BeeGFS client mount tasks
+  ansible.builtin.include_tasks: mount.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount

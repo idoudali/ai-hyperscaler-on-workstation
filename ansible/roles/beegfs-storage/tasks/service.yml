@@ -1,0 +1,90 @@
+---
+# BeeGFS Storage Service - Service Management Tasks
+
+- name: Remove stale PID file if exists
+  ansible.builtin.file:
+    path: /var/run/beegfs-storage.pid
+    state: absent
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Enable and start BeeGFS storage service
+  ansible.builtin.systemd:
+    name: beegfs-storage
+    enabled: "{{ beegfs_storage_service_enabled }}"
+    state: "{{ beegfs_storage_service_state }}"
+    daemon_reload: true
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Wait a moment for service to initialize
+  ansible.builtin.pause:
+    seconds: 3
+  when: beegfs_storage_service_state == "started"
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Check if BeeGFS storage service is active
+  ansible.builtin.systemd:
+    name: beegfs-storage
+  register: beegfs_storage_service_status
+  when: beegfs_storage_service_state == "started"
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Get BeeGFS storage service logs if not running
+  ansible.builtin.command:
+    cmd: journalctl -u beegfs-storage -n 50 --no-pager
+  register: beegfs_storage_logs
+  when:
+    - beegfs_storage_service_state == "started"
+    - beegfs_storage_service_status.status.ActiveState != "active"
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Display service logs if not running
+  ansible.builtin.debug:
+    msg: "{{ beegfs_storage_logs.stdout_lines }}"
+  when:
+    - beegfs_storage_service_state == "started"
+    - beegfs_storage_service_status.status.ActiveState != "active"
+    - beegfs_storage_logs.stdout_lines is defined
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Wait for BeeGFS storage service to be ready
+  ansible.builtin.wait_for:
+    port: "{{ beegfs_storage_port }}"
+    host: 0.0.0.0
+    timeout: 60
+    delay: 5
+  when:
+    - beegfs_storage_service_state == "started"
+    - beegfs_storage_service_status.status.ActiveState == "active"
+  failed_when: false
+  ignore_errors: true
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service
+
+- name: Display service status
+  ansible.builtin.debug:
+    msg: "BeeGFS storage service is {{ beegfs_storage_service_state }}"
+  tags:
+    - beegfs
+    - beegfs-storage

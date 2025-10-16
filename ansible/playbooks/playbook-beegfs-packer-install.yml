@@ -1,0 +1,36 @@
+---
+# BeeGFS Packer Installation Playbook
+# This playbook is used by Packer to pre-install BeeGFS packages during image creation
+# It installs packages only (install_only=true) without configuring or starting services
+
+- name: Install BeeGFS packages on HPC Controller (Packer)
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    packer_build: true
+    install_only: true
+    beegfs_packages_path: "/tmp/beegfs-packages"
+  roles:
+    - role: beegfs-mgmt
+      tags: [beegfs, beegfs-mgmt, install]
+    - role: beegfs-meta
+      tags: [beegfs, beegfs-meta, install]
+    - role: beegfs-storage
+      tags: [beegfs, beegfs-storage, install]
+    - role: beegfs-client
+      tags: [beegfs, beegfs-client, install]
+
+- name: Install BeeGFS packages on HPC Compute (Packer)
+  hosts: localhost
+  connection: local
+  become: true
+  vars:
+    packer_build: true
+    install_only: true
+    beegfs_packages_path: "/tmp/beegfs-packages"
+  roles:
+    - role: beegfs-storage
+      tags: [beegfs, beegfs-storage, install]
+    - role: beegfs-client
+      tags: [beegfs, beegfs-client, install]

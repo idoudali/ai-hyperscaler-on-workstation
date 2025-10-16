@@ -1,0 +1,141 @@
+---
+# BeeGFS Client - Mount Tasks
+
+- name: Check if DKMS module is registered
+  ansible.builtin.command:
+    cmd: dkms status beegfs
+  register: dkms_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Build BeeGFS DKMS module if not built
+  ansible.builtin.command:
+    cmd: dkms install beegfs/7.4.4 -k {{ ansible_kernel }}
+  when: dkms_status.stdout.find('installed') == -1
+  register: dkms_build
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display DKMS build output
+  ansible.builtin.debug:
+    msg: "{{ (dkms_build.stdout_lines | default([])) + (dkms_build.stderr_lines | default([])) }}"
+  when: dkms_build is defined
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Check if kernel module exists
+  ansible.builtin.find:
+    paths: "/lib/modules/{{ ansible_kernel }}"
+    patterns: "beegfs.ko*"
+    recurse: true
+  register: beegfs_module_check
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display kernel module search results
+  ansible.builtin.debug:
+    msg:
+      - "Searching for beegfs.ko* in /lib/modules/{{ ansible_kernel }}"
+      - "Found {{ beegfs_module_check.matched }} module file(s)"
+      - "Files: {{ beegfs_module_check.files | map(attribute='path') | list }}"
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Load BeeGFS kernel module
+  community.general.modprobe:
+    name: beegfs
+    state: present
+  when: beegfs_module_check.matched | default(0) > 0
+  register: modprobe_result
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display modprobe result
+  ansible.builtin.debug:
+    msg: "Module load {{ 'succeeded' if (modprobe_result.rc | default(1)) == 0 else 'skipped or failed' }}"
+  when: modprobe_result is defined
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Start beegfs-helperd service
+  ansible.builtin.systemd:
+    name: beegfs-helperd
+    state: started
+    enabled: true
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Add BeeGFS mount to /etc/fstab
+  ansible.posix.mount:
+    path: "{{ beegfs_client_mount_point }}"
+    src: beegfs_nodev
+    fstype: beegfs
+    opts: "{{ beegfs_client_mount_options }}"
+    state: "{{ 'mounted' if beegfs_client_mount_enabled else 'present' }}"
+  when:
+    - modprobe_result is defined
+    - (modprobe_result.rc | default(1)) == 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display mount skipped message
+  ansible.builtin.debug:
+    msg: "BeeGFS mount skipped - kernel module not loaded. DKMS may need kernel headers or build dependencies."
+  when: (modprobe_result is not defined) or ((modprobe_result.rc | default(1)) != 0)
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Wait for BeeGFS filesystem to be available
+  ansible.builtin.wait_for:
+    path: "{{ beegfs_client_mount_point }}"
+    state: present
+    timeout: 60
+  when: beegfs_client_mount_enabled
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Verify BeeGFS mount is accessible
+  ansible.builtin.command:
+    cmd: beegfs-ctl --getentryinfo {{ beegfs_client_mount_point }}
+  register: beegfs_mount_check
+  changed_when: false
+  failed_when: false
+  when: beegfs_client_mount_enabled
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display mount status
+  ansible.builtin.debug:
+    msg: "BeeGFS filesystem mounted at {{ beegfs_client_mount_point }}"
+  when: beegfs_client_mount_enabled and beegfs_mount_check.rc == 0
+  tags:
+    - beegfs
+    - beegfs-client

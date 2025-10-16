@@ -1,0 +1,9 @@
+---
+# BeeGFS Metadata Service Role - Handlers
+
+- name: Restart BeeGFS metadata service
+  ansible.builtin.systemd:
+    name: beegfs-meta
+    state: restarted
+    daemon_reload: true
+  when: not install_only

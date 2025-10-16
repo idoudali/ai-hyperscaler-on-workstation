@@ -95,7 +95,7 @@ convert_image() {
     else
         image_name="${docker_image}"
         image_tag="latest"
-        docker_image="${docker_image}:latest"
+        docker_image="${docker_image}:${image_tag}"
     fi
 
     # Determine output path
@@ -149,16 +149,16 @@ main() {
     if [[ $# -gt 0 ]] && [[ "$1" == "-h" || "$1" == "--help" ]]; then
         usage
     fi
-    
+
     # Check arguments
     if [[ $# -lt 1 ]]; then
         log_error "Missing required argument: docker-image-name"
         usage
     fi
-    
+
     local docker_image="$1"
     local output_path="${2:-}"
-    
+
     check_prerequisites
     convert_image "${docker_image}" "${output_path}"
 
