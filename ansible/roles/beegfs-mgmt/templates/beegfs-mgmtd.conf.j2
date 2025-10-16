@@ -1,0 +1,36 @@
+# BeeGFS Management Service Configuration
+# Managed by Ansible - Do not edit manually
+
+# Storage configuration
+storeAllowFirstRunInit = {{ beegfs_mgmt_allow_first_run_init | lower }}
+storeMgmtdDirectory = {{ beegfs_mgmt_storage_directory }}
+
+# Management daemon configuration (for beegfs-ctl)
+sysMgmtdHost = {{ ansible_default_ipv4.address | default('localhost') }}
+
+# Network configuration
+connInterfacesFile =
+connNetFilterFile =
+connMgmtdPortTCP = {{ beegfs_mgmt_port }}
+connMgmtdPortUDP = {{ beegfs_mgmt_port }}
+connPortShift = 0
+connDisableAuthentication = true
+
+# Logging configuration
+logLevel = {{ beegfs_mgmt_log_level }}
+logNoDate = false
+logNumLines = 50000
+logNumRotatedFiles = 5
+logStdFile = {{ beegfs_mgmt_log_directory }}/beegfs-mgmtd.log
+
+# System settings
+runDaemonized = true
+pidFile = /var/run/beegfs-mgmtd.pid
+
+# Tuning parameters
+tuneNumWorkers = 4
+tuneProcessFDLimit = 50000
+
+# Client statistics (optional)
+sysAllowNewServers = true
+sysAllowNewTargets = true

@@ -1,0 +1,22 @@
+# BeeGFS Helper Daemon Configuration
+# Managed by Ansible - Do not edit manually
+
+# Network configuration
+connInterfacesFile =
+connHelperdPortTCP = 8006
+{% if beegfs_client_tcp_only_filter %}
+connTcpOnlyFilter = {{ beegfs_client_tcp_only_filter }}
+{% endif %}
+connDisableAuthentication = true
+
+# Logging configuration
+logLevel = {{ beegfs_client_log_level }}
+logNoDate = false
+logStdFile = {{ beegfs_client_log_directory }}/beegfs-helperd.log
+
+# System settings
+runDaemonized = true
+pidFile = /var/run/beegfs-helperd.pid
+
+# Tuning parameters
+tuneNumWorkers = 2

@@ -1,6 +1,9 @@
 # Packer Images CMake Configuration
 cmake_minimum_required(VERSION 3.18)
 
+# BeeGFS packages directory (from 3rd-party build)
+set(BEEGFS_PACKAGES_SOURCE_DIR "${PROJECT_BINARY_DIR}/packages/beegfs")
+
 # Create build output directories for images
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images)
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/hpc-controller)

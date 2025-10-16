@@ -1,0 +1,90 @@
+---
+# BeeGFS Metadata Service - Service Management Tasks
+
+- name: Remove stale PID file if exists
+  ansible.builtin.file:
+    path: /var/run/beegfs-meta.pid
+    state: absent
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Enable and start BeeGFS metadata service
+  ansible.builtin.systemd:
+    name: beegfs-meta
+    enabled: "{{ beegfs_meta_service_enabled }}"
+    state: "{{ beegfs_meta_service_state }}"
+    daemon_reload: true
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Wait a moment for service to initialize
+  ansible.builtin.pause:
+    seconds: 3
+  when: beegfs_meta_service_state == "started"
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Check if BeeGFS metadata service is active
+  ansible.builtin.systemd:
+    name: beegfs-meta
+  register: beegfs_meta_service_status
+  when: beegfs_meta_service_state == "started"
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Get BeeGFS metadata service logs if not running
+  ansible.builtin.command:
+    cmd: journalctl -u beegfs-meta -n 50 --no-pager
+  register: beegfs_meta_logs
+  when:
+    - beegfs_meta_service_state == "started"
+    - beegfs_meta_service_status.status.ActiveState != "active"
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Display service logs if not running
+  ansible.builtin.debug:
+    msg: "{{ beegfs_meta_logs.stdout_lines }}"
+  when:
+    - beegfs_meta_service_state == "started"
+    - beegfs_meta_service_status.status.ActiveState != "active"
+    - beegfs_meta_logs.stdout_lines is defined
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Wait for BeeGFS metadata service to be ready
+  ansible.builtin.wait_for:
+    port: "{{ beegfs_meta_port }}"
+    host: 0.0.0.0
+    timeout: 60
+    delay: 5
+  when:
+    - beegfs_meta_service_state == "started"
+    - beegfs_meta_service_status.status.ActiveState == "active"
+  failed_when: false
+  ignore_errors: true
+  tags:
+    - beegfs
+    - beegfs-meta
+    - service
+
+- name: Display service status
+  ansible.builtin.debug:
+    msg: "BeeGFS metadata service is {{ beegfs_meta_service_state }}"
+  tags:
+    - beegfs
+    - beegfs-meta

@@ -1,0 +1,47 @@
+---
+# BeeGFS Metadata Service - Configuration Tasks
+
+- name: Configure BeeGFS metadata service
+  ansible.builtin.template:
+    src: beegfs-meta.conf.j2
+    dest: /etc/beegfs/beegfs-meta.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart BeeGFS metadata service
+  tags:
+    - beegfs
+    - beegfs-meta
+    - configuration
+
+- name: Check if metadata service storage is already initialized
+  ansible.builtin.stat:
+    path: "{{ beegfs_meta_storage_directory }}/format.conf"
+  register: beegfs_meta_initialized
+  tags:
+    - beegfs
+    - beegfs-meta
+    - initialization
+
+- name: Initialize BeeGFS metadata service storage
+  ansible.builtin.command:
+    cmd: >
+      /opt/beegfs/sbin/beegfs-setup-meta
+      -p {{ beegfs_meta_storage_directory }}
+      -s 1
+      -m {{ beegfs_mgmt_host }}
+  when:
+    - not beegfs_meta_initialized.stat.exists or beegfs_meta_force_init
+    - beegfs_meta_allow_first_run_init
+  changed_when: true
+  tags:
+    - beegfs
+    - beegfs-meta
+    - initialization
+
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: "BeeGFS metadata service configured on port {{ beegfs_meta_port }}"
+  tags:
+    - beegfs
+    - beegfs-meta

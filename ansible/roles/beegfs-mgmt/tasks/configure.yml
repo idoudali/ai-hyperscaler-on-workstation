@@ -1,0 +1,43 @@
+---
+# BeeGFS Management Service - Configuration Tasks
+
+- name: Configure BeeGFS management service
+  ansible.builtin.template:
+    src: beegfs-mgmtd.conf.j2
+    dest: /etc/beegfs/beegfs-mgmtd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart BeeGFS management service
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - configuration
+
+- name: Check if management service storage is already initialized
+  ansible.builtin.stat:
+    path: "{{ beegfs_mgmt_storage_directory }}/format.conf"
+  register: beegfs_mgmt_initialized
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - initialization
+
+- name: Initialize BeeGFS management service storage
+  ansible.builtin.command:
+    cmd: /opt/beegfs/sbin/beegfs-setup-mgmtd -p {{ beegfs_mgmt_storage_directory }}
+  when:
+    - not beegfs_mgmt_initialized.stat.exists or beegfs_mgmt_force_init
+    - beegfs_mgmt_allow_first_run_init
+  changed_when: true
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - initialization
+
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: "BeeGFS management service configured on port {{ beegfs_mgmt_port }}"
+  tags:
+    - beegfs
+    - beegfs-mgmt

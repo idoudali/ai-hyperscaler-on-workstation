@@ -1,0 +1,48 @@
+---
+# BeeGFS Storage Service - Configuration Tasks
+
+- name: Configure BeeGFS storage service
+  ansible.builtin.template:
+    src: beegfs-storage.conf.j2
+    dest: /etc/beegfs/beegfs-storage.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart BeeGFS storage service
+  tags:
+    - beegfs
+    - beegfs-storage
+    - configuration
+
+- name: Check if storage service is already initialized
+  ansible.builtin.stat:
+    path: "{{ beegfs_storage_directory }}/format.conf"
+  register: beegfs_storage_initialized
+  tags:
+    - beegfs
+    - beegfs-storage
+    - initialization
+
+- name: Initialize BeeGFS storage service
+  ansible.builtin.command:
+    cmd: >
+      /opt/beegfs/sbin/beegfs-setup-storage
+      -p {{ beegfs_storage_directory }}
+      -s {{ beegfs_storage_num_targets }}
+      -i {{ 201 + (groups['hpc_compute'].index(inventory_hostname) | default(0)) if groups['hpc_compute'] is defined else 201 }}
+      -m {{ beegfs_mgmt_host }}
+  when:
+    - not beegfs_storage_initialized.stat.exists or beegfs_storage_force_init
+    - beegfs_storage_allow_first_run_init
+  changed_when: true
+  tags:
+    - beegfs
+    - beegfs-storage
+    - initialization
+
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: "BeeGFS storage service configured on port {{ beegfs_storage_port }}"
+  tags:
+    - beegfs
+    - beegfs-storage

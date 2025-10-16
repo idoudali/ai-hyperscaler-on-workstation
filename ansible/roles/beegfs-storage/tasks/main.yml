@@ -1,0 +1,25 @@
+---
+# BeeGFS Storage Service Role - Main Tasks
+
+- name: Include BeeGFS storage service installation tasks
+  ansible.builtin.include_tasks: install.yml
+  tags:
+    - beegfs
+    - beegfs-storage
+    - install
+
+- name: Include BeeGFS storage service configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-storage
+    - configure
+
+- name: Include BeeGFS storage service startup tasks
+  ansible.builtin.include_tasks: service.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-storage
+    - service

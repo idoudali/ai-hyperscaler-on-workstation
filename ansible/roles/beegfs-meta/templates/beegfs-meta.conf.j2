@@ -1,0 +1,35 @@
+# BeeGFS Metadata Service Configuration
+# Managed by Ansible - Do not edit manually
+
+# Management daemon configuration
+sysMgmtdHost = {{ beegfs_mgmt_host }}
+
+# Storage configuration
+storeAllowFirstRunInit = {{ beegfs_meta_allow_first_run_init | lower }}
+storeMetaDirectory = {{ beegfs_meta_storage_directory }}
+
+# Network configuration
+connInterfacesFile =
+connNetFilterFile =
+connMetaPortTCP = {{ beegfs_meta_port }}
+connMetaPortUDP = {{ beegfs_meta_port }}
+connPortShift = 0
+connDisableAuthentication = true
+
+# Logging configuration
+logLevel = {{ beegfs_meta_log_level }}
+logNoDate = false
+logNumLines = 50000
+logNumRotatedFiles = 5
+logStdFile = {{ beegfs_meta_log_directory }}/beegfs-meta.log
+
+# System settings
+runDaemonized = true
+pidFile = /var/run/beegfs-meta.pid
+
+# Tuning parameters
+tuneNumWorkers = {{ beegfs_meta_target_num_threads }}
+tuneProcessFDLimit = 500000
+
+# Metadata-specific tuning
+tuneUsePerUserMsgQueues = false

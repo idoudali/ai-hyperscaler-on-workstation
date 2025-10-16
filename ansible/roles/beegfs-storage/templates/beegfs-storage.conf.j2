@@ -1,0 +1,36 @@
+# BeeGFS Storage Service Configuration
+# Managed by Ansible - Do not edit manually
+
+# Management daemon configuration
+sysMgmtdHost = {{ beegfs_mgmt_host }}
+
+# Storage configuration
+storeAllowFirstRunInit = {{ beegfs_storage_allow_first_run_init | lower }}
+storeStorageDirectory = {{ beegfs_storage_directory }}
+
+# Network configuration
+connInterfacesFile =
+connNetFilterFile =
+connStoragePortTCP = {{ beegfs_storage_port }}
+connStoragePortUDP = {{ beegfs_storage_port }}
+connPortShift = 0
+connDisableAuthentication = true
+
+# Logging configuration
+logLevel = {{ beegfs_storage_log_level }}
+logNoDate = false
+logNumLines = 50000
+logNumRotatedFiles = 5
+logStdFile = {{ beegfs_storage_log_directory }}/beegfs-storage.log
+
+# System settings
+runDaemonized = true
+pidFile = /var/run/beegfs-storage.pid
+
+# Tuning parameters
+tuneNumWorkers = {{ beegfs_storage_target_num_threads }}
+tuneProcessFDLimit = 500000
+
+# Storage-specific tuning
+tuneUseAggressiveStreamPoll = false
+tuneBindToNumaZone =

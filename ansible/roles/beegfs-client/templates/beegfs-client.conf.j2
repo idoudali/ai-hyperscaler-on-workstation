@@ -1,0 +1,54 @@
+# BeeGFS Client Configuration
+# Managed by Ansible - Do not edit manually
+
+# Management daemon configuration
+sysMgmtdHost = {{ beegfs_mgmt_host }}
+
+# Network configuration
+connInterfacesFile =
+connNetFilterFile =
+connClientPortUDP = 8004
+connPortShift = 0
+connCommRetrySecs = 600
+connFallbackExpirationSecs = 900
+{% if beegfs_client_tcp_only_filter %}
+connTcpOnlyFilter = {{ beegfs_client_tcp_only_filter }}
+{% endif %}
+connDisableAuthentication = true
+
+# Logging configuration
+logLevel = {{ beegfs_client_log_level }}
+logNoDate = false
+logClientID = false
+logHelperdIP =
+
+# Mount options
+mountFsTypeDefault = beegfs
+
+# Tuning parameters
+tuneFileCacheType = buffered
+tunePreferredMetaFile = /etc/beegfs/beegfs-client-mount.pref
+tunePreferredStorageFile = /etc/beegfs/beegfs-client-mount.pref
+tuneRemoteFSync = true
+tuneUseGlobalAppendLocks = false
+tuneUseGlobalFileLocks = false
+
+# Cache settings
+tuneNumWorkers = {{ beegfs_client_num_workers }}
+tuneFileReadAheadSize = {{ beegfs_client_read_ahead_size }}
+tuneFileReadAheadTriggerSize = 256k
+tuneFileReadSize = 256k
+tuneFileWriteSize = 256k
+tuneMaxWriteWorks = 32
+tuneMaxReadWorks = 32
+
+# Connection tuning
+tuneMessagingTimeouts = 1,3,5,5,5,15,15,30,60,60,60,60
+tuneMaxClientMirrorSize = 16m
+
+# Statistics and monitoring
+sysCreateHardlinksAsSymlinks = false
+sysSessionCheckOnClose = false
+sysSyncOnClose = false
+sysTargetOfflineTimeoutSecs = 900
+sysXAttrsEnabled = true

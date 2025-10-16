@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-virtio-fs test-virtio-fs-start test-virtio-fs-deploy test-virtio-fs-tests test-virtio-fs-stop test-virtio-fs-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-virtio-fs test-virtio-fs-start test-virtio-fs-deploy test-virtio-fs-tests test-virtio-fs-stop test-virtio-fs-status test-beegfs test-beegfs-start test-beegfs-deploy test-beegfs-tests test-beegfs-stop test-beegfs-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -54,6 +54,12 @@ help:
 	@echo "  test-virtio-fs-tests   - Run virtio-fs tests only"
 	@echo "  test-virtio-fs-stop    - Stop virtio-fs test cluster"
 	@echo "  test-virtio-fs-status  - Show virtio-fs test cluster status"
+	@echo "  test-beegfs            - Run BeeGFS parallel filesystem tests (full workflow)"
+	@echo "  test-beegfs-start      - Start BeeGFS test cluster"
+	@echo "  test-beegfs-deploy     - Deploy BeeGFS Ansible configuration"
+	@echo "  test-beegfs-tests      - Run BeeGFS tests only"
+	@echo "  test-beegfs-stop       - Stop BeeGFS test cluster"
+	@echo "  test-beegfs-status     - Show BeeGFS test cluster status"
 	@echo "  test-monitoring-stack  - Run Prometheus monitoring stack tests"
 	@echo "  test-dcgm-monitoring   - Run DCGM GPU monitoring tests (full workflow)"
 	@echo "  test-dcgm-start        - Start DCGM test cluster"
@@ -338,6 +344,36 @@ test-virtio-fs-stop:
 test-virtio-fs-status:
 	@echo "Checking virtio-fs test cluster status..."
 	@./test-virtio-fs-framework.sh status
+
+# Run BeeGFS tests (Task 028) - full workflow
+test-beegfs:
+	@echo "Running BeeGFS parallel filesystem tests (full workflow)..."
+	@./test-beegfs-framework.sh
+
+# Start BeeGFS test cluster
+test-beegfs-start:
+	@echo "Starting BeeGFS test cluster..."
+	@./test-beegfs-framework.sh start-cluster
+
+# Deploy BeeGFS Ansible configuration
+test-beegfs-deploy:
+	@echo "Deploying BeeGFS Ansible configuration..."
+	@./test-beegfs-framework.sh deploy-ansible
+
+# Run BeeGFS tests only (assumes cluster deployed)
+test-beegfs-tests:
+	@echo "Running BeeGFS tests..."
+	@./test-beegfs-framework.sh run-tests
+
+# Stop BeeGFS test cluster
+test-beegfs-stop:
+	@echo "Stopping BeeGFS test cluster..."
+	@./test-beegfs-framework.sh stop-cluster
+
+# Show BeeGFS test cluster status
+test-beegfs-status:
+	@echo "Checking BeeGFS test cluster status..."
+	@./test-beegfs-framework.sh status
 
 # Run monitoring stack tests (Task 015)
 test-monitoring-stack:
