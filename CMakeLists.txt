@@ -50,6 +50,10 @@ add_subdirectory(packer)
 # Add containers subdirectory for Docker/Apptainer image builds
 add_subdirectory(containers)
 
+# --- Third-Party Dependencies ---
+# Add 3rd-party subdirectory for building external dependencies
+add_subdirectory(3rd-party)
+
 # --- Custom Targets ---
 # Note: Packer-related targets are available in the packer/ subdirectory
 # Use: cmake --build build --target packer/<target_name>

@@ -1,8 +1,8 @@
 
 # Dockerfile for the development environment
 
-# Use Debian 12 "Bookworm" as the base image
-FROM debian:12
+# Use Debian 13 "Trixie" as the base image
+FROM debian:trixie
 
 # Set environment variables to non-interactive to avoid prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -11,45 +11,99 @@ ENV DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    ansible=7.7.0+dfsg-3+deb12u1 \
-    build-essential=12.9 \
+    ansible \
+    autoconf \
+    automake \
+    build-essential \
     ca-certificates \
-    cmake=3.25.1-1 \
+    cmake \
     curl \
+    debhelper \
+    default-jdk \
+    devscripts \
+    dh-dkms \
     git \
     gnupg \
     gosu \
-    libvirt-clients=9.0.0-4+deb12u2 \
+    kmod \
+    libattr1-dev \
+    libblkid-dev \
+    libcurl4-openssl-dev \
+    libibverbs-dev \
+    libnl-3-200 \
+    libnl-3-dev \
+    libnl-genl-3-200 \
+    libnl-route-3-200 \
+    libnl-route-3-dev \
+    librdmacm-dev \
+    libssl-dev \
+    libtool \
+    libvirt-clients \
     libvirt-dev \
     lsb-release \
-    ninja-build=1.11.1-2~deb12u1 \
+    ninja-build \
     pkg-config \
     python3-dev \
-    python3-pip=23.0.1+dfsg-1 \
-    python3-venv=3.11.2-1+b1 \
+    python3-pip \
+    python3-venv \
     qemu-system-x86 \
     qemu-utils \
-    screen=4.9.0-4 \
-    software-properties-common \
+    screen \
     squashfs-tools \
     sudo \
-    tmux=3.3a-3 \
+    tmux \
     uidmap \
+    uuid-dev \
+    xfslibs-dev \
     xorriso \
+    xz-utils \
+    zlib1g-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # Set shell to fail on pipe errors for all subsequent RUN commands
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install Apptainer/Singularity from GitHub releases
-# Reference: https://github.com/apptainer/apptainer/releases
-RUN APPTAINER_VERSION=1.3.6 && \
+# Install Apptainer build dependencies
+# Reference: https://apptainer.org/docs/admin/main/installation.html
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    cryptsetup \
+    fakeroot \
+    fuse3 \
+    libfuse-dev \
+    libseccomp-dev \
+    squashfs-tools \
+    squashfuse \
+    uidmap \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Go (required for building Apptainer)
+RUN GO_VERSION=1.23.2 && \
     ARCH=$(dpkg --print-architecture) && \
-    curl -fsSL "https://github.com/apptainer/apptainer/releases/download/v${APPTAINER_VERSION}/apptainer_${APPTAINER_VERSION}_${ARCH}.deb" \
-      -o /tmp/apptainer.deb && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends /tmp/apptainer.deb && \
-    rm -rf /tmp/apptainer.deb /var/lib/apt/lists/*
+    case "$ARCH" in \
+      amd64) GO_ARCH=amd64 ;; \
+      arm64) GO_ARCH=arm64 ;; \
+      *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -o /tmp/go.tar.gz && \
+    tar -C /usr/local -xzf /tmp/go.tar.gz && \
+    rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Build and install Apptainer from source
+WORKDIR /tmp
+RUN APPTAINER_VERSION=1.4.3 && \
+    curl -fsSL "https://github.com/apptainer/apptainer/releases/download/v${APPTAINER_VERSION}/apptainer-${APPTAINER_VERSION}.tar.gz" -o "apptainer-${APPTAINER_VERSION}.tar.gz" && \
+    tar -xzf "apptainer-${APPTAINER_VERSION}.tar.gz"
+
+WORKDIR /tmp/apptainer-1.4.3
+RUN ./mconfig --prefix=/usr/local --without-suid && \
+    make -C builddir && \
+    make -C builddir install && \
+    rm -rf /tmp/apptainer-* && \
+    apptainer --version
 
 # Install Docker Engine following official documentation
 # Reference: https://docs.docker.com/engine/install/ubuntu/
