@@ -206,7 +206,7 @@
         name: slurmdbd
         state: stopped
         enabled: true
-      when: packer_build | default(false)
+      when: packer_build | default(false) | bool
       tags:
         - slurm
         - slurm-controller
@@ -220,7 +220,7 @@
           - "slurmdbd service: ENABLED (not started during build)"
           - "Database and configuration files: DEPLOYED"
           - "Service will start automatically on first boot"
-      when: packer_build | default(false)
+      when: packer_build | default(false) | bool
       tags:
         - slurm
         - slurm-controller
@@ -232,7 +232,7 @@
         name: slurmdbd
         state: started
         enabled: true
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -245,7 +245,7 @@
         host: "{{ slurm_accounting_storage_host | default('localhost') }}"
         delay: 5
         timeout: 60
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -279,7 +279,7 @@
       register: init_cluster_result
       failed_when: false
       changed_when: init_cluster_result.rc == 0
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -295,7 +295,7 @@
       register: init_account_result
       failed_when: false
       changed_when: init_account_result.rc == 0
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -311,7 +311,7 @@
       register: init_user_result
       failed_when: false
       changed_when: init_user_result.rc == 0
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -335,7 +335,7 @@
         SLURM_CONF: /etc/slurm/slurm.conf
       register: test_slurmdbd_result
       changed_when: false
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -350,7 +350,7 @@
         SLURM_CONF: /etc/slurm/slurm.conf
       register: test_sacct_result
       changed_when: false
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller
@@ -363,7 +363,7 @@
           - "SLURM accounting configuration completed successfully"
           - "slurmdbd connection: {{ 'OK' if test_slurmdbd_result.rc == 0 else 'FAILED' }}"
           - "sacct command: {{ 'OK' if test_sacct_result.rc == 0 else 'FAILED' }}"
-      when: not (packer_build | default(false))
+      when: not (packer_build | default(false) | bool)
       tags:
         - slurm
         - slurm-controller

@@ -6,11 +6,7 @@
 locals {
   ansible_env_vars = [
     "ANSIBLE_HOST_KEY_CHECKING=False",
-    "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
     "ANSIBLE_ROLES_PATH=${var.repo_tot_dir}/ansible/roles",
-    "ANSIBLE_BECOME_FLAGS='-H -S -n'",
-    "ANSIBLE_SCP_IF_SSH=True",
-    "ANSIBLE_SCP_EXTRA_ARGS='-O'",
     "ANSIBLE_REMOTE_TMP=/tmp"
   ]
 }

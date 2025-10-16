@@ -6,11 +6,7 @@
 locals {
   ansible_env_vars = [
     "ANSIBLE_HOST_KEY_CHECKING=False",
-    "ANSIBLE_SSH_ARGS='-o ForwardAgent=yes -o ControlMaster=auto -o ControlPersist=60s'",
     "ANSIBLE_ROLES_PATH=${var.repo_tot_dir}/ansible/roles",
-    "ANSIBLE_BECOME_FLAGS='-H -S -n'",
-    "ANSIBLE_SCP_IF_SSH=True",
-    "ANSIBLE_SCP_EXTRA_ARGS='-O'",
     "ANSIBLE_REMOTE_TMP=/tmp"
   ]
 }
@@ -293,12 +289,6 @@ build {
     inline = [
       "echo 'Optimizing and compressing QEMU image...'",
       "cd ${local.output_directory}",
-      # Check if the image file exists before processing
-      "if [ ! -f ${var.vm_name} ]; then",
-      "  echo 'ERROR: Image file ${var.vm_name} not found!'",
-      "  ls -la ${local.output_directory}/",
-      "  exit 1",
-      "fi",
       # Get original image size
       "ORIGINAL_SIZE=$(du -h ${var.vm_name} | cut -f1)",
       "echo Original image size: $ORIGINAL_SIZE",

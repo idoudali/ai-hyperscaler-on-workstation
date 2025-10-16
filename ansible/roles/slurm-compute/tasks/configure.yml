@@ -71,7 +71,7 @@
     owner: root
     group: root
   become: true
-  when: slurm_container_enabled | default(true)
+  when: (slurm_container_enabled | default(true)) | bool
 
 - name: Create cgroup configuration directory
   file:
@@ -81,7 +81,7 @@
     owner: root
     group: root
   become: true
-  when: slurm_cgroup_enabled | default(true)
+  when: (slurm_cgroup_enabled | default(true)) | bool
 
 - name: Deploy cgroup configuration
   template:
@@ -92,7 +92,7 @@
     group: root
     backup: true
   become: true
-  when: slurm_cgroup_enabled | default(true)
+  when: (slurm_cgroup_enabled | default(true)) | bool
   notify:
     - restart slurmd
 
@@ -166,7 +166,7 @@
   failed_when: false
   when:
     - not ((packer_build | default(false)) | bool)
-    - slurm_container_enabled | default(true)
+    - (slurm_container_enabled | default(true)) | bool
 
 - name: Display SLURM compute node configuration results
   debug:
@@ -176,15 +176,15 @@
       - Configuration file: /etc/slurm/slurm.conf
       - Spool directory: {{ slurm_spool_dir | default('/var/spool/slurmd') }}
       - Log directory: /var/log/slurm
-      - Container images path: {{ singularity_image_path | default('/opt/containers') if slurm_container_enabled | default(true) else 'Not configured' }}
-      - Cgroup enabled: {{ slurm_cgroup_enabled | default(true) }}
+      - Container images path: {{ singularity_image_path | default('/opt/containers') if (slurm_container_enabled | default(true)) | bool else 'Not configured' }}
+      - Cgroup enabled: {{ (slurm_cgroup_enabled | default(true)) | bool }}
       - Build mode: {{ 'Packer' if (packer_build | default(false)) | bool else 'Live deployment' }}
       {% if not ((packer_build | default(false)) | bool) %}
       - slurmd service: {{ 'Running' if slurmd_service_check.state == 'started' else 'Not running' }}
       - Node registration: {{ 'SUCCESS' if node_registration_check.rc == 0 else 'PENDING' }}
       - Node state: {{ node_state_check.stdout | regex_search('State=\S+') if node_state_check.rc == 0 else 'Unknown' }}
       - Controller communication: {{ 'SUCCESS' if slurm_communication_check.rc == 0 else 'FAILED' }}
-      {% if slurm_container_enabled | default(true) %}
+      {% if (slurm_container_enabled | default(true)) | bool %}
       - Container runtime: {{ container_runtime_available.stdout.split('\n')[0] if container_runtime_available.rc == 0 else 'Not available' }}
       {% endif %}
       {% else %}

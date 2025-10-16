@@ -24,7 +24,7 @@
   become: true
   register: slurm_container_package_install
   when:
-    - slurm_container_enabled | default(true)
+    - (slurm_container_enabled | default(true)) | bool
     - container_install_method | default("skip") != "skip"
   notify:
     - restart slurmd
@@ -41,7 +41,7 @@
 
       Supported runtimes: Apptainer, Singularity
   when:
-    - slurm_container_enabled | default(true)
+    - (slurm_container_enabled | default(true)) | bool
     - container_install_method | default("skip") == "skip"
 
 - name: Verify SLURM binaries installation
@@ -103,7 +103,7 @@
     msg: |
       SLURM Compute Node installation completed:
       - Core packages installed: {{ slurm_compute_packages }}
-      {% if slurm_container_enabled | default(true) %}
+      {% if (slurm_container_enabled | default(true)) | bool %}
       - Container support packages installed: {{ slurm_compute_container_packages }}
       - Container runtime installation: {{ container_install_method | default('skip') }}
       {% endif %}
@@ -112,7 +112,7 @@
       - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if (slurm_version_check is defined and slurm_version_check.results[0].rc == 0) else 'Version check failed' }}
       - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
       - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
-      {% if slurm_container_enabled | default(true) %}
+      {% if (slurm_container_enabled | default(true)) | bool %}
       - Container runtime detected: {{ container_runtime_check.stdout.split('\n')[0] if container_runtime_check is defined else 'Not checked' }}
       - Container runtime version: {{ container_runtime_check.stdout.split('\n')[1] if container_runtime_check is defined and container_runtime_check.stdout.split('\n')|length > 1 else 'Not available' }}
       {% endif %}
