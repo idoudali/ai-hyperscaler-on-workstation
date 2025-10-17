@@ -57,8 +57,54 @@ theme:
 plugins:
   - search:
       lang: en
+  - simple:
+      merge_docs_dir: true
+      build_dir: "temp_docs"
+      folders:
+        - 'docs/**'
+        - 'ansible/**'
+        - 'packer/**'
+        - 'containers/**'
+        - 'scripts/**'
+        - 'config/**'
+        - 'docker/**'
+        - 'python/ai_how/docs/**'
+        - 'python/ai_how/README.md'
+        - 'python/ai_how/src/ai_how/schemas/**'
+        - 'tests/**'
+        - 'README.md'
+        - '.cursor/rules/**'
+      ignore:
+        - '.venv/**'
+        - 'build/**'
+        - 'site/**'
+        - 'temp_docs/**'
+        - '**/__pycache__/**'
+        - '**/node_modules/**'
+        - '.git/**'
+        - '**/.pytest_cache/**'
+        - '**/venv/**'
+        - '**/.nox/**'
+        - '**/site-packages/**'
+        - '**/dist-info/**'
+        - '**/.tox/**'
+        - '**/htmlfiles/**'
+      include:
+        - '*.md'
+        - '*.png'
+        - '*.jpg'
+        - '*.jpeg'
+        - '*.svg'
+        - '*.gif'
+        - '*.bmp'
+        - '*.webp'
   - awesome-pages
   - include-markdown
+  - htmlproofer:
+      enabled: true
+      raise_error: false
+      raise_error_excludes:
+        404: ['https://.*']
   # - mkdocstrings:
   #     handlers:
   #       python:
@@ -172,34 +218,35 @@ nav:
           - Logging Enhancement Summary: implementation-plans/individual-tasks/logging-enhancement-summary.md
           - Subprocess Logging Improvements: implementation-plans/individual-tasks/subprocess-logging-improvements.md
   - Development:
-      - Python Dependencies Setup: python-dependencies-setup.md
-      - Cursor Agent Setup: cursor-agent-setup.md
+      - Python Dependencies Setup: development/python-dependencies-setup.md
+      - Cursor Agent Setup: development/cursor-agent-setup.md
       - Documentation Structure: DOCUMENTATION-STRUCTURE.md
       - Structure Verification: STRUCTURE-VERIFICATION.md
       - Placeholder Creation Summary: PLACEHOLDER-CREATION-SUMMARY.md
   - Components:
       - Ansible:
-          - Overview: components/ansible/README.md
-          - Packer Ansible Integration: components/ansible/README-packer-ansible.md
-          - NVIDIA GPU Drivers: components/ansible/roles/nvidia-gpu-drivers/README.md
+          - Overview: ansible/README.md
+          - Roles Index: ansible/roles/README.md
+          - Playbooks Index: ansible/playbooks/README.md
       - Packer:
-          - Overview: components/packer/README.md
-      - Docker:
-          - Overview: components/docker/README.md
+          - Overview: packer/README.md
+          - Base Image: packer/hpc-base/README.md
+          - Controller Image: packer/hpc-controller/README.md
+          - Compute Image: packer/hpc-compute/README.md
+      - Containers:
+          - Overview: containers/README.md
       - Configuration:
-          - Overview: components/config/README.md
+          - Overview: config/README.md
       - Scripts:
-          - Experiments: components/scripts/experiments/README.md
-  - AI-HOW Python Package:
-      - Overview: ai-how/README.md
-      - Getting Started: ai-how/docs/index.md
-      - Examples: ai-how/docs/examples.md
-      - Development: ai-how/docs/development.md
-      - Network Configuration: ai-how/docs/network_configuration.md
-      - PCIe Passthrough Validation: ai-how/docs/pcie-passthrough-validation.md
-      - API Reference:
-          - AI HOW Module: ai-how/docs/api/ai_how.md
-      - Schemas: ai-how/src/ai-how/schemas/README.md
+          - System Checks: scripts/system-checks/README.md
+          - Experiments: scripts/experiments/README.md
+  - CLI (ai-how):
+      - Overview: python/ai_how/README.md
+      - Getting Started: python/ai_how/docs/index.md
+      - Examples: python/ai_how/docs/examples.md
+      - Development: python/ai_how/docs/development.md
+      - Network Configuration: python/ai_how/docs/network_configuration.md
+      - PCIe Validation: python/ai_how/docs/pcie-passthrough-validation.md
   - Testing:
       - Overview: testing/README.md
       - Test Infrastructure: testing/test-infra/README.md

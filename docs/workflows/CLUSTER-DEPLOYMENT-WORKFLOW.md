@@ -504,4 +504,4 @@ ssh hpc-controller "sha256sum /opt/containers/ml-frameworks/image.sif"
 - [Apptainer Documentation](https://apptainer.org/docs/)
 - [SLURM Container Support](https://slurm.schedmd.com/containers.html)
 - [Project Architecture Documentation](../README.md)
-- [HPC SLURM Task List](implementation-plans/task-lists/hpc-slurm-task-list.md)
+- [HPC SLURM Task List](../implementation-plans/task-lists/hpc-slurm-task-list.md)

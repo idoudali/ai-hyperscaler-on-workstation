@@ -1,1 +1,0 @@
-../../../python/ai_how/docs/examples.md
