@@ -59,17 +59,17 @@ plugins:
       lang: en
   - awesome-pages
   - include-markdown
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            docstring_style: google
-            docstring_options:
-              ignore_init_summary: true
-            merge_init_into_class: true
-            show_source: false
-            show_root_heading: true
-            show_root_toc_entry: true
+  # - mkdocstrings:
+  #     handlers:
+  #       python:
+  #         options:
+  #           docstring_style: google
+  #           docstring_options:
+  #             ignore_init_summary: true
+  #           merge_init_into_class: true
+  #           show_source: false
+  #           show_root_heading: true
+  #           show_root_toc_entry: true
 
 # Extensions
 markdown_extensions:
@@ -112,23 +112,71 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
-      - Overview: python-dependencies-setup.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Installation: getting-started/installation.md
+      - 5-Minute Quickstart: getting-started/quickstart-5min.md
+      - Cluster Quickstart: getting-started/quickstart-cluster.md
+      - GPU Quickstart: getting-started/quickstart-gpu.md
+      - Container Quickstart: getting-started/quickstart-containers.md
+      - Monitoring Quickstart: getting-started/quickstart-monitoring.md
+  - Tutorials:
+      - First Cluster: tutorials/01-first-cluster.md
+      - Distributed Training: tutorials/02-distributed-training.md
+      - GPU Partitioning: tutorials/03-gpu-partitioning.md
+      - Container Management: tutorials/04-container-management.md
+      - Custom Images: tutorials/05-custom-images.md
+      - Monitoring Setup: tutorials/06-monitoring-setup.md
+      - Job Debugging: tutorials/07-job-debugging.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Network: architecture/network.md
+      - Storage: architecture/storage.md
+      - GPU: architecture/gpu.md
+      - Containers: architecture/containers.md
+      - SLURM: architecture/slurm.md
+      - Monitoring: architecture/monitoring.md
+  - Operations:
+      - Deployment: operations/deployment.md
+      - Maintenance: operations/maintenance.md
+      - Backup & Recovery: operations/backup-recovery.md
+      - Scaling: operations/scaling.md
+      - Security: operations/security.md
+      - Performance Tuning: operations/performance-tuning.md
+  - Workflows:
+      - Cluster Deployment: workflows/CLUSTER-DEPLOYMENT-WORKFLOW.md
+      - GPU GRES: workflows/GPU-GRES-WORKFLOW.md
+      - SLURM Compute: workflows/SLURM-COMPUTE-WORKFLOW.md
+      - Apptainer Conversion: workflows/APPTAINER-CONVERSION-WORKFLOW.md
+      - Virtio-FS Integration: workflows/VIRTIO-FS-INTEGRATION.md
+  - Troubleshooting:
+      - Common Issues: troubleshooting/common-issues.md
+      - Debugging Guide: troubleshooting/debugging-guide.md
+      - FAQ: troubleshooting/faq.md
+      - Error Codes: troubleshooting/error-codes.md
   - Design Documents:
-      # - Project Plan: design-docs/project-plan.md
-      # - Hyperscaler on Workstation: design-docs/hyperscaler-on-workstation.md
-      # - Open Source Solutions: design-docs/open-source-solutions.md
-      # - Task 0.1 Implementation: design-docs/task-0.1-implementation-plan.md
-      # - Task 0.2 Implementation: design-docs/task-0.2-implementation-plan.md
-  # - Implementation Plans:
-  #     - HPC SLURM Deployment: implementation-plans/hpc-slurm-deployment.md
-  #     - HPC VM Management Plan: implementation-plans/hpc-vm-management-plan.md
-  #     - HPC Implementation Complete: implementation-plans/hpc-implementation-complete.md
-  #     - Logging Enhancement Summary: implementation-plans/logging-enhancement-summary.md
-  #     - Enhanced Logging Guide: implementation-plans/enhanced-logging-guide.md
-  #     - Subprocess Logging Improvements: implementation-plans/subprocess-logging-improvements.md
-  #     - Absolute Imports Migration: implementation-plans/absolute-imports-migration.md
-  #     - Task Lists:
-  #         - HPC SLURM Task List: implementation-plans/task-lists/hpc-slurm-task-list.md
+      - Project Plan: design-docs/project-plan.md
+      - Hyperscaler on Workstation: design-docs/hyperscaler-on-workstation.md
+      - Open Source Solutions: design-docs/open-source-solutions.md
+      - Task 0.1 Implementation: design-docs/task-0.1-implementation-plan.md
+      - Task 0.2 Implementation: design-docs/task-0.2-implementation-plan.md
+  - Implementation Plans:
+      - Documentation Structure Task List: implementation-plans/task-lists/documentation-structure-task-list.md
+      - HPC SLURM Task List: implementation-plans/task-lists/hpc-slurm-task-list.md
+      - Remove Pharos References Task List: implementation-plans/task-lists/remove-pharos-references-task-list.md
+      - Individual Tasks:
+          - Absolute Imports Migration: implementation-plans/individual-tasks/absolute-imports-migration.md
+          - Enhanced Logging Guide: implementation-plans/individual-tasks/enhanced-logging-guide.md
+          - HPC Implementation Complete: implementation-plans/individual-tasks/hpc-implementation-complete.md
+          - HPC SLURM Deployment: implementation-plans/individual-tasks/hpc-slurm-deployment.md
+          - HPC VM Management Plan: implementation-plans/individual-tasks/hpc-vm-management-plan.md
+          - Logging Enhancement Summary: implementation-plans/individual-tasks/logging-enhancement-summary.md
+          - Subprocess Logging Improvements: implementation-plans/individual-tasks/subprocess-logging-improvements.md
+  - Development:
+      - Python Dependencies Setup: python-dependencies-setup.md
+      - Cursor Agent Setup: cursor-agent-setup.md
+      - Documentation Structure: DOCUMENTATION-STRUCTURE.md
+      - Structure Verification: STRUCTURE-VERIFICATION.md
+      - Placeholder Creation Summary: PLACEHOLDER-CREATION-SUMMARY.md
   - Components:
       - Ansible:
           - Overview: components/ansible/README.md
