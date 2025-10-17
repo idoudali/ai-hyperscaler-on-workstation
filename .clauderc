@@ -1,0 +1,160 @@
+{
+  "version": "1.0",
+  "project": "pharos.ai-hyperscaler-on-workskation-2",
+
+  "approval_settings": {
+    "auto_approve": false,
+    "approval_mode": "selective",
+    "default_action": "prompt"
+  },
+
+  "skip_approval_for": [
+    "read_file",
+    "list_directory",
+    "search_files",
+    "search_code",
+    "grep",
+    "codebase_search",
+    "glob_file_search",
+    "git_status",
+    "git_diff",
+    "git_log",
+    "git_show",
+    "git_branch",
+    "read_lints",
+    "make_command",
+    "docker_build",
+    "docker_run",
+    "packer_validate",
+    "packer_build",
+    "ansible_syntax_check",
+    "ansible_check_mode",
+    "cmake_build",
+    "validation_workflow"
+  ],
+
+  "always_require_approval": [
+    "git_commit",
+    "git_push",
+    "git_push_force",
+    "delete_file",
+    "shell_command_sudo",
+    "system_modification",
+    "package_install",
+    "package_remove",
+    "service_control",
+    "terraform_apply",
+    "terraform_destroy"
+  ],
+
+  "safe_operations": {
+    "file_operations": {
+      "read": true,
+      "write": true,
+      "create": true,
+      "delete": false
+    },
+    "git_operations": {
+      "status": true,
+      "diff": true,
+      "log": true,
+      "add": true,
+      "commit": false,
+      "push": false
+    },
+    "build_operations": {
+      "make_config": true,
+      "cmake_configure": true,
+      "cmake_build": true,
+      "run_in_container": true
+    }
+  },
+
+  "command_rules": {
+    "description": "Follows workspace deny-list security model",
+    "denied_patterns": [
+      "^sudo .*",
+      "^su .*",
+      "^rm -rf /.*",
+      "^rm -rf ~.*",
+      "^chmod 777.*",
+      "^mkfs.*",
+      "^fdisk.*",
+      "^git push --force.*",
+      "^git push -f.*",
+      "^terraform destroy.*",
+      "^systemctl (stop|disable|poweroff|reboot).*",
+      "^shutdown.*",
+      "^reboot.*",
+      "^docker system prune -a.*",
+      "^kubectl delete --all.*"
+    ],
+    "require_explanation": [
+      "destructive_operations",
+      "privilege_escalation",
+      "system_modifications"
+    ]
+  },
+
+  "workflow_settings": {
+    "commit_workflow": {
+      "auto_stage": false,
+      "auto_commit": false,
+      "require_summary": true,
+      "require_rationale": true,
+      "require_commit_message": true,
+      "require_user_approval": true
+    },
+    "build_workflow": {
+      "use_container": true,
+      "container_script": "./scripts/run-in-dev-container.sh",
+      "cmake_generator": "Ninja",
+      "build_directory": "build/"
+    }
+  },
+
+  "project_specific": {
+    "infrastructure_tools": {
+      "terraform": {
+        "plan": true,
+        "validate": true,
+        "apply": false,
+        "destroy": false
+      },
+      "ansible": {
+        "check_mode": true,
+        "syntax_check": true,
+        "apply": true,
+        "apply_in_docker": true
+      },
+      "packer": {
+        "validate": true,
+        "build": true,
+        "build_in_docker": true
+      }
+    },
+    "container_operations": {
+      "docker_ps": true,
+      "docker_images": true,
+      "docker_build": true,
+      "docker_run": true,
+      "docker_prune": false
+    },
+    "validation_workflow": {
+      "phase_4_validation": true,
+      "packer_builds": true,
+      "cluster_lifecycle": true,
+      "functional_tests": true,
+      "regression_tests": true,
+      "allow_cluster_creation": true,
+      "allow_cluster_destruction": true
+    }
+  },
+
+  "notification_settings": {
+    "notify_on_dangerous_command": true,
+    "explain_blocked_commands": true,
+    "suggest_alternatives": true,
+    "verbose_mode": false
+  }
+}
