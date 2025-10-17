@@ -1,0 +1,505 @@
+# Cursor Agent Whitelist Configuration - Reference Template
+# Location: .cursor/agent-allow-reference.yaml
+#
+# This file defines allowed operations, paths, and commands for @Cursor Background Agents
+#
+# IMPORTANT NOTE:
+# This YAML file is a REFERENCE TEMPLATE for planning and documenting agent permissions.
+# Cursor's official rules system uses Markdown files (.mdc) in .cursor/rules/ directory.
+#
+# Your project already has rules in:
+# - .cursor/rules/agent/    - Agent-requestable rules
+# - .cursor/rules/always/   - Always-applied rules
+# - .cursor/rules/auto/     - Auto-applied rules based on file globs
+# - .cursor/rules/manual/   - Manually triggered rules
+#
+# Official Documentation:
+# - Cursor Rules: https://docs.cursor.com/context/rules
+# - Cursor Context: https://docs.cursor.com/en/context
+#
+# To implement these policies in Cursor:
+# 1. Review existing rules in .cursor/rules/
+# 2. Convert sections below into individual .mdc files with YAML frontmatter
+# 3. See .cursor/docs/agent-allow-guide.md for migration guide and examples
+# 4. See .cursor/docs/quickstart-guide.md for quick setup instructions
+#
+# This YAML serves as:
+# - Central permission policy documentation
+# - Reference for creating Cursor rule files
+# - Planning template before implementation
+
+version: "1.0"
+
+# Agent Permissions
+permissions:
+  # Allow agent to read files
+  read: true
+
+  # Allow agent to write/modify files
+  write: true
+
+  # Allow agent to execute commands
+  execute: true
+
+  # Allow agent to create new files
+  create: true
+
+  # Allow agent to delete files
+  delete: false  # Disabled by default for safety
+
+# Allowed Models
+models:
+  allowed:
+    - claude-sonnet-4.5
+    - gpt-4
+    - gpt-5
+    - o3
+    - auto
+  default: claude-sonnet-4.5
+
+# File System Access Control
+filesystem:
+  # Allowed directories for read/write operations
+  allowed_paths:
+    - "/home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2/**"
+    - "./**"
+
+  # Explicitly denied paths (takes precedence over allowed_paths)
+  denied_paths:
+    - "**/.git/**"
+    - "**/node_modules/**"
+    - "**/__pycache__/**"
+    - "**/*.pyc"
+    - "**/venv/**"
+    - "**/build/**"
+    - "**/.terraform/**"
+    - "**/*.lock"
+    - "**/secrets/**"
+    - "**/.env"
+    - "**/.env.*"
+
+  # Protected files that require explicit approval before modification
+  protected_files:
+    - ".cursor/agent-allow-reference.yaml"
+    - ".cursor/rules/**/*.mdc"
+    - "Makefile"
+    - "CMakeLists.txt"
+    - "package.json"
+    - "requirements.txt"
+    - "docker-compose.yml"
+    - ".gitignore"
+    - "pyproject.toml"
+    - ".pre-commit-config.yaml"
+
+# Allowed Commands
+#
+# ============================================================================
+# SECURITY MODEL: DENY-LIST vs WHITELIST
+# ============================================================================
+#
+# CURRENT CONFIGURATION: DENY-LIST (allow_all_except_denied)
+# - All commands are allowed by default
+# - Only explicitly unsafe commands in global_denied are blocked
+# - More flexible and convenient for development
+# - Requires trust in the agent and careful monitoring
+#
+# ALTERNATIVE: WHITELIST (whitelist_only)
+# - Only explicitly listed commands are allowed
+# - More secure but requires maintaining lists
+# - Better for production or untrusted environments
+# - Scroll down to change default.policy to "whitelist_only"
+#
+# ============================================================================
+# ⚠️  SECURITY WARNINGS FOR DENY-LIST MODE
+# ============================================================================
+#
+# PROS:
+# ✓ More flexible - agent can use any reasonable command
+# ✓ Less maintenance - don't need to update whitelist constantly
+# ✓ Better for rapid development and experimentation
+# ✓ Still blocks catastrophically dangerous operations
+#
+# CONS:
+# ✗ Agent could execute unexpected commands
+# ✗ New attack vectors might not be in deny list
+# ✗ Typos in deny patterns could allow dangerous commands
+# ✗ Requires careful review of agent actions
+#
+# RECOMMENDATIONS:
+# 1. Use deny-list mode for trusted development environments
+# 2. Switch to whitelist mode for production or CI/CD
+# 3. Review agent actions regularly, especially command execution
+# 4. Keep deny list updated as new dangers are discovered
+# 5. Use in combination with commit approval workflow
+# 6. Consider using different policies for different file types
+#
+# ============================================================================
+#
+commands:
+  # Default policy for all commands
+  default:
+    policy: "allow_all_except_denied"  # Options: "whitelist_only" or "allow_all_except_denied"
+
+  # Global deny list - applies to all command categories
+  global_denied:
+    # Dangerous system operations
+    - "sudo *"
+    - "su *"
+    - "sudo su"
+    - "doas *"
+
+    # Destructive file operations
+    - "rm -rf /*"
+    - "rm -rf ~/*"
+    - "rm -rf .*"
+    - "rm -rf /home/*"
+    - "rm -rf /usr/*"
+    - "rm -rf /etc/*"
+    - "rm -rf /var/*"
+    - "rm -rf /opt/*"
+    - "find * -delete"
+    - "find * -exec rm *"
+    - "shred *"
+
+    # Dangerous permissions changes
+    - "chmod 777 *"
+    - "chmod -R 777 *"
+    - "chmod a+w /*"
+    - "chown -R * /*"
+    - "chown * /etc/*"
+
+    # System modification
+    - "mkfs*"
+    - "fdisk *"
+    - "parted *"
+    - "dd if=* of=/dev/*"
+    - "mkswap *"
+    - "swapon *"
+
+    # Package management (require explicit approval)
+    - "apt-get remove *"
+    - "apt-get purge *"
+    - "apt remove *"
+    - "apt purge *"
+    - "yum remove *"
+    - "dnf remove *"
+    - "pacman -R *"
+
+    # Service control (require explicit approval)
+    - "systemctl stop *"
+    - "systemctl disable *"
+    - "service * stop"
+    - "systemctl poweroff"
+    - "systemctl reboot"
+    - "shutdown *"
+    - "reboot"
+    - "halt"
+    - "poweroff"
+
+    # Network attacks
+    - "nmap *"
+    - "nc -e *"
+    - "netcat -e *"
+
+    # Dangerous script execution
+    - "eval *"
+    - "exec *"
+    - "source /dev/*"
+    - ". /dev/*"
+
+    # Force operations that bypass safety
+    - "git push --force*"
+    - "git push -f*"
+    - "git reset --hard HEAD~*"
+    - "git clean -fd*"
+    - "terraform destroy*"
+    - "terraform apply -auto-approve*"
+    - "docker system prune -a*"
+    - "docker rm -f $(docker ps -aq)"
+    - "kubectl delete --all*"
+    - "ansible-playbook * --force*"
+    - "packer build * --force*"
+
+    # History manipulation
+    - "history -c"
+    - "history -w"
+    - "> ~/.bash_history"
+    - "unset HISTFILE"
+
+    # Process killing (require explicit approval for critical processes)
+    - "kill -9 1"
+    - "killall -9 *"
+    - "pkill -9 *"
+
+    # Raw device access
+    - "* > /dev/sd*"
+    - "* > /dev/nvme*"
+    - "cat * > /dev/sd*"
+
+  # ============================================================================
+  # OPTIONAL WHITELIST SECTIONS (only needed if policy is "whitelist_only")
+  # ============================================================================
+  #
+  # The sections below define whitelists for specific command categories.
+  # When using "allow_all_except_denied" policy, these are OPTIONAL and only
+  # serve as documentation of commonly used commands in this project.
+  #
+  # To switch to whitelist mode:
+  # 1. Change default.policy to "whitelist_only"
+  # 2. Uncomment and use the whitelist sections below
+  # ============================================================================
+
+  # Docker/Container commands
+  docker:
+    # Note: When using allow_all_except_denied, this whitelist is informational only
+    notes: |
+      With deny-list mode active, all docker commands are allowed except:
+      - docker system prune -a (use without -a flag)
+      - docker rm -f $(docker ps -aq) (dangerous mass deletion)
+
+    # Whitelist (only used if default.policy is "whitelist_only")
+    whitelist:
+      - "make build-docker"
+      - "make shell-docker"
+      - "make run-docker COMMAND=*"
+      - "make config"
+      - "docker ps"
+      - "docker images"
+    denied:
+      - "docker rm -f"
+      - "docker system prune"
+
+  # Build system commands
+  build:
+    allowed: true
+    whitelist:
+      # CMake commands
+      - "cmake --build build --target *"
+      - "cmake -G Ninja -S . -B build"
+      - "make config"
+      # Ninja build commands (all variations)
+      - "ninja -C build"           # Build in specific directory
+      - "ninja -C build *"         # Build specific targets
+      - "ninja *"                  # Build any target
+      - "ninja -j *"               # Build with parallel jobs
+      - "ninja -v *"               # Verbose build
+      - "ninja -t *"               # Ninja tools (list, clean, etc.)
+      - "ninja clean"              # Clean build artifacts
+      - "ninja help"               # Show available targets
+      - "ninja -d *"               # Debug mode
+    denied:
+      - "rm -rf build"
+
+  # Git commands
+  git:
+    allowed: true
+    whitelist:
+      - "git status"
+      - "git diff"
+      - "git log"
+      - "git branch"
+      - "git checkout -b *"
+      - "git add *"
+      - "git commit -m *"
+      - "git stash"
+      - "git stash pop"
+    denied:
+      - "git push --force"
+      - "git push -f"
+      - "git reset --hard"
+      - "git clean -fd"
+      - "git rebase"
+
+  # Terraform commands
+  terraform:
+    allowed: true
+    whitelist:
+      - "terraform init"
+      - "terraform plan"
+      - "terraform validate"
+      - "terraform fmt"
+      - "terraform state list"
+    denied:
+      - "terraform apply"
+      - "terraform destroy"
+      - "terraform state rm"
+
+  # Ansible commands
+  ansible:
+    allowed: true
+    whitelist:
+      - "ansible-playbook --check *"
+      - "ansible-playbook --syntax-check *"
+      - "ansible-lint *"
+      - "ansible-inventory --list"
+    denied:
+      - "ansible-playbook * --force"
+
+  # Packer commands
+  packer:
+    allowed: true
+    whitelist:
+      - "packer validate *"
+      - "packer fmt *"
+      - "packer inspect *"
+    denied:
+      - "packer build * --force"
+
+  # System commands
+  system:
+    allowed: true
+    whitelist:
+      - "ls *"
+      - "cat *"
+      - "grep *"
+      - "find *"
+      - "tree *"
+      - "pwd"
+      - "which *"
+      - "echo *"
+      - "printf *"
+      # Shell redirects and pipes
+      - "* > *"                    # Redirect stdout to file (overwrite)
+      - "* >> *"                   # Redirect stdout to file (append)
+      - "* < *"                    # Redirect stdin from file
+      - "* | *"                    # Pipe output to another command
+      - "* 2> *"                   # Redirect stderr to file
+      - "* 2>> *"                  # Append stderr to file
+      - "* &> *"                   # Redirect stdout and stderr to file
+      - "* 2>&1"                   # Redirect stderr to stdout
+      - "* | tee *"                # Pipe with tee (write to file and stdout)
+    denied:
+      - "sudo *"
+      - "rm -rf /*"
+      - "chmod 777 *"
+      - "chown *"
+      - "* > /dev/sd*"             # Prevent writing to raw devices
+      - "* > /dev/null; rm -rf *"  # Prevent dangerous command chaining
+
+# Automatic PR Settings
+auto_pr:
+  enabled: true
+  require_approval: true
+
+  # Branch naming convention
+  branch_prefix: "cursor-agent"
+
+  # Commit message format
+  commit_format: "conventional"  # conventional, simple, detailed
+
+  # PR title format
+  pr_title_format: "[Cursor Agent] {description}"
+
+  # Auto-assign reviewers
+  reviewers:
+    enabled: false
+    default_reviewers: []
+
+# Notifications
+notifications:
+  # Notify on agent start
+  on_start: true
+
+  # Notify on agent completion
+  on_complete: true
+
+  # Notify on errors
+  on_error: true
+
+  # Notify on file modifications
+  on_file_change: false
+
+# Safety Features
+safety:
+  # Require confirmation before executing destructive operations
+  confirm_destructive: true
+
+  # Dry run mode (preview changes without applying)
+  dry_run: false
+
+  # Maximum number of files to modify in a single session
+  max_files_per_session: 50
+
+  # Maximum number of commands to execute in a single session
+  max_commands_per_session: 100
+
+  # Timeout for long-running operations (in minutes)
+  operation_timeout: 30
+
+# Project-Specific Rules
+project_rules:
+  # Infrastructure as Code
+  iac:
+    # Always validate before committing
+    validate_before_commit: true
+
+    # Run linters automatically
+    auto_lint: true
+
+    # Check for secrets in code
+    secret_detection: true
+
+  # Documentation
+  documentation:
+    # Update docs when modifying infrastructure code
+    auto_update_docs: true
+
+    # Paths to documentation
+    docs_paths:
+      - "docs/**"
+      - "README.md"
+
+    # Markdown linting
+    markdown_lint: true
+
+  # Container builds
+  containers:
+    # Always use development container for builds
+    use_dev_container: true
+
+    # Container script path
+    container_script: "./scripts/run-in-dev-container.sh"
+
+# Rate Limiting
+rate_limits:
+  # Maximum API calls per minute
+  api_calls_per_minute: 60
+
+  # Maximum file reads per minute
+  file_reads_per_minute: 100
+
+  # Maximum file writes per minute
+  file_writes_per_minute: 50
+
+# Logging
+logging:
+  # Log level (debug, info, warning, error)
+  level: info
+
+  # Log agent actions
+  log_actions: true
+
+  # Log file path
+  log_file: ".cursor/agent.log"
+
+  # Retain logs for N days
+  retention_days: 30
+
+# Integration Settings
+integrations:
+  # Slack integration
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: ""
+
+  # GitHub integration
+  github:
+    enabled: true
+    auto_create_pr: true
+    pr_draft: true
+
+  # Notion integration
+  notion:
+    enabled: false
+    workspace_id: ""
