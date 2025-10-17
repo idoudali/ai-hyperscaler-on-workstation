@@ -459,7 +459,7 @@ cmake --build build --target build-container-pytorch-cuda12.1-mpi4.1
 
 For complete workflow documentation, see:
 
-- [Apptainer Conversion Workflow Guide](../docs/APPTAINER-CONVERSION-WORKFLOW.md)
+- [Apptainer Conversion Workflow Guide](../workflows/APPTAINER-CONVERSION-WORKFLOW.md)
 - Conversion best practices
 - Testing strategies
 - Troubleshooting guide
@@ -469,5 +469,5 @@ For complete workflow documentation, see:
 
 - See `tools/cli/hpc-container-manager` for CLI usage
 - See `tools/hpc_extensions/` for conversion and deployment utilities
-- See `../docs/APPTAINER-CONVERSION-WORKFLOW.md` for detailed workflow
+- See `../workflows/APPTAINER-CONVERSION-WORKFLOW.md` for detailed workflow
 - Task 021: Container Registry Infrastructure & Cluster Deployment

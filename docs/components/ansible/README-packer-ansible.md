@@ -1,1 +1,0 @@
-../../../ansible/README-packer-ansible.md
