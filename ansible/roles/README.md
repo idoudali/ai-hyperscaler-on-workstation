@@ -19,10 +19,13 @@ for a specific aspect of the system configuration.
 
 ### HPC Components
 
-- **slurm-controller**: Configures SLURM controller node
-- **slurm-compute**: Configures SLURM compute nodes
+- **slurm-controller**: Configures SLURM controller node (uses pre-built packages)
+- **slurm-compute**: Configures SLURM compute nodes (uses pre-built packages)
 - **nvidia-gpu-drivers**: Installs and configures NVIDIA GPU drivers
 - **virtio-fs-mount**: Configures Virtio-FS for shared storage
+
+**Note**: SLURM roles install from pre-built packages in `build/packages/slurm/`. Build packages first with:
+`make run-docker COMMAND="cmake --build build --target build-slurm-packages"`
 
 ### Monitoring and ML
 

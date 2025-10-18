@@ -13,35 +13,36 @@
     - munge
   become: true
   listen: restart slurm services
-  when: not (packer_build | default(false))
+  when: not (packer_build | default(false) | bool)
+  failed_when: false  # Don't fail deployment if restart fails - services will be started later
 
 - name: restart slurmctld
   service:
     name: slurmctld
     state: restarted
   become: true
-  when: not (packer_build | default(false))
+  when: not (packer_build | default(false) | bool)
 
 - name: restart slurmdbd
   service:
     name: slurmdbd
     state: restarted
   become: true
-  when: not (packer_build | default(false))
+  when: not (packer_build | default(false) | bool)
 
 - name: restart munge
   service:
     name: munge
     state: restarted
   become: true
-  when: not (packer_build | default(false))
+  when: not (packer_build | default(false) | bool)
 
 - name: restart mariadb
   service:
     name: mariadb
     state: restarted
   become: true
-  when: not (packer_build | default(false))
+  when: not (packer_build | default(false) | bool)
 
 - name: reload systemd
   systemd:

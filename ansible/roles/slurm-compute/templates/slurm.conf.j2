@@ -62,9 +62,10 @@ TaskPlugin={{ slurm_task_plugin | default('task/cgroup,task/affinity') }}
 # Job Accounting and Database
 #=============================================================================
 
-# Accounting storage type
-AccountingStorageType={{ slurm_accounting_storage_type | default('accounting_storage/slurmdbd') }}
+# Accounting storage type (none by default, set to accounting_storage/slurmdbd if using database)
+AccountingStorageType={{ slurm_accounting_storage_type | default('accounting_storage/none') }}
 
+{% if slurm_accounting_storage_type is defined and slurm_accounting_storage_type == 'accounting_storage/slurmdbd' %}
 # Accounting storage host
 AccountingStorageHost={{ slurm_accounting_storage_host | default('localhost') }}
 
@@ -73,6 +74,7 @@ AccountingStoragePort={{ slurm_accounting_storage_port | default('6819') }}
 
 # Accounting storage user
 AccountingStorageUser={{ slurm_accounting_storage_user | default('slurm') }}
+{% endif %}
 
 # Job accounting gather type
 JobAcctGatherType={{ slurm_job_acct_gather_type | default('jobacct_gather/linux') }}
@@ -143,7 +145,7 @@ MinJobAge={{ slurm_min_job_age | default('300') }}
 
 # Default partition
 PartitionName={{ slurm_default_partition | default('compute') }} \
-    Nodes={{ slurm_compute_nodes | default('compute-[01-99]') }} \
+    Nodes={% for host in groups['compute_nodes'] | default([]) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
     Default={{ slurm_default_partition_default | default('YES') }} \
     MaxTime={{ slurm_partition_max_time | default('INFINITE') }} \
     State={{ slurm_partition_state | default('UP') }}
@@ -151,7 +153,7 @@ PartitionName={{ slurm_default_partition | default('compute') }} \
 # GPU partition (if GPUs are available)
 {% if gres_types is defined and 'gpu' in gres_types %}
 PartitionName={{ slurm_gpu_partition | default('gpu') }} \
-    Nodes={{ slurm_gpu_nodes | default('compute-[01-99]') }} \
+    Nodes={% for host in groups['compute_nodes'] | default([]) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
     Default={{ slurm_gpu_partition_default | default('NO') }} \
     MaxTime={{ slurm_gpu_partition_max_time | default('INFINITE') }} \
     State={{ slurm_gpu_partition_state | default('UP') }} \
@@ -162,20 +164,24 @@ PartitionName={{ slurm_gpu_partition | default('gpu') }} \
 # Node Configuration
 #=============================================================================
 
-# Default node configuration
-NodeName={{ slurm_compute_nodes | default('compute-[01-99]') }} \
-    Sockets={{ slurm_node_sockets | default('1') }} \
-    CoresPerSocket={{ slurm_node_cores_per_socket | default('8') }} \
-    ThreadsPerCore={{ slurm_node_threads_per_core | default('2') }} \
-    State={{ slurm_node_state | default('UNKNOWN') }}
+# Compute nodes - dynamically generated from inventory
+{% for host in groups['compute_nodes'] | default([]) %}
+NodeName={{ hostvars[host].slurm_node_name | default(host) }} \
+    NodeAddr={{ hostvars[host].ansible_host | default(host) }} \
+    Sockets={{ hostvars[host].slurm_node_sockets | default('1') }} \
+    CoresPerSocket={{ hostvars[host].slurm_node_cores_per_socket | default('8') }} \
+    ThreadsPerCore={{ hostvars[host].slurm_node_threads_per_core | default('2') }} \
+    State={{ hostvars[host].slurm_node_state | default('UNKNOWN') }}
+{% endfor %}
 
 # Controller node configuration
-NodeName={{ slurm_controller_name | default('controller') }} \
-    NodeAddr={{ slurm_controller_addr | default('127.0.0.1') }} \
-    Sockets={{ slurm_controller_sockets | default('1') }} \
-    CoresPerSocket={{ slurm_controller_cores_per_socket | default('4') }} \
-    ThreadsPerCore={{ slurm_controller_threads_per_core | default('2') }} \
-    State={{ slurm_controller_state | default('UNKNOWN') }}
+{% set controller_host = groups['hpc_controllers'][0] | default('localhost') %}
+NodeName={{ hostvars[controller_host].slurm_node_name | default('controller') }} \
+    NodeAddr={{ hostvars[controller_host].ansible_host | default('127.0.0.1') }} \
+    Sockets={{ hostvars[controller_host].slurm_controller_sockets | default('1') }} \
+    CoresPerSocket={{ hostvars[controller_host].slurm_controller_cores_per_socket | default('4') }} \
+    ThreadsPerCore={{ hostvars[controller_host].slurm_controller_threads_per_core | default('2') }} \
+    State={{ hostvars[controller_host].slurm_controller_state | default('UNKNOWN') }}
 
 #=============================================================================
 # Advanced Configuration

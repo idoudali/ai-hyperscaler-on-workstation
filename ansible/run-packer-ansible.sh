@@ -74,8 +74,8 @@ check_requirements() {
     fi
 
     # Check if playbook exists
-    if [[ ! -f "${ANSIBLE_DIR}/playbooks/playbook-hpc.yml" ]]; then
-        log_error "HPC playbook not found: ${ANSIBLE_DIR}/playbooks/playbook-hpc.yml"
+    if [[ ! -f "${ANSIBLE_DIR}/playbooks/playbook-hpc-runtime.yml" ]]; then
+        log_error "HPC runtime playbook not found: ${ANSIBLE_DIR}/playbooks/playbook-hpc-runtime.yml"
         exit 1
     fi
 
@@ -146,7 +146,7 @@ run_ansible_playbook() {
     local ansible_cmd=(
         ansible-playbook
         -i "$inventory_file"
-        "${ANSIBLE_DIR}/playbooks/playbook-hpc.yml"
+        "${ANSIBLE_DIR}/playbooks/playbook-hpc-runtime.yml"
         -u "$SSH_USERNAME"
         --extra-vars "ansible_python_interpreter=/usr/bin/python3"
         --extra-vars "packer_build=true"

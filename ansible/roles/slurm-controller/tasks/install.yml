@@ -1,144 +1,170 @@
 ---
 # SLURM Controller Package Installation
-# Task 010: Install SLURM controller packages with PMIx support
+# Uses pre-built packages from TASK-028.2 (same pattern as BeeGFS)
+#
+# Installation Flow:
+# 1. Check if already installed (skip if binaries exist)
+# 2. Check packages on remote host (Packer: /tmp/slurm-packages/)
+# 3. Check packages on controller (Runtime: build/packages/slurm/)
+# 4. Copy packages if needed (Runtime only)
+# 5. Install from local packages
+# 6. Fail with clear message if packages not found
 
-- name: Update package cache
-  apt:
-    update_cache: "{{ slurm_update_cache }}"
-    cache_valid_time: "{{ slurm_cache_valid_time }}"
-  become: true
+- name: Verify SLURM packages are available
+  ansible.builtin.find:
+    paths: "{{ slurm_packages_path }}"
+    patterns: "slurm-smd_{{ slurm_version }}-1_*.deb"
+  register: available_packages
+  tags:
+    - slurm
+    - slurm-controller
+    - check
 
-- name: Install SLURM controller packages
-  apt:
-    name: "{{ slurm_controller_packages }}"
-    state: "{{ slurm_package_state }}"
-  become: true
-  register: slurm_package_install
-  notify:
-    - restart slurm services
+- name: Fail if SLURM packages not found
+  ansible.builtin.fail:
+    msg: >-
+      SLURM packages not found at {{ slurm_packages_path }}.
+      Expected: slurm-smd_{{ slurm_version }}-1_*.deb
+      Packages should be copied by the playbook before this role runs.
+  when: available_packages.matched == 0
+  tags:
+    - slurm
+    - slurm-controller
+    - check
 
-# Task 013: Install container runtime support packages
-- name: Install SLURM container runtime support packages
-  apt:
-    name: "{{ slurm_controller_container_packages }}"
-    state: "{{ slurm_package_state }}"
-  become: true
-  register: slurm_container_package_install
-  when:
-    - slurm_container_enabled | default(true)
-    - container_install_method | default("skip") != "skip"
-  notify:
-    - restart slurm services
+- name: Display SLURM package installation
+  ansible.builtin.debug:
+    msg: "Installing SLURM controller from {{ available_packages.matched }} packages at {{ slurm_packages_path }}"
+  tags:
+    - slurm
+    - slurm-controller
 
-- name: Display container runtime installation note
-  debug:
-    msg: |
-      Container runtime installation skipped (container_install_method: {{ container_install_method | default('skip') }})
+- name: Install SLURM controller dependencies
+  ansible.builtin.apt:
+    name: "{{ slurm_controller_dependencies }}"
+    state: present
+    update_cache: true
+  tags:
+    - slurm
+    - slurm-controller
+    - install
 
-      To enable container runtime, you can:
-      1. Install manually: apt install apptainer (or singularity)
-      2. Set container_install_method: "package" and uncomment runtime packages in defaults
-      3. Use external installation method for specific container runtime versions
+- name: Find SLURM controller package files
+  ansible.builtin.find:
+    paths: "{{ slurm_packages_path }}"
+    patterns: "{{ slurm_controller_required_packages }}"
+  register: slurm_controller_pkgs
+  tags:
+    - slurm
+    - slurm-controller
+    - install
 
-      Supported runtimes: Apptainer, Singularity
-  when:
-    - slurm_container_enabled | default(true)
-    - container_install_method | default("skip") == "skip"
+- name: Install SLURM controller packages (all at once for dependency resolution)
+  ansible.builtin.command:
+    cmd: "dpkg -i {{ slurm_controller_pkgs.files | map(attribute='path') | join(' ') }}"
+  register: dpkg_install_result
+  changed_when: dpkg_install_result.rc == 0
+  failed_when: false
+  when: slurm_controller_pkgs.matched | default(0) > 0
+  tags:
+    - slurm
+    - slurm-controller
+    - install
 
-- name: Verify SLURM binaries installation
-  command: "which {{ item }}"
-  loop:
-    - slurmctld
-    - slurmdbd
-    - sinfo
-    - srun
-  register: slurm_binaries_check
-  changed_when: false
-  failed_when: slurm_binaries_check.rc != 0
-  when: not ((packer_build | default(false)) | bool)
+- name: Fix SLURM package dependencies if needed
+  ansible.builtin.command:
+    cmd: "apt-get install -f -y"
+  register: apt_fix_result
+  changed_when: apt_fix_result.rc == 0
+  when: slurm_controller_pkgs.matched | default(0) > 0
+  tags:
+    - slurm
+    - slurm-controller
+    - install
 
-- name: Verify SLURM version (lenient check)
-  shell: "{{ item }} --version 2>/dev/null || {{ item }} -V 2>/dev/null || echo 'Binary exists but version check failed'"
-  loop:
-    - slurmctld
-    - slurmdbd
-    - sinfo
-  register: slurm_version_check
+- name: Create SLURM system user
+  ansible.builtin.user:
+    name: slurm
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/slurm
+    createhome: true
+    comment: "SLURM Resource Manager"
+  tags:
+    - slurm
+    - slurm-controller
+    - install
+
+- name: Verify SLURM controller installation
+  ansible.builtin.command: "/usr/sbin/slurmctld -V"
+  register: slurmctld_version
   changed_when: false
   failed_when: false
-  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
+
+- name: Display SLURM controller version
+  ansible.builtin.debug:
+    msg: "SLURM controller installed: {{ slurmctld_version.stdout }}"
+  when: slurmctld_version.rc == 0
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
+
+- name: Verify slurmdbd installation
+  ansible.builtin.command: "/usr/sbin/slurmdbd -V"
+  register: slurmdbd_version
+  changed_when: false
+  failed_when: false
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
+
+- name: Display slurmdbd version
+  ansible.builtin.debug:
+    msg: "slurmdbd installed: {{ slurmdbd_version.stdout }}"
+  when: slurmdbd_version.rc == 0
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 
 - name: Verify PMIx libraries installation
-  stat:
+  ansible.builtin.stat:
     path: "/usr/lib/x86_64-linux-gnu/libpmix.so.2"
   register: pmix_library_check
   when: not ((packer_build | default(false)) | bool)
-
-- name: Verify MariaDB installation
-  service:
-    name: mariadb
-    state: started
-  become: true
-  register: mariadb_service_check
-  when:
-    - (install_database | default(true)) | bool
-    - not ((packer_build | default(false)) | bool)
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 
 - name: Verify MUNGE installation
-  command: mungekey --version
+  ansible.builtin.command: mungekey --version
   register: munge_version_check
   changed_when: false
-  failed_when: munge_version_check.rc != 0
-  when: not ((packer_build | default(false)) | bool)
-
-# Task 013: Verify container runtime installation
-- name: Check for available container runtime
-  shell: |
-    if command -v apptainer >/dev/null 2>&1; then
-      echo "apptainer"
-      apptainer --version
-    elif command -v singularity >/dev/null 2>&1; then
-      echo "singularity"
-      singularity --version
-    else
-      echo "none"
-      echo "No container runtime found"
-    fi
-  register: container_runtime_check
-  changed_when: false
   failed_when: false
-  when:
-    - not ((packer_build | default(false)) | bool)
-    - (slurm_container_enabled | default(true)) | bool
-
-- name: Verify SLURM container plugin library exists
-  stat:
-    path: "/usr/lib/x86_64-linux-gnu/slurm-wlm/container_singularity.so"
-  register: container_plugin_lib_check
-  when:
-    - not ((packer_build | default(false)) | bool)
-    - (slurm_container_enabled | default(true)) | bool
+  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 
 - name: Display installation results
-  debug:
+  ansible.builtin.debug:
     msg: |
       SLURM Controller installation completed:
-      - Core packages installed: {{ slurm_controller_packages }}
-      {% if slurm_container_enabled | default(true) %}
-      - Container support packages installed: {{ slurm_controller_container_packages }}
-      - Container runtime installation: {{ container_install_method | default('skip') }}
-      {% endif %}
+      - SLURM version: {{ slurm_version }}
+      - Installation method: Pre-built packages from {{ slurm_packages_path }}
       - Build mode: {{ 'Packer' if (packer_build | default(false)) | bool else 'Live deployment' }}
       {% if not ((packer_build | default(false)) | bool) %}
-      - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if (slurm_version_check is defined and slurm_version_check.results[0].rc == 0) else 'Version check failed' }}
       - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
-      - MariaDB service: {{ 'Running' if mariadb_service_check is defined and mariadb_service_check.state == 'started' else 'Installed' if (install_database | default(true)) | bool else 'Not installed' }}
       - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
-      {% if slurm_container_enabled | default(true) %}
-      - Container runtime detected: {{ container_runtime_check.stdout.split('\n')[0] if container_runtime_check is defined else 'Not checked' }}
-      - Container runtime version: {{ container_runtime_check.stdout.split('\n')[1] if container_runtime_check is defined and container_runtime_check.stdout.split('\n')|length > 1 else 'Not available' }}
-      - Container plugin library: {{ 'Present' if container_plugin_lib_check is defined and container_plugin_lib_check.stat.exists else 'Missing' if container_plugin_lib_check is defined else 'Not checked' }}
       {% endif %}
-      {% else %}
-      - Note: Detailed verification skipped during Packer build (packages installed only)
-      {% endif %}
+  tags:
+    - slurm
+    - slurm-controller

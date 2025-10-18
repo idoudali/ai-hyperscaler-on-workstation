@@ -148,7 +148,7 @@ VERBOSE=true SSH_PORT=2222 SSH_USERNAME=ubuntu ./run-packer-ansible.sh localhost
 
 The script uses the same configuration as Packer:
 
-- **Playbook**: `playbooks/playbook-hpc.yml`
+- **Playbook**: `playbooks/playbook-hpc-runtime.yml`
 - **Roles**: `hpc-base-packages`, `container-runtime`, `nvidia-gpu-drivers`
 - **Variables**: `packer_build=true`, `nvidia_install_cuda=false`
 - **Environment**: Same Ansible environment variables as Packer

@@ -3,8 +3,35 @@
 # This file contains default variables for the SLURM controller role
 # These can be overridden in playbooks or inventory
 
-# SLURM version
-slurm_version: "21.08"
+# SLURM Package Installation Configuration
+slurm_version: "24.11.0"
+slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
+slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
+
+# Required packages for controller
+slurm_controller_required_packages:
+  - "slurm-smd_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-client_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-slurmctld_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-slurmdbd_{{ slurm_version }}-1_amd64.deb"
+
+# Dependencies (from Debian repos)
+slurm_controller_dependencies:
+  - libmunge2
+  - munge
+  - libmariadb3
+  - mariadb-client
+  - libpmix2
+  - libpam0g
+  - libhwloc15
+  - liblua5.3-0
+  - libjson-c5
+  - libhdf5-310
+  - libhdf5-hl-310
+  - libfreeipmi17
+  - libipmimonitoring6
+  - libjwt2
+  - librdkafka1
 
 # Controller configuration
 slurm_controller_name: "controller"
@@ -17,7 +44,7 @@ slurm_database_user: "slurm"
 slurm_database_password: "slurm"
 
 # SLURM accounting configuration
-slurm_accounting_storage_type: "accounting_storage/slurmdbd"
+slurm_accounting_storage_type: "accounting_storage/none"  # Set to 'accounting_storage/slurmdbd' to enable accounting database
 slurm_accounting_storage_host: "localhost"
 slurm_accounting_storage_port: 6819
 slurm_accounting_storage_user: "slurm"

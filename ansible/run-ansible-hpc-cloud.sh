@@ -432,14 +432,14 @@ operation_configure() {
 
     # Run controller playbook first
     log_info "Configuring HPC controller nodes..."
-    if ! run_ansible_playbook "playbooks/playbook-hpc-controller.yml" "$inventory_file" "--limit hpc_controllers"; then
+    if ! run_ansible_playbook "playbooks/playbook-hpc-runtime.yml" "$inventory_file" "--limit hpc_controllers"; then
         log_error "Failed to configure controller nodes"
         return 1
     fi
 
     # Run compute playbook
     log_info "Configuring HPC compute nodes..."
-    if ! run_ansible_playbook "playbooks/playbook-hpc-compute.yml" "$inventory_file" "--limit hpc_compute_nodes"; then
+    if ! run_ansible_playbook "playbooks/playbook-hpc-runtime.yml" "$inventory_file" "--limit hpc_compute_nodes"; then
         log_error "Failed to configure compute nodes"
         return 1
     fi

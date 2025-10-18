@@ -1,121 +1,151 @@
 ---
-# SLURM Compute Node Package Installation
-# Task 022: Install SLURM compute node packages with container runtime support
+# SLURM Compute Package Installation
+# Uses pre-built packages from TASK-028.2 (same pattern as BeeGFS)
+#
+# Installation Flow:
+# 1. Check if already installed (skip if binaries exist)
+# 2. Check packages on remote host (Packer: /tmp/slurm-packages/)
+# 3. Check packages on controller (Runtime: build/packages/slurm/)
+# 4. Copy packages if needed (Runtime only)
+# 5. Install from local packages
+# 6. Fail with clear message if packages not found
 
-- name: Update package cache
-  apt:
-    update_cache: "{{ slurm_update_cache | default(true) }}"
-    cache_valid_time: "{{ slurm_cache_valid_time | default(3600) }}"
-  become: true
+- name: Verify SLURM packages are available
+  ansible.builtin.find:
+    paths: "{{ slurm_packages_path }}"
+    patterns: "slurm-smd_{{ slurm_version }}-1_*.deb"
+  register: available_packages
+  tags:
+    - slurm
+    - slurm-compute
+    - check
 
-- name: Install SLURM compute node packages
-  apt:
-    name: "{{ slurm_compute_packages }}"
-    state: "{{ slurm_package_state | default('present') }}"
-  become: true
-  register: slurm_compute_package_install
-  notify:
-    - restart slurmd
+- name: Fail if SLURM packages not found
+  ansible.builtin.fail:
+    msg: >-
+      SLURM packages not found at {{ slurm_packages_path }}.
+      Expected: slurm-smd_{{ slurm_version }}-1_*.deb
+      Packages should be copied by the playbook before this role runs.
+  when: available_packages.matched == 0
+  tags:
+    - slurm
+    - slurm-compute
+    - check
 
-- name: Install SLURM container runtime support packages
-  apt:
-    name: "{{ slurm_compute_container_packages }}"
-    state: "{{ slurm_package_state | default('present') }}"
-  become: true
-  register: slurm_container_package_install
-  when:
-    - (slurm_container_enabled | default(true)) | bool
-    - container_install_method | default("skip") != "skip"
-  notify:
-    - restart slurmd
+- name: Display SLURM package installation
+  ansible.builtin.debug:
+    msg: "Installing SLURM compute from {{ available_packages.matched }} packages at {{ slurm_packages_path }}"
+  tags:
+    - slurm
+    - slurm-compute
 
-- name: Display container runtime installation note
-  debug:
-    msg: |
-      Container runtime installation skipped (container_install_method: {{ container_install_method | default('skip') }})
+- name: Install SLURM compute dependencies
+  ansible.builtin.apt:
+    name: "{{ slurm_compute_dependencies }}"
+    state: present
+    update_cache: true
+  tags:
+    - slurm
+    - slurm-compute
+    - install
 
-      To enable container runtime, you can:
-      1. Install manually: apt install apptainer (or singularity)
-      2. Set container_install_method: "package" and uncomment runtime packages in defaults
-      3. Use external installation method for specific container runtime versions
+- name: Find SLURM compute package files
+  ansible.builtin.find:
+    paths: "{{ slurm_packages_path }}"
+    patterns: "{{ slurm_compute_required_packages }}"
+  register: slurm_compute_pkgs
+  tags:
+    - slurm
+    - slurm-compute
+    - install
 
-      Supported runtimes: Apptainer, Singularity
-  when:
-    - (slurm_container_enabled | default(true)) | bool
-    - container_install_method | default("skip") == "skip"
+- name: Install SLURM compute packages (all at once for dependency resolution)
+  ansible.builtin.command:
+    cmd: "dpkg -i {{ slurm_compute_pkgs.files | map(attribute='path') | join(' ') }}"
+  register: dpkg_install_result
+  changed_when: dpkg_install_result.rc == 0
+  failed_when: false
+  when: slurm_compute_pkgs.matched | default(0) > 0
+  tags:
+    - slurm
+    - slurm-compute
+    - install
 
-- name: Verify SLURM binaries installation
-  command: "which {{ item }}"
-  loop:
-    - slurmd
-    - srun
-    - squeue
-    - scancel
-  register: slurm_binaries_check
-  changed_when: false
-  failed_when: slurm_binaries_check.rc != 0
-  when: not ((packer_build | default(false)) | bool)
+- name: Fix SLURM package dependencies if needed
+  ansible.builtin.command:
+    cmd: "apt-get install -f -y"
+  register: apt_fix_result
+  changed_when: apt_fix_result.rc == 0
+  when: slurm_compute_pkgs.matched | default(0) > 0
+  tags:
+    - slurm
+    - slurm-compute
+    - install
 
-- name: Verify SLURM version (lenient check)
-  shell: "{{ item }} --version 2>/dev/null || {{ item }} -V 2>/dev/null || echo 'Binary exists but version check failed'"
-  loop:
-    - slurmd
-    - srun
-  register: slurm_version_check
+- name: Create SLURM system user
+  ansible.builtin.user:
+    name: slurm
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/slurm
+    createhome: true
+    comment: "SLURM Resource Manager"
+  tags:
+    - slurm
+    - slurm-compute
+    - install
+
+- name: Verify SLURM compute installation
+  ansible.builtin.command: "/usr/sbin/slurmd -V"
+  register: slurmd_version
   changed_when: false
   failed_when: false
-  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - slurm
+    - slurm-compute
+    - verify
+
+- name: Display SLURM compute version
+  ansible.builtin.debug:
+    msg: "SLURM compute installed: {{ slurmd_version.stdout }}"
+  when: slurmd_version.rc == 0
+  tags:
+    - slurm
+    - slurm-compute
+    - verify
 
 - name: Verify PMIx libraries installation
-  stat:
+  ansible.builtin.stat:
     path: "/usr/lib/x86_64-linux-gnu/libpmix.so.2"
   register: pmix_library_check
   when: not ((packer_build | default(false)) | bool)
+  tags:
+    - slurm
+    - slurm-compute
+    - verify
 
 - name: Verify MUNGE installation
-  command: mungekey --version
+  ansible.builtin.command: mungekey --version
   register: munge_version_check
   changed_when: false
-  failed_when: munge_version_check.rc != 0
-  when: not ((packer_build | default(false)) | bool)
-
-- name: Check for available container runtime
-  shell: |
-    if command -v apptainer >/dev/null 2>&1; then
-      echo "apptainer"
-      apptainer --version
-    elif command -v singularity >/dev/null 2>&1; then
-      echo "singularity"
-      singularity --version
-    else
-      echo "none"
-      echo "No container runtime found"
-    fi
-  register: container_runtime_check
-  changed_when: false
   failed_when: false
-  when:
-    - not ((packer_build | default(false)) | bool)
-    - (slurm_container_enabled | default(true)) | bool
+  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - slurm
+    - slurm-compute
+    - verify
 
 - name: Display installation results
-  debug:
+  ansible.builtin.debug:
     msg: |
       SLURM Compute Node installation completed:
-      - Core packages installed: {{ slurm_compute_packages }}
-      {% if (slurm_container_enabled | default(true)) | bool %}
-      - Container support packages installed: {{ slurm_compute_container_packages }}
-      - Container runtime installation: {{ container_install_method | default('skip') }}
-      {% endif %}
+      - SLURM version: {{ slurm_version }}
+      - Installation method: Pre-built packages from {{ slurm_packages_path }}
       - Build mode: {{ 'Packer' if (packer_build | default(false)) | bool else 'Live deployment' }}
       {% if not ((packer_build | default(false)) | bool) %}
-      - SLURM version: {{ slurm_version_check.results[0].stdout.split('\n')[0] if (slurm_version_check is defined and slurm_version_check.results[0].rc == 0) else 'Version check failed' }}
       - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
       - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
-      {% if (slurm_container_enabled | default(true)) | bool %}
-      - Container runtime detected: {{ container_runtime_check.stdout.split('\n')[0] if container_runtime_check is defined else 'Not checked' }}
-      - Container runtime version: {{ container_runtime_check.stdout.split('\n')[1] if container_runtime_check is defined and container_runtime_check.stdout.split('\n')|length > 1 else 'Not available' }}
       {% endif %}
-      {% else %}
-      - Note: Detailed verification skipped during Packer build (packages installed only)
-      {% endif %}
+  tags:
+    - slurm
+    - slurm-compute

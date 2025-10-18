@@ -654,13 +654,11 @@ generate_ansible_inventory() {
     # Get controller hostname from first controller VM (if exists)
     local controller_hostname="controller"
     if [[ ${#controllers[@]} -gt 0 ]]; then
-        local first_controller_vm
-        first_controller_vm=$(echo "${controllers[0]}" | cut -d: -f1)
         local first_controller_ip
         first_controller_ip=$(echo "${controllers[0]}" | cut -d= -f2)
 
         # Try to get actual hostname from the controller VM
-        if controller_hostname=$(timeout 10 ssh ${SSH_OPTS} -i "${SSH_KEY_PATH}" "${SSH_USER}@${first_controller_ip}" "hostname" 2>/dev/null); then
+        if controller_hostname=$(timeout 10 ssh "${SSH_OPTS}" -i "${SSH_KEY_PATH}" "${SSH_USER}@${first_controller_ip}" "hostname" 2>/dev/null); then
             log "Detected controller hostname: $controller_hostname"
         else
             # Default to expected hostname from Packer cloud-init

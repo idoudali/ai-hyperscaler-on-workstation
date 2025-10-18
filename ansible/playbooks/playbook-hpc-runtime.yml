@@ -1,0 +1,416 @@
+---
+# HPC Runtime Configuration Playbook
+# Unified runtime configuration for complete HPC cluster deployment
+# Consolidates 6 specialized runtime playbooks into one maintainable file
+#
+# Usage:
+#   ansible-playbook -i inventories/production playbooks/playbook-hpc-runtime.yml
+#
+# IMPORTANT: This playbook is for RUNTIME deployment only (packer_build=false)
+
+# Pre-validation
+- name: HPC Runtime Configuration - Pre-validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Verify runtime deployment mode
+      assert:
+        that:
+          - not ((packer_build | default(false)) | bool)
+        fail_msg: |
+          ERROR: This playbook is for RUNTIME deployment only!
+          It must be run with packer_build=false on live VMs.
+          Do NOT run this during Packer image builds.
+        success_msg: "Runtime deployment mode confirmed"
+
+    - name: Display runtime configuration plan
+      debug:
+        msg: |
+          ====================================================================
+          HPC Runtime Configuration
+          ====================================================================
+
+          This playbook will configure:
+          - Controllers: {{ groups['hpc_controllers'] | default([]) | join(', ') }}
+          - Compute Nodes: {{ groups['compute_nodes'] | default([]) | join(', ') }}
+
+          Configuration includes:
+          - SLURM controller and compute services
+          - Cgroup resource isolation
+          - GPU GRES configuration (if GPUs present)
+          - Job scripts deployment
+          - Monitoring stack (Prometheus, Grafana, DCGM)
+          - Container runtime validation
+
+          ====================================================================
+
+# Configure hostnames and /etc/hosts for all nodes
+- name: Configure Cluster Hostnames and DNS
+  hosts: hpc_controllers,compute_nodes
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Build /etc/hosts entries for all cluster nodes
+      set_fact:
+        cluster_hosts_entries: "{{ cluster_hosts_entries | default([]) + [{'ip': hostvars[item].ansible_host, 'hostname': hostvars[item].slurm_node_name | default(item)}] }}"
+      loop: "{{ groups['hpc_controllers'] + groups['compute_nodes'] }}"
+      run_once: true
+      tags:
+        - hostname
+        - dns
+
+    - name: Add all cluster nodes to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ item.ip }}\\s"
+        line: "{{ item.ip }}\t{{ item.hostname }}"
+        state: present
+      loop: "{{ hostvars[groups['hpc_controllers'][0]].cluster_hosts_entries }}"
+      tags:
+        - hostname
+        - dns
+
+# Copy SLURM packages to all nodes
+- name: Distribute SLURM Packages to All Nodes
+  hosts: hpc_controllers,compute_nodes
+  become: true
+  gather_facts: false
+  vars:
+    slurm_version: "24.11.0"
+    slurm_packages_source_dir: "{{ playbook_dir }}/../../build/packages/slurm"
+    slurm_packages_dest_dir: "/tmp/slurm-packages"
+  tasks:
+    - name: Create SLURM packages directory on remote nodes
+      ansible.builtin.file:
+        path: "{{ slurm_packages_dest_dir }}"
+        state: directory
+        mode: '0755'
+      tags:
+        - slurm
+        - packages
+
+    - name: Copy SLURM packages from Ansible controller to nodes
+      ansible.builtin.copy:
+        src: "{{ slurm_packages_source_dir }}/"
+        dest: "{{ slurm_packages_dest_dir }}/"
+        mode: '0644'
+      tags:
+        - slurm
+        - packages
+
+    - name: Verify SLURM packages were copied
+      ansible.builtin.find:
+        paths: "{{ slurm_packages_dest_dir }}"
+        patterns: "slurm-smd_{{ slurm_version }}-1_*.deb"
+      register: copied_packages
+      tags:
+        - slurm
+        - packages
+
+    - name: Display copied packages count
+      ansible.builtin.debug:
+        msg: "Copied {{ copied_packages.matched }} SLURM packages to {{ inventory_hostname }}"
+      tags:
+        - slurm
+        - packages
+
+    - name: Fail if no packages were copied
+      ansible.builtin.fail:
+        msg: "Failed to copy SLURM packages. Expected packages at {{ slurm_packages_source_dir }}"
+      when: copied_packages.matched == 0
+      tags:
+        - slurm
+        - packages
+
+# Controller configuration
+- name: Configure HPC Controllers
+  hosts: hpc_controllers
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+
+  pre_tasks:
+    - name: Set controller hostname
+      hostname:
+        name: "{{ slurm_node_name | default('controller') }}"
+      tags:
+        - hostname
+        - setup
+
+    - name: Update /etc/hosts with controller hostname
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1\t{{ slurm_node_name | default('controller') }}"
+        state: present
+      tags:
+        - hostname
+        - setup
+
+    - name: Restart MUNGE after hostname change
+      systemd:
+        name: munge
+        state: restarted
+      when: not (packer_build | default(false) | bool)
+      failed_when: false
+      tags:
+        - hostname
+        - setup
+
+    - name: Display controller configuration
+      debug:
+        msg: "Configuring HPC controller: {{ inventory_hostname }} -> {{ slurm_node_name | default('controller') }}"
+
+  tasks:
+    - name: Configure SLURM controller services
+      import_role:
+        name: slurm-controller
+      tags:
+        - slurm
+        - controller
+
+    - name: Start and configure monitoring stack
+      import_role:
+        name: monitoring-stack
+        tasks_from: prometheus
+      when: install_monitoring_stack | default(true)
+      tags:
+        - monitoring
+
+  post_tasks:
+    - name: Verify SLURM controller services
+      systemd:
+        name: "{{ item }}"
+        state: started
+      register: controller_services
+      loop:
+        - slurmctld
+        - slurmdbd
+      failed_when: false
+
+    - name: Display controller status
+      debug:
+        msg: |
+          Controller {{ inventory_hostname }} configured:
+          - slurmctld: {{ 'Running' if (controller_services.results[0].state is defined and controller_services.results[0].state == 'started') else 'Check logs' }}
+          - slurmdbd: {{ 'Running' if (controller_services.results[1].state is defined and controller_services.results[1].state == 'started') else 'Check logs' }}
+
+# Distribute MUNGE key from controller to compute nodes
+- name: Distribute MUNGE Key to Compute Nodes
+  hosts: hpc_controllers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Fetch MUNGE key from controller
+      fetch:
+        src: /etc/munge/munge.key
+        dest: /tmp/munge.key
+        flat: true
+      run_once: true
+      tags:
+        - munge
+        - auth
+
+- name: Copy MUNGE Key to Compute Nodes
+  hosts: compute_nodes
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Ensure MUNGE directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: munge
+        group: munge
+        mode: '0755'
+      loop:
+        - /etc/munge
+        - /var/lib/munge
+        - /var/log/munge
+        - /var/run/munge
+      tags:
+        - munge
+        - auth
+
+    - name: Copy MUNGE key from controller
+      copy:
+        src: /tmp/munge.key
+        dest: /etc/munge/munge.key
+        owner: munge
+        group: munge
+        mode: '0400'
+      notify: restart munge
+      tags:
+        - munge
+        - auth
+
+    - name: Start and enable MUNGE service
+      systemd:
+        name: munge
+        state: started
+        enabled: true
+      tags:
+        - munge
+        - auth
+
+  handlers:
+    - name: restart munge
+      systemd:
+        name: munge
+        state: restarted
+
+# Compute node configuration
+- name: Configure HPC Compute Nodes
+  hosts: compute_nodes
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+
+  pre_tasks:
+    - name: Set compute node hostname from inventory
+      hostname:
+        name: "{{ slurm_node_name | default(inventory_hostname) }}"
+      tags:
+        - hostname
+        - setup
+
+    - name: Update /etc/hosts with compute node hostname
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1\t{{ slurm_node_name | default(inventory_hostname) }}"
+        state: present
+      tags:
+        - hostname
+        - setup
+
+    - name: Restart MUNGE after hostname change
+      systemd:
+        name: munge
+        state: restarted
+      when: not (packer_build | default(false) | bool)
+      failed_when: false
+      tags:
+        - hostname
+        - setup
+
+    - name: Display compute node configuration
+      debug:
+        msg: |
+          Configuring compute node: {{ inventory_hostname }} -> {{ slurm_node_name | default(inventory_hostname) }}
+          - Cgroup enabled: {{ slurm_cgroup_enabled | default(true) }}
+          - GPU enabled: {{ gpu_enabled | default(false) }}
+          - Container runtime: {{ slurm_container_enabled | default(true) }}
+
+  tasks:
+    - name: Configure SLURM compute services
+      import_role:
+        name: slurm-compute
+      tags:
+        - slurm
+        - compute
+
+    - name: Configure cgroup isolation
+      import_role:
+        name: slurm-compute
+        tasks_from: cgroup
+      when: slurm_cgroup_enabled | default(true)
+      tags:
+        - cgroup
+
+    - name: Configure GPU GRES
+      import_role:
+        name: slurm-compute
+        tasks_from: gres
+      when: gpu_enabled | default(false)
+      tags:
+        - gres
+        - gpu
+
+    - name: Deploy job scripts
+      import_role:
+        name: slurm-compute
+        tasks_from: job-scripts
+      tags:
+        - job-scripts
+
+    - name: Configure DCGM monitoring
+      import_role:
+        name: monitoring-stack
+        tasks_from: dcgm
+      when: gpu_enabled | default(false)
+      tags:
+        - dcgm
+        - monitoring
+        - gpu
+
+  post_tasks:
+    - name: Verify slurmd service
+      systemd:
+        name: slurmd
+        state: started
+      register: slurmd_service
+      failed_when: false
+
+    - name: Check node registration with controller
+      shell: |
+        timeout 30 bash -c 'until scontrol show node {{ inventory_hostname }} 2>/dev/null | \
+          grep -q "State="; do sleep 2; done'
+      register: node_registration
+      changed_when: false
+      failed_when: false
+
+    - name: Display compute node status
+      debug:
+        msg: |
+          Compute node {{ inventory_hostname }} configured:
+          - slurmd: {{ 'Running' if (slurmd_service.state is defined and slurmd_service.state == 'started') else 'Check logs' }}
+          - Registration: {{ 'SUCCESS' if (node_registration.rc is defined and node_registration.rc == 0) else 'FAILED - Check MUNGE/network' }}
+          - Cgroup: {{ 'Configured' if slurm_cgroup_enabled | default(true) else 'Disabled' }}
+          - GPU GRES: {{ 'Configured' if gpu_enabled | default(false) else 'Disabled' }}
+
+    - name: Display troubleshooting information on failure
+      debug:
+        msg: |
+          Node registration failed. Troubleshooting steps:
+          1. Check MUNGE service: systemctl status munge
+          2. Verify MUNGE key matches controller
+          3. Check network connectivity to controller
+          4. Review slurmd logs: journalctl -u slurmd -n 50
+          5. Verify slurm.conf has correct controller hostname
+          6. Check firewall rules allowing SLURM traffic
+      when: node_registration.rc != 0
+
+# Post-validation
+- name: HPC Runtime Configuration - Post-validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display configuration completion
+      debug:
+        msg: |
+          ====================================================================
+          HPC Runtime Configuration Complete
+          ====================================================================
+
+          Cluster configured successfully!
+
+          Next steps:
+          1. Verify cluster status: sinfo
+          2. Check node states: scontrol show nodes
+          3. Test job submission: srun -N1 hostname
+          4. Run comprehensive tests: make test-hpc-runtime
+
+          Monitoring:
+          - Prometheus: http://controller:9090
+          - Grafana: http://controller:3000
+          - Node metrics: http://nodes:9100/metrics
+
+          For troubleshooting:
+          - Controller logs: journalctl -u slurmctld -f
+          - Compute logs: journalctl -u slurmd -f
+          - Database logs: journalctl -u slurmdbd -f
+
+          ====================================================================

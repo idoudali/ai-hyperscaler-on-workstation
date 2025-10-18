@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.18)
 # Define Packer variables
 set(IMAGE_NAME "hpc-controller")
 set(VM_NAME "hpc-controller.qcow2")
-set(DISK_SIZE "20G")
+set(DISK_SIZE "40G")
 set(MEMORY "2048")
 set(CPUS "2")
 
@@ -54,6 +54,7 @@ set(PACKER_VARS
     -var "ssh_keys_dir=${SSH_KEYS_DIR}"
     -var "ssh_username=${SSH_USERNAME}"
     -var "beegfs_packages_dir=${BEEGFS_PACKAGES_SOURCE_DIR}"
+    -var "slurm_packages_dir=${SLURM_PACKAGES_SOURCE_DIR}"
 )
 
 
@@ -125,6 +126,7 @@ add_custom_command(
         generate-packer-vars-hpc-controller
         ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-controller.sh
         build-beegfs-packages
+        build-slurm-packages
     USES_TERMINAL
     VERBATIM
 )

@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.18)
 # BeeGFS packages directory (from 3rd-party build)
 set(BEEGFS_PACKAGES_SOURCE_DIR "${PROJECT_BINARY_DIR}/packages/beegfs")
 
+# SLURM packages directory (from 3rd-party build)
+set(SLURM_PACKAGES_SOURCE_DIR "${PROJECT_BINARY_DIR}/packages/slurm")
+
 # Set up shared SSH keys directory (shared between all Packer images)
 set(SHARED_SSH_KEYS_DIR "${CMAKE_BINARY_DIR}/shared/ssh-keys")
 file(MAKE_DIRECTORY ${SHARED_SSH_KEYS_DIR})

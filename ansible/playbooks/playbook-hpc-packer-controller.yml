@@ -1,0 +1,109 @@
+---
+# HPC Controller Packer Build Playbook
+# Optimized for Packer image creation with comprehensive validation
+# Usage: packer build (automatically sets packer_build=true)
+
+- name: HPC Controller Packer Build
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: true
+    hpc_node_type: controller
+    monitoring_role: server
+    install_monitoring_stack: true
+    install_slurm_controller: true
+    container_runtime_enable_service: false
+
+  roles:
+    - role: hpc-base-packages
+    - role: container-runtime
+    - role: slurm-controller
+    - role: monitoring-stack
+
+  tasks:
+    # Keep all validation tasks from playbook-hpc-controller.yml lines 46-135
+    - name: Verify HPC base packages installation
+      debug:
+        msg: "HPC base packages have been installed successfully"
+
+    - name: Verify container runtime installation
+      command: "{{ container_runtime_binary | default('apptainer') }} --version"
+      register: container_runtime_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display container runtime version
+      debug:
+        msg: "Container runtime version: {{ container_runtime_version_check.stdout }}"
+      when: container_runtime_version_check.rc == 0
+
+    - name: Verify SLURM controller installation
+      command: "{{ item }}"
+      register: slurm_version_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - "slurmctld -V"
+        - "slurmdbd -V"
+
+    - name: Display SLURM controller version
+      debug:
+        msg: "SLURM component {{ item.item }} version: {{ item.stdout.split('\n')[0] }}"
+      loop: "{{ slurm_version_check.results }}"
+      when: item.rc == 0
+
+    - name: Verify SLURM controller dependencies
+      shell: "dpkg -l | grep -E '(slurm-wlm|munge|mariadb-server|libpmix)'"
+      register: slurm_dependencies
+      changed_when: false
+      failed_when: false
+
+    - name: Display SLURM controller dependencies
+      debug:
+        msg: "SLURM controller dependencies installed: {{ slurm_dependencies.stdout_lines }}"
+      when: slurm_dependencies.stdout_lines is defined
+
+    - name: Verify monitoring stack installation
+      command: "{{ item }}"
+      register: monitoring_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - "prometheus --version"
+        - "grafana-server --version"
+
+    - name: Display monitoring stack version
+      debug:
+        msg: "Monitoring component {{ item.item }} version: {{ item.stdout.split('\n')[0] }}"
+      loop: "{{ monitoring_check.results }}"
+      when: item.rc == 0
+
+    - name: Verify Node Exporter installation
+      command: "prometheus-node-exporter --version"
+      register: node_exporter_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display Node Exporter version
+      debug:
+        msg: "Node Exporter version: {{ node_exporter_check.stdout.split('\n')[0] }}"
+      when: node_exporter_check.rc == 0
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          HPC Controller Packer Build Complete
+          - SLURM Controller: Installed
+          - Monitoring Stack: Installed (Prometheus, Grafana, Node Exporter)
+          - Container Runtime: Installed
+          - Services: Enabled but not started (Packer mode)
+
+    - name: Gather installed package facts
+      package_facts:
+        manager: auto
+
+    - name: Display relevant installed packages
+      debug:
+        msg: "{{ ansible_facts.packages | dict2items | selectattr('key', 'in', ['tmux', 'htop', 'vim', 'curl', 'wget', 'fuse', 'squashfs-tools', 'uidmap', 'slurm-wlm', 'slurmdbd', 'munge', 'mariadb-server', 'libpmix2', 'prometheus', 'prometheus-node-exporter', 'prometheus-alertmanager']) | list }}"
