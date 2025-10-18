@@ -96,6 +96,11 @@ variable "beegfs_packages_dir" {
   description = "Directory containing pre-built BeeGFS DEB packages"
 }
 
+variable "slurm_packages_dir" {
+  type        = string
+  description = "Directory containing pre-built SLURM DEB packages"
+}
+
 # Local variables
 locals {
   output_directory = "${var.build_directory}"
@@ -207,19 +212,43 @@ build {
   }
 
   # Install BeeGFS packages (storage and client only for compute nodes)
-  provisioner "ansible-local" {
+  # Note: Using 'ansible' provisioner (not 'ansible-local') to run Ansible from host/container
+  # This avoids needing Ansible installed in the VM and prevents uploading .venv (504MB)
+  provisioner "ansible" {
     playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-beegfs-packer-install.yml"
-    playbook_dir = "${var.repo_tot_dir}/ansible"
-    role_paths = [
-      "${var.repo_tot_dir}/ansible/roles/beegfs-storage",
-      "${var.repo_tot_dir}/ansible/roles/beegfs-client"
-    ]
+    ansible_env_vars = local.ansible_env_vars
     extra_arguments = [
+      "-u", var.ssh_username,
+      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
       "--extra-vars", "packer_build=true",
       "--extra-vars", "install_only=true",
       "--extra-vars", "beegfs_packages_path=/tmp/beegfs-packages",
       "--tags", "beegfs-storage,beegfs-client",
+      "--become",
+      "--become-user=root",
       "-v"
+    ]
+    use_proxy = false
+  }
+
+  # Copy pre-built SLURM packages to VM
+  provisioner "shell" {
+    inline = [
+      "echo 'Creating SLURM packages directory...'",
+      "sudo mkdir -p /tmp/slurm-packages",
+      "sudo chown ${var.ssh_username}:${var.ssh_username} /tmp/slurm-packages"
+    ]
+  }
+
+  provisioner "file" {
+    source = "${var.slurm_packages_dir}/"
+    destination = "/tmp/slurm-packages"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo 'SLURM packages copied to /tmp/slurm-packages:'",
+      "ls -lh /tmp/slurm-packages/*.deb | head -10"
     ]
   }
 
@@ -243,7 +272,7 @@ build {
 
   # Install HPC compute packages using specialized Ansible playbook
   provisioner "ansible" {
-    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-compute.yml"
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-packer-compute.yml"
     ansible_env_vars = local.ansible_env_vars
     extra_arguments = [
       "-u", var.ssh_username,

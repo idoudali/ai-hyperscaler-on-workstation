@@ -1,0 +1,43 @@
+# Packer ignore file - excludes files/directories from being uploaded to VM
+# This prevents large unnecessary files from being copied during Packer builds
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Git directories and files
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# Test and documentation
+tests/
+docs/
+*.md
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Cache directories
+.cache/
+*.cache

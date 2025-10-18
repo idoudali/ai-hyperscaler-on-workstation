@@ -25,10 +25,14 @@ ansible/
 │   └── cloud-cluster-setup/      # Cloud cluster configuration
 │       └── tasks/                # Role tasks
 ├── playbooks/
-│   ├── playbook-hpc.yml          # HPC cluster deployment
-│   ├── playbook-cloud.yml        # Cloud cluster deployment
-│   ├── playbook-hpc-packer.yml   # HPC Packer image build
-│   └── playbook-cloud-packer.yml # Cloud Packer image build
+│   ├── playbook-hpc-packer-controller.yml  # HPC controller Packer image build
+│   ├── playbook-hpc-packer-compute.yml     # HPC compute Packer image build
+│   ├── playbook-hpc-runtime.yml            # Unified HPC cluster runtime configuration
+│   ├── playbook-cloud.yml                  # Cloud cluster deployment
+│   ├── playbook-beegfs-packer-install.yml # BeeGFS Packer installation
+│   ├── playbook-beegfs-runtime-config.yml # BeeGFS runtime configuration
+│   ├── playbook-virtio-fs-runtime-config.yml # Virtio-FS shared storage
+│   └── playbook-container-registry.yml     # Container registry deployment
 └── inventories/
     ├── generate_inventory.py         # Enhanced inventory generator with GPU detection
     └── test_inventory_generation.py  # Validation tests for inventory generation
@@ -69,6 +73,41 @@ pip install -r ansible/requirements.txt
 ansible-galaxy collection install -r ansible/collections/requirements.yml
 ```
 
+## Prerequisites
+
+### Building SLURM Packages (Required)
+
+Before deploying HPC infrastructure, you **MUST** build SLURM packages from source. This is required because Debian
+Trixie repositories lack complete SLURM packages.
+
+```bash
+# 1. Configure CMake build system
+make config
+
+# 2. Build SLURM packages (required for Debian Trixie)
+make run-docker COMMAND="cmake --build build --target build-slurm-packages"
+
+# 3. Verify packages were built
+ls -lh build/packages/slurm/
+# Should show: slurm-wlm_23.11.10_amd64.deb, slurmctld_23.11.10_amd64.deb, etc.
+```
+
+### Why Pre-built Packages?
+
+Debian Trixie repositories lack complete SLURM packages. We build from source to ensure:
+
+- ✅ All SLURM components available (slurmctld, slurmdbd, slurmd)
+- ✅ PMIx integration for MPI support
+- ✅ Latest stable version (23.11.10)
+- ✅ Consistent across all nodes
+
+### Package Lifecycle
+
+**Packer Builds**: Packages copied to `/tmp/slurm-packages/` before Ansible runs  
+**Runtime Deployments**: Packages copied from `build/packages/slurm/` by Ansible
+
+Same pattern as BeeGFS packages for consistency.
+
 ## Usage
 
 The Ansible infrastructure supports both package pre-installation and post-deployment configuration:
@@ -95,8 +134,8 @@ The `nvidia-gpu-drivers` role provides:
 #### Example: Running GPU-enabled HPC playbook
 
 ```bash
-# Run HPC deployment with NVIDIA drivers and CUDA
-ansible-playbook -i inventories/ playbooks/playbook-hpc.yml
+# Run HPC runtime configuration with NVIDIA drivers and CUDA
+ansible-playbook -i inventories/ playbooks/playbook-hpc-runtime.yml
 
 # Run cloud deployment with NVIDIA drivers
 ansible-playbook -i inventories/ playbooks/playbook-cloud.yml

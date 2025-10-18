@@ -119,9 +119,9 @@ run_in_container() {
     fi
 
     if [[ "${VERBOSE}" == "true" ]]; then
-        apptainer exec ${flags} "${image}" bash -c "${cmd}"
+        apptainer exec "${flags}" "${image}" bash -c "${cmd}"
     else
-        apptainer exec ${flags} "${image}" bash -c "${cmd}" 2>&1 | grep -v "^INFO:" || true
+        apptainer exec "${flags}" "${image}" bash -c "${cmd}" 2>&1 | grep -v "^INFO:" || true
     fi
 }
 

@@ -23,6 +23,12 @@ LIBVIRT_GID=""
 SUDO_GID=""
 DOCKER_GID=""
 DOCKER_EXTRA_ARGS=""
+NETWORK_MODE=""
+
+# Check for network mode environment variable
+if [[ -n "${DOCKER_NETWORK_MODE:-}" ]]; then
+    NETWORK_MODE="--network ${DOCKER_NETWORK_MODE}"
+fi
 
 if command -v getent >/dev/null 2>&1; then
     KVM_GID="$(getent group kvm 2>/dev/null | cut -d: -f3 || echo "")"
@@ -129,12 +135,14 @@ if [[ $# -eq 0 ]]; then
         -v /etc/sudoers:/etc/sudoers:ro \
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
         -v "$PROJECT_ROOT":$PROJECT_ROOT \
+        -v "$HOME/.cache":"$HOME/.cache" \
         -e HOME="$HOME" \
         -e USER="$USER" \
         -e USER_ID="$USER_ID" \
         -e GROUP_ID="$GROUP_ID" \
         -e DISPLAY="${DISPLAY:-}" \
         -w $PROJECT_ROOT \
+        $NETWORK_MODE \
         $DOCKER_EXTRA_ARGS \
         "$FULL_IMAGE_NAME" \
         /bin/bash
@@ -147,12 +155,14 @@ else
         -v /etc/sudoers:/etc/sudoers:ro \
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
         -v "$PROJECT_ROOT":$PROJECT_ROOT \
+        -v "$HOME/.cache":"$HOME/.cache" \
         -e HOME="$HOME" \
         -e USER="$USER" \
         -e USER_ID="$USER_ID" \
         -e GROUP_ID="$GROUP_ID" \
         -e DISPLAY="${DISPLAY:-}" \
         -w $PROJECT_ROOT \
+        $NETWORK_MODE \
         $DOCKER_EXTRA_ARGS \
         "$FULL_IMAGE_NAME" \
         /bin/bash -c "${COMMAND}"

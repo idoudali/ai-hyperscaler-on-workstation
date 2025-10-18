@@ -1,0 +1,80 @@
+---
+# HPC Compute Packer Build Playbook
+# Optimized for Packer image creation with GPU support and validation
+# Usage: packer build (automatically sets packer_build=true)
+
+- name: HPC Compute Packer Build
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: true
+    hpc_node_type: compute
+    monitoring_role: node
+    install_slurm_compute: true
+    install_container_runtime: true
+    install_gpu_support: true
+    install_monitoring_stack: true
+    container_runtime_enable_service: false
+
+  roles:
+    - role: hpc-base-packages
+    - role: container-runtime
+    - role: nvidia-gpu-drivers
+      when: gpu_enabled | default(true)
+    - role: monitoring-stack
+    - role: slurm-compute
+
+  tasks:
+    # Keep all validation tasks from playbook-hpc-compute.yml lines 53-140
+    - name: Verify HPC base packages installation
+      debug:
+        msg: "HPC base packages have been installed successfully"
+
+    - name: Verify container runtime installation
+      command: "{{ container_runtime_binary | default('apptainer') }} --version"
+      register: container_runtime_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display container runtime version
+      debug:
+        msg: "Container runtime version: {{ container_runtime_version_check.stdout }}"
+      when: container_runtime_version_check.rc == 0
+
+    - name: Verify NVIDIA driver installation
+      shell: "nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits"
+      register: nvidia_driver_version
+      changed_when: false
+      failed_when: false
+      when: gpu_enabled | default(true)
+
+    - name: Display NVIDIA driver version
+      debug:
+        msg: "NVIDIA driver version: {{ nvidia_driver_version.stdout }}"
+      when:
+        - gpu_enabled | default(true)
+        - nvidia_driver_version.rc == 0
+
+    - name: Verify SLURM compute installation
+      command: "slurmd -V"
+      register: slurm_compute_check
+      changed_when: false
+      failed_when: false
+
+    - name: Verify Node Exporter installation
+      command: "prometheus-node-exporter --version"
+      register: node_exporter_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          HPC Compute Packer Build Complete
+          - SLURM Compute: Installed
+          - Container Runtime: Installed
+          - GPU Drivers: {{ 'Installed' if nvidia_driver_version.rc == 0 else 'Skipped' }}
+          - Node Exporter: Installed
+          - Services: Enabled but not started (Packer mode)

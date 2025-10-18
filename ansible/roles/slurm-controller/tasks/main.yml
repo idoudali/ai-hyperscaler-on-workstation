@@ -27,6 +27,9 @@
 
 - name: Include SLURM job accounting configuration tasks
   include_tasks: accounting.yml
+  when:
+    - not (packer_build | default(false))
+    - setup_slurm_accounting | default(false)
   tags:
     - slurm
     - slurm-controller

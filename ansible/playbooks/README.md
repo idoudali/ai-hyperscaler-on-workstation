@@ -10,35 +10,54 @@ Playbooks orchestrate multiple roles to achieve complete system configurations.
 
 ## Available Playbooks
 
-### Infrastructure Playbooks
+### HPC Core Playbooks (Consolidated)
+
+- **playbook-hpc-packer-controller.yml**: HPC controller Packer image build
+- **playbook-hpc-packer-compute.yml**: HPC compute Packer image build  
+- **playbook-hpc-runtime.yml**: Unified HPC cluster runtime configuration
+
+### Storage Infrastructure Playbooks (Optional)
+
+- **playbook-beegfs-packer-install.yml**: BeeGFS Packer installation
+- **playbook-beegfs-runtime-config.yml**: BeeGFS runtime configuration
+- **playbook-virtio-fs-runtime-config.yml**: Virtio-FS shared storage configuration
+
+### Cloud Infrastructure Playbooks
 
 - **playbook-cloud.yml**: Base cloud infrastructure setup
-- **playbook-hpc.yml**: Complete HPC cluster deployment
-- **playbook-hpc-controller.yml**: SLURM controller node configuration
-- **playbook-hpc-compute.yml**: SLURM compute node configuration
-
-### Component-Specific Playbooks
-
 - **playbook-container-registry.yml**: Container registry deployment
-- **playbook-monitoring-stack.yml**: Monitoring infrastructure setup
 
-### Runtime Configuration Playbooks
+## Prerequisites
 
-- **playbook-cgroup-runtime-config.yml**: Cgroup configuration
-- **playbook-container-validation-runtime-config.yml**: Container validation setup
-- **playbook-dcgm-runtime-config.yml**: DCGM GPU monitoring configuration
-- **playbook-gres-runtime-config.yml**: GPU resource configuration
-- **playbook-job-scripts-runtime-config.yml**: Job script templates
-- **playbook-slurm-compute-runtime-config.yml**: SLURM compute node runtime config
-- **playbook-virtio-fs-runtime-config.yml**: Virtio-FS shared storage configuration
+### Required: Build SLURM Packages
+
+Before running HPC playbooks, you **MUST** build SLURM packages from source:
+
+```bash
+# 1. Configure CMake
+make config
+
+# 2. Build SLURM packages (required for Debian Trixie)
+make run-docker COMMAND="cmake --build build --target build-slurm-packages"
+
+# 3. Verify packages
+ls -lh build/packages/slurm/
+```
+
+**Why?** Debian Trixie repositories lack complete SLURM packages. Pre-built packages ensure all components are
+available with PMIx integration.
 
 ## Usage
 
 Run playbooks using the `ansible-playbook` command:
 
 ```bash
-# Deploy complete HPC cluster
-ansible-playbook -i inventory/hosts playbook-hpc.yml
+# Deploy complete HPC cluster (runtime configuration)
+ansible-playbook -i inventory/hosts playbook-hpc-runtime.yml
+
+# Build HPC images with Packer (requires SLURM packages built first)
+packer build packer/hpc-controller/hpc-controller.pkr.hcl
+packer build packer/hpc-compute/hpc-compute.pkr.hcl
 
 # Configure specific component
 ansible-playbook -i inventory/hosts playbook-container-registry.yml

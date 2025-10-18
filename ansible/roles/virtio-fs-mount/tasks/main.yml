@@ -42,7 +42,7 @@
 - name: Display skip message for Packer build
   ansible.builtin.debug:
     msg: "Skipping mount operations - running in Packer build mode"
-  when: packer_build | default(false)
+  when: packer_build | default(false) | bool
 
 - name: Display completion message
   ansible.builtin.debug:

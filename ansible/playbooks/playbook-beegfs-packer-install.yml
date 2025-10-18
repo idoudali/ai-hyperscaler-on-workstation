@@ -2,10 +2,33 @@
 # BeeGFS Packer Installation Playbook
 # This playbook is used by Packer to pre-install BeeGFS packages during image creation
 # It installs packages only (install_only=true) without configuring or starting services
+#
+# Note: Uses 'hosts: all' for compatibility with ansible provisioner (SSH connection)
+# Previously used 'hosts: localhost' + 'connection: local' for ansible-local provisioner
+#
+# FIXME: BeeGFS Client DKMS Module Build Disabled (Kernel 6.12.x Incompatibility)
+# ================================================================================
+# The BeeGFS client role will SKIP DKMS kernel module build during Packer builds
+# because BeeGFS 7.4.4 is incompatible with kernel 6.12.x.
+#
+# Current Behavior:
+#   - BeeGFS client PACKAGES are installed (beegfs-client-dkms, beegfs-utils, beegfs-helperd)
+#   - DKMS kernel module build is SKIPPED (packer_build=true)
+#   - Image build completes successfully with warnings
+#   - BeeGFS filesystem CANNOT be mounted (no kernel module)
+#
+# Impact on Images:
+#   Controller Image: Server packages installed, client packages installed (no module)
+#   Compute Image: Storage + client packages installed (no module)
+#
+# Required Action:
+#   Rebuild VM base images with kernel 6.1 LTS or 6.6 LTS
+#   See: docs/implementation-plans/task-lists/hpc-slurm/pending/phase-3-storage-fixes.md
+#   Task: TASK-028.1 - Resolve BeeGFS kernel incompatibility
+# ================================================================================
 
 - name: Install BeeGFS packages on HPC Controller (Packer)
-  hosts: localhost
-  connection: local
+  hosts: all
   become: true
   vars:
     packer_build: true
@@ -22,8 +45,7 @@
       tags: [beegfs, beegfs-client, install]
 
 - name: Install BeeGFS packages on HPC Compute (Packer)
-  hosts: localhost
-  connection: local
+  hosts: all
   become: true
   vars:
     packer_build: true

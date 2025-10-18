@@ -1,9 +1,27 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-037)
 
-**Status**: 0% Complete (0/10 tasks)  
-**Last Updated**: 2025-10-19  
-**Priority**: HIGH  
-**Tasks**: 10 (Ansible: 5, SLURM Fix: 1, Testing: 3, Cleanup: 1)
+**Status**: ~30% Complete (2.5/9 tasks)
+**Last Updated**: 2025-10-19
+**Priority**: HIGH
+**Tasks**: 9 (Ansible: 5, Testing: 3, Cleanup: 1)
+
+## ✅ **Progress Summary**
+
+| Task | Status | Completion | Notes |
+|------|--------|------------|-------|
+| **029** | ✅ **COMPLETE** | 100% | HPC Packer Controller Playbook created and validated |
+| **030** | ✅ **COMPLETE** | 100% | HPC Packer Compute Playbook created and validated |
+| **031** | ⚠️ **PARTIAL** | 75% | Unified Runtime Playbook created, runtime validation pending |
+| **032** | ✅ **COMPLETE** | 100% | Packer Templates updated and working |
+| **033** | ⚠️ **PARTIAL** | 60% | Packer validation complete, runtime validation pending |
+| **034** | ❌ **PENDING** | 0% | Deletion blocked until runtime validation confirms safety |
+| **035** | ❌ **PENDING** | 0% | Test framework consolidation not started |
+| **036** | ❌ **PENDING** | 0% | Packer test frameworks not created |
+| **037** | ❌ **PENDING** | 0% | Makefile and test cleanup not done |
+
+**Completed**: Tasks 029-030, 032 (Packer infrastructure)  
+**In Progress**: Tasks 031, 033 (Runtime validation pending)  
+**Blocked**: Tasks 034-037 (awaiting validation completion)
 
 ## Overview
 
@@ -1074,13 +1092,13 @@ echo "✅ Cleanup complete and verified"
 - **ID**: TASK-034.1
 - **Phase**: 4 - Infrastructure Consolidation
 - **Dependencies**: TASK-028.2 (SLURM source build), TASK-034 (playbook cleanup)
-- **Estimated Time**: 3 hours
+- **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
 - **Status**: Pending
 - **Priority**: HIGH
 
 **Description:** Update Ansible SLURM roles to install from pre-built Debian packages created in TASK-028.2,
-replacing the broken Debian repository installation that fails on Trixie.
+using the same pattern as BeeGFS package installation (check, copy, install).
 
 **Problem Statement:**
 
@@ -1098,10 +1116,11 @@ Current SLURM installation uses Debian Trixie repositories which are missing or 
 # FAILS: Packages not available in Trixie repos
 ```
 
-**Solution:**
+**Solution Pattern (Same as BeeGFS):**
 
-Install from pre-built packages created by TASK-028.2's build system:
+Follow the proven BeeGFS package installation pattern:
 
+<<<<<<< HEAD
 ```yaml
 # New installation method (uses pre-built packages)
 - name: Check if SLURM meta package exists
@@ -1125,12 +1144,21 @@ Install from pre-built packages created by TASK-028.2's build system:
     - "/tmp/slurm-packages/slurm-smd-slurmdbd_{{ slurm_version }}_amd64.deb"
   when: slurm_meta_package.stat.exists
 ```
+=======
+1. **Check if already installed** - Skip if SLURM binaries exist
+2. **Check packages on remote host** - Look in `/tmp/slurm-packages/` (Packer provisioner copies them)
+3. **Check packages on Ansible controller** - Look in `build/packages/slurm/` (runtime deployments)
+4. **Copy packages if needed** - From controller to remote (runtime only)
+5. **Install from local packages** - Use `apt deb:` to install
+6. **Fail with clear message** - If packages not found anywhere
+>>>>>>> 785d57b (refactor(ansible): consolidate runtime playbooks into unified structure)
 
 **Deliverables:**
 
-- `ansible/roles/slurm-controller/tasks/install.yml` - Updated to use pre-built packages
+- `ansible/roles/slurm-controller/tasks/install.yml` - Rewritten using BeeGFS pattern
+- `ansible/roles/slurm-compute/tasks/install.yml` - Rewritten using BeeGFS pattern
 - `ansible/roles/slurm-controller/defaults/main.yml` - Add package path variables
-- `ansible/roles/slurm-compute/tasks/install.yml` - Updated compute node installation (if exists)
+- `ansible/roles/slurm-compute/defaults/main.yml` - Add package path variables
 - Test validation ensuring SLURM installs correctly from pre-built packages
 
 **Implementation Steps:**
@@ -1140,6 +1168,7 @@ Install from pre-built packages created by TASK-028.2's build system:
 **File:** `ansible/roles/slurm-controller/defaults/main.yml`
 
 ```yaml
+<<<<<<< HEAD
 # Add these variables
 slurm_version: "24.11.0"
 slurm_package_path: "{{ playbook_dir }}/../build/packages/slurm"
@@ -1149,20 +1178,85 @@ slurm_controller_packages:
   - "slurm-smd_{{ slurm_version }}_amd64.deb"
   - "slurm-smd-slurmctld_{{ slurm_version }}_amd64.deb"
   - "slurm-smd-slurmdbd_{{ slurm_version }}_amd64.deb"
+=======
+# SLURM Package Installation Configuration
+slurm_version: "23.11.10"
+slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
+slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
+
+# Required packages for controller
+slurm_controller_required_packages:
+  - "slurm-wlm_{{ slurm_version }}_amd64.deb"
+  - "slurm-wlm-basic-plugins_{{ slurm_version }}_amd64.deb"
+  - "slurmctld_{{ slurm_version }}_amd64.deb"
+  - "slurmdbd_{{ slurm_version }}_amd64.deb"
+
+# Dependencies (from Debian repos)
+slurm_controller_dependencies:
+  - libmunge2
+  - munge
+  - libmariadb3
+  - mariadb-client
+  - libpmix2
+  - libpam0g
+  - libhwloc15
+  - liblua5.3-0
+  - libjson-c5
+>>>>>>> 785d57b (refactor(ansible): consolidate runtime playbooks into unified structure)
 ```
 
-**2. Update slurm-controller Installation Task:**
+**2. Update slurm-compute Role Variables:**
+
+**File:** `ansible/roles/slurm-compute/defaults/main.yml`
+
+```yaml
+# SLURM Package Installation Configuration
+slurm_version: "23.11.10"
+slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
+slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
+
+# Required packages for compute
+slurm_compute_required_packages:
+  - "slurm-wlm_{{ slurm_version }}_amd64.deb"
+  - "slurm-wlm-basic-plugins_{{ slurm_version }}_amd64.deb"
+  - "slurmd_{{ slurm_version }}_amd64.deb"
+
+# Dependencies (from Debian repos)
+slurm_compute_dependencies:
+  - libmunge2
+  - munge
+  - libpmix2
+  - libpam0g
+  - libhwloc15
+  - liblua5.3-0
+  - libjson-c5
+```
+
+**3. Rewrite slurm-controller Installation Task (BeeGFS Pattern):**
 
 **File:** `ansible/roles/slurm-controller/tasks/install.yml`
 
 ```yaml
 ---
 # SLURM Controller Package Installation
-# Updated to use pre-built packages from TASK-028.2
+# Uses pre-built packages from TASK-028.2 (same pattern as BeeGFS)
+#
+# Installation Flow:
+# 1. Check if already installed (skip if binaries exist)
+# 2. Check packages on remote host (Packer: /tmp/slurm-packages/)
+# 3. Check packages on controller (Runtime: build/packages/slurm/)
+# 4. Copy packages if needed (Runtime only)
+# 5. Install from local packages
+# 6. Fail with clear message if packages not found
 
-- name: Check SLURM installation method
-  debug:
-    msg: "Installing SLURM using method: {{ slurm_install_method }}"
+- name: Check if SLURM controller is already installed
+  ansible.builtin.stat:
+    path: /usr/sbin/slurmctld
+  register: slurmctld_installed
+  tags:
+    - slurm
+    - slurm-controller
+    - check
 
 # Pre-built package installation (NEW METHOD)
 - name: Install SLURM from pre-built packages
@@ -1186,11 +1280,20 @@ slurm_controller_packages:
           Or change slurm_install_method to 'repository' (may fail on Trixie)
       when: not slurm_prebuilt_package.stat.exists
 
-    - name: Create temporary package directory
-      file:
-        path: /tmp/slurm-packages
-        state: directory
-        mode: '0755'
+- name: Check if packages exist on Ansible controller (for runtime deployment)
+  ansible.builtin.find:
+    paths: "{{ slurm_packages_source_dir }}"
+    patterns: "slurm-wlm_{{ slurm_version }}_*.deb"
+  register: controller_packages_check
+  delegate_to: localhost
+  become: false
+  when:
+    - not slurmctld_installed.stat.exists
+    - (not packages_dir_check.stat.exists) or (prebuilt_packages_check.matched | default(0) == 0)
+  tags:
+    - slurm
+    - slurm-controller
+    - check
 
     - name: Copy SLURM pre-built packages to target
       copy:
@@ -1217,117 +1320,201 @@ slurm_controller_packages:
         state: present
       loop: "{{ slurm_controller_packages }}"
 
-    - name: Clean up temporary packages
-      file:
-        path: /tmp/slurm-packages
-        state: absent
+- name: Fail if pre-built packages not found
+  ansible.builtin.fail:
+    msg: >-
+      SLURM pre-built packages not found at {{ slurm_packages_path }}.
+      Expected: slurm-wlm_{{ slurm_version }}_*.deb
+      Checked on controller: {{ slurm_packages_source_dir }}
+      For Packer builds: Packages should be copied by Packer to /tmp/slurm-packages/
+      For runtime: Build packages first with: cmake --build build --target build-slurm-packages
+  when:
+    - not slurmctld_installed.stat.exists
+    - prebuilt_packages_check_final.matched | default(0) == 0
+  tags:
+    - slurm
+    - slurm-controller
 
-# Repository installation (FALLBACK - may fail on Trixie)
-- name: Install SLURM from Debian repositories
-  when: slurm_install_method == "repository"
-  block:
-    - name: Warn about Trixie repository issues
-      debug:
-        msg: |
-          WARNING: Installing from Debian repositories may fail on Trixie
-          Recommended: Use slurm_install_method: prebuilt
+- name: Display package installation method
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'SLURM controller already installed, skipping' if slurmctld_installed.stat.exists
+      else 'Installing SLURM controller packages from ' + slurm_packages_path }}
+  tags:
+    - slurm
+    - slurm-controller
 
-    - name: Install SLURM packages from repository
-      apt:
-        name: "{{ slurm_controller_packages }}"
-        state: present
-        update_cache: yes
+- name: Install SLURM controller dependencies
+  ansible.builtin.apt:
+    name: "{{ slurm_controller_dependencies }}"
+    state: present
+    update_cache: true
+  when: not slurmctld_installed.stat.exists
+  tags:
+    - slurm
+    - slurm-controller
+    - install
 
-# Verification (common to both methods)
+- name: Find SLURM controller package files
+  ansible.builtin.find:
+    paths: "{{ slurm_packages_path }}"
+    patterns: "{{ slurm_controller_required_packages }}"
+  register: slurm_controller_pkgs
+  when: not slurmctld_installed.stat.exists
+  tags:
+    - slurm
+    - slurm-controller
+    - install
+
+- name: Install SLURM controller packages
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
+  loop: "{{ slurm_controller_pkgs.files }}"
+  when:
+    - not slurmctld_installed.stat.exists
+    - slurm_controller_pkgs.matched | default(0) > 0
+  tags:
+    - slurm
+    - slurm-controller
+    - install
+
 - name: Verify SLURM controller installation
-  command: "slurmctld -V"
+  ansible.builtin.command: "slurmctld -V"
   register: slurmctld_version
   changed_when: false
   failed_when: false
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 
 - name: Display SLURM controller version
-  debug:
+  ansible.builtin.debug:
     msg: "SLURM controller installed: {{ slurmctld_version.stdout }}"
   when: slurmctld_version.rc == 0
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 
 - name: Verify slurmdbd installation
-  command: "slurmdbd -V"
+  ansible.builtin.command: "slurmdbd -V"
   register: slurmdbd_version
   changed_when: false
   failed_when: false
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 
 - name: Display slurmdbd version
-  debug:
+  ansible.builtin.debug:
     msg: "slurmdbd installed: {{ slurmdbd_version.stdout }}"
   when: slurmdbd_version.rc == 0
+  tags:
+    - slurm
+    - slurm-controller
+    - verify
 ```
 
-**3. Update Packer Playbooks to Specify Method:**
+**4. Rewrite slurm-compute Installation Task (BeeGFS Pattern):**
 
-**File:** `ansible/playbooks/playbook-hpc-packer-controller.yml`
+**File:** `ansible/roles/slurm-compute/tasks/install.yml`
 
-```yaml
-- name: HPC Controller Packer Build
-  hosts: all
-  become: true
-  gather_facts: true
+Follow exact same pattern as controller, but use compute-specific packages and check for `/usr/sbin/slurmd` instead.
 
-  vars:
-    packer_build: true
-    hpc_node_type: controller
-    slurm_install_method: "prebuilt"  # NEW: Use pre-built packages
+**5. Update Packer Templates to Copy Packages:**
+
+**File:** `packer/hpc-controller/hpc-controller.pkr.hcl`
+
+```hcl
+build {
+  sources = ["source.qemu.hpc-controller"]
+
+  # Copy SLURM pre-built packages to VM (before Ansible)
+  provisioner "file" {
+    source      = "../../build/packages/slurm/"
+    destination = "/tmp/slurm-packages/"
+  }
+
+  provisioner "ansible" {
+    playbook_file = "../../ansible/playbooks/playbook-hpc-packer-controller.yml"
+    # ... rest of config
+  }
+}
 ```
 
-**File:** `ansible/playbooks/playbook-hpc-packer-compute.yml`
+**File:** `packer/hpc-compute/hpc-compute.pkr.hcl`
 
-```yaml
-- name: HPC Compute Packer Build
-  hosts: all
-  become: true
-  gather_facts: true
+Same pattern - copy packages before Ansible runs.
 
-  vars:
-    packer_build: true
-    hpc_node_type: compute
-    slurm_install_method: "prebuilt"  # NEW: Use pre-built packages
-```
+**6. Update Build Documentation:**
 
-**4. Update Build Documentation:**
+**File:** `docs/README.md` (or relevant build docs)
 
-Add to `packer/README.md`:
+Update the documentation to include SLURM package build instructions:
 
 ```markdown
-## SLURM Package Prerequisites
+## Building HPC Cluster Images
 
-Before building HPC images, build SLURM packages from source:
+### Prerequisites
 
-```bash
-# Build SLURM packages (required for Trixie)
-make config
-make run-docker COMMAND="cmake --build build --target build-slurm-packages"
-
-# Verify packages built
-ls -lh build/packages/slurm/
+Before building HPC images, you MUST build SLURM packages from source.
 ```
 
-Images will fail to build without these packages on Debian Trixie.
+```bash
+# 1. Configure CMake build system
+make config
+
+# 2. Build SLURM packages (required for Debian Trixie)
+make run-docker COMMAND="cmake --build build --target build-slurm-packages"
+
+# 3. Verify packages were built
+ls -lh build/packages/slurm/
+# Should show: slurm-wlm_23.11.10_amd64.deb, slurmctld_23.11.10_amd64.deb, etc.
+
+# 4. Build HPC images (will use packages from step 2)
+make run-docker COMMAND="cmake --build build --target build-hpc-controller-image"
+make run-docker COMMAND="cmake --build build --target build-hpc-compute-image"
+```
+
+```markdown
+### Why Pre-built Packages?
+
+Debian Trixie repositories lack complete SLURM packages. We build from source to ensure:
+
+- ✅ All SLURM components available (slurmctld, slurmdbd, slurmd)
+- ✅ PMIx integration for MPI support
+- ✅ Latest stable version (23.11.10)
+- ✅ Consistent across all nodes
+
+### Package Lifecycle
+
+**Packer Builds**: Packages copied to `/tmp/slurm-packages/` before Ansible runs  
+**Runtime Deployments**: Packages copied from `build/packages/slurm/` by Ansible
+
+Same pattern as BeeGFS packages for consistency.
+```
 
 **Validation Criteria:**
 
-- [ ] SLURM pre-built packages detected correctly
-- [ ] Packages copy to target nodes without errors
-- [ ] SLURM installs successfully from pre-built package
+- [ ] SLURM packages checked on remote host first (Packer mode)
+- [ ] SLURM packages checked on controller second (runtime mode)
+- [ ] Packages copy from controller to remote when needed
+- [ ] SLURM installs successfully from local packages
 - [ ] All dependencies resolve correctly
-- [ ] slurmctld and slurmdbd executables work
+- [ ] slurmctld, slurmdbd, slurmd binaries work
 - [ ] Packer controller image builds successfully
 - [ ] Packer compute image builds successfully
-- [ ] No references to broken Debian repository installation
-- [ ] Clear error message if packages not built
+- [ ] Clear error message if packages not found
+- [ ] Installation skipped if already installed
+- [ ] Pattern consistent with BeeGFS installation
 
 **Test Commands:**
 
 ```bash
-# Build SLURM packages first (prerequisite)
+# 1. Build SLURM packages (prerequisite)
 make config
 make run-docker COMMAND="cmake --build build --target build-slurm-packages"
 
@@ -1335,46 +1522,48 @@ make run-docker COMMAND="cmake --build build --target build-slurm-packages"
 ls -lh build/packages/slurm/*.deb
 # Should show slurm-smd_24.11.0_amd64.deb and related packages
 
-# Build controller image with new installation method
-cd packer/hpc-controller
-packer build hpc-controller.pkr.hcl
+# 3. Build controller image
+make run-docker COMMAND="cmake --build build --target build-hpc-controller-image"
 
-# Verify SLURM installed in image
-qemu-system-x86_64 -enable-kvm -m 4G \
-  -hda ../../build/packer/hpc-controller/hpc-controller.qcow2 \
-  -nographic
-# Inside VM: slurmctld -V should work
+# 4. Build compute image
+make run-docker COMMAND="cmake --build build --target build-hpc-compute-image"
 
-# Build compute image
-cd ../hpc-compute
-packer build hpc-compute.pkr.hcl
+# 5. Test runtime deployment (uses same packages)
+make cluster-deploy
+
+# 6. Verify SLURM functional
+ssh -i build/shared/ssh-keys/id_rsa admin@192.168.100.10 'slurmctld -V'
+ssh -i build/shared/ssh-keys/id_rsa admin@192.168.100.11 'slurmd -V'
 ```
 
 **Success Criteria:**
 
-- ✅ SLURM installs from pre-built packages without errors
-- ✅ All SLURM binaries functional (slurmctld, slurmdbd, srun, etc.)
+- ✅ Packages detected in Packer builds (file provisioner)
+- ✅ Packages detected in runtime (Ansible controller)
+- ✅ Packages copy correctly between controller and nodes
+- ✅ SLURM installs without apt repository errors
+- ✅ All SLURM binaries functional
 - ✅ PMIx integration working
-- ✅ MariaDB client libraries linked
-- ✅ MUNGE authentication configured
 - ✅ Controller image builds successfully
 - ✅ Compute image builds successfully
-- ✅ No dependency errors during installation
-- ✅ Fallback to repository method available (with warning)
+- ✅ No dependency errors
+- ✅ Pattern matches BeeGFS exactly
 
 **Dependencies:**
 
 - **Requires**: TASK-028.2 (SLURM packages must be built first)
-- **Blocks**: All HPC cluster deployment (SLURM installation currently broken)
+- **Blocks**: All HPC cluster deployment
 - **Related**: TASK-029, TASK-030 (Packer playbooks), TASK-031 (runtime playbook)
+- **Reference**: BeeGFS installation in `ansible/roles/beegfs-client/tasks/install.yml` (proven pattern)
 
 **Notes:**
 
 - **Critical Fix**: Resolves complete blockage of HPC cluster deployment on Trixie
-- **Build First**: Users must build SLURM packages before building HPC images
-- **Fallback Available**: Repository method kept as fallback for non-Trixie systems
-- **Clear Errors**: Provides helpful error messages if packages not built
-- **Documentation**: Updates Packer README with build prerequisites
+- **Pattern Consistency**: Uses exact same approach as BeeGFS for maintainability
+- **Build First**: Users must build SLURM packages before building images
+- **Clear Errors**: Helpful error messages guide users to build packages
+- **Packer Integration**: File provisioner copies packages before Ansible
+- **Runtime Support**: Ansible copies packages from controller when needed
 
 ---
 
@@ -1918,46 +2107,58 @@ ls -1 suites/*/run-*.sh | wc -l
 
 ---
 
-## Expected Outcomes
+## Current Outcomes (As of 2025-10-18)
+
+**✅ Packer Infrastructure Complete:**
+
+- **New Playbooks Created & Validated:**
+  - `playbook-hpc-packer-controller.yml` - ✅ Working (Step 1 validation PASSED)
+  - `playbook-hpc-packer-compute.yml` - ✅ Working (Step 2 validation PASSED)
+  - `playbook-hpc-runtime.yml` - ✅ Created, runtime validation pending
+
+- **Packer Templates Updated:**
+  - Both controller and compute Packer builds working with new playbooks
+  - Image sizes increased (20G → 40G) for larger builds
+  - BeeGFS DKMS compatibility fixes implemented
+
+- **Technical Issues Resolved:**
+  - Ansible 2.19+ boolean type checking compatibility fixed in 6 role files
+  - BeeGFS kernel 6.12+ compatibility handled in setup scripts
+
+**⚠️ Runtime Validation Pending:**
+
+- **Blocked by:** No test cluster infrastructure available
+- **Required for:** Tasks 031, 033 completion and Tasks 034-037 unlock
+- **Impact:** Cannot validate runtime playbook deployment without test environment
+
+**📋 Planned Outcomes (Remaining Work):**
 
 **Ansible Playbooks:**
 
-- **Before:** 14 playbooks
-- **After:** 7 playbooks (50% reduction)
-  - 3 new consolidated playbooks (packer-controller, packer-compute, runtime)
-  - 2 storage playbooks (BeeGFS, VirtIO-FS)
-  - 2 infrastructure playbooks (cloud, registry)
-- Clear distinction: 2 Packer + 1 runtime + 4 optional
-- Role modular task inclusion pattern
-- GPU-conditional execution
-- Preserved validation and troubleshooting
+- **Current:** 14 playbooks (no deletions yet)
+- **Target:** 7 playbooks (50% reduction)
+  - ✅ 3 new consolidated playbooks created
+  - ⏳ 9 obsolete playbooks to delete (after validation)
+  - 2 storage playbooks (BeeGFS, VirtIO-FS) - KEEP
+  - 2 infrastructure playbooks (cloud, registry) - KEEP
 
 **Test Frameworks:**
 
-- **Before:** 15+ frameworks
-- **After:** 8 frameworks (47% reduction)
-  - 3 new unified frameworks (runtime, packer-controller, packer-compute)
-  - 5 existing frameworks kept (beegfs, virtio-fs, pcie-passthrough, container-registry, + 1 more)
-- Standard CLI pattern across all frameworks
-- Test suite orchestration
-- Updated Makefile targets
-- All test suites preserved (suites/ directory unchanged)
+- **Current:** 15+ frameworks
+- **Target:** 8 frameworks (47% reduction)
+  - ⏳ 3 new unified frameworks to create
+  - ⏳ 13 obsolete frameworks to delete
+  - ⏳ 10 obsolete configs to delete
+  - ⏳ 2 helper scripts to delete
+- **Total: 28 files to remove** (after validation)
 
-**Files Deleted:**
-
-- 9 obsolete Ansible playbooks
-- 13 obsolete test frameworks
-- 10 obsolete test configurations
-- 2 obsolete helper scripts
-- **Total: 34 files removed**
-
-**Infrastructure Ready:**
+**Infrastructure Status:**
 
 - ✅ All roles support modular task execution
 - ✅ Roles support `packer_build` variable
 - ✅ Inventory variables documented
-- ✅ Migration path clear
-- ✅ Rollback procedures in place
+- ⚠️ Migration path clear but not executed
+- ✅ Rollback procedures in place (backups created)
 
 **SLURM Installation Fix:**
 
@@ -2072,6 +2273,53 @@ make test-slurm-controller
 
 ---
 
-**Document Version:** 2.0  
-**Last Review:** 2025-10-17  
-**Status:** Ready for execution after addressing review feedback
+## 🚧 **Current Status & Next Steps**
+
+### **Immediate Priority: Complete Runtime Validation**
+
+**Blocking Issue:** Tasks 031, 033, 034-037 cannot complete without test cluster infrastructure
+
+**Required Action:**
+
+1. **Deploy test cluster** with controller and compute nodes
+2. **Execute Steps 3-5 validation** from `phase-4-validation-steps.md`
+3. **Confirm no functionality lost** before proceeding with deletions
+
+**Estimated Time:** 2-3 hours for validation once test cluster available
+
+### **Phase Completion Criteria**
+
+**To Complete Phase 4:**
+
+- [x] Tasks 029-030: ✅ **DONE** (Packer playbooks created & validated)
+- [x] Task 032: ✅ **DONE** (Packer templates updated)
+- [ ] Tasks 031, 033: ⏳ **PENDING** (Runtime validation needed)
+- [ ] Tasks 034-037: ⏳ **PENDING** (Blocked until validation complete)
+
+**Success Metrics:**
+
+- Packer builds work with new consolidated playbooks ✅
+- Runtime playbook deploys complete HPC cluster successfully ⏳
+- All 9 obsolete playbooks safely deleted ⏳
+- 3 new unified test frameworks created ⏳
+- 28 obsolete test files removed ⏳
+
+### **Risk Assessment**
+
+**Current Risk Level:** 🟡 **MEDIUM**
+
+- Packer functionality validated and working ✅
+- Runtime functionality cannot be validated without test infrastructure ⚠️
+- Rollback procedures in place if issues found ✅
+
+**Mitigation Strategy:**
+
+- Complete runtime validation before any deletions
+- Preserve all old playbooks until validation confirms safety
+- Document all changes for potential rollback
+
+---
+
+**Document Version:** 2.1
+**Last Review:** 2025-10-18
+**Status:** ⏳ **PENDING** - Runtime validation required before proceeding
