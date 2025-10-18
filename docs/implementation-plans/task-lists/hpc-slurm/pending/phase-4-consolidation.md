@@ -90,6 +90,9 @@ monitoring_role: server|node|gpu|all|none
 slurm_cgroup_enabled: true|false
 slurm_gres_enabled: true|false
 slurm_container_enabled: true|false
+
+# Reference cluster configuration for validation
+example_cluster_config: "config/example-multi-gpu-clusters.yaml"
 ```
 
 ### Role Requirements
@@ -1711,8 +1714,11 @@ Commands:
 **Test Commands:**
 
 ```bash
-# Test complete workflow
+# Validate example configuration
 cd tests
+uv run ai-how validate ../config/example-multi-gpu-clusters.yaml
+
+# Test complete workflow with example configuration
 ./test-hpc-runtime-framework.sh e2e
 
 # Test individual commands
@@ -1722,6 +1728,15 @@ cd tests
 ./test-hpc-runtime-framework.sh status
 ./test-hpc-runtime-framework.sh stop-cluster
 ```
+
+**Example Configuration Features:**
+
+- HPC cluster with SLURM controller + 2 GPU compute nodes
+- Cloud cluster for dual-stack validation
+- Multiple GPU types (different vendor/device IDs)
+- Complete networking and hardware configuration
+- Monitoring stack configuration
+- Perfect for comprehensive runtime validation
 
 ---
 
@@ -2171,6 +2186,27 @@ ls -1 suites/*/run-*.sh | wc -l
 
 ## Migration Guide
 
+### For Configuration Users
+
+**Configuration File Changes:**
+
+```bash
+# OLD: Template configuration file
+config/template-cluster.yaml
+
+# NEW: Example multi-GPU cluster configuration
+config/example-multi-gpu-clusters.yaml
+
+# Migration command:
+cp config/example-multi-gpu-clusters.yaml config/cluster.yaml
+```
+
+**Key Differences:**
+
+- **Better naming**: `example-multi-gpu-clusters.yaml` clearly indicates it's an example of a multi-GPU setup
+- **Same functionality**: All features preserved, just renamed for clarity
+- **Better documentation**: Updated README and comments reflect the example nature
+
 ### For Playbook Users
 
 **Old → New Mapping:**
@@ -2200,6 +2236,9 @@ ansible-playbook playbooks/playbook-gres-runtime-config.yml
 
 # NEW: Single unified runtime playbook
 ansible-playbook playbooks/playbook-hpc-runtime.yml
+
+# Configuration file example:
+# cp config/example-multi-gpu-clusters.yaml config/cluster.yaml
 ```
 
 ### For Test Users

@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Default values
-CLUSTER_CONFIG="${PROJECT_ROOT}/config/template-cluster.yaml"
+CLUSTER_CONFIG="${PROJECT_ROOT}/config/example-multi-gpu-clusters.yaml"
 REGISTRY_PATH="/opt/containers/ml-frameworks"
 APPTAINER_DIR="${PROJECT_ROOT}/build/containers/apptainer"
 SYNC_NODES=false
@@ -33,7 +33,7 @@ Usage: $(basename "$0") [OPTIONS]
 Deploy all built Apptainer images to HPC cluster.
 
 Options:
-  -c, --config PATH           Cluster configuration file (default: config/template-cluster.yaml)
+  -c, --config PATH           Cluster configuration file (default: config/example-multi-gpu-clusters.yaml)
   -r, --registry-path PATH    Registry path on cluster (default: /opt/containers/ml-frameworks)
   -d, --apptainer-dir PATH    Directory with .sif images (default: build/containers/apptainer)
   -s, --sync-nodes            Sync images to all compute nodes

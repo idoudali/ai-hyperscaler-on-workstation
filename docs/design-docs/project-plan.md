@@ -807,22 +807,22 @@ infrastructure provisioning process.
     - [x] Comprehensive PCIe passthrough validation integrated in `ai-how validate` command.
 
 - [x] **3.2. Dynamic Cluster Configuration:** **FULLY COMPLETE**
-  - [x] **Cluster Definition YAML Structure (`config/template-cluster.yaml`):** **COMPLETE**
-    - [x] **HPC cluster specification**:
-      - [x] Controller node: CPU cores, memory, disk size, network configuration
-      - [x] Compute nodes: CPU cores per node, memory per node, PCIe passthrough GPU assignment
-      - [x] PCIe passthrough device specifications with real-world PCI addresses
-      - [x] Hardware acceleration configuration (KVM, CPU model, topology)
-      - [x] SLURM-specific settings (partitions, QoS, accounting)
-    - [x] **Cloud cluster specification**:
-      - [x] Control plane node: CPU cores, memory, disk size, HA configuration
-      - [x] CPU and GPU worker nodes with resource specifications
-      - [x] GPU worker nodes with PCIe passthrough device assignment
-      - [x] Kubernetes-specific settings (CNI, ingress, storage classes)
-    - [x] **Global infrastructure settings**:
-      - [x] Network topology and IP address ranges with conflict detection
-      - [x] Base image path management with relative/absolute path support
-      - [x] Hardware acceleration and performance optimization settings
+  - [x] **Cluster Definition YAML Structure (`config/example-multi-gpu-clusters.yaml`):** **COMPLETE**
+  - [x] **HPC cluster specification**:
+    - [x] Controller node: CPU cores, memory, disk size, network configuration
+    - [x] Compute nodes: CPU cores per node, memory per node, PCIe passthrough GPU assignment
+    - [x] PCIe passthrough device specifications with real-world PCI addresses
+    - [x] Hardware acceleration configuration (KVM, CPU model, topology)
+    - [x] SLURM-specific settings (partitions, QoS, accounting)
+  - [x] **Cloud cluster specification**:
+    - [x] Control plane node: CPU cores, memory, disk size, HA configuration
+    - [x] CPU and GPU worker nodes with resource specifications
+    - [x] GPU worker nodes with PCIe passthrough device assignment
+    - [x] Kubernetes-specific settings (CNI, ingress, storage classes)
+  - [x] **Global infrastructure settings**:
+    - [x] Network topology and IP address ranges with conflict detection
+    - [x] Base image path management with relative/absolute path support
+    - [x] Hardware acceleration and performance optimization settings
   
   - [x] **JSON Schema Validation (`schemas/cluster.schema.json`):** **COMPREHENSIVE**
     - [x] Define comprehensive schema structure with required/optional fields

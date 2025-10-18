@@ -44,7 +44,7 @@ validation.
 - Built HPC base image (`hpc-base.qcow2`)
 - Built Cloud base image (`cloud-base.qcow2`)
 - Verified base image functionality
-- Updated `template-cluster.yaml` with correct image paths
+- Updated `example-multi-gpu-clusters.yaml` with correct image paths
 
 **Packer Build Process:**
 
@@ -179,10 +179,10 @@ uv run ai-how hpc --help
 
 ```bash
 # Test configuration validation
-uv run ai-how validate config/template-cluster.yaml
+uv run ai-how validate config/example-multi-gpu-clusters.yaml
 
 # Test PCIe validation (with simulation)
-uv run ai-how validate --skip-pcie-validation config/template-cluster.yaml
+uv run ai-how validate --skip-pcie-validation config/example-multi-gpu-clusters.yaml
 
 # Test inventory commands
 uv run ai-how inventory pcie
@@ -194,7 +194,7 @@ uv run ai-how hpc --help
 **Success Criteria:**
 
 - ✅ CLI installation completes without dependency issues
-- ✅ Configuration validation passes on template-cluster.yaml
+- ✅ Configuration validation passes on example-multi-gpu-clusters.yaml
 - ✅ PCIe inventory command works (even if no GPUs present)
 - ✅ All CLI subcommands are accessible and show help text
 
@@ -211,7 +211,7 @@ uv run ai-how hpc --help
 **Key Features Implemented:**
 
 - Complete AI-HOW CLI installation validation using `uv sync --dev`
-- Configuration validation testing with `config/template-cluster.yaml`
+- Configuration validation testing with `config/example-multi-gpu-clusters.yaml`
 - PCIe inventory functionality (`uv run ai-how inventory pcie`)
 - All CLI subcommands available: `validate`, `hpc`, `inventory`, `plan`
 - Comprehensive error handling and user-friendly output
@@ -245,7 +245,7 @@ uv run ai-how hpc --help
 - **Completion Date**: 2025-01-27
 
 **Description:** Create specialized test cluster configurations based on
-template-cluster.yaml for different validation scenarios.
+example-multi-gpu-clusters.yaml for different validation scenarios.
 
 **Deliverables:**
 
@@ -892,7 +892,7 @@ jobs:
           cd python/ai_how
           uv run ai-how validate ../../test-infra/configs/test-minimal.yaml
           uv run ai-how validate --skip-pcie-validation ../../test-infra/configs/test-gpu-simulation.yaml
-          uv run ai-how validate --skip-pcie-validation ../../config/template-cluster.yaml
+          uv run ai-how validate --skip-pcie-validation ../../config/example-multi-gpu-clusters.yaml
 
   run-integration-tests:
     needs: [build-base-images, validate-configurations]
@@ -965,7 +965,7 @@ yamllint .github/workflows/build-base-images.yml
 
 # Test individual integration testing pipeline components
 cd packer && make build-hpc-image
-cd python/ai_how && uv run ai-how validate ../../config/template-cluster.yaml
+cd python/ai_how && uv run ai-how validate ../../config/example-multi-gpu-clusters.yaml
 pytest test-infra/validation/ -v -k "integration" --junitxml=integration-results.xml
 
 # Run full integration test suite locally
@@ -1010,7 +1010,7 @@ jobs:
       - name: Validate configurations (schema only)
         run: |
           cd python/ai_how
-          uv run ai-how validate --skip-pcie-validation ../../config/template-cluster.yaml
+          uv run ai-how validate --skip-pcie-validation ../../config/example-multi-gpu-clusters.yaml
           uv run ai-how validate --skip-pcie-validation ../../test-infra/configs/test-minimal.yaml
           
   syntax-and-lint-checks:
@@ -1053,7 +1053,7 @@ orchestration.
 
 **Template Configuration System (Tasks 003)**
 
-- Builds on `template-cluster.yaml` as baseline configuration
+- Builds on `example-multi-gpu-clusters.yaml` as baseline configuration
 - Creates test-specific variants with reduced resource requirements
 - Maintains compatibility with production deployment patterns
 - Supports both GPU simulation and real hardware testing modes
