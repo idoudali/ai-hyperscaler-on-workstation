@@ -599,7 +599,7 @@ ansible-playbook playbooks/playbook-container-registry.yml
 # 2. Deploy Apptainer image to cluster (via CLI)
 build/containers/venv/bin/hpc-container-manager deploy \
   build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
-  --cluster-config config/template-cluster.yaml \
+  --cluster-config config/example-multi-gpu-clusters.yaml \
   --registry-path /opt/containers/ml-frameworks/ \
   --sync-nodes \
   --verify
@@ -758,7 +758,7 @@ tests/suites/container-registry/run-ansible-infrastructure-tests.sh
 # Test 2: Single Image Deployment
 build/containers/venv/bin/hpc-container-manager deploy \
   build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif \
-  --cluster-config config/template-cluster.yaml \
+  --cluster-config config/example-multi-gpu-clusters.yaml \
   --registry-path /opt/containers/ml-frameworks/ \
   --sync-nodes --verify
 tests/suites/container-deployment/check-single-image-deploy.sh

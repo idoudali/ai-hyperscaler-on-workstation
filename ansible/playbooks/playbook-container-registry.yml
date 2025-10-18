@@ -145,7 +145,7 @@
           - ""
           - "Deploy containers with:"
           - "  hpc-container-manager deploy <image.sif> \\"
-          - "    --cluster-config config/template-cluster.yaml \\"
+          - "    --cluster-config config/example-multi-gpu-clusters.yaml \\"
           - "    --registry-path /opt/containers/ml-frameworks/ \\"
           - "    --sync-nodes --verify"
           - ""

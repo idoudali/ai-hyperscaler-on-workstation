@@ -18,7 +18,7 @@ trap cleanup INT TERM
 # Configuration
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AI_HOW_DIR="$PROJECT_ROOT/python/ai_how"
-CONFIG_FILE="$PROJECT_ROOT/config/template-cluster.yaml"
+CONFIG_FILE="$PROJECT_ROOT/config/example-multi-gpu-clusters.yaml"
 
 # Colors for output
 GREEN='\033[0;32m'

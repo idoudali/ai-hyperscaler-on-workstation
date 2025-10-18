@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Default values
-CLUSTER_CONFIG="${PROJECT_ROOT}/config/template-cluster.yaml"
+CLUSTER_CONFIG="${PROJECT_ROOT}/config/example-multi-gpu-clusters.yaml"
 REGISTRY_PATH="/opt/containers/ml-frameworks"
 SYNC_NODES=false
 VERIFY=false
@@ -32,7 +32,7 @@ Arguments:
   SIF_IMAGE         Path to .sif Apptainer image
 
 Options:
-  -c, --config PATH           Cluster configuration file (default: config/template-cluster.yaml)
+  -c, --config PATH           Cluster configuration file (default: config/example-multi-gpu-clusters.yaml)
   -r, --registry-path PATH    Registry path on cluster (default: /opt/containers/ml-frameworks)
   -s, --sync-nodes            Sync image to all compute nodes
   -v, --verify                Verify deployment on all nodes

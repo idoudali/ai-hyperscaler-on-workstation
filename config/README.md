@@ -5,9 +5,9 @@ Workstation project. The files in this directory define the entire
 infrastructure, from network topology to the specific resources allocated to
 each virtual machine in the HPC and Cloud clusters.
 
-## `template-cluster.yaml`
+## `example-multi-gpu-clusters.yaml`
 
-This is the **single source of truth** for the entire emulated infrastructure.
+This is the **example multi-GPU cluster configuration** demonstrating a complete dual-stack AI infrastructure setup.
 All automation, including VM provisioning, GPU allocation, and Ansible playbook
 execution, is driven by the contents of this file.
 
@@ -56,7 +56,7 @@ To use this configuration:
 1. Copy the template to create your working configuration:
 
    ```bash
-   cp config/template-cluster.yaml config/cluster.yaml
+   cp config/example-multi-gpu-clusters.yaml config/cluster.yaml
    ```
 
 2. Modify the `cluster.yaml` file to adjust resource allocations, network

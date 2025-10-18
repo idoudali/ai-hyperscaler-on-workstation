@@ -133,7 +133,21 @@ ls -lh ansible/playbooks/playbook-hpc-packer-compute.yml | tee -a "$VALIDATION_R
 ls -lh ansible/playbooks/playbook-hpc-runtime.yml | tee -a "$VALIDATION_ROOT/validation-info.txt"
 echo "" >> "$VALIDATION_ROOT/validation-info.txt"
 
-# 9. Verify backup exists
+# 9. Verify example cluster configuration exists
+echo "=== Example Cluster Configuration Check ===" | tee -a "$VALIDATION_ROOT/validation-info.txt"
+if [ -f "config/example-multi-gpu-clusters.yaml" ]; then
+  echo "✅ Example cluster configuration found: config/example-multi-gpu-clusters.yaml" | \
+    tee -a "$VALIDATION_ROOT/validation-info.txt"
+  echo "   - Contains HPC cluster with 2 GPU compute nodes" | tee -a "$VALIDATION_ROOT/validation-info.txt"
+  echo "   - Contains Cloud cluster for dual-stack validation" | tee -a "$VALIDATION_ROOT/validation-info.txt"
+else
+  echo "❌ Example cluster configuration not found!" | tee -a "$VALIDATION_ROOT/validation-info.txt"
+  echo "   Expected: config/example-multi-gpu-clusters.yaml" | tee -a "$VALIDATION_ROOT/validation-info.txt"
+  exit 1
+fi
+echo "" >> "$VALIDATION_ROOT/validation-info.txt"
+
+# 10. Verify backup exists
 echo "=== Backup Check ===" | tee -a "$VALIDATION_ROOT/validation-info.txt"
 ls -lh backup/playbooks-20251017/ | tee -a "$VALIDATION_ROOT/validation-info.txt"
 echo "" >> "$VALIDATION_ROOT/validation-info.txt"
@@ -598,9 +612,30 @@ fi
 echo "✅ Test inventory found: $TEST_INVENTORY" | \
   tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
 
-# 3.3: Deploy to test cluster using Docker container
+# 3.3: Validate example cluster configuration
 echo "" | tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
-echo "3.3: Deploying runtime configuration to test cluster (via Docker container)..." | \
+echo "3.3: Validating example-multi-gpu-clusters.yaml configuration..." | \
+  tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
+
+# Validate the example configuration first
+echo "Validating example cluster configuration..." | \
+  tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
+uv run ai-how validate "../config/example-multi-gpu-clusters.yaml" \
+  > "$VALIDATION_ROOT/03-runtime-playbook/config-validation.log" 2>&1
+
+if [ $? -eq 0 ]; then
+  echo "✅ Example cluster configuration valid" | \
+    tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
+else
+  echo "❌ Example cluster configuration validation FAILED" | \
+    tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
+  echo "Check: $VALIDATION_ROOT/03-runtime-playbook/config-validation.log"
+  exit 1
+fi
+
+# 3.4: Deploy to test cluster using Docker container
+echo "" | tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
+echo "3.4: Deploying runtime configuration to test cluster (via Docker container)..." | \
   tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
 echo "This may take 10-20 minutes..." | \
   tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
@@ -635,9 +670,9 @@ else
   exit 1
 fi
 
-# 3.4: Check play recap
+# 3.5: Check play recap
 echo "" | tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
-echo "3.4: Analyzing deployment results..." | \
+echo "3.5: Analyzing deployment results..." | \
   tee -a "$VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
 
 if grep -q "PLAY RECAP" "$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy.log"; then
@@ -683,10 +718,11 @@ echo "==================================================" | \
 If Step 3 fails, check:
 
 1. `$VALIDATION_ROOT/03-runtime-playbook/syntax-check.log` - Syntax errors
-2. `$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy.log` - Full deployment log
-3. `$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy-error.log` - Extracted errors
-4. Inventory configuration (groups: hpc_controllers, compute_nodes)
-5. SSH connectivity to test VMs
+2. `$VALIDATION_ROOT/03-runtime-playbook/config-validation.log` - Configuration validation results
+3. `$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy.log` - Full deployment log
+4. `$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy-error.log` - Extracted errors
+5. Inventory configuration (groups: hpc_controllers, compute_nodes)
+6. SSH connectivity to test VMs
 
 ---
 

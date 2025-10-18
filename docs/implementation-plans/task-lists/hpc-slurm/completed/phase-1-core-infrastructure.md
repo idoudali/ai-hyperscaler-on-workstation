@@ -382,7 +382,7 @@ Both images contain the same base HPC packages and container runtime - the only 
 - ✅ `ansible/playbooks/playbook-hpc-compute.yml` - Compute-specific playbook
 - ✅ Updated Python schema to support image path specification per VM/group
 - ✅ Updated CMakeLists.txt for new image builds
-- ✅ Updated template-cluster.yaml and test configurations
+- ✅ Updated example-multi-gpu-clusters.yaml and test configurations
 
 **Simplified Image Strategy:**
 
@@ -484,7 +484,7 @@ ls -lh build/packer/hpc-compute/hpc-compute.qcow2
 **Integration with ai-how CLI:**
 
 ```yaml
-# Updated template-cluster.yaml structure
+# Updated example-multi-gpu-clusters.yaml structure
 clusters:
   hpc:
     # Default cluster-level base image path (nodes can override)
@@ -506,7 +506,7 @@ clusters:
 - ✅ `ansible/playbooks/playbook-hpc-controller.yml` - Controller provisioning
 - ✅ `ansible/playbooks/playbook-hpc-compute.yml` - Compute provisioning
 - ✅ `python/ai_how/src/ai_how/schemas/cluster.schema.json` - Schema updates
-- ✅ `config/template-cluster.yaml` - Updated with new image paths
+- ✅ `config/example-multi-gpu-clusters.yaml` - Updated with new image paths
 - ✅ `tests/test-infra/configs/*.yaml` - All test configs updated
 - ✅ `packer/CMakeLists.txt` - Build system integration
 - ✅ `packer/README.md` - Updated documentation
@@ -1152,7 +1152,7 @@ python3 -c "import yaml; yaml.safe_load(open('inventories/hpc/hosts.yml'))"
 
 **Real-World Test Results:**
 
-Successfully tested with `template-cluster.yaml` configuration:
+Successfully tested with `example-multi-gpu-clusters.yaml` configuration:
 
 ```text
 🏗️  HPC CLUSTER

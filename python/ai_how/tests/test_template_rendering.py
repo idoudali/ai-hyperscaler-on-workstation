@@ -24,7 +24,9 @@ def test_template_rendering():
     env = Environment(loader=FileSystemLoader(str(template_dir)))
 
     # Load sample configuration
-    config_file = Path(__file__).parent.parent.parent.parent / "config" / "template-cluster.yaml"
+    config_file = (
+        Path(__file__).parent.parent.parent.parent / "config" / "example-multi-gpu-clusters.yaml"
+    )
     if not config_file.exists():
         print(f"❌ Configuration file not found: {config_file}")
         return False
