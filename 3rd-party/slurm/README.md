@@ -10,7 +10,7 @@ from source to enable HPC cluster deployment.
 
 ## Prerequisites
 
-Required build dependencies (automatically installed during build):
+The following build dependencies must be present in the build environment (e.g., the development Docker image) before building:
 
 - build-essential
 - fakeroot
