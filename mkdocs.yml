@@ -11,6 +11,11 @@ edit_uri: edit/main/docs/
 # Copyright
 copyright: Copyright &copy; 2024 Pharos.ai
 
+# Exclude directories from documentation build
+exclude_docs: |
+  /implementation-plans/
+  /beegfs-installation-flow.md
+
 # Configuration
 theme:
   name: material
@@ -205,18 +210,6 @@ nav:
       - Open Source Solutions: design-docs/open-source-solutions.md
       - Task 0.1 Implementation: design-docs/task-0.1-implementation-plan.md
       - Task 0.2 Implementation: design-docs/task-0.2-implementation-plan.md
-  - Implementation Plans:
-      - Documentation Structure Task List: implementation-plans/task-lists/documentation-structure-task-list.md
-      - HPC SLURM Task List: implementation-plans/task-lists/hpc-slurm-task-list.md
-      - Remove Pharos References Task List: implementation-plans/task-lists/remove-pharos-references-task-list.md
-      - Individual Tasks:
-          - Absolute Imports Migration: implementation-plans/individual-tasks/absolute-imports-migration.md
-          - Enhanced Logging Guide: implementation-plans/individual-tasks/enhanced-logging-guide.md
-          - HPC Implementation Complete: implementation-plans/individual-tasks/hpc-implementation-complete.md
-          - HPC SLURM Deployment: implementation-plans/individual-tasks/hpc-slurm-deployment.md
-          - HPC VM Management Plan: implementation-plans/individual-tasks/hpc-vm-management-plan.md
-          - Logging Enhancement Summary: implementation-plans/individual-tasks/logging-enhancement-summary.md
-          - Subprocess Logging Improvements: implementation-plans/individual-tasks/subprocess-logging-improvements.md
   - Development:
       - Python Dependencies Setup: development/python-dependencies-setup.md
       - Cursor Agent Setup: development/cursor-agent-setup.md
