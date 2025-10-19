@@ -79,6 +79,40 @@ RUN apt-get update && \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
+# Install SLURM build dependencies
+# Reference: https://slurm.schedmd.com/quickstart_admin.html#pkg_install
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    equivs \
+    libmunge-dev \
+    libmariadb-dev \
+    default-libmysqlclient-dev \
+    libpmix-dev \
+    libpam0g-dev \
+    libhwloc-dev \
+    liblua5.3-dev \
+    libjson-c-dev \
+    libhttp-parser-dev \
+    libyaml-dev \
+    libreadline-dev \
+    libncurses-dev \
+    bash-completion \
+    dh-exec \
+    libdbus-1-dev \
+    libfreeipmi-dev \
+    libgtk2.0-dev \
+    libhdf5-dev \
+    hdf5-helpers \
+    libipmimonitoring-dev \
+    libjwt-dev \
+    liblz4-dev \
+    libperl-dev \
+    librdkafka-dev \
+    librrd-dev \
+    man2html \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Go (required for building Apptainer)
 RUN GO_VERSION=1.23.2 && \
     ARCH=$(dpkg --print-architecture) && \

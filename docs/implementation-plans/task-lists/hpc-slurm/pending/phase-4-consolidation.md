@@ -1,9 +1,9 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-037)
 
-**Status**: 0% Complete (0/9 tasks)  
-**Last Updated**: 2025-10-17  
+**Status**: 0% Complete (0/10 tasks)  
+**Last Updated**: 2025-10-19  
 **Priority**: HIGH  
-**Tasks**: 9 (Ansible: 5, Testing: 3, Cleanup: 1)
+**Tasks**: 10 (Ansible: 5, SLURM Fix: 1, Testing: 3, Cleanup: 1)
 
 ## Overview
 
@@ -82,7 +82,7 @@ slurm_container_enabled: true|false
 
 ---
 
-## Phase 4: Ansible Playbook Consolidation (Tasks 029-034)
+## Phase 4: Ansible Playbook Consolidation (Tasks 029-034.1)
 
 ### Task 029: Create HPC Packer Controller Playbook
 
@@ -1069,6 +1069,315 @@ echo "✅ Cleanup complete and verified"
 
 ---
 
+### Task 034.1: Fix SLURM Installation to Use Pre-Built Packages
+
+- **ID**: TASK-034.1
+- **Phase**: 4 - Infrastructure Consolidation
+- **Dependencies**: TASK-028.2 (SLURM source build), TASK-034 (playbook cleanup)
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+- **Status**: Pending
+- **Priority**: HIGH
+
+**Description:** Update Ansible SLURM roles to install from pre-built Debian packages created in TASK-028.2,
+replacing the broken Debian repository installation that fails on Trixie.
+
+**Problem Statement:**
+
+Current SLURM installation uses Debian Trixie repositories which are missing or have incomplete packages:
+
+```yaml
+# Current broken installation (ansible/roles/slurm-controller/tasks/install.yml)
+- name: Install SLURM packages
+  apt:
+    name:
+      - slurm-wlm
+      - slurmdbd
+      - slurm-client
+    state: present
+# FAILS: Packages not available in Trixie repos
+```
+
+**Solution:**
+
+Install from pre-built packages created by TASK-028.2's build system:
+
+```yaml
+# New installation method (uses pre-built packages)
+- name: Check if SLURM meta package exists
+  stat:
+    path: "{{ slurm_package_path }}/slurm-smd_{{ slurm_version }}_amd64.deb"
+  register: slurm_meta_package
+  delegate_to: localhost
+
+- name: Copy SLURM packages to target
+  copy:
+    src: "{{ slurm_package_path }}/"
+    dest: "/tmp/slurm-packages/"
+  when: slurm_meta_package.stat.exists
+
+- name: Install SLURM controller packages from pre-built packages
+  apt:
+    deb: "{{ item }}"
+  loop:
+    - "/tmp/slurm-packages/slurm-smd_{{ slurm_version }}_amd64.deb"
+    - "/tmp/slurm-packages/slurm-smd-slurmctld_{{ slurm_version }}_amd64.deb"
+    - "/tmp/slurm-packages/slurm-smd-slurmdbd_{{ slurm_version }}_amd64.deb"
+  when: slurm_meta_package.stat.exists
+```
+
+**Deliverables:**
+
+- `ansible/roles/slurm-controller/tasks/install.yml` - Updated to use pre-built packages
+- `ansible/roles/slurm-controller/defaults/main.yml` - Add package path variables
+- `ansible/roles/slurm-compute/tasks/install.yml` - Updated compute node installation (if exists)
+- Test validation ensuring SLURM installs correctly from pre-built packages
+
+**Implementation Steps:**
+
+**1. Update slurm-controller Role Variables:**
+
+**File:** `ansible/roles/slurm-controller/defaults/main.yml`
+
+```yaml
+# Add these variables
+slurm_version: "24.11.0"
+slurm_package_path: "{{ playbook_dir }}/../build/packages/slurm"
+slurm_install_method: "prebuilt"  # Options: prebuilt, repository
+slurm_meta_package: "slurm-smd_{{ slurm_version }}_amd64.deb"
+slurm_controller_packages:
+  - "slurm-smd_{{ slurm_version }}_amd64.deb"
+  - "slurm-smd-slurmctld_{{ slurm_version }}_amd64.deb"
+  - "slurm-smd-slurmdbd_{{ slurm_version }}_amd64.deb"
+```
+
+**2. Update slurm-controller Installation Task:**
+
+**File:** `ansible/roles/slurm-controller/tasks/install.yml`
+
+```yaml
+---
+# SLURM Controller Package Installation
+# Updated to use pre-built packages from TASK-028.2
+
+- name: Check SLURM installation method
+  debug:
+    msg: "Installing SLURM using method: {{ slurm_install_method }}"
+
+# Pre-built package installation (NEW METHOD)
+- name: Install SLURM from pre-built packages
+  when: slurm_install_method == "prebuilt"
+  block:
+    - name: Check if SLURM meta package exists
+      stat:
+        path: "{{ slurm_package_path }}/{{ slurm_meta_package }}"
+      register: slurm_prebuilt_package
+      delegate_to: localhost
+
+    - name: Fail if pre-built packages not found
+      fail:
+        msg: |
+          SLURM pre-built packages not found: {{ slurm_package_path }}/{{ slurm_meta_package }}
+          
+          Build packages first:
+            make config
+            make run-docker COMMAND="cmake --build build --target build-slurm-packages"
+          
+          Or change slurm_install_method to 'repository' (may fail on Trixie)
+      when: not slurm_prebuilt_package.stat.exists
+
+    - name: Create temporary package directory
+      file:
+        path: /tmp/slurm-packages
+        state: directory
+        mode: '0755'
+
+    - name: Copy SLURM pre-built packages to target
+      copy:
+        src: "{{ slurm_package_path }}/"
+        dest: "/tmp/slurm-packages/"
+        mode: '0644'
+
+    - name: Install dependencies for SLURM packages
+      apt:
+        name:
+          - libmunge2
+          - libmariadb3
+          - libpmix2
+          - libpam0g
+          - libhwloc15
+          - liblua5.3-0
+          - libjson-c5
+        state: present
+        update_cache: yes
+
+    - name: Install SLURM controller packages from pre-built packages
+      apt:
+        deb: "/tmp/slurm-packages/{{ item }}"
+        state: present
+      loop: "{{ slurm_controller_packages }}"
+
+    - name: Clean up temporary packages
+      file:
+        path: /tmp/slurm-packages
+        state: absent
+
+# Repository installation (FALLBACK - may fail on Trixie)
+- name: Install SLURM from Debian repositories
+  when: slurm_install_method == "repository"
+  block:
+    - name: Warn about Trixie repository issues
+      debug:
+        msg: |
+          WARNING: Installing from Debian repositories may fail on Trixie
+          Recommended: Use slurm_install_method: prebuilt
+
+    - name: Install SLURM packages from repository
+      apt:
+        name: "{{ slurm_controller_packages }}"
+        state: present
+        update_cache: yes
+
+# Verification (common to both methods)
+- name: Verify SLURM controller installation
+  command: "slurmctld -V"
+  register: slurmctld_version
+  changed_when: false
+  failed_when: false
+
+- name: Display SLURM controller version
+  debug:
+    msg: "SLURM controller installed: {{ slurmctld_version.stdout }}"
+  when: slurmctld_version.rc == 0
+
+- name: Verify slurmdbd installation
+  command: "slurmdbd -V"
+  register: slurmdbd_version
+  changed_when: false
+  failed_when: false
+
+- name: Display slurmdbd version
+  debug:
+    msg: "slurmdbd installed: {{ slurmdbd_version.stdout }}"
+  when: slurmdbd_version.rc == 0
+```
+
+**3. Update Packer Playbooks to Specify Method:**
+
+**File:** `ansible/playbooks/playbook-hpc-packer-controller.yml`
+
+```yaml
+- name: HPC Controller Packer Build
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: true
+    hpc_node_type: controller
+    slurm_install_method: "prebuilt"  # NEW: Use pre-built packages
+```
+
+**File:** `ansible/playbooks/playbook-hpc-packer-compute.yml`
+
+```yaml
+- name: HPC Compute Packer Build
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: true
+    hpc_node_type: compute
+    slurm_install_method: "prebuilt"  # NEW: Use pre-built packages
+```
+
+**4. Update Build Documentation:**
+
+Add to `packer/README.md`:
+
+```markdown
+## SLURM Package Prerequisites
+
+Before building HPC images, build SLURM packages from source:
+
+```bash
+# Build SLURM packages (required for Trixie)
+make config
+make run-docker COMMAND="cmake --build build --target build-slurm-packages"
+
+# Verify packages built
+ls -lh build/packages/slurm/
+```
+
+Images will fail to build without these packages on Debian Trixie.
+
+**Validation Criteria:**
+
+- [ ] SLURM pre-built packages detected correctly
+- [ ] Packages copy to target nodes without errors
+- [ ] SLURM installs successfully from pre-built package
+- [ ] All dependencies resolve correctly
+- [ ] slurmctld and slurmdbd executables work
+- [ ] Packer controller image builds successfully
+- [ ] Packer compute image builds successfully
+- [ ] No references to broken Debian repository installation
+- [ ] Clear error message if packages not built
+
+**Test Commands:**
+
+```bash
+# Build SLURM packages first (prerequisite)
+make config
+make run-docker COMMAND="cmake --build build --target build-slurm-packages"
+
+# Verify packages exist
+ls -lh build/packages/slurm/*.deb
+# Should show slurm-smd_24.11.0_amd64.deb and related packages
+
+# Build controller image with new installation method
+cd packer/hpc-controller
+packer build hpc-controller.pkr.hcl
+
+# Verify SLURM installed in image
+qemu-system-x86_64 -enable-kvm -m 4G \
+  -hda ../../build/packer/hpc-controller/hpc-controller.qcow2 \
+  -nographic
+# Inside VM: slurmctld -V should work
+
+# Build compute image
+cd ../hpc-compute
+packer build hpc-compute.pkr.hcl
+```
+
+**Success Criteria:**
+
+- ✅ SLURM installs from pre-built packages without errors
+- ✅ All SLURM binaries functional (slurmctld, slurmdbd, srun, etc.)
+- ✅ PMIx integration working
+- ✅ MariaDB client libraries linked
+- ✅ MUNGE authentication configured
+- ✅ Controller image builds successfully
+- ✅ Compute image builds successfully
+- ✅ No dependency errors during installation
+- ✅ Fallback to repository method available (with warning)
+
+**Dependencies:**
+
+- **Requires**: TASK-028.2 (SLURM packages must be built first)
+- **Blocks**: All HPC cluster deployment (SLURM installation currently broken)
+- **Related**: TASK-029, TASK-030 (Packer playbooks), TASK-031 (runtime playbook)
+
+**Notes:**
+
+- **Critical Fix**: Resolves complete blockage of HPC cluster deployment on Trixie
+- **Build First**: Users must build SLURM packages before building HPC images
+- **Fallback Available**: Repository method kept as fallback for non-Trixie systems
+- **Clear Errors**: Provides helpful error messages if packages not built
+- **Documentation**: Updates Packer README with build prerequisites
+
+---
+
 ## Phase 4: Test Framework Consolidation (Tasks 035-037)
 
 ### Task 035: Create Unified HPC Runtime Test Framework
@@ -1649,6 +1958,13 @@ ls -1 suites/*/run-*.sh | wc -l
 - ✅ Inventory variables documented
 - ✅ Migration path clear
 - ✅ Rollback procedures in place
+
+**SLURM Installation Fix:**
+
+- ✅ Pre-built SLURM packages from source (TASK-028.2)
+- ✅ Updated installation to use pre-built packages (TASK-034.1)
+- ✅ Resolves Debian Trixie repository package issues
+- ✅ Unblocks HPC cluster deployment
 
 ---
 
