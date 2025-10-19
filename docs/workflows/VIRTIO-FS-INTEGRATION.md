@@ -459,6 +459,4 @@ sudo apt update && sudo apt upgrade linux-image-generic
 
 ## Related Documentation
 
-- [HPC SLURM Task List](../implementation-plans/task-lists/hpc-slurm-task-list.md) - Task 027
 - [Test Framework Pattern](../tests/test-infra/README.md)
-- [Ansible Best Practices](../.cursor/rules/requestable/auto/ansible-best-practices.mdc)
