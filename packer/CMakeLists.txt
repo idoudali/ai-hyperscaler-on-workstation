@@ -4,12 +4,6 @@ cmake_minimum_required(VERSION 3.18)
 # BeeGFS packages directory (from 3rd-party build)
 set(BEEGFS_PACKAGES_SOURCE_DIR "${PROJECT_BINARY_DIR}/packages/beegfs")
 
-# Create build output directories for images
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images)
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/hpc-controller)
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/hpc-compute)
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/images/cloud-base)
-
 # Set up shared SSH keys directory (shared between all Packer images)
 set(SHARED_SSH_KEYS_DIR "${CMAKE_BINARY_DIR}/shared/ssh-keys")
 file(MAKE_DIRECTORY ${SHARED_SSH_KEYS_DIR})
