@@ -13,7 +13,7 @@ Create the foundational documentation structure before content population.
 Category 0 tasks establish the documentation infrastructure and directory structure. These tasks must be completed
 before any content creation begins.
 
-## TASK-DOC-000: Create Documentation Structure with Placeholder Files
+## TASK-DOC-0.1: Create Documentation Structure with Placeholder Files
 
 **Description:** Create all directories and placeholder files for the new documentation structure
 
@@ -138,14 +138,14 @@ ls -1 ansible/README.md packer/README.md python/ai_how/README.md containers/READ
 - **Parallel Work:** Multiple contributors can work on different sections
 - **Progress Tracking:** Easy to see which documents are complete vs TODO
 
-## TASK-DOC-001: Update MkDocs Configuration
+## TASK-DOC-0.2: Update MkDocs Configuration
 
 **File:** `mkdocs.yml`
 
 **Description:** Update MkDocs configuration to reflect new documentation structure, creating navigation that will
 be populated as content is added
 
-**Prerequisites:** TASK-DOC-000 completed (directory structure created)
+**Prerequisites:** TASK-DOC-0.1 completed (directory structure created)
 
 **Current State Analysis:**
 

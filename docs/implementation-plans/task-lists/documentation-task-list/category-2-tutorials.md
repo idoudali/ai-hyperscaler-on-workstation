@@ -13,7 +13,7 @@ Hands-on learning paths with detailed explanations.
 Category 2 focuses on creating comprehensive tutorials that provide deep understanding of system capabilities. These
 tutorials build on quickstarts to provide complete learning paths.
 
-## TASK-DOC-008: Tutorial - First Cluster
+## TASK-DOC-2.1: Tutorial - First Cluster
 
 **File:** `docs/tutorials/01-first-cluster.md`
 
@@ -44,7 +44,7 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Troubleshooting tips
 - [ ] 45-60 minute completion time
 
-## TASK-DOC-009: Tutorial - Distributed Training
+## TASK-DOC-2.2: Tutorial - Distributed Training
 
 **File:** `docs/tutorials/02-distributed-training.md`
 
@@ -73,7 +73,7 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Common issues addressed
 - [ ] 60 minute completion time
 
-## TASK-DOC-010: Tutorial - GPU Partitioning
+## TASK-DOC-2.3: Tutorial - GPU Partitioning
 
 **File:** `docs/tutorials/03-gpu-partitioning.md`
 
@@ -101,7 +101,7 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Multiple partition scenarios
 - [ ] 45 minute completion time
 
-## TASK-DOC-011: Tutorial - Container Management
+## TASK-DOC-2.4: Tutorial - Container Management
 
 **File:** `docs/tutorials/04-container-management.md`
 
@@ -129,7 +129,7 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Version management clear
 - [ ] 45 minute completion time
 
-## TASK-DOC-012: Tutorial - Custom Packer Images
+## TASK-DOC-2.5: Tutorial - Custom Packer Images
 
 **File:** `docs/tutorials/05-custom-images.md`
 
@@ -157,7 +157,7 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Testing procedures
 - [ ] 60 minute completion time
 
-## TASK-DOC-013: Tutorial - Monitoring Setup
+## TASK-DOC-2.6: Tutorial - Monitoring Setup
 
 **File:** `docs/tutorials/06-monitoring-setup.md`
 
@@ -185,7 +185,7 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Alert configuration
 - [ ] 60 minute completion time
 
-## TASK-DOC-014: Tutorial - Job Debugging
+## TASK-DOC-2.7: Tutorial - Job Debugging
 
 **File:** `docs/tutorials/07-job-debugging.md`
 

@@ -2,7 +2,7 @@
 
 **Status:** Planning
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-16
+**Last Updated:** 2025-10-20
 
 **Priority:** 0 - Final Documentation Setup
 
@@ -13,13 +13,13 @@ Documentation structure and navigation completion.
 Category 7 contains the final infrastructure task that updates the main documentation index after content has been
 populated across all categories.
 
-## TASK-DOC-038: Update Main Documentation Index
+## TASK-DOC-7.1: Update Main Documentation Index
 
 **File:** `docs/README.md`
 
 **Description:** Update the main documentation index with navigation to all populated sections
 
-**Prerequisites:** TASK-DOC-000 completed (structure created)
+**Prerequisites:** TASK-DOC-0.1 completed (structure created)
 
 **Content:**
 
@@ -89,7 +89,7 @@ populated across all categories.
 
 ## Final Integration
 
-After completing TASK-DOC-038:
+After completing TASK-DOC-7.1:
 
 - All documentation categories are accessible from main index
 - Documentation structure is complete and navigable

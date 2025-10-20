@@ -2,7 +2,7 @@
 
 **Status:** Planning
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-16
+**Last Updated:** 2025-10-20
 
 ## Overview
 
@@ -12,8 +12,8 @@ This file outlines the implementation timeline and phases for the documentation 
 
 **Priority:** Infrastructure setup (MUST complete before all other phases)
 
-1. **TASK-DOC-000**: Create Documentation Structure with Placeholder Files
-2. **TASK-DOC-001**: Update MkDocs Configuration
+1. **TASK-DOC-0.1**: Create Documentation Structure with Placeholder Files
+2. **TASK-DOC-0.2**: Update MkDocs Configuration
 
 **Duration:** 2-4 hours
 **Deliverable:** Complete directory structure with 31 high-level placeholder files and MkDocs navigation configured
@@ -22,13 +22,13 @@ This file outlines the implementation timeline and phases for the documentation 
 
 **Priority:** Immediate user onboarding (high-level docs only)
 
-1. **TASK-DOC-002**: Prerequisites and Installation
-2. **TASK-DOC-003**: 5-Minute Quickstart
-3. **TASK-DOC-004**: Cluster Deployment Quickstart
-4. **TASK-DOC-008**: Tutorial - First Cluster
-5. **TASK-DOC-015**: Architecture Overview
-6. **TASK-DOC-034**: Common Issues
-7. **TASK-DOC-038**: Update Main Documentation Index
+1. **TASK-DOC-1.1**: Prerequisites and Installation
+2. **TASK-DOC-1.2**: 5-Minute Quickstart
+3. **TASK-DOC-1.3**: Cluster Deployment Quickstart
+4. **TASK-DOC-2.1**: Tutorial - First Cluster
+5. **TASK-DOC-3.1**: Architecture Overview
+6. **TASK-DOC-6.1**: Common Issues
+7. **TASK-DOC-7.1**: Update Main Documentation Index
 
 ## Phase 2: Operations and Component Documentation (Weeks 3-4)
 
@@ -36,16 +36,17 @@ This file outlines the implementation timeline and phases for the documentation 
 
 **High-Level Documentation:**
 
-1. **TASK-DOC-005**: GPU Quickstart
-2. **TASK-DOC-006**: Container Quickstart
-3. **TASK-DOC-009**: Tutorial - Distributed Training
-4. **TASK-DOC-022**: Deployment Guide
-5. **TASK-DOC-020**: SLURM Architecture
-6. **TASK-DOC-035**: Debugging Guide
+1. **TASK-DOC-1.4**: GPU Quickstart
+2. **TASK-DOC-1.5**: Container Quickstart
+3. **TASK-DOC-2.2**: Tutorial - Distributed Training
+4. **TASK-DOC-4.1**: Deployment Guide
+5. **TASK-DOC-3.6**: SLURM Architecture
+6. **TASK-DOC-6.2**: Debugging Guide
 
 **Component-Specific Documentation:**
-7. **TASK-DOC-028**: Ansible Documentation
-8. **TASK-DOC-031**: Python CLI Documentation (enhance existing)
+7. **TASK-DOC-5.1**: Build System Documentation
+8. **TASK-DOC-5.2**: Ansible Documentation
+9. **TASK-DOC-5.5**: Python CLI Documentation (enhance existing)
 
 ## Phase 3: Specialized Topics (Weeks 5-6)
 
@@ -53,16 +54,16 @@ This file outlines the implementation timeline and phases for the documentation 
 
 **High-Level Documentation:**
 
-1. **TASK-DOC-010**: Tutorial - GPU Partitioning
-2. **TASK-DOC-011**: Tutorial - Container Management
-3. **TASK-DOC-018**: GPU Architecture
-4. **TASK-DOC-019**: Container Architecture
-5. **TASK-DOC-026**: Security Guide
-6. **TASK-DOC-036**: FAQ
+1. **TASK-DOC-2.3**: Tutorial - GPU Partitioning
+2. **TASK-DOC-2.4**: Tutorial - Container Management
+3. **TASK-DOC-3.4**: GPU Architecture
+4. **TASK-DOC-3.5**: Container Architecture
+5. **TASK-DOC-4.5**: Security Guide
+6. **TASK-DOC-6.3**: FAQ
 
 **Component-Specific Documentation:**
-7. **TASK-DOC-029**: Packer Documentation ✅ COMPLETED
-8. **TASK-DOC-030**: Container Documentation
+7. **TASK-DOC-5.3**: Packer Documentation ✅ COMPLETED
+8. **TASK-DOC-5.4**: Container Documentation
 
 ## Phase 4: Comprehensive Coverage (Weeks 7-8)
 
@@ -70,23 +71,23 @@ This file outlines the implementation timeline and phases for the documentation 
 
 **High-Level Documentation:**
 
-1. **TASK-DOC-007**: Monitoring Quickstart
-2. **TASK-DOC-012**: Tutorial - Custom Packer Images
-3. **TASK-DOC-013**: Tutorial - Monitoring Setup
-4. **TASK-DOC-014**: Tutorial - Job Debugging
-5. **TASK-DOC-016**: Network Architecture
-6. **TASK-DOC-017**: Storage Architecture
-7. **TASK-DOC-021**: Monitoring Architecture
-8. **TASK-DOC-023**: Maintenance Guide
-9. **TASK-DOC-024**: Backup and Recovery
-10. **TASK-DOC-025**: Scaling Guide
-11. **TASK-DOC-027**: Performance Tuning
-12. **TASK-DOC-037**: Error Codes
+1. **TASK-DOC-1.6**: Monitoring Quickstart
+2. **TASK-DOC-2.5**: Tutorial - Custom Packer Images
+3. **TASK-DOC-2.6**: Tutorial - Monitoring Setup
+4. **TASK-DOC-2.7**: Tutorial - Job Debugging
+5. **TASK-DOC-3.2**: Network Architecture
+6. **TASK-DOC-3.3**: Storage Architecture
+7. **TASK-DOC-3.7**: Monitoring Architecture
+8. **TASK-DOC-4.2**: Maintenance Guide
+9. **TASK-DOC-4.3**: Backup and Recovery
+10. **TASK-DOC-4.4**: Scaling Guide
+11. **TASK-DOC-4.6**: Performance Tuning
+12. **TASK-DOC-6.4**: Error Codes
 
 **Component-Specific Documentation:**
 
-1. **TASK-DOC-032**: Scripts Documentation
-2. **TASK-DOC-033**: Configuration Documentation
+1. **TASK-DOC-5.6**: Scripts Documentation
+2. **TASK-DOC-5.7**: Configuration Documentation
 
 ## Implementation Strategy
 
@@ -132,7 +133,7 @@ This file outlines the implementation timeline and phases for the documentation 
 **Hard Dependencies:**
 
 - Phase 0 must complete before any other phase
-- TASK-DOC-038 (main index update) should be last
+- TASK-DOC-7.1 (main index update) should be last
 
 **Soft Dependencies:**
 

@@ -2,7 +2,7 @@
 
 **Status:** Planning
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-16
+**Last Updated:** 2025-10-20
 
 ## Overview
 
@@ -48,23 +48,24 @@ project, split into manageable sections for easier task management by LLM assist
 
 ### Critical Path (Phase 1)
 
-1. **[TASK-DOC-000](./category-0-infrastructure.md)**: Create Documentation Structure
-2. **[TASK-DOC-001](./category-0-infrastructure.md)**: Update MkDocs Configuration
-3. **[TASK-DOC-002](./category-1-quickstarts.md)**: Prerequisites and Installation
-4. **[TASK-DOC-003](./category-1-quickstarts.md)**: 5-Minute Quickstart
-5. **[TASK-DOC-004](./category-1-quickstarts.md)**: Cluster Deployment Quickstart
+1. **[TASK-DOC-0.1](./category-0-infrastructure.md)**: Create Documentation Structure
+2. **[TASK-DOC-0.2](./category-0-infrastructure.md)**: Update MkDocs Configuration
+3. **[TASK-DOC-1.1](./category-1-quickstarts.md)**: Prerequisites and Installation
+4. **[TASK-DOC-1.2](./category-1-quickstarts.md)**: 5-Minute Quickstart
+5. **[TASK-DOC-1.3](./category-1-quickstarts.md)**: Cluster Deployment Quickstart
 
 ### Architecture Deep Dive
 
-- **[TASK-DOC-015](./category-3-architecture.md)**: Architecture Overview
-- **[TASK-DOC-016](./category-3-architecture.md)**: Network Architecture
-- **[TASK-DOC-017](./category-3-architecture.md)**: Storage Architecture
+- **[TASK-DOC-3.1](./category-3-architecture.md)**: Architecture Overview
+- **[TASK-DOC-3.2](./category-3-architecture.md)**: Network Architecture
+- **[TASK-DOC-3.3](./category-3-architecture.md)**: Storage Architecture
 
 ### Component References
 
-- **[TASK-DOC-028](./category-5-components.md)**: Ansible Documentation
-- **[TASK-DOC-029](./category-5-components.md)**: Packer Documentation ✅ COMPLETED
-- **[TASK-DOC-030](./category-5-components.md)**: Container Documentation
+- **[TASK-DOC-5.1](./category-5-components.md)**: Build System Documentation
+- **[TASK-DOC-5.2](./category-5-components.md)**: Ansible Documentation
+- **[TASK-DOC-5.3](./category-5-components.md)**: Packer Documentation ✅ COMPLETED
+- **[TASK-DOC-5.4](./category-5-components.md)**: Container Documentation
 
 ## Navigation
 
@@ -90,3 +91,30 @@ This organization allows LLM assistants to:
 - Maintain context across related tasks
 - Generate targeted task summaries
 - Update individual sections without conflicts
+
+## Task Addition Guidelines
+
+**Important:** From now on, new tasks should be created as **subtasks** rather than new
+main tasks to maintain the current numbering structure.
+
+### Subtask Format
+
+Use the format `TASK-DOC-XXX.Y` where:
+
+- `XXX` is the parent task number
+- `Y` is the subtask number (1, 2, 3, etc.)
+
+### Examples
+
+- **TASK-DOC-028.1**: Document CMake configuration
+- **TASK-DOC-028.2**: Document Makefile targets  
+- **TASK-DOC-028.3**: Document development container workflow
+- **TASK-DOC-035.1**: Document installation issues
+- **TASK-DOC-035.2**: Document deployment issues
+
+### Benefits
+
+- Maintains consistent main task numbering
+- Allows detailed task breakdown
+- Easier to track progress on complex tasks
+- Reduces need for renumbering existing tasks
