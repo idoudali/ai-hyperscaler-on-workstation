@@ -1,3 +1,34 @@
+# Pharos AI Hyperscaler Build System
+# ===================================
+#
+# This CMakeLists.txt serves as the root configuration for the Pharos AI Hyperscaler project.
+# It orchestrates the build of infrastructure images (Packer), application containers (Docker/Apptainer),
+# and third-party dependencies (BeeGFS, SLURM).
+#
+# Build System Architecture:
+# - CMake as primary build orchestrator
+# - Ninja generator for fast parallel builds
+# - Docker-based development environment
+# - Packer for infrastructure VM images
+# - Docker/Apptainer for application containers
+# - Source builds for third-party dependencies
+#
+# Key Components:
+# - packer/: Infrastructure VM images (HPC controller, compute, cloud base)
+# - containers/: Application containers with Docker/Apptainer conversion
+# - 3rd-party/: External dependencies built from source
+#
+# Usage:
+#   cmake -G Ninja -S . -B build
+#   cmake --build build --target <target_name>
+#
+# Available Targets:
+#   - Packer images: build-packer-images, build-hpc-controller-image, etc.
+#   - Containers: build-all-containers, build-docker-<name>, etc.
+#   - Dependencies: build-beegfs-packages
+#   - Testing: test, test-apptainer-all
+#   - Cleanup: cleanup, clean-beegfs, clean-all-containers
+
 cmake_minimum_required(VERSION 3.18)
 project(HyperscalerOnWorkstation LANGUAGES NONE)
 
