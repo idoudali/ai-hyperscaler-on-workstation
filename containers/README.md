@@ -1,7 +1,11 @@
 # Container Build System
 
-This directory contains the container build system for HPC workloads, integrated with CMake for consistent
-build management.
+**Status:** Production
+**Last Updated:** 2025-10-20
+
+This directory contains the container build system for HPC workloads, integrated with CMake for
+consistent build management. The system provides a Docker-first development workflow with
+automated conversion to Apptainer for HPC cluster deployment.
 
 ## Architecture
 
@@ -42,8 +46,8 @@ containers/
 - Apptainer (for converting Docker images to HPC format)
 - Python 3.10+ with venv support
 - CMake 3.18+
-- uv (optional, for faster Python package installation)
-- docker-wrapper library (optional, when available from PyPI or local installation)
+- uv
+- docker-wrapper library
 
 ## CMake Build System Usage
 
@@ -464,6 +468,57 @@ For complete workflow documentation, see:
 - Testing strategies
 - Troubleshooting guide
 - Performance optimization
+
+## Container Documentation
+
+### Available Containers
+
+Each container includes comprehensive documentation with usage examples, performance tuning,
+and troubleshooting guidance:
+
+- **[PyTorch CUDA 12.1 + MPI 4.1](images/pytorch-cuda12.1-mpi4.1/README.md)** - GPU-accelerated
+  deep learning with distributed computing support (Production)
+
+### Documentation Structure
+
+Each container image includes:
+
+- **Purpose & Features**: Clear description of what the container provides
+- **Building Instructions**: CMake, CLI, and Docker commands
+- **Usage Examples**: Interactive shells, scripts, SLURM job submission
+- **Verification**: Testing and validation procedures
+- **Performance Tips**: GPU memory, MPI optimization, mixed precision
+- **Troubleshooting**: Common issues and solutions
+- **Integration**: Registry deployment and cluster integration
+- **Use Cases**: Single-node, multi-node, Jupyter, interactive development
+
+## Creating New Containers
+
+### 1. Create Directory Structure
+
+```bash
+mkdir -p containers/images/my-container/Docker
+```
+
+### 2. Create Dockerfile
+
+Add your Dockerfile in `containers/images/my-container/Docker/Dockerfile`
+
+### 3. Create CMake Integration
+
+Update `containers/CMakeLists.txt` to include your new container in the build system.
+
+### 4. Create Documentation
+
+Add comprehensive README.md in `containers/images/my-container/README.md` following
+the template structure used for PyTorch container.
+
+### 5. Rebuild CMake
+
+```bash
+cmake -G Ninja -S . -B build
+cmake --build build --target build-container-my-container
+```
 
 ## Next Steps
 
