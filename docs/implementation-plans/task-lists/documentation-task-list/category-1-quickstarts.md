@@ -13,7 +13,7 @@ Quick, action-oriented guides to get users up and running fast.
 Category 1 focuses on creating essential quickstart guides that enable users to quickly understand and use the
 system. These are the highest priority user-facing documentation tasks.
 
-## TASK-DOC-002: Create Prerequisites and Installation Guide
+## TASK-DOC-1.1: Create Prerequisites and Installation Guide
 
 **File:** `docs/getting-started/prerequisites.md`, `docs/getting-started/installation.md`
 
@@ -34,7 +34,7 @@ system. These are the highest priority user-facing documentation tasks.
 - [ ] Verification commands included
 - [ ] Common installation issues addressed
 
-## TASK-DOC-003: Create 5-Minute Quickstart
+## TASK-DOC-1.2: Create 5-Minute Quickstart
 
 **File:** `docs/getting-started/quickstart-5min.md`
 
@@ -56,7 +56,7 @@ system. These are the highest priority user-facing documentation tasks.
 - [ ] Minimal explanation, maximum action
 - [ ] Link to next steps
 
-## TASK-DOC-004: Create Cluster Deployment Quickstart
+## TASK-DOC-1.3: Create Cluster Deployment Quickstart
 
 **File:** `docs/getting-started/quickstart-cluster.md`
 
@@ -78,7 +78,7 @@ system. These are the highest priority user-facing documentation tasks.
 - [ ] Results viewable
 - [ ] Cleanup instructions
 
-## TASK-DOC-005: Create GPU Quickstart
+## TASK-DOC-1.4: Create GPU Quickstart
 
 **File:** `docs/getting-started/quickstart-gpu.md`
 
@@ -100,7 +100,7 @@ system. These are the highest priority user-facing documentation tasks.
 - [ ] GPU monitoring working
 - [ ] Troubleshooting tips included
 
-## TASK-DOC-006: Create Container Quickstart
+## TASK-DOC-1.5: Create Container Quickstart
 
 **File:** `docs/getting-started/quickstart-containers.md`
 
@@ -122,7 +122,7 @@ system. These are the highest priority user-facing documentation tasks.
 - [ ] SLURM integration shown
 - [ ] Examples included
 
-## TASK-DOC-007: Create Monitoring Quickstart
+## TASK-DOC-1.6: Create Monitoring Quickstart
 
 **File:** `docs/getting-started/quickstart-monitoring.md`
 

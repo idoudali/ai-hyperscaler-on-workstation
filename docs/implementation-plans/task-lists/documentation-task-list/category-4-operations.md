@@ -13,7 +13,7 @@ Operational procedures for production deployment and maintenance.
 Category 4 focuses on creating comprehensive operations documentation for production deployment, maintenance, and
 lifecycle management of the Hyperscaler on Workstation system.
 
-## TASK-DOC-022: Deployment Guide
+## TASK-DOC-4.1: Deployment Guide
 
 **File:** `docs/operations/deployment.md`
 
@@ -33,7 +33,7 @@ lifecycle management of the Hyperscaler on Workstation system.
 - [ ] Validation steps
 - [ ] Rollback procedures
 
-## TASK-DOC-023: Maintenance Guide
+## TASK-DOC-4.2: Maintenance Guide
 
 **File:** `docs/operations/maintenance.md`
 
@@ -53,7 +53,7 @@ lifecycle management of the Hyperscaler on Workstation system.
 - [ ] Node management
 - [ ] Health check scripts
 
-## TASK-DOC-024: Backup and Recovery
+## TASK-DOC-4.3: Backup and Recovery
 
 **File:** `docs/operations/backup-recovery.md`
 
@@ -73,7 +73,7 @@ lifecycle management of the Hyperscaler on Workstation system.
 - [ ] Testing methodology
 - [ ] RTO/RPO definitions
 
-## TASK-DOC-025: Scaling Guide
+## TASK-DOC-4.4: Scaling Guide
 
 **File:** `docs/operations/scaling.md`
 
@@ -93,7 +93,7 @@ lifecycle management of the Hyperscaler on Workstation system.
 - [ ] Performance optimization
 - [ ] Monitoring guidelines
 
-## TASK-DOC-026: Security Guide
+## TASK-DOC-4.5: Security Guide
 
 **File:** `docs/operations/security.md`
 
@@ -114,7 +114,7 @@ lifecycle management of the Hyperscaler on Workstation system.
 - [ ] Security policies
 - [ ] Audit procedures
 
-## TASK-DOC-027: Performance Tuning
+## TASK-DOC-4.6: Performance Tuning
 
 **File:** `docs/operations/performance-tuning.md`
 

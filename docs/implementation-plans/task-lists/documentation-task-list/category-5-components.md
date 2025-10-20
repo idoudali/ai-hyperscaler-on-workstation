@@ -2,7 +2,7 @@
 
 **Status:** Planning
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-16
+**Last Updated:** 2025-10-20
 
 **Priority:** 2-3 - Component References
 
@@ -13,7 +13,49 @@ Documentation that lives next to the code implementing each component.
 Category 5 focuses on creating and enhancing documentation that lives with the code components. Following the
 principle that "component documentation lives with the component, not in docs/".
 
-## TASK-DOC-028: Ansible Documentation
+## TASK-DOC-5.1: Build System Documentation
+
+**Files:** `docs/architecture/build-system.md`, `Makefile` (enhance comments), `CMakeLists.txt` (enhance comments)
+
+**Description:** Comprehensive documentation of the project's build system architecture and workflow
+
+**Content:**
+
+- **Build System Architecture:**
+  - CMake as primary build orchestrator
+  - Development container workflow (Docker-based)
+  - Makefile automation and targets
+  - Integration between CMake, Packer, Docker, and containers
+- **Development Workflow:**
+  - From code changes to deployment
+  - Build dependencies and order
+  - Development container usage
+  - Build optimization and caching
+- **Build Components:**
+  - CMake configuration and targets
+  - Packer image building process
+  - Container build and conversion workflow
+  - Python virtual environment management
+- **Build Commands Reference:**
+  - All Makefile targets with descriptions
+  - CMake build commands and options
+  - Development container commands
+  - Troubleshooting build issues
+
+**Success Criteria:**
+
+- [ ] Build system architecture documented
+- [ ] Development workflow clearly explained
+- [ ] All build commands documented with examples
+- [ ] Build dependencies and order explained
+- [ ] Troubleshooting guide for common build issues
+- [ ] Integration between components documented
+- [ ] Makefile targets enhanced with better comments
+- [ ] CMake configuration documented
+
+**Priority:** 1 - Foundation (should be completed early as it's foundational for understanding all other components)
+
+## TASK-DOC-5.2: Ansible Documentation
 
 **Files:** `ansible/README.md`, `ansible/roles/README.md`, `ansible/playbooks/README.md`, role-specific READMEs
 
@@ -35,7 +77,7 @@ principle that "component documentation lives with the component, not in docs/".
 - [ ] Variables and dependencies documented
 - [ ] Usage examples included
 
-## TASK-DOC-029: Packer Documentation ✅ COMPLETED
+## TASK-DOC-5.3: Packer Documentation ✅ COMPLETED
 
 **Files:** `packer/README.md`, `packer/hpc-base/README.md`, `packer/hpc-controller/README.md`, `packer/hpc-compute/README.md`
 
@@ -64,7 +106,7 @@ principle that "component documentation lives with the component, not in docs/".
 - Added comprehensive troubleshooting, customization, and design decision sections
 - All success criteria met with extensive documentation coverage
 
-## TASK-DOC-030: Container Documentation
+## TASK-DOC-5.4: Container Documentation
 
 **Files:** `containers/README.md`, per-container READMEs
 
@@ -83,7 +125,7 @@ principle that "component documentation lives with the component, not in docs/".
 - [ ] Major containers have documentation
 - [ ] Usage examples included
 
-## TASK-DOC-031: Python CLI Documentation
+## TASK-DOC-5.5: Python CLI Documentation
 
 **Files:** `python/ai_how/README.md`, `python/ai_how/docs/*`
 
@@ -107,7 +149,7 @@ principle that "component documentation lives with the component, not in docs/".
 - [ ] Development guide current
 - [ ] API docs generated
 
-## TASK-DOC-032: Scripts Documentation
+## TASK-DOC-5.6: Scripts Documentation
 
 **Files:** `scripts/README.md`, `scripts/system-checks/README.md`
 
@@ -126,7 +168,7 @@ principle that "component documentation lives with the component, not in docs/".
 - [ ] Common patterns explained
 - [ ] Usage examples provided
 
-## TASK-DOC-033: Configuration Documentation
+## TASK-DOC-5.7: Configuration Documentation
 
 **File:** `config/README.md`
 

@@ -13,7 +13,7 @@ Deep dive into system architecture and design decisions.
 Category 3 focuses on comprehensive architecture documentation that explains how the system works at a fundamental
 level. This provides the context needed for advanced users and contributors.
 
-## TASK-DOC-015: Architecture Overview
+## TASK-DOC-3.1: Architecture Overview
 
 **File:** `docs/architecture/overview.md`
 
@@ -33,7 +33,7 @@ level. This provides the context needed for advanced users and contributors.
 - [ ] Design rationale documented
 - [ ] Links to detailed docs
 
-## TASK-DOC-016: Network Architecture
+## TASK-DOC-3.2: Network Architecture
 
 **File:** `docs/architecture/network.md`
 
@@ -53,7 +53,7 @@ level. This provides the context needed for advanced users and contributors.
 - [ ] Security policies clear
 - [ ] Configuration examples
 
-## TASK-DOC-017: Storage Architecture
+## TASK-DOC-3.3: Storage Architecture
 
 **File:** `docs/architecture/storage.md`
 
@@ -73,7 +73,7 @@ level. This provides the context needed for advanced users and contributors.
 - [ ] Backup strategy documented
 - [ ] Performance tuning tips
 
-## TASK-DOC-018: GPU Architecture
+## TASK-DOC-3.4: GPU Architecture
 
 **File:** `docs/architecture/gpu.md`
 
@@ -93,7 +93,7 @@ level. This provides the context needed for advanced users and contributors.
 - [ ] Performance benchmarks
 - [ ] Configuration guidelines
 
-## TASK-DOC-019: Container Architecture
+## TASK-DOC-3.5: Container Architecture
 
 **File:** `docs/architecture/containers.md`
 
@@ -113,7 +113,7 @@ level. This provides the context needed for advanced users and contributors.
 - [ ] Security model explained
 - [ ] Integration with SLURM
 
-## TASK-DOC-020: SLURM Architecture
+## TASK-DOC-3.6: SLURM Architecture
 
 **File:** `docs/architecture/slurm.md`
 
@@ -134,7 +134,7 @@ level. This provides the context needed for advanced users and contributors.
 - [ ] Scheduling explained
 - [ ] Resource management clear
 
-## TASK-DOC-021: Monitoring Architecture
+## TASK-DOC-3.7: Monitoring Architecture
 
 **File:** `docs/architecture/monitoring.md`
 

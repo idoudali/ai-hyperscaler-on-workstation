@@ -2,7 +2,7 @@
 
 **Status:** Planning
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-16
+**Last Updated:** 2025-10-20
 
 **Priority:** 1-2 - Debugging and Issue Resolution
 
@@ -13,7 +13,7 @@ Consolidated troubleshooting and debugging information.
 Category 6 focuses on creating comprehensive troubleshooting documentation to help users diagnose and resolve common
 issues with the Hyperscaler on Workstation system.
 
-## TASK-DOC-034: Common Issues
+## TASK-DOC-6.1: Common Issues
 
 **File:** `docs/troubleshooting/common-issues.md`
 
@@ -33,7 +33,7 @@ issues with the Hyperscaler on Workstation system.
 - [ ] Prevention strategies
 - [ ] Clear symptoms
 
-## TASK-DOC-035: Debugging Guide
+## TASK-DOC-6.2: Debugging Guide
 
 **File:** `docs/troubleshooting/debugging-guide.md`
 
@@ -53,7 +53,7 @@ issues with the Hyperscaler on Workstation system.
 - [ ] Tool reference
 - [ ] Support procedures
 
-## TASK-DOC-036: FAQ
+## TASK-DOC-6.3: FAQ
 
 **File:** `docs/troubleshooting/faq.md`
 
@@ -72,7 +72,7 @@ issues with the Hyperscaler on Workstation system.
 - [ ] Links to detailed docs
 - [ ] Regularly updated
 
-## TASK-DOC-037: Error Codes
+## TASK-DOC-6.4: Error Codes
 
 **File:** `docs/troubleshooting/error-codes.md`
 
