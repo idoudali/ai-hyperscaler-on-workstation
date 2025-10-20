@@ -1,41 +1,51 @@
 # Ansible Infrastructure for Hyperscaler Project
 
-This directory contains the Ansible automation framework for the hyperscaler project.
+This directory contains the Ansible automation framework for the hyperscaler project,
+providing role-based configuration management for HPC clusters and cloud infrastructure.
 
 ## Structure
 
 ```text
 ansible/
-├── ansible.cfg                    # Ansible configuration
+├── ansible.cfg                    # Ansible configuration and settings
 ├── requirements.txt               # Python dependencies for Ansible
 ├── collections/
 │   └── requirements.yml          # Required Ansible collections
-├── roles/
-│   ├── hpc-base-packages/        # HPC base package installation
-│   │   └── tasks/                # Role tasks
-│   ├── cloud-base-packages/      # Cloud base package installation
-│   │   └── tasks/                # Role tasks
-│   ├── nvidia-gpu-drivers/       # NVIDIA GPU driver installation
+├── roles/                         # Ansible roles (see roles/README.md)
+│   ├── beegfs-*                   # BeeGFS distributed storage roles
+│   ├── slurm-*                    # SLURM cluster scheduler roles
+│   ├── nvidia-gpu-drivers/        # NVIDIA GPU driver installation
 │   │   ├── tasks/                # Role tasks
 │   │   ├── handlers/             # Role handlers
 │   │   ├── defaults/             # Default variables
 │   │   └── README.md             # Role documentation
-│   ├── hpc-cluster-setup/        # HPC cluster configuration
-│   │   └── tasks/                # Role tasks
-│   └── cloud-cluster-setup/      # Cloud cluster configuration
-│       └── tasks/                # Role tasks
-├── playbooks/
-│   ├── playbook-hpc-packer-controller.yml  # HPC controller Packer image build
-│   ├── playbook-hpc-packer-compute.yml     # HPC compute Packer image build
-│   ├── playbook-hpc-runtime.yml            # Unified HPC cluster runtime configuration
-│   ├── playbook-cloud.yml                  # Cloud cluster deployment
-│   ├── playbook-beegfs-packer-install.yml # BeeGFS Packer installation
-│   ├── playbook-beegfs-runtime-config.yml # BeeGFS runtime configuration
-│   ├── playbook-virtio-fs-runtime-config.yml # Virtio-FS shared storage
-│   └── playbook-container-registry.yml     # Container registry deployment
-└── inventories/
-    ├── generate_inventory.py         # Enhanced inventory generator with GPU detection
-    └── test_inventory_generation.py  # Validation tests for inventory generation
+│   ├── container-*                # Container runtime and registry roles
+│   ├── monitoring-stack/          # Monitoring infrastructure (Prometheus, Grafana)
+│   ├── ml-container-images/       # Machine learning container management
+│   ├── hpc-base-packages/         # HPC base package installation
+│   ├── cloud-base-packages/       # Cloud base package installation
+│   ├── virtio-fs-mount/           # Virtio-FS shared storage configuration
+│   ├── README.md                  # Roles index and overview
+│   └── [role-name]/README.md      # Role-specific documentation
+├── playbooks/                     # Ansible playbooks (see playbooks/README.md)
+│   ├── playbook-hpc*.yml          # HPC cluster deployment playbooks
+│   ├── playbook-cloud.yml         # Cloud infrastructure deployment
+│   ├── playbook-container*.yml    # Container deployment playbooks
+│   ├── playbook-slurm*.yml        # SLURM runtime configuration
+│   ├── playbook-beegfs*.yml       # BeeGFS configuration playbooks
+│   ├── playbook-*-runtime*.yml    # Runtime configuration playbooks
+│   ├── README.md                  # Playbooks index and usage guide
+│   └── (See README.md for complete playbook listing)
+├── inventories/
+│   ├── generate_inventory.py      # Inventory generator with GPU detection
+│   ├── test_inventory_generation.py # Validation tests for inventory
+│   ├── hpc/                       # HPC cluster inventory
+│   └── cloud/                     # Cloud cluster inventory
+├── ansible-lint                   # Ansible linting rules
+├── .gitignore                     # Git ignore rules
+├── README-packer-ansible.md       # Packer-specific Ansible usage
+├── run-ansible-hpc-cloud.sh       # Deployment script for HPC/Cloud
+└── run-packer-ansible.sh          # Packer build automation script
 ```
 
 ## Current Status
@@ -75,42 +85,40 @@ ansible-galaxy collection install -r ansible/collections/requirements.yml
 
 ## Prerequisites
 
-### Building SLURM Packages (Required)
+### Third-Party Package Dependencies
 
-Before deploying HPC infrastructure, you **MUST** build SLURM packages from source. This is required because Debian
-Trixie repositories lack complete SLURM packages.
+Before deploying HPC infrastructure, you **MUST** build required packages from source:
+
+- **SLURM**: Workload manager packages (required for Debian Trixie)
+- **BeeGFS**: Parallel filesystem packages (optional, if using BeeGFS storage)
+
+For complete build instructions, configuration options, and troubleshooting, see:
+
+- [3rd-Party Dependencies Overview](../3rd-party/README.md)
+- [SLURM Package Build Documentation](../3rd-party/slurm/README.md)
+- [BeeGFS Package Build Documentation](../3rd-party/beegfs/README.md)
+
+**Quick Start:**
 
 ```bash
-# 1. Configure CMake build system
+# Configure CMake build system
 make config
 
-# 2. Build SLURM packages (required for Debian Trixie)
+# Build SLURM packages (required)
 make run-docker COMMAND="cmake --build build --target build-slurm-packages"
 
-# 3. Verify packages were built
-ls -lh build/packages/slurm/
-# Should show: slurm-wlm_23.11.10_amd64.deb, slurmctld_23.11.10_amd64.deb, etc.
+# Build BeeGFS packages (optional)
+make run-docker COMMAND="cmake --build build --target build-beegfs-packages"
 ```
-
-### Why Pre-built Packages?
-
-Debian Trixie repositories lack complete SLURM packages. We build from source to ensure:
-
-- ✅ All SLURM components available (slurmctld, slurmdbd, slurmd)
-- ✅ PMIx integration for MPI support
-- ✅ Latest stable version (23.11.10)
-- ✅ Consistent across all nodes
-
-### Package Lifecycle
-
-**Packer Builds**: Packages copied to `/tmp/slurm-packages/` before Ansible runs  
-**Runtime Deployments**: Packages copied from `build/packages/slurm/` by Ansible
-
-Same pattern as BeeGFS packages for consistency.
 
 ## Usage
 
-The Ansible infrastructure supports both package pre-installation and post-deployment configuration:
+The Ansible infrastructure supports both package pre-installation and post-deployment configuration.
+
+This is done so that we can avoid downloading unecessary packages during cluster instantiation
+and perform only the runtime configuration. That said the Ansible rules need to be self-contained
+and validate that the required packages are installed and install any missing packages during
+cluster configuration after it has been instantiated.
 
 ### Pre-installation (with Packer)
 
@@ -259,11 +267,52 @@ Test coverage includes:
 5. Integrate with the CLI orchestrator for automated deployment
 6. Add GPU resource configuration for SLURM and Kubernetes
 
-## Minimal Design Philosophy
+## Organization and Navigation
 
-This structure follows a minimal design philosophy:
+### Roles Organization
 
-- **Only essential directories** are created
-- **Role structure simplified** to just tasks initially
-- **Additional directories** (defaults, vars, handlers, templates) added as needed
-- **Easy to extend** without unnecessary complexity
+For detailed information about all available roles, see:
+
+- **[roles/README.md](./roles/README.md)** - Complete roles index with descriptions, variables, and tags
+- **Individual role READMEs** - Each role has a `README.md` with specific documentation
+
+**Role Categories:**
+
+- **Infrastructure Roles**: Base packages, container runtime
+- **Storage Roles**: BeeGFS management, client, storage, and metadata nodes
+- **Scheduler Roles**: SLURM controller and compute nodes
+- **GPU Support**: NVIDIA driver installation and CUDA toolkit
+- **Monitoring**: Prometheus, Grafana, DCGM, and node exporters
+- **Container Management**: Registry, image management
+
+### Playbooks Organization
+
+For detailed playbook information, see:
+
+- **[playbooks/README.md](./playbooks/README.md)** - Complete playbooks index with descriptions and usage examples
+- **Infrastructure Playbooks**: Complete cluster deployments
+- **Component Playbooks**: Individual component configuration
+- **Runtime Configuration Playbooks**: Post-deployment configuration
+
+### Common Usage Patterns
+
+**Pattern 1: Pre-installation (with Packer)**
+
+```bash
+# Build base images with packages and drivers pre-installed
+packer build -f packer/hpc-compute/image.pkr.hcl
+```
+
+**Pattern 2: Post-deployment Configuration**
+
+```bash
+# Run playbooks to configure deployed systems
+ansible-playbook -i inventories/hpc/hosts.yml playbooks/playbook-slurm-controller.yml
+```
+
+**Pattern 3: Full Cluster Deployment**
+
+```bash
+# Deploy entire HPC cluster with all components
+ansible-playbook -i inventories/hpc/hosts.yml playbooks/playbook-hpc.yml
+```
