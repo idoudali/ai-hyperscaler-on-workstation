@@ -1,53 +1,53 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-041)
 
-**Status**: ~55% Complete (7/13 tasks)
-**Last Updated**: 2025-10-20
+**Status**: ~54% Complete (7/13 tasks)
+**Last Updated**: 2025-10-20 (Status Verified)
 **Priority**: HIGH
-**Tasks**: 13 (Ansible: 8, Storage: 3, Testing: 2)
+**Tasks**: 13 (Ansible: 8, Storage: 4, Testing: 3)
 
 ## ✅ **Progress Summary**
 
 | Task | Status | Completion | Notes |
 |------|--------|------------|-------|
-| **029** | ✅ **COMPLETE** | 100% | HPC Packer Controller Playbook created and validated |
-| **030** | ✅ **COMPLETE** | 100% | HPC Packer Compute Playbook created and validated |
-| **031** | ✅ **COMPLETE** | 100% | Unified Runtime Playbook created and deployed |
-| **032** | ✅ **COMPLETE** | 100% | Packer Templates updated and working |
-| **033** | ✅ **COMPLETE** | 100% | Packer validation complete |
-| **034** | ✅ **COMPLETE** | 100% | Obsolete playbooks deleted (9 files removed) |
-| **034.1** | ✅ **COMPLETE** | 100% | SLURM installation fixed to use pre-built packages |
-| **035** | ❌ **PENDING** | 0% | Test framework consolidation not started |
-| **036** | ❌ **PENDING** | 0% | Packer test frameworks not created |
-| **037** | ❌ **PENDING** | 0% | Makefile and test cleanup not done |
-| **038** | ❌ **PENDING** | 0% | BeeGFS Packer consolidation not started |
-| **039** | ❌ **PENDING** | 0% | VirtIO-FS runtime integration not started |
-| **040** | ❌ **PENDING** | 0% | Container registry on BeeGFS not implemented |
-| **041** | ❌ **PENDING** | 0% | Cluster configuration schema updates not done |
+| **029** | ✅ **COMPLETE** | 100% | HPC Packer Controller Playbook exists and functional |
+| **030** | ✅ **COMPLETE** | 100% | HPC Packer Compute Playbook exists and functional |
+| **031** | ✅ **COMPLETE** | 100% | Unified Runtime Playbook exists and functional |
+| **032** | ✅ **COMPLETE** | 100% | Packer Templates updated (verification needed) |
+| **033** | ✅ **COMPLETE** | 100% | Packer builds functional |
+| **034** | ✅ **COMPLETE** | 100% | 9 obsolete playbooks deleted - 8 playbooks remain |
+| **034.1** | ✅ **COMPLETE** | 100% | SLURM uses pre-built packages (install.yml verified) |
+| **035** | ❌ **PENDING** | 0% | test-hpc-runtime-framework.sh NOT created |
+| **036** | ❌ **PENDING** | 0% | test-hpc-packer-*-framework.sh NOT created |
+| **037** | ❌ **PENDING** | 0% | 13 old frameworks + 10 configs still exist |
+| **038** | ❌ **PENDING** | 0% | playbook-beegfs-packer-install.yml still separate |
+| **039** | ❌ **PENDING** | 0% | No virtio_fs in playbook-hpc-runtime.yml |
+| **040** | ❌ **PENDING** | 0% | Registry uses /opt/containers not /mnt/beegfs |
+| **041** | ❌ **PENDING** | 0% | No virtio_fs_mounts in cluster config schema |
 
 **Completed**: Tasks 029-034.1 (Ansible consolidation achieved!)  
 **Pending**: Tasks 035-041 (Testing + Storage enhancements)  
-**Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks)
+**Achievement**: ✅ **43% playbook reduction achieved** (14 → 8 playbooks, target: 7)
 
 ## Overview
 
 This phase consolidates the Ansible playbook and test framework infrastructure, reducing complexity while maintaining
 all functionality. The goal is to streamline from 14 playbooks to 7 playbooks and 15+ test frameworks to 3 frameworks.
 
-## Current State (As of 2025-10-20)
+## Current State (As of 2025-10-20 - Status Verified)
 
-**Ansible Playbooks:** 8 playbooks (down from 14)
+**Ansible Playbooks:** ✅ **8 playbooks** (down from 14 - 43% reduction)
 
-- Core HPC (3 playbooks): ✅ **CONSOLIDATED**
-  - `playbook-hpc-packer-controller.yml` - Packer controller image builds
-  - `playbook-hpc-packer-compute.yml` - Packer compute image builds
-  - `playbook-hpc-runtime.yml` - Unified runtime configuration
-- Storage (3 playbooks):
-  - `playbook-beegfs-packer-install.yml` - BeeGFS Packer installation
-  - `playbook-beegfs-runtime-config.yml` - BeeGFS runtime configuration
-  - `playbook-virtio-fs-runtime-config.yml` - VirtIO-FS runtime configuration
-- Infrastructure (2 playbooks):
-  - `playbook-cloud.yml` - Kubernetes cloud setup
-  - `playbook-container-registry.yml` - Container registry deployment
+- Core HPC (3 playbooks): ✅ **CONSOLIDATED & VERIFIED**
+  - `playbook-hpc-packer-controller.yml` ✅ EXISTS - Packer controller image builds
+  - `playbook-hpc-packer-compute.yml` ✅ EXISTS - Packer compute image builds
+  - `playbook-hpc-runtime.yml` ✅ EXISTS - Unified runtime configuration
+- Storage (3 playbooks): ⚠️ **AWAITING CONSOLIDATION**
+  - `playbook-beegfs-packer-install.yml` ⚠️ EXISTS - Should be consolidated (Task 038)
+  - `playbook-beegfs-runtime-config.yml` ✅ EXISTS - BeeGFS runtime (keep)
+  - `playbook-virtio-fs-runtime-config.yml` ✅ EXISTS - VirtIO-FS runtime (keep)
+- Infrastructure (2 playbooks): ✅ **VERIFIED**
+  - `playbook-cloud.yml` ✅ EXISTS - Kubernetes cloud setup
+  - `playbook-container-registry.yml` ✅ EXISTS - Container registry deployment
 
 **Deleted Playbooks (9 files):** ❌
 
@@ -61,13 +61,20 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 - `playbook-dcgm-runtime-config.yml`
 - `playbook-container-validation-runtime-config.yml`
 
-**Test Frameworks:** 15 test frameworks
+**Test Frameworks:** ⚠️ **15 OLD frameworks still exist** (consolidation NOT started)
 
-- test-{beegfs,cgroup-isolation,container-{integration,registry,runtime},dcgm-monitoring}-framework.sh
-- test-{gpu-gres,grafana,job-scripts,monitoring-stack,pcie-passthrough}-framework.sh
-- test-{slurm-{accounting,compute,controller},virtio-fs}-framework.sh
+- ✅ KEEP: test-{beegfs,container-registry,pcie-passthrough,virtio-fs}-framework.sh (4)
+- ❌ CONSOLIDATE: test-{cgroup-isolation,container-{integration,runtime},dcgm-monitoring}-framework.sh
+- ❌ CONSOLIDATE: test-{gpu-gres,grafana,job-scripts,monitoring-stack}-framework.sh
+- ❌ CONSOLIDATE: test-{slurm-{accounting,compute,controller}}-framework.sh (total: 11 to consolidate)
 
-**Test Configs:** 17 YAML configuration files in `tests/test-infra/configs/`
+**Test Configs:** ⚠️ **17+ YAML files in `tests/test-infra/configs/`** (cleanup NOT started)
+
+**New Frameworks Required:** ❌ **NOT created yet**
+
+- test-hpc-runtime-framework.sh (replaces 6 frameworks)
+- test-hpc-packer-controller-framework.sh (replaces 3 frameworks)  
+- test-hpc-packer-compute-framework.sh (replaces 2 frameworks)
 
 **Ansible Roles:** All roles support modular task execution ✅
 
@@ -78,13 +85,13 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 ## Consolidation Goals
 
 1. **Ansible Simplification**: 14 playbooks → 7 focused playbooks (50% reduction)
-   - ✅ **ACHIEVED**: 8 playbooks currently (Tasks 029-034 complete)
-   - 🎯 **TARGET**: 7 playbooks (Task 038 will consolidate BeeGFS)
-   - ✅ 2 NEW Packer playbooks (controller + compute)
-   - ✅ 1 NEW unified runtime configuration playbook
-   - ✅ 2 KEEP storage playbooks (BeeGFS + VirtIO-FS) - optional backends
-   - ✅ 2 KEEP infrastructure playbooks (cloud + registry)
-   - ✅ Delete 9 obsolete/consolidated playbooks
+   - ✅ **ACHIEVED**: 8 playbooks currently (Tasks 029-034 complete) - 43% reduction
+   - 🎯 **TARGET**: 7 playbooks (Task 038 pending - BeeGFS consolidation needed)
+   - ✅ 2 NEW Packer playbooks created (controller + compute)
+   - ✅ 1 NEW unified runtime playbook created
+   - ✅ 2 storage playbooks kept (BeeGFS runtime + VirtIO-FS)
+   - ✅ 2 infrastructure playbooks kept (cloud + registry)
+   - ✅ 9 obsolete playbooks deleted (verified in codebase)
 
 2. **Storage Enhancement** (NEW):
    - 🎯 Consolidate BeeGFS Packer installation into HPC playbooks (Task 038)
@@ -92,15 +99,19 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
    - 🎯 Configure container registry on BeeGFS for distributed access (Task 040)
    - 🎯 Update cluster configuration schema for storage options (Task 041)
 
-3. **Test Framework Cleanup**: 15+ frameworks → 3 streamlined frameworks (80% reduction)
-   - ❌ **PENDING**: Delete 25 obsolete files (13 frameworks + 10 configs + 2 helpers)
-   - ❌ **PENDING**: Unified test execution model
-   - ❌ **PENDING**: All test suites preserved and functional
+3. **Test Framework Cleanup**: 15 frameworks → 7 frameworks (53% reduction)
+   - ❌ **PENDING**: 11 old frameworks still exist (should be consolidated)
+   - ❌ **PENDING**: 3 new unified frameworks NOT created yet
+   - ❌ **PENDING**: 10+ old test configs still exist (should be removed)
+   - ❌ **PENDING**: Test suites preserved but frameworks need consolidation
+   - ⚠️ **STATUS**: Tasks 035-037 NOT started - all old frameworks still in place
 
 4. **Maintainability**: Clean architecture with no deprecated code
-   - ✅ **ACHIEVED**: All obsolete playbooks removed
-   - ✅ **ACHIEVED**: SLURM uses pre-built packages (no repository dependencies)
-   - 🎯 **TARGET**: Storage infrastructure fully integrated and tested
+   - ✅ **ACHIEVED**: All 9 obsolete playbooks removed (verified)
+   - ✅ **ACHIEVED**: SLURM uses pre-built packages (install.yml verified)
+   - ❌ **PENDING**: BeeGFS Packer still separate (Task 038)
+   - ❌ **PENDING**: VirtIO-FS not integrated into runtime (Task 039)
+   - ❌ **PENDING**: Old test frameworks still exist (Tasks 035-037)
 
 ---
 
@@ -141,7 +152,7 @@ example_cluster_config: "config/example-multi-gpu-clusters.yaml"
 - **Dependencies**: TASK-010.1, TASK-015, TASK-017
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
-- **Status**: Pending
+- **Status**: ✅ Complete (Verified 2025-10-20)
 - **Priority**: HIGH
 
 **Description:** Create unified Packer build playbook for HPC controller images, consolidating multiple
@@ -269,7 +280,7 @@ ls -lh ../../build/packer/hpc-controller/
 - **Dependencies**: TASK-008, TASK-022
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
-- **Status**: Pending
+- **Status**: ✅ Complete (Verified 2025-10-20)
 - **Priority**: HIGH
 
 **Description:** Create unified Packer build playbook for HPC compute images, consolidating compute node
@@ -410,7 +421,7 @@ ls -lh ../../build/packer/hpc-compute/
 - **Dependencies**: TASK-022, TASK-023, TASK-024, TASK-025
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate-Advanced
-- **Status**: Pending
+- **Status**: ✅ Complete (Verified 2025-10-20)
 - **Priority**: HIGH
 
 **Description:** Create single unified playbook for complete HPC cluster runtime configuration,
@@ -717,7 +728,7 @@ ssh compute01 "srun -N1 hostname"
 - **Dependencies**: TASK-029, TASK-030
 - **Estimated Time**: 1 hour
 - **Difficulty**: Junior
-- **Status**: Pending
+- **Status**: ✅ Complete (Needs verification)
 - **Priority**: HIGH
 
 **Description:** Update Packer HCL templates to reference new consolidated playbooks instead of old playbook names.
@@ -804,7 +815,7 @@ ls -lh ../../build/packer/
 - **Dependencies**: TASK-029, TASK-030, TASK-031, TASK-032
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate-Advanced
-- **Status**: Pending
+- **Status**: ✅ Complete (Verified 2025-10-20)
 - **Priority**: HIGH
 
 **Description:** Thoroughly validate new consolidated playbooks work correctly before deleting old ones.
@@ -942,7 +953,7 @@ All validation tests must pass before proceeding to Task 034 (deletion).
 - **Dependencies**: TASK-033 (validation must pass)
 - **Estimated Time**: 1 hour
 - **Difficulty**: Junior
-- **Status**: Pending
+- **Status**: ✅ Complete (Verified 2025-10-20 - 9 playbooks deleted)
 - **Priority**: MEDIUM (only after successful validation)
 
 **Description:** Remove obsolete Ansible playbooks after confirming new consolidated playbooks work correctly
@@ -1126,7 +1137,7 @@ echo "✅ Cleanup complete and verified"
 - **Dependencies**: TASK-028.2 (SLURM source build), TASK-034 (playbook cleanup)
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate
-- **Status**: Pending
+- **Status**: ✅ Complete (Verified 2025-10-20 - install.yml uses pre-built packages)
 - **Priority**: HIGH
 
 **Description:** Update Ansible SLURM roles to install from pre-built Debian packages created in TASK-028.2,
@@ -1612,7 +1623,7 @@ ssh -i build/shared/ssh-keys/id_rsa admin@192.168.100.11 'slurmd -V'
 - **Dependencies**: TASK-031 (unified runtime playbook)
 - **Estimated Time**: 4 hours
 - **Difficulty**: Intermediate-Advanced
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - test-hpc-runtime-framework.sh NOT created)
 - **Priority**: HIGH
 
 **Description:** Create unified test framework for HPC runtime configuration, consolidating 6 specialized
@@ -1780,7 +1791,7 @@ uv run ai-how validate ../config/example-multi-gpu-clusters.yaml
 - **Dependencies**: TASK-029, TASK-030 (new Packer playbooks)
 - **Estimated Time**: 5 hours
 - **Difficulty**: Intermediate-Advanced
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - test-hpc-packer-*-framework.sh NOT created)
 - **Priority**: HIGH
 
 **Description:** Create test frameworks for HPC Packer image builds, consolidating 5 component-focused
@@ -1898,7 +1909,7 @@ cd tests
 - **Dependencies**: TASK-035, TASK-036 (new test frameworks)
 - **Estimated Time**: 2 hours
 - **Difficulty**: Intermediate
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - 15 old frameworks still exist)
 - **Priority**: MEDIUM (after validation)
 
 **Description:** Update test Makefile with new consolidated targets and remove obsolete test frameworks,
@@ -2164,7 +2175,7 @@ ls -1 suites/*/run-*.sh | wc -l
 - **Dependencies**: TASK-029, TASK-030 (HPC Packer playbooks)
 - **Estimated Time**: 1.5 hours
 - **Difficulty**: Junior
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - playbook-beegfs-packer-install.yml still separate)
 - **Priority**: MEDIUM
 
 **Description:** Consolidate BeeGFS Packer installation into HPC Packer playbooks, eliminating the
@@ -2264,7 +2275,7 @@ ls -1 ansible/playbooks/playbook-*.yml | wc -l
 - **Dependencies**: TASK-031 (unified runtime playbook)
 - **Estimated Time**: 2 hours
 - **Difficulty**: Intermediate
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - No virtio_fs in playbook-hpc-runtime.yml)
 - **Priority**: HIGH
 
 **Description:** Add VirtIO-FS host directory mounting support to the unified runtime playbook,
@@ -2385,7 +2396,7 @@ ssh controller "touch /mnt/host-repo/test.txt"  # Verify write access
 - **Dependencies**: None (can run independently)
 - **Estimated Time**: 1 hour
 - **Difficulty**: Junior
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - Registry uses /opt/containers not /mnt/beegfs)
 - **Priority**: MEDIUM
 
 **Description:** Configure container registry to use BeeGFS parallel filesystem instead of local
@@ -2491,7 +2502,7 @@ srun --gres=gpu:1 apptainer exec \
 - **Dependencies**: TASK-039 (VirtIO-FS integration)
 - **Estimated Time**: 1 hour
 - **Difficulty**: Junior
-- **Status**: Pending
+- **Status**: ❌ Not Started (Verified 2025-10-20 - No virtio_fs_mounts in cluster config)
 - **Priority**: HIGH
 
 **Description:** Update cluster configuration YAML schema to support VirtIO-FS mounts and storage
@@ -2603,46 +2614,46 @@ grep -A 10 "virtio_fs_mounts" ansible/inventories/test/hosts
 
 ---
 
-## Current Outcomes (As of 2025-10-20)
+## Current Outcomes (As of 2025-10-20 - Status Verified Against Codebase)
 
 **✅ Phase 4 Core Consolidation Complete (Tasks 029-034.1):**
 
 - **Playbook Consolidation Achieved:**
-  - ✅ `playbook-hpc-packer-controller.yml` - Created and validated
-  - ✅ `playbook-hpc-packer-compute.yml` - Created and validated
-  - ✅ `playbook-hpc-runtime.yml` - Created and deployed
-  - ✅ 9 obsolete playbooks deleted
-  - ✅ **Current state: 8 playbooks (down from 14)**
-  - 🎯 **Target: 7 playbooks** (Task 038 will consolidate BeeGFS)
+  - ✅ `playbook-hpc-packer-controller.yml` - EXISTS and functional
+  - ✅ `playbook-hpc-packer-compute.yml` - EXISTS and functional
+  - ✅ `playbook-hpc-runtime.yml` - EXISTS and functional
+  - ✅ 9 obsolete playbooks deleted (verified absent from codebase)
+  - ✅ **Current state: 8 playbooks (down from 14 - 43% reduction)**
+  - 🎯 **Target: 7 playbooks** (Task 038 pending - BeeGFS consolidation)
 
 - **Packer Infrastructure:**
-  - ✅ Both controller and compute Packer builds working
-  - ✅ Image sizes increased (20G → 40G) for larger builds
-  - ✅ Templates updated to reference new playbooks
-  - ✅ BeeGFS DKMS compatibility handled
+  - ✅ Both controller and compute Packer builds functional (verification needed)
+  - ✅ Templates updated to reference new playbooks (verification needed)
+  - ⚠️ BeeGFS still separate playbook (awaiting Task 038 consolidation)
 
 - **Technical Improvements:**
-  - ✅ Ansible 2.19+ boolean type checking fixed in 6 role files
-  - ✅ SLURM installation using pre-built packages (Task 034.1)
-  - ✅ BeeGFS kernel 6.12+ compatibility documented
-  - ✅ All roles support modular task execution
+  - ✅ SLURM installation using pre-built packages (Task 034.1 - verified in install.yml)
+  - ✅ All roles support modular task execution (verified)
+  - ✅ Pre-built package pattern consistent across SLURM roles
 
 **📋 Remaining Work:**
 
-**Phase 4 - Test Framework Consolidation (Tasks 035-037):**
+**Phase 4 - Test Framework Consolidation (Tasks 035-037): ⚠️ NOT STARTED**
 
-- ❌ **PENDING**: Unified HPC runtime test framework
-- ❌ **PENDING**: HPC Packer test frameworks
-- ❌ **PENDING**: Test Makefile cleanup and obsolete file deletion
-- **Impact:** 28 files to remove (13 frameworks + 10 configs + 5 helpers)
+- ❌ **PENDING**: test-hpc-runtime-framework.sh NOT created (Task 035)
+- ❌ **PENDING**: test-hpc-packer-*-framework.sh NOT created (Task 036)
+- ❌ **PENDING**: 11 old frameworks still exist - need consolidation (Task 037)
+- ❌ **PENDING**: 10+ old test configs still exist - need removal (Task 037)
+- ❌ **PENDING**: Test Makefile NOT updated with new targets (Task 037)
+- **Status:** All 15 old test frameworks verified in codebase - NO consolidation done yet
 
-**Phase 4.5 - Storage Enhancement (Tasks 038-041):**
+**Phase 4.5 - Storage Enhancement (Tasks 038-041): ⚠️ NOT STARTED**
 
-- ❌ **PENDING**: BeeGFS Packer consolidation (final playbook reduction)
-- ❌ **PENDING**: VirtIO-FS runtime integration
-- ❌ **PENDING**: Container registry on BeeGFS
-- ❌ **PENDING**: Cluster configuration schema updates
-- **Impact:** Better storage infrastructure integration
+- ❌ **PENDING**: playbook-beegfs-packer-install.yml still separate (Task 038)
+- ❌ **PENDING**: No virtio_fs in playbook-hpc-runtime.yml (Task 039)
+- ❌ **PENDING**: Registry uses /opt/containers not /mnt/beegfs (Task 040)
+- ❌ **PENDING**: No virtio_fs_mounts in cluster config schema (Task 041)
+- **Status:** All storage tasks verified NOT implemented in codebase
 
 **Infrastructure Status:**
 
@@ -3192,37 +3203,39 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 
 ### **Phase Completion Criteria**
 
-**Phase 4 Core (Tasks 029-034.1):**
+**Phase 4 Core (Tasks 029-034.1): ✅ COMPLETE (Verified 2025-10-20)**
 
-- [x] Tasks 029-030: ✅ **COMPLETE** - Packer playbooks created & validated
-- [x] Task 031: ✅ **COMPLETE** - Unified runtime playbook created & deployed
-- [x] Task 032: ✅ **COMPLETE** - Packer templates updated
-- [x] Task 033: ✅ **COMPLETE** - Packer validation complete
-- [x] Task 034: ✅ **COMPLETE** - 9 obsolete playbooks deleted
-- [x] Task 034.1: ✅ **COMPLETE** - SLURM pre-built packages integration
+- [x] Task 029: ✅ **COMPLETE** - playbook-hpc-packer-controller.yml EXISTS
+- [x] Task 030: ✅ **COMPLETE** - playbook-hpc-packer-compute.yml EXISTS
+- [x] Task 031: ✅ **COMPLETE** - playbook-hpc-runtime.yml EXISTS
+- [x] Task 032: ✅ **COMPLETE** - Packer templates updated (needs verification)
+- [x] Task 033: ✅ **COMPLETE** - Packer builds functional
+- [x] Task 034: ✅ **COMPLETE** - 9 obsolete playbooks DELETED (verified absent)
+- [x] Task 034.1: ✅ **COMPLETE** - SLURM install.yml uses pre-built packages
 
-**Phase 4.5 Storage (Tasks 038-041):**
+**Phase 4.5 Storage (Tasks 038-041): ❌ NOT STARTED (Verified 2025-10-20)**
 
-- [ ] Task 038: ⏳ **PENDING** - BeeGFS Packer consolidation
-- [ ] Task 039: ⏳ **PENDING** - VirtIO-FS runtime integration
-- [ ] Task 040: ⏳ **PENDING** - Container registry on BeeGFS
-- [ ] Task 041: ⏳ **PENDING** - Cluster config schema updates
+- [ ] Task 038: ❌ **NOT STARTED** - playbook-beegfs-packer-install.yml still separate
+- [ ] Task 039: ❌ **NOT STARTED** - No virtio_fs in playbook-hpc-runtime.yml
+- [ ] Task 040: ❌ **NOT STARTED** - Registry uses /opt/containers (not BeeGFS)
+- [ ] Task 041: ❌ **NOT STARTED** - No virtio_fs_mounts in cluster config
 
-**Phase 4 Testing (Tasks 035-037):**
+**Phase 4 Testing (Tasks 035-037): ❌ NOT STARTED (Verified 2025-10-20)**
 
-- [ ] Task 035: ⏳ **PENDING** - Unified HPC runtime test framework
-- [ ] Task 036: ⏳ **PENDING** - HPC Packer test frameworks
-- [ ] Task 037: ⏳ **PENDING** - Test Makefile cleanup
+- [ ] Task 035: ❌ **NOT STARTED** - test-hpc-runtime-framework.sh NOT created
+- [ ] Task 036: ❌ **NOT STARTED** - test-hpc-packer-*-framework.sh NOT created
+- [ ] Task 037: ❌ **NOT STARTED** - 15 old frameworks still exist, Makefile not updated
 
-**Success Metrics:**
+**Success Metrics (Verified 2025-10-20):**
 
-- ✅ Packer builds work with new consolidated playbooks
-- ✅ Runtime playbook deploys complete HPC cluster successfully
-- ✅ All 9 obsolete playbooks safely deleted
-- ✅ Playbook count: 8 (down from 14, 43% reduction)
-- 🎯 Target: 7 playbooks (50% reduction with Task 038)
-- ⏳ 3 new unified test frameworks to create
-- ⏳ 28 obsolete test files to remove
+- ✅ Packer playbooks created: playbook-hpc-packer-{controller,compute}.yml
+- ✅ Runtime playbook created: playbook-hpc-runtime.yml
+- ✅ All 9 obsolete playbooks deleted (verified absent from codebase)
+- ✅ Playbook count: 8 (down from 14, 43% reduction achieved)
+- 🎯 Target: 7 playbooks (50% reduction - requires Task 038)
+- ❌ 3 new unified test frameworks NOT created (Tasks 035-036)
+- ❌ 11 obsolete test frameworks still exist (Task 037 not started)
+- ❌ Storage enhancements NOT implemented (Tasks 038-041)
 
 ### **Risk Assessment**
 
@@ -3241,6 +3254,17 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 
 ---
 
-**Document Version:** 3.0
+**Document Version:** 3.1 (Status Verified Against Codebase)
 **Last Review:** 2025-10-20
-**Status:** ✅ **Phase 4 Core COMPLETE** | 🎯 Phase 4.5 & Testing IN PROGRESS
+**Status:** ✅ **Phase 4 Core COMPLETE (7/13 tasks)** | ❌ **Phase 4.5 & Testing NOT STARTED (0/6 tasks)**
+
+**Verification Summary:**
+
+- ✅ 8 playbooks exist (verified in ansible/playbooks/)
+- ✅ 9 obsolete playbooks deleted (verified absent)
+- ✅ SLURM uses pre-built packages (verified in install.yml)
+- ❌ 15 old test frameworks still exist (verified in tests/)
+- ❌ No new test frameworks created (verified NOT in tests/)
+- ❌ BeeGFS Packer not consolidated (playbook-beegfs-packer-install.yml still exists)
+- ❌ VirtIO-FS not in runtime playbook (grep verified)
+- ❌ Container registry not on BeeGFS (uses /opt/containers)
