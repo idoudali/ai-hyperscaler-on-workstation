@@ -1,4 +1,4 @@
-site_name: AI-HOW: AI Hyperscaler on Workstation
+site_name: "AI-HOW: AI Hyperscaler on Workstation"
 site_description: High-performance computing (HPC) hyperscaler infrastructure on workstation hardware
 site_author: AI-HOW Team
 site_url: https://idoudali.github.io/ai-hyperscaler-on-workskation
@@ -10,11 +10,6 @@ edit_uri: edit/main/docs/
 
 # Copyright
 copyright: Copyright &copy; 2024-2025 AI-HOW Team
-
-# Exclude directories from documentation build
-exclude_docs: |
-  /implementation-plans/
-  /beegfs-installation-flow.md
 
 # Configuration
 theme:
