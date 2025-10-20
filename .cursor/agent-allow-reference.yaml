@@ -61,7 +61,6 @@ models:
 filesystem:
   # Allowed directories for read/write operations
   allowed_paths:
-    - "/home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2/**"
     - "./**"
 
   # Explicitly denied paths (takes precedence over allowed_paths)

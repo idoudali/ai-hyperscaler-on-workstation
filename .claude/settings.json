@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "project": {
+    "name": "ai-hyperscaler-on-workstation",
+    "description": "AI/HPC infrastructure emulation using KVM + SLURM + Kubernetes on single workstation"
+  },
+
+  "permissionMode": "default",
+
+  "env": {
+    "CLAUDE_CODE_PROJECT_ROOT": "${workspaceFolder}",
+    "CLAUDE_CODE_BUILD_CONTAINER": "make run-docker",
+    "CLAUDE_CODE_TEST_COMMAND": "cd tests && make test",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+    "CLAUDE_CODE_PREVENT_AUTO_COMMIT": "1",
+    "CLAUDE_CODE_REQUIRE_CONTAINER_BUILDS": "1"
+  },
+
+  "context": {
+    "sharedRulesDirectory": "../.ai/rules",
+    "contextFiles": [
+      "../.ai/context/project-overview.md",
+      "../.ai/context/quick-reference.md"
+    ],
+    "alwaysInclude": [
+      "README.md",
+      "Makefile",
+      "AI-AGENT-GUIDE.md"
+    ]
+  },
+
+  "tools": {
+    "allowed": [
+      "read_file",
+      "list_dir",
+      "codebase_search",
+      "grep",
+      "file_search",
+      "glob_file_search"
+    ],
+    "requireApproval": [
+      "run_terminal_cmd",
+      "search_replace",
+      "write",
+      "delete_file"
+    ],
+    "blocked": [
+      "execute_sudo",
+      "force_push"
+    ]
+  },
+
+  "workflows": {
+    "build": {
+      "description": "Build in Docker container",
+      "steps": [
+        "make build-docker",
+        "make config",
+        "make run-docker COMMAND='cmake --build build --target ${target}'"
+      ]
+    },
+    "test": {
+      "description": "Run test suite",
+      "steps": [
+        "cd tests",
+        "make test"
+      ]
+    },
+    "test-quick": {
+      "description": "Run quick validation tests",
+      "steps": [
+        "cd tests",
+        "make test-quick"
+      ]
+    },
+    "test-python": {
+      "description": "Test Python CLI package",
+      "steps": [
+        "make test-ai-how"
+      ]
+    },
+    "commit": {
+      "description": "Interactive commit with conventional commits",
+      "command": "cz commit",
+      "requireApproval": true
+    },
+    "shell": {
+      "description": "Enter development container shell",
+      "command": "make shell-docker",
+      "interactive": true
+    }
+  },
+
+  "safety": {
+    "preventAutoCommit": true,
+    "preventForcePush": true,
+    "preventDestructiveOps": true,
+    "requireContainerForBuilds": true,
+    "delegateMergeConflictContinuation": true,
+    "protectedFiles": [
+      "Makefile",
+      "CMakeLists.txt",
+      "pyproject.toml",
+      ".gitignore",
+      ".cursor/rules/**",
+      ".claude/settings.json",
+      ".ai/rules/**"
+    ],
+    "blockedCommands": [
+      "git push --force",
+      "git push -f",
+      "git reset --hard",
+      "git clean -fd",
+      "git rebase --continue",
+      "git cherry-pick --continue",
+      "sudo rm -rf",
+      "terraform destroy",
+      "docker system prune -a"
+    ]
+  },
+
+  "git": {
+    "commitFormat": "conventional",
+    "requireApprovalForCommit": true,
+    "requireApprovalForPush": true,
+    "preventForceOperations": true,
+    "delegateConflictResolution": true
+  },
+
+  "documentation": {
+    "mainGuide": "AI-AGENT-GUIDE.md",
+    "claudeGuide": ".ai/docs/claude-guide.md",
+    "sharedRules": ".ai/rules/",
+    "projectDocs": "docs/"
+  }
+}
