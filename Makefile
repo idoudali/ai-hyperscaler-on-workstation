@@ -1,4 +1,27 @@
 # Makefile for managing the development environment and build process
+#
+# This Makefile provides a comprehensive build system for the Pharos AI Hyperscaler project.
+# It orchestrates Docker-based development environments, CMake builds, Python package management,
+# and documentation generation.
+#
+# Key Features:
+# - Containerized development environment with all required tools
+# - CMake-based build orchestration with Ninja generator
+# - Python virtual environment management with uv
+# - Automated documentation generation with MkDocs
+# - Pre-commit hooks for code quality
+#
+# Architecture:
+# - Docker provides isolated development environment
+# - CMake coordinates Packer image builds and container builds
+# - Makefile provides convenient wrapper commands
+# - All build operations run inside development container
+#
+# Usage:
+#   make build-docker    # Build development container
+#   make config          # Configure CMake project
+#   make shell-docker    # Enter development environment
+#   make run-docker COMMAND="cmake --build build --target <target>"
 
 # Set default shell to bash
 SHELL := /bin/bash

@@ -70,6 +70,7 @@ plugins:
         - 'ansible/**'
         - 'packer/**'
         - 'containers/**'
+        - '3rd-party/**'
         - 'scripts/**'
         - 'config/**'
         - 'docker/**'
@@ -180,6 +181,7 @@ nav:
       - Job Debugging: tutorials/07-job-debugging.md
   - Architecture:
       - Overview: architecture/overview.md
+      - Build System: architecture/build-system.md
       - Network: architecture/network.md
       - Storage: architecture/storage.md
       - GPU: architecture/gpu.md
