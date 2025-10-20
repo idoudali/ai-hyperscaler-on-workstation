@@ -1,177 +1,71 @@
 ---
-description: "Command execution safety policy - deny dangerous commands while allowing all others"
 alwaysApply: true
 ---
-
 # Command Execution Safety Policy
 
 ## Security Model: Deny-List Approach
 
-This project uses a **deny-list** security model for command execution:
-- ✅ All commands are allowed by default
-- ❌ Only explicitly dangerous commands are blocked
-- ⚠️ Requires careful monitoring and review
+- ✅ All commands allowed by default
+- ❌ Only explicitly dangerous commands blocked
+- ⚠️ Requires careful monitoring
 
 ## 🚫 Globally Denied Commands
 
-You MUST NOT execute the following dangerous commands:
-
 ### Privilege Escalation
-- `sudo *` - Requires explicit user approval
-- `su *` - Requires explicit user approval
-- `doas *` - Requires explicit user approval
+- `sudo *`, `su *`, `doas *` - Require user approval
 
-### Destructive File Operations
-- `rm -rf /*` - System-wide deletion
-- `rm -rf ~/*` - Home directory deletion
-- `rm -rf /home/*`, `/usr/*`, `/etc/*`, `/var/*`, `/opt/*`
-- `find * -delete` - Mass deletion
-- `find * -exec rm *` - Hidden deletion
-- `shred *` - Permanent deletion
+### Destructive Operations
+- `rm -rf /*`, `rm -rf ~/*`, `rm -rf /home/*`, `/usr/*`, `/etc/*`, `/var/*`, `/opt/*`
+- `find * -delete`, `find * -exec rm *`, `shred *`
 
 ### Dangerous Permissions
-- `chmod 777 *` - Overly permissive
-- `chmod -R 777 *` - Recursive overly permissive
-- `chmod a+w /*` - World-writable system files
-- `chown -R * /*` - System ownership changes
+- `chmod 777 *`, `chmod -R 777 *`, `chmod a+w /*`
+- `chown -R * /*`
 
 ### System Modification
-- `mkfs*` - Format filesystems
-- `fdisk *` - Partition operations
-- `parted *` - Partition operations
-- `dd if=* of=/dev/*` - Raw device writes
-- `mkswap *`, `swapon *` - Swap operations
+- `mkfs*`, `fdisk *`, `parted *`
+- `dd if=* of=/dev/*`
+- `mkswap *`, `swapon *`
 
 ### Package Management (Require Approval)
-- `apt-get remove *`, `apt remove *`
-- `apt-get purge *`, `apt purge *`
-- `yum remove *`, `dnf remove *`
-- `pacman -R *`
+- `apt-get remove/purge *`, `apt remove/purge *`
+- `yum remove *`, `dnf remove *`, `pacman -R *`
 
 ### Service Control (Require Approval)
-- `systemctl stop *`, `systemctl disable *`
-- `systemctl poweroff`, `systemctl reboot`
+- `systemctl stop/disable *`, `systemctl poweroff/reboot`
 - `shutdown *`, `reboot`, `halt`, `poweroff`
 
 ### Force Operations (Require Approval)
-- `git push --force*`, `git push -f*`
-- `git reset --hard HEAD~*`
-- `git clean -fd*`
-- `terraform destroy*`
-- `terraform apply -auto-approve*`
-- `docker system prune -a*`
-- `docker rm -f $(docker ps -aq)`
+- `git push --force*`, `git reset --hard*`, `git clean -fd*`
+- `terraform destroy*`, `terraform apply -auto-approve*`
+- `docker system prune -a*`, `docker rm -f $(docker ps -aq)`
 - `kubectl delete --all*`
-- `ansible-playbook * --force*`
-- `packer build * --force*`
+- `ansible-playbook * --force*`, `packer build * --force*`
 
 ### Security Risks
-- `nmap *` - Network scanning
-- `nc -e *`, `netcat -e *` - Backdoor shells
-- `eval *`, `exec *` - Arbitrary code execution
-- `history -c`, `history -w` - History manipulation
-- `> ~/.bash_history` - History deletion
+- `nmap *`, `nc -e *`, `netcat -e *`
+- `eval *`, `exec *`
+- `history -c`, `history -w`, `> ~/.bash_history`
 
 ### Raw Device Access
-- `* > /dev/sd*` - Direct disk writes
-- `* > /dev/nvme*` - Direct disk writes
-- `cat * > /dev/sd*` - Direct disk writes
+- `* > /dev/sd*`, `* > /dev/nvme*`
 
-### Process Killing (Critical Processes)
-- `kill -9 1` - Kill init/systemd
-- `killall -9 *` - Force kill all
-- `pkill -9 *` - Force kill pattern
+### Process Killing
+- `kill -9 1`, `killall -9 *`, `pkill -9 *`
 
 ## ✅ All Other Commands Allowed
 
-Any command not explicitly listed above is permitted, including:
-- File operations (ls, cat, grep, find, etc.)
-- Build tools (make, cmake, ninja, npm, cargo, etc.)
-- Version control (git status, diff, log, add, commit, etc.)
-- Development tools (editors, debuggers, profilers, etc.)
-- Infrastructure tools (terraform plan, ansible-playbook --check, etc.)
-- Container operations (docker ps, build, run, etc.)
-- System information (ps, top, df, du, etc.)
+Permitted commands:
+- File operations (ls, cat, grep, find)
+- Build tools (make, cmake, ninja, npm, cargo)
+- Version control (git status, diff, log, add, commit)
+- Development tools (editors, debuggers, profilers)
+- Infrastructure tools (terraform plan, ansible-playbook --check)
+- Container operations (docker ps, build, run)
+- System information (ps, top, df, du)
 
 ## Guidelines
 
-When executing commands:
-
 1. **Default to Allow** - If not in deny list, command is allowed
-2. **Ask for Dangerous Operations** - When in doubt, ask user for approval
-3. **Explain Impact** - When executing powerful commands, explain what they do
-4. **Safe Alternatives** - Suggest safer alternatives when available
-5. **Review Before Executing** - Think through consequences before running
-
-## Examples
-
-### ✅ Allowed Commands
-
-```bash
-# File operations
-ls -la
-grep "pattern" file.txt
-find . -name "*.py"
-
-# Build operations
-make build
-cmake --build build
-ninja -C build
-
-# Git operations
-git status
-git add .
-git commit -m "message"
-git log
-
-# Infrastructure (safe operations)
-terraform plan
-terraform validate
-ansible-playbook --check playbook.yml
-docker ps
-kubectl get pods
-
-# System info
-ps aux
-df -h
-top
-```
-
-### ❌ Blocked Commands (Ask User First)
-
-```bash
-# Privilege escalation
-sudo apt install package
-
-# Destructive operations
-rm -rf /var/lib/something
-
-# Force operations
-git push --force
-terraform destroy
-
-# System changes
-systemctl stop nginx
-chmod 777 /tmp
-
-# Infrastructure changes
-terraform apply -auto-approve
-ansible-playbook site.yml --force
-```
-
-## When to Ask User
-
-Ask for explicit approval when:
-- Command requires `sudo` or elevated privileges
-- Command will modify system services or packages
-- Command uses `--force`, `-f`, or auto-approve flags
-- Command will delete or destroy infrastructure
-- Command might have irreversible consequences
-- You're unsure if the command is safe
-
-## Monitoring
-
-- Review command execution regularly
-- Check `.cursor/agent.log` for command history
-- Report suspicious command patterns
-- Update deny list as new dangers discovered
+2. **Ask for Dangerous Ops** - When in doubt, ask user
+3. **Explain Impact** - Explain powerful commands

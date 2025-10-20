@@ -339,9 +339,6 @@ Before finalizing markdown content, verify:
 - [ ] No trailing spaces (except 2 for line breaks)
 EOF
 
-```text
-```
-
 ### Step 3: Verify Rules Are Loaded
 
 ```bash

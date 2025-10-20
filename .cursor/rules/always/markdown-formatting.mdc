@@ -1,111 +1,53 @@
 ---
-description: "Ensures all generated markdown content passes markdownlint validation with proper formatting standards."
+description: "Markdown formatting standards for markdownlint compliance"
 alwaysApply: true
 ---
 
 # Markdown Formatting Standards
 
-When generating markdown content, strictly follow these formatting rules to ensure compliance with `.markdownlint.yaml`:
+Follow these rules for `.markdownlint.yaml` compliance:
 
-## Headers
-- Use ATX style headers with `#` symbols
-- Maximum line length: 120 characters
-- No trailing punctuation in headers
-- Allow duplicate headings only in different sections
+## Core Rules
 
-## Lists
+### Headers
+- Use ATX style (`#` symbols)
+- Max line length: 120 characters
+- No trailing punctuation
+
+### Lists
 - Use dash (`-`) for unordered lists
-- Use ordered numbers for ordered lists
-- Indent list items with exactly 2 spaces
-- Allow multiple spaces after list markers
+- Use numbers for ordered lists
+- Indent with exactly 2 spaces
+- Checkbox format: `- [ ]` or `- [x]`
 
-## Code and Technical Content
+### Code
 - Use fenced code blocks with triple backticks
-- Maximum code block line length: 120 characters
-- Allow inline HTML when needed for complex formatting
-- Allow bare URLs in technical documentation
-
-## Line Length and Spacing
-- Maximum line length: 120 characters for all content
-- Allow 2 trailing spaces for line breaks
-- No trailing spaces otherwise
-
-## Special Cases
-- Allow emphasis used instead of headers when appropriate
-- Allow first line to not be a top-level header
-- Allow inline HTML for complex tables and formatting
-
-## Content Generation Guidelines
-
-### Documentation Structure
-- Start with clear, descriptive headers
-- Use consistent hierarchy (H1 -> H2 -> H3)
-- Include table of contents for long documents
-- Add descriptive alt text for any images
-
-### Technical Documentation
-- Use code blocks for commands, configuration, and code
 - Include language hints for syntax highlighting
-- Use inline code for file paths, commands, and variables
-- Create clear, actionable task lists
+- Use inline code for file paths, commands, variables
+- Max code block line length: 120 characters
 
-### Lists and Task Items
-- Use consistent checkbox format: `- [ ]` for tasks
-- Use `- [x]` for completed tasks
-- Maintain proper indentation (2 spaces)
-- Group related items under descriptive headers
+### Line Length and Spacing
+- Max line length: 120 characters
+- Allow 2 trailing spaces for line breaks
+- No other trailing spaces
 
-### Tables and Data
-- Use HTML tables for complex data when needed
-- Ensure proper alignment and formatting
-- Include headers for all columns
-- Keep tables within line length limits
+### Special Cases
+- Allow inline HTML for complex tables/formatting
+- Allow bare URLs in technical docs
+- Allow first line to not be H1
 
 ## Validation Checklist
 
-Before finalizing any markdown content, verify:
+Before finalizing markdown:
 - [ ] All headers use ATX style (`#`)
-- [ ] Lists use dash (`-`) for unordered items
-- [ ] Proper 2-space indentation throughout
+- [ ] Lists use dash (`-`)
+- [ ] Proper 2-space indentation
 - [ ] No lines exceed 120 characters
-- [ ] Code blocks are properly fenced
-- [ ] No trailing spaces (except 2 for line breaks)
-- [ ] Consistent formatting and structure
-
-## Examples
-
-### Correct Header Format
-```markdown
-# Main Header
-## Sub Header
-### Section Header
-```
-
-### Correct List Format
-```markdown
-- [ ] Task item
-- [x] Completed task
-  - [ ] Sub-task with proper indentation
-```
-
-### Correct Code Block
-```markdown
-```bash
-# Example command
-sudo apt update
-```
-```
-
-### Correct Table Format
-```markdown
-| Column 1 | Column 2 |
-|----------|----------|
-| Data 1   | Data 2   |
-```
+- [ ] Code blocks properly fenced
+- [ ] No trailing spaces (except 2 for breaks)
 
 ## Error Prevention
 
-- Always test generated content against markdownlint
-- Use consistent formatting patterns
-- Maintain readability and clarity
-- Follow established documentation conventions
+- Test against markdownlint
+- Use consistent patterns
+- Maintain readability

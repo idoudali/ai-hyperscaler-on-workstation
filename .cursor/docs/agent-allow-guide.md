@@ -506,7 +506,7 @@ If agent needs to modify a protected file:
 - name: Validate Cursor Agent Config
   run: |
     # Validate YAML syntax
-    yamllint .cursor-agent-allow.yaml
+    yamllint .cursor/agent-allow-reference.yaml
 ```
 
 ### Pre-commit Hooks
@@ -542,7 +542,7 @@ For issues or questions about the Cursor Agent whitelist configuration:
 **YAML Template (This Project):**
 
 ```yaml
-# .cursor-agent-allow.yaml
+# .cursor/agent-allow-reference.yaml
 permissions:
   read: true
   write: true

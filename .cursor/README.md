@@ -17,9 +17,12 @@ This directory contains Cursor IDE configuration, rules, and documentation.
     │   ├── documentation-updates.mdc
     │   └── slurm-gpu-config.mdc
     ├── always/                      # Always-applied rules
-    │   ├── commit-approval-required.mdc
-    │   ├── dev-container-build.mdc
-    │   └── markdown-formatting.mdc
+    │   ├── build-container.mdc
+    │   ├── command-safety.mdc
+    │   ├── commit-workflow.mdc
+    │   ├── git-workflow.mdc
+    │   ├── markdown-formatting.mdc
+    │   └── precommit-workflow.mdc
     ├── auto/                        # Auto-applied rules (file glob-based)
     │   ├── ansible-best-practices.mdc
     │   ├── docker-package-sorting.mdc
