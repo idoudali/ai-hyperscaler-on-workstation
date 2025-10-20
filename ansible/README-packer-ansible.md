@@ -168,7 +168,7 @@ If you haven't set up the virtual environment yet, use the project's Makefile:
 
 ```bash
 # Navigate to project root
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation
+cd /path/to/ai-hyperscaler-on-workskation
 
 # Install virtual environment and all dependencies (including Ansible)
 make venv-install

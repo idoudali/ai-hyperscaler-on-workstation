@@ -6,7 +6,7 @@ base library, including Apptainer conversion, GPU support, and cluster deploymen
 """
 
 __version__ = "1.0.0"
-__author__ = "Pharos AI Hyperscaler Team"
+__author__ = "AI-HOW Team"
 
 # When docker-wrapper is available, import its classes
 # from docker_wrapper import DockerImage, DockerClient

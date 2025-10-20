@@ -1,4 +1,4 @@
-# Cursor Agent Configuration for Pharos AI Hyperscaler Project
+# Cursor Agent Configuration for AI-HOW Project
 
 This document explains how to configure and use the Cursor agent with this project's Docker-based
 development environment and CMake build system.

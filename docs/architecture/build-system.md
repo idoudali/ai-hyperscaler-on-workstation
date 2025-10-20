@@ -28,7 +28,7 @@ handling infrastructure image creation.
 **Configuration:**
 
 - **Dockerfile:** `docker/Dockerfile`
-- **Image Name:** `pharos-dev:latest`
+- **Image Name:** `ai-how-dev:latest`
 - **Helper Script:** `scripts/run-in-dev-container.sh`
 
 ### 2. CMake Build Orchestrator
@@ -207,7 +207,7 @@ make run-docker COMMAND="cmake --build build --target cleanup"
 ### Directory Structure
 
 ```text
-pharos.ai-hyperscaler-on-workskation/
+ai-hyperscaler-on-workskation/
 ├── build/                          # CMake build directory
 ├── docker/                         # Development container
 │   ├── Dockerfile
@@ -251,7 +251,7 @@ pharos.ai-hyperscaler-on-workskation/
 ```bash
 # Clone repository
 git clone <repository-url>
-cd pharos.ai-hyperscaler-on-workskation
+cd ai-hyperscaler-on-workskation
 
 # Build development container
 make build-docker
@@ -382,7 +382,7 @@ apptainer --version
 cmake --build build --target <target> --verbose
 
 # Enable Docker build logs
-docker build --progress=plain -t pharos-dev:latest ./docker
+docker build --progress=plain -t ai-how-dev:latest ./docker
 
 # Enable Packer debug output
 export PACKER_LOG=1

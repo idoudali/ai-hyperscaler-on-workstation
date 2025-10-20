@@ -63,8 +63,8 @@ During the installation, accept the license agreement and allow the installer to
 
 1.4 Architecting the Virtual Networks: Creating Isolated Bridges for HPC and Cloud
 
-To accurately emulate the distinct infrastructure stacks from the design document, it is essential to create separate, isolated virtual networks for the HPC cluster and the 'Pharos' cloud. The design document specifies different physical networking for training (InfiniBand) and inference (Ethernet) to optimize for different workloads.1 While the performance characteristics of InfiniBand cannot be replicated in this virtual environment, the principle of logical and network isolation can and should be emulated.
-This is achieved by creating two distinct virtual network bridges using libvirt. By default, libvirt creates a single network named default, which operates in NAT mode and uses the virbr0 bridge device. For this emulation, two new networks will be created: hpc-net for the SLURM cluster and pharos-net for the Kubernetes cluster. This creates two separate Layer 2 broadcast domains, preventing network chatter between the environments and allowing for independent network policies and IP address schemes.
+To accurately emulate the distinct infrastructure stacks from the design document, it is essential to create separate, isolated virtual networks for the HPC cluster and the 'AI-HOW' cloud. The design document specifies different physical networking for training (InfiniBand) and inference (Ethernet) to optimize for different workloads.1 While the performance characteristics of InfiniBand cannot be replicated in this virtual environment, the principle of logical and network isolation can and should be emulated.
+This is achieved by creating two distinct virtual network bridges using libvirt. By default, libvirt creates a single network named default, which operates in NAT mode and uses the virbr0 bridge device. For this emulation, two new networks will be created: hpc-net for the SLURM cluster and ai-how-net for the Kubernetes cluster. This creates two separate Layer 2 broadcast domains, preventing network chatter between the environments and allowing for independent network policies and IP address schemes.
 These networks are defined using XML files and managed with the virsh command-line tool.
 1. Create the XML definition for hpc-net (e.g., hpc-net.xml):
 This network will use the 192.168.100.0/24 subnet.
@@ -84,14 +84,14 @@ XML
 </network>
 
 
-2. Create the XML definition for pharos-net (e.g., pharos-net.xml):
+2. Create the XML definition for ai-how-net (e.g., ai-how-net.xml):
 This network will use the 192.168.200.0/24 subnet.
 
 XML
 
 
 <network>
-  <name>pharos-net</name>
+  <name>ai-how-net</name>
   <forward mode='nat'/>
   <bridge name='virbr200' stp='on' delay='0'/>
   <ip address='192.168.200.1' netmask='255.255.255.0'>
@@ -112,10 +112,10 @@ sudo virsh net-define hpc-net.xml
 sudo virsh net-start hpc-net
 sudo virsh net-autostart hpc-net
 
-# Define and start the Pharos cloud network
-sudo virsh net-define pharos-net.xml
-sudo virsh net-start pharos-net
-sudo virsh net-autostart pharos-net
+# Define and start the AI-HOW cloud network
+sudo virsh net-define ai-how-net.xml
+sudo virsh net-start ai-how-net
+sudo virsh net-autostart ai-how-net
 
 # Verify the networks are active
 sudo virsh net-list
@@ -153,16 +153,16 @@ virbr100
 192.168.100.0/24
 192.168.100.10 - 192.168.100.254
 Isolated network for the emulated SLURM HPC cluster VMs.
-pharos-net
+ai-how-net
 virbr200
 192.168.200.0/24
 192.168.200.10 - 192.168.200.254
-Isolated network for the emulated 'Pharos' Kubernetes cloud VMs.
+Isolated network for the emulated 'AI-HOW' Kubernetes cloud VMs.
 
 
 Section 2: Carving the Core: GPU Partitioning for a Hybrid Environment
 
-With the host system prepared, the focus shifts to partitioning the physical NVIDIA A100 GPU. This emulation creates a hybrid environment where GPU resources are strategically allocated to both the HPC cluster for training and the 'Pharos' cloud for accelerated inference. NVIDIA's Multi-Instance GPU (MIG) technology allows a single Ampere-architecture GPU to be securely partitioned into multiple, fully isolated GPU Instances (GIs), each with its own dedicated compute, memory, and cache resources.1 This section details the process of creating and allocating these virtual GPUs to their respective clusters.
+With the host system prepared, the focus shifts to partitioning the physical NVIDIA A100 GPU. This emulation creates a hybrid environment where GPU resources are strategically allocated to both the HPC cluster for training and the 'AI-HOW' cloud for accelerated inference. NVIDIA's Multi-Instance GPU (MIG) technology allows a single Ampere-architecture GPU to be securely partitioned into multiple, fully isolated GPU Instances (GIs), each with its own dedicated compute, memory, and cache resources.1 This section details the process of creating and allocating these virtual GPUs to their respective clusters.
 
 2.1 Enabling MIG (Multi-Instance GPU) Mode on the A100
 
@@ -200,7 +200,7 @@ The output should be Enabled. The standard nvidia-smi output will also now show 
 
 The NVIDIA A100 GPU can be partitioned into a maximum of seven GPU Instances.1 To create a balanced hybrid environment that serves both training and inference workloads, we will divide these instances between the two clusters. A logical allocation is:
 Four GPU Instances for the HPC cluster, enabling a powerful 4-node distributed training environment.
-Three GPU Instances for the 'Pharos' cloud, creating a 3-node pool for GPU-accelerated inference within the Kubernetes cluster.
+Three GPU Instances for the 'AI-HOW' cloud, creating a 3-node pool for GPU-accelerated inference within the Kubernetes cluster.
 To maximize the number of nodes, the optimal strategy is to create seven identical 1g.5gb instances. This provides one vGPU for each of the seven planned GPU-enabled VMs, giving each an isolated slice of the A100 with approximately 5GB of VRAM and 1/7th of the GPU's streaming multiprocessors.
 
 2.3 Creating GPU Instances and Corresponding Mediated Devices (mdevs)
@@ -285,7 +285,7 @@ Kubernetes CPU Worker
 
 Section 3: Automating Image Creation with Packer
 
-To ensure a consistent and reproducible foundation for all virtual machines, we introduce HashiCorp Packer. Packer automates the creation of machine images, producing a "golden image" that can be used as a base for both the HPC and Pharos cluster VMs. This approach replaces manual, per-VM OS installation with a standardized, automated process, significantly reducing setup time and eliminating configuration drift.
+To ensure a consistent and reproducible foundation for all virtual machines, we introduce HashiCorp Packer. Packer automates the creation of machine images, producing a "golden image" that can be used as a base for both the HPC and AI-HOW cluster VMs. This approach replaces manual, per-VM OS installation with a standardized, automated process, significantly reducing setup time and eliminating configuration drift.
 
 3.1 Introduction to Packer for Building QEMU Images
 
@@ -685,13 +685,13 @@ srun --gres=gpu:1 --pty nvidia-smi
 
 A successful srun command confirms that the fully automated deployment of the HPC cluster is complete and operational.
 
-Section 5: Building the 'Pharos' Hybrid MLOps Cloud with Ansible
+Section 5: Building the 'AI-HOW' Hybrid MLOps Cloud with Ansible
 
-This section details the construction of the emulated 'Pharos' cloud, a modern, hybrid-compute, container-native environment built on Kubernetes. This platform is designed to host the MLOps software stack and support both CPU- and GPU-based inference workloads.1 The process involves provisioning a mix of CPU and GPU virtual machines, attaching the allocated vGPUs, and using a dedicated Ansible playbook to bootstrap a multi-node Kubernetes cluster and deploy the NVIDIA GPU Operator.
+This section details the construction of the emulated 'AI-HOW' cloud, a modern, hybrid-compute, container-native environment built on Kubernetes. This platform is designed to host the MLOps software stack and support both CPU- and GPU-based inference workloads.1 The process involves provisioning a mix of CPU and GPU virtual machines, attaching the allocated vGPUs, and using a dedicated Ansible playbook to bootstrap a multi-node Kubernetes cluster and deploy the NVIDIA GPU Operator.
 
-5.1 Provisioning Pharos VMs Declaratively
+5.1 Provisioning AI-HOW VMs Declaratively
 
-The Pharos cloud will be a heterogeneous cluster consisting of one control plane, one CPU-only worker node, and three GPU-enabled worker nodes. We will provision these VMs by creating copy-on-write clones of the Packer-built image.
+The AI-HOW cloud will be a heterogeneous cluster consisting of one control plane, one CPU-only worker node, and three GPU-enabled worker nodes. We will provision these VMs by creating copy-on-write clones of the Packer-built image.
 Create Kubernetes VM Disks:
 
 Bash
@@ -710,7 +710,7 @@ for i in $(seq -w 01 03); do
 done
 
 
-VMs can then be created using Libvirt XML, Terraform, or Vagrant as detailed in Section 4.1, ensuring they are attached to the pharos-net network.
+VMs can then be created using Libvirt XML, Terraform, or Vagrant as detailed in Section 4.1, ensuring they are attached to the ai-how-net network.
 
 5.2 Attaching vGPU Mediated Devices to Worker Node VMs
 
@@ -821,11 +821,11 @@ EOF
 kubectl logs mig-device-test
 
 
-The logs should show the nvidia-smi output for the single MIG device, confirming the 'Pharos' hybrid cloud is fully operational.
+The logs should show the nvidia-smi output for the single MIG device, confirming the 'AI-HOW' hybrid cloud is fully operational.
 
 Section 6: Deploying the Unified MLOps and Storage Fabric with Ansible and Helm
 
-With the 'Pharos' Kubernetes cluster operational, we now deploy the core MLOps and storage services. This section details the automated deployment of MinIO, PostgreSQL, MLflow, and Kubeflow using Ansible to orchestrate Helm chart installations. These services, hosted on the Kubernetes cluster, will function as a centralized "hub" for the entire MLOps lifecycle, serving both the cloud-native environment and the external HPC cluster.1 To optimize resource usage, these management plane services will be scheduled onto the CPU-only worker nodes.
+With the 'AI-HOW' Kubernetes cluster operational, we now deploy the core MLOps and storage services. This section details the automated deployment of MinIO, PostgreSQL, MLflow, and Kubeflow using Ansible to orchestrate Helm chart installations. These services, hosted on the Kubernetes cluster, will function as a centralized "hub" for the entire MLOps lifecycle, serving both the cloud-native environment and the external HPC cluster.1 To optimize resource usage, these management plane services will be scheduled onto the CPU-only worker nodes.
 
 6.1 Using the Ansible Helm Module
 
@@ -867,7 +867,7 @@ The Kubeflow installation via kustomize can also be executed from within an Ansi
 
 6.4 Configuring DVC for Use with the MinIO Endpoint
 
-The DVC configuration remains unchanged, pointing to the NodePort service of the MinIO deployment, which is now running on a dedicated CPU node within the Pharos cloud.
+The DVC configuration remains unchanged, pointing to the NodePort service of the MinIO deployment, which is now running on a dedicated CPU node within the AI-HOW cloud.
 
 Section 7: End-to-End Orchestration with Oumi
 
@@ -880,7 +880,7 @@ oumi launch command can be directed to the appropriate backend—SLURM for train
 
 7.2 Training Workflow on SLURM via oumi launch
 
-The training workflow remains the same as the previous report version. An Oumi recipe defines the training job, which is submitted via oumi launch --launcher slurm. Oumi translates this into a SLURM batch job, which is scheduled on one of the four HPC compute nodes, utilizing its assigned vGPU. All results are logged to the central MLflow server running on the Pharos cloud.
+The training workflow remains the same as the previous report version. An Oumi recipe defines the training job, which is submitted via oumi launch --launcher slurm. Oumi translates this into a SLURM batch job, which is scheduled on one of the four HPC compute nodes, utilizing its assigned vGPU. All results are logged to the central MLflow server running on the AI-HOW cloud.
 
 7.3 Model Promotion in the MLflow Model Registry
 
@@ -888,7 +888,7 @@ Once training is complete, the model artifact appears in the MLflow UI. An MLOps
 
 7.4 GPU-Based Inference Deployment to Kubernetes via Oumi
 
-With the model promoted, the final step is to deploy it as a GPU-accelerated inference service on the Pharos hybrid cloud, orchestrated by Oumi. KServe is capable of deploying models that leverage either CPU or GPU resources, making it ideal for this hybrid environment.45
+With the model promoted, the final step is to deploy it as a GPU-accelerated inference service on the AI-HOW hybrid cloud, orchestrated by Oumi. KServe is capable of deploying models that leverage either CPU or GPU resources, making it ideal for this hybrid environment.45
 1. Define the Inference Recipe (inference_recipe.yaml):
 This recipe specifies the model to be deployed (pulling the "Production" version from MLflow) and the deployment target. Crucially, it will now be configured to generate a KServe InferenceService manifest that requests a GPU resource.
 
@@ -916,7 +916,7 @@ Bash
 oumi launch up --config inference_recipe.yaml --launcher kubernetes
 
 
-Oumi connects to the Pharos Kubernetes cluster and applies the KServe manifest. The Kubernetes scheduler, aware of the GPU resources via the NVIDIA GPU Operator, will schedule the inference pod onto one of the three k8s-worker-gpu nodes that can satisfy the nvidia.com/mig-1g.5gb: 1 resource limit.
+Oumi connects to the AI-HOW Kubernetes cluster and applies the KServe manifest. The Kubernetes scheduler, aware of the GPU resources via the NVIDIA GPU Operator, will schedule the inference pod onto one of the three k8s-worker-gpu nodes that can satisfy the nvidia.com/mig-1g.5gb: 1 resource limit.
 3. Test the Deployed Endpoint:
 Once the KServe service is READY, a prediction request can be sent to its endpoint. A successful response confirms that the model trained on the dedicated GPU cluster has been seamlessly deployed and is serving predictions on a GPU slice within the hybrid Kubernetes cluster, completing the full MLOps lifecycle.
 
@@ -924,7 +924,7 @@ Conclusion: A Blueprint Realized through Automation
 
 The comprehensive emulation detailed in this report successfully translates the ambitious architectural principles of the "AI Hyperscaler Blueprint" into a tangible, functional, and highly automated single-machine prototype. By leveraging a modern toolchain—Packer for image creation, Ansible for configuration management, and Oumi for end-to-end orchestration—this guide demonstrates how to construct a high-fidelity, dual-stack environment that mirrors the separation of concerns found in production-scale AI platforms.
 The realized system effectively implements the core tenets of the design document with enhanced efficiency and reproducibility:
-Purpose-Built Infrastructure: Two distinct, logically isolated environments were created. The SLURM-based HPC cluster provides a dedicated, multi-node GPU environment optimized for training. Concurrently, the Kubernetes-based 'Pharos' cloud offers a robust, hybrid platform supporting both CPU-only MLOps management services and high-performance, GPU-accelerated inference endpoints. This directly emulates the blueprint's strategy of providing specialized hardware stacks for different stages of the ML lifecycle.1
+Purpose-Built Infrastructure: Two distinct, logically isolated environments were created. The SLURM-based HPC cluster provides a dedicated, multi-node GPU environment optimized for training. Concurrently, the Kubernetes-based 'AI-HOW' cloud offers a robust, hybrid platform supporting both CPU-only MLOps management services and high-performance, GPU-accelerated inference endpoints. This directly emulates the blueprint's strategy of providing specialized hardware stacks for different stages of the ML lifecycle.1
 Automated and Idempotent Deployment: The introduction of Packer and Ansible transforms the infrastructure setup from a manual, error-prone process into a declarative, version-controllable, and repeatable workflow. This "Infrastructure as Code" approach is critical for maintaining consistency across complex, hybrid environments.
 Unified Orchestration: Oumi serves as the single pane of glass for the entire MLOps lifecycle. By abstracting the underlying SLURM and Kubernetes clusters, it provides a simplified and consistent user experience for both data scientists and MLOps engineers, from submitting a GPU training job to deploying a GPU inference service.1
 This emulated environment serves as a powerful tool for developing, testing, and validating automation for complex AI platforms without the cost of physical hardware. By successfully miniaturizing and automating a hybrid hyperscale architecture, this guide provides a concrete and actionable blueprint for understanding, building, and innovating upon the next generation of infrastructure for artificial intelligence.

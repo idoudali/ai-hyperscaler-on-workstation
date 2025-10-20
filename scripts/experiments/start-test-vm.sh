@@ -166,7 +166,7 @@ set -euo pipefail
 VM_NAME="hpc-cluster-compute-01"
 VM_MEMORY_GB=16
 VM_CPUS=8
-REPO_DIR="$HOME/Projects/pharos.ai-hyperscaler-on-workskation"
+REPO_DIR="$HOME/Projects/ai-hyperscaler-on-workskation"
 BASE_DISK_IMAGE="$REPO_DIR/build/packer/hpc-base/hpc-base/hpc-base.qcow2"
 GPU_PCI_ADDRESS="0000:01:00.0"
 GPU_AUDIO_PCI_ADDRESS="0000:01:00.1"

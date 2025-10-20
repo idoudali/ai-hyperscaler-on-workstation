@@ -275,7 +275,7 @@ These tests validate complete system integration:
 
 ```bash
 # Complete test suite in proper order
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation/tests
+cd /path/to/ai-hyperscaler-on-workskation/tests
 
 # Phase 1: Foundation
 make test-precommit
@@ -405,7 +405,7 @@ make test                             # Core integration
 
 ```bash
 # Run all tests in proper order (allow 2.5-5 hours + container build time)
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2/tests
+cd /path/to/ai-hyperscaler-on-workskation/tests
 
 # Foundation
 make test-precommit && \
@@ -425,13 +425,13 @@ make test-ansible-roles && \
 ./test-pcie-passthrough-framework.sh e2e && \
 
 # Build container images (required for container integration tests)
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
+cd /path/to/ai-hyperscaler-on-workskation
 make config && \
 make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1" && \
 make run-docker COMMAND="cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1" && \
 
 # Advanced Integration
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2/tests
+cd /path/to/ai-hyperscaler-on-workskation/tests
 ./test-container-registry-framework.sh e2e && \
 ./test-container-integration-framework.sh e2e && \
 ./test-dcgm-monitoring-framework.sh e2e
@@ -847,7 +847,7 @@ These containers must be built and deployed before running container integration
 
 ```bash
 # Step 1: Build Docker image (Task 019)
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
+cd /path/to/ai-hyperscaler-on-workskation
 make config
 make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1"
 

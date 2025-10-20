@@ -47,7 +47,7 @@
 # - No existing VMs with names matching "test-hpc-monitoring*"
 # - Clean libvirt environment (check with: virsh list --all)
 # - If VMs exist, destroy them first using ai-how Python library:
-#   cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation
+#   cd /path/to/ai-hyperscaler-on-workskation
 #   uv run ai-how hpc destroy tests/test-infra/configs/test-monitoring-stack.yaml --force
 #
 # For DRY-RUN operations:
