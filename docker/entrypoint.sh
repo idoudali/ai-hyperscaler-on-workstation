@@ -1,5 +1,5 @@
 #!/bin/bash
-# Entrypoint script for the pharos development Docker container
+# Entrypoint script for the AI-HOW development Docker container
 # Handles user creation and home directory setup
 #
 # Environment variables:
@@ -145,7 +145,7 @@ setup_groups() {
 
 # Main entrypoint logic
 main() {
-    log_info "Starting pharos development container entrypoint"
+    log_info "Starting AI-HOW development container entrypoint"
 
     # Get user and group information from environment variables
     local user_id="${USER_ID:-1000}"

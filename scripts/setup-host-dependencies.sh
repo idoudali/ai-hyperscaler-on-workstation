@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # setup-host-dependencies.sh
-# Ubuntu/Debian host dependencies setup script for Pharos AI Hyperscaler on Workstation
+# Ubuntu/Debian host dependencies setup script for AI-HOW on Workstation
 #
 # This script installs all required system dependencies for the development environment
 # including Docker CE (official repository), build tools, and modern Python tooling.
@@ -36,7 +36,7 @@ show_help() {
 setup-host-dependencies.sh - Ubuntu/Debian Host Dependencies Setup
 
 DESCRIPTION:
-    This script installs system dependencies for the Pharos AI Hyperscaler on Workstation
+    This script installs system dependencies for the AI-HOW on Workstation
     development environment. You can install all dependencies at once or select specific
     components to install.
 

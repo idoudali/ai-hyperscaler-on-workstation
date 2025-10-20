@@ -1,6 +1,6 @@
 # Makefile for managing the development environment and build process
 #
-# This Makefile provides a comprehensive build system for the Pharos AI Hyperscaler project.
+# This Makefile provides a comprehensive build system for the AI-HOW project.
 # It orchestrates Docker-based development environments, CMake builds, Python package management,
 # and documentation generation.
 #
@@ -27,7 +27,7 @@
 SHELL := /bin/bash
 
 # Docker image settings
-IMAGE_NAME := pharos-dev
+IMAGE_NAME := ai-how-dev
 IMAGE_TAG  := latest
 FULL_IMAGE_NAME := $(IMAGE_NAME):$(IMAGE_TAG)
 

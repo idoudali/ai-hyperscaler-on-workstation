@@ -69,11 +69,11 @@ The following replacement strategy will be used throughout:
 
 1. Update site name: `Pharos.ai Hyperscaler on Workstation` → `AI-HOW: AI Hyperscaler on Workstation`
 2. Update site author: `Pharos.ai Team` → `AI-HOW Team`
-3. Update site URL: `https://pharos-ai.github.io/hyperscaler-on-workstation` → ⏳ PENDING (awaiting GitHub org decision)
-4. Update repo name: `pharos.ai/hyperscaler-on-workstation` → `YOUR_ORG/ai-hyperscaler-on-workskation` ⏳ PENDING
-5. Update repo URL: `https://github.com/pharos-ai/hyperscaler-on-workstation` → ⏳ PENDING (awaiting GitHub org)
-6. Update copyright: `Copyright &copy; 2024 Pharos.ai` → ⏳ PENDING (awaiting copyright decision)
-7. Update social links: `https://github.com/pharos-ai` → ⏳ PENDING (awaiting GitHub org decision)
+3. Update site URL: `https://pharos-ai.github.io/hyperscaler-on-workstation` → `https://idoudali.github.io/ai-hyperscaler-on-workskation` ✅
+4. Update repo name: `pharos.ai/hyperscaler-on-workstation` → `idoudali/ai-hyperscaler-on-workskation` ✅
+5. Update repo URL: `https://github.com/pharos-ai/hyperscaler-on-workstation` → `https://github.com/idoudali/ai-hyperscaler-on-workskation` ✅
+6. Update copyright: `Copyright &copy; 2024 Pharos.ai` → `Copyright &copy; 2024-2025 AI-HOW Team` ✅
+7. Update social links: `https://github.com/pharos-ai` → `https://github.com/idoudali` ✅
 
 **Validation:**
 
@@ -87,7 +87,7 @@ mkdocs build --strict
 
 **Notes:**
 
-- Keep URLs as placeholders (e.g., `YOUR_ORG/hyperscaler-on-workstation`) if final URLs are not yet determined
+- Keep URLs as placeholders (e.g., `idoudali/hyperscaler-on-workstation`) if final URLs are not yet determined
 - Ensure all links in documentation remain functional
 
 ---
@@ -835,12 +835,12 @@ If issues arise during implementation:
 
 ### Important Decisions Still Needed ⏳
 
-1. **GitHub Organization/Username:** What should replace `pharos-ai` in URLs?
-   - Example: `github.com/YOUR_ORG/ai-hyperscaler-on-workskation`
+1. **GitHub Organization/Username:** What should replace `pharos-ai` in URLs? ✅ RESOLVED
+   - Example: `github.com/idoudali/ai-hyperscaler-on-workskation`
    - Affects: mkdocs.yml, pyproject.toml, documentation links
 
-2. **GitHub Pages URL:** Where will documentation be hosted?
-   - Example: `YOUR_ORG.github.io/ai-hyperscaler-on-workskation`
+2. **GitHub Pages URL:** Where will documentation be hosted? ✅ RESOLVED
+   - Example: `idoudali.github.io/ai-hyperscaler-on-workskation`
    - Or: Custom domain?
    - Affects: mkdocs.yml site_url
 

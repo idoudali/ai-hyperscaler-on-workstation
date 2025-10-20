@@ -25,11 +25,11 @@ This command will:
 
 The `Makefile` in the root of the project provides several commands to manage the development environment:
 
-- `make build-docker`: Builds the Docker image with the tag `pharos-dev:latest`.
+- `make build-docker`: Builds the Docker image with the tag `ai-how-dev:latest`.
 - `make shell-docker`: Starts an interactive shell inside a new container. Your local project directory is mounted at
     the same path as the host.
 - `make push-docker`: Pushes the image to a container registry. You will need to configure the `REGISTRY_URL` in the `Makefile`.
-- `make clean-docker`: Removes the `pharos-dev:latest` Docker image and any stopped containers.
+- `make clean-docker`: Removes the `ai-how-dev:latest` Docker image and any stopped containers.
 - `make lint-docker`: Lints the `Dockerfile`. You need to add a linter tool for this to work.
 
 ## Development Workflow

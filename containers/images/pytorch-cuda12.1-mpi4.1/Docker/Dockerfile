@@ -102,7 +102,7 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 CMD ["/bin/bash"]
 
 # Labels for metadata
-LABEL maintainer="Pharos AI Hyperscaler Team"
+LABEL maintainer="AI-HOW Team"
 LABEL description="PyTorch + CUDA 12.8 + MPI 4.1 for HPC distributed training"
 LABEL pytorch.version="${PYTORCH_VERSION}"
 LABEL cuda.version="12.8.0"

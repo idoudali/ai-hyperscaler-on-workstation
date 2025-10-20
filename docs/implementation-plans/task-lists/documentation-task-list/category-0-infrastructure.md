@@ -258,7 +258,7 @@ nav:
    - Update paths to reflect new structure
 
 4. **Site Metadata Updates:**
-   - Update site_name to remove "Pharos.ai" prefix (if needed)
+   - Update site_name to remove "Pharos.ai" prefix (if needed) - COMPLETED
    - Verify repo URLs are correct
    - Update copyright if needed
 

@@ -1,15 +1,15 @@
-site_name: Pharos.ai Hyperscaler on Workstation
+site_name: AI-HOW: AI Hyperscaler on Workstation
 site_description: High-performance computing (HPC) hyperscaler infrastructure on workstation hardware
-site_author: Pharos.ai Team
-site_url: https://pharos-ai.github.io/hyperscaler-on-workstation
+site_author: AI-HOW Team
+site_url: https://idoudali.github.io/ai-hyperscaler-on-workskation
 
 # Repository information
-repo_name: pharos.ai/hyperscaler-on-workstation
-repo_url: https://github.com/pharos-ai/hyperscaler-on-workstation
+repo_name: idoudali/ai-hyperscaler-on-workskation
+repo_url: https://github.com/idoudali/ai-hyperscaler-on-workskation
 edit_uri: edit/main/docs/
 
 # Copyright
-copyright: Copyright &copy; 2024 Pharos.ai
+copyright: Copyright &copy; 2024-2025 AI-HOW Team
 
 # Exclude directories from documentation build
 exclude_docs: |
@@ -250,7 +250,7 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/pharos-ai
+      link: https://github.com/idoudali
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/ai-how/
   generator: false

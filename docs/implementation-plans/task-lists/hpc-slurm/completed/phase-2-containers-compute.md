@@ -1581,7 +1581,7 @@ ssh hpc-compute-01 "apptainer exec /opt/containers/ml-frameworks/pytorch-cuda12.
 
 ```bash
 # Phase 1: Build containers (local)
-cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
+cd /path/to/ai-hyperscaler-on-workskation
 cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1
 cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1
 

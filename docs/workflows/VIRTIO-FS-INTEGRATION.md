@@ -2,8 +2,8 @@
 
 ## Overview
 
-This document describes the implementation of Virtio-FS (Virtio Filesystem) host directory sharing in the Pharos AI
-Hyperscaler HPC infrastructure. Virtio-FS enables seamless, high-performance file sharing between the host system and
+This document describes the implementation of Virtio-FS (Virtio Filesystem) host directory sharing in the AI-HOW
+HPC infrastructure. Virtio-FS enables seamless, high-performance file sharing between the host system and
 virtual machines without the overhead of network-based solutions like NFS.
 
 **Task:** TASK-027 - Implement Virtio-FS Host Directory Sharing  

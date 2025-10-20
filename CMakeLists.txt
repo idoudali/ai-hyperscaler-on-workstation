@@ -1,7 +1,7 @@
-# Pharos AI Hyperscaler Build System
-# ===================================
+# AI-HOW Build System
+# ===================
 #
-# This CMakeLists.txt serves as the root configuration for the Pharos AI Hyperscaler project.
+# This CMakeLists.txt serves as the root configuration for the AI-HOW project.
 # It orchestrates the build of infrastructure images (Packer), application containers (Docker/Apptainer),
 # and third-party dependencies (BeeGFS, SLURM).
 #

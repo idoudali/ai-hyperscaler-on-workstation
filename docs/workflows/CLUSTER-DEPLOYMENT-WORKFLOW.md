@@ -98,7 +98,7 @@ container registry infrastructure.
 
 ```bash
 # Install HPC container manager CLI
-cd /path/to/pharos.ai-hyperscaler-on-workskation
+cd /path/to/ai-hyperscaler-on-workskation
 make config
 make run-docker COMMAND='cmake --build build --target hpc-container-manager'
 ```

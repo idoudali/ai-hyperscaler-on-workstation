@@ -1,10 +1,10 @@
 site_name: AI-HOW Documentation
 site_description: Python CLI orchestrator for managing the Hyperscaler on Workstation clusters
-site_author: Pharos.ai
-site_url: https://github.com/pharos-ai/ai-how
+site_author: AI-HOW Team
+site_url: https://github.com/idoudali/ai-how
 
-repo_name: pharos-ai/ai-how
-repo_url: https://github.com/pharos-ai/ai-how
+repo_name: idoudali/ai-how
+repo_url: https://github.com/idoudali/ai-how
 edit_uri: edit/main/docs/
 
 theme:

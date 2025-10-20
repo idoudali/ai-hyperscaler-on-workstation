@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Docker image settings (match Makefile)
-IMAGE_NAME="pharos-dev"
+IMAGE_NAME="ai-how-dev"
 IMAGE_TAG="latest"
 FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
@@ -94,7 +94,7 @@ if [[ $# -eq 0 ]]; then
 elif [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "Usage: $0 [command] [args...]"
     echo ""
-    echo "Run commands in the pharos development Docker container."
+    echo "Run commands in the AI-HOW development Docker container."
     echo ""
     echo "Examples:"
     echo "  $0                                                    # Start interactive shell"

@@ -564,7 +564,7 @@ When creating a new test framework, update:
 Understanding the project layout helps navigate the codebase effectively:
 
 ```text
-pharos.ai-hyperscaler-on-workskation/
+ai-hyperscaler-on-workskation/
 ├── ansible/                    # Ansible playbooks and roles
 │   ├── roles/                  # Custom roles for SLURM, GPU, containers
 │   ├── playbooks/              # Infrastructure deployment playbooks

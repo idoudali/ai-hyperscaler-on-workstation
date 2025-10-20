@@ -279,7 +279,7 @@ All images support both required and optional build variables:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `repo_tot_dir` | Repository root path | `/home/user/pharos.ai-hyperscaler` |
+| `repo_tot_dir` | Repository root path | `/home/user/ai-hyperscaler-on-workskation` |
 | `source_directory` | Source directory path | `${repo_tot_dir}/packer/<image-type>` |
 | `build_directory` | Build output directory | `${CMAKE_BINARY_DIR}/images/<image-type>` |
 | `ssh_keys_dir` | SSH keys directory | `${CMAKE_BINARY_DIR}/shared/ssh-keys` |

@@ -1,7 +1,7 @@
 # GPU Passthrough VM Experiments
 
 This directory contains experimental scripts for GPU passthrough and
-virtualization testing in the Pharos.AI hyperscaler project.
+virtualization testing in the AI-HOW project.
 
 ## start-gpu-passthrough-vm.sh
 
