@@ -267,6 +267,189 @@ principle that "component documentation lives with the component, not in docs/".
 - All markdownlint errors resolved and pre-commit hooks pass
 - Commit: 8087887
 
+## TASK-DOC-5.8: Python CLI Comprehensive Documentation (ai-how)
+
+**Files:**
+
+- `python/ai_how/CLI-REFERENCE.md`
+- `python/ai_how/SCHEMA-GUIDE.md`
+- `python/ai_how/API-DOCUMENTATION.md`
+- `python/ai_how/STATE-MANAGEMENT.md`
+
+**Description:** Comprehensive documentation for the AI-HOW Python CLI package including
+command reference, schema details, internal APIs, and state management
+
+**Content:**
+
+- `CLI-REFERENCE.md`: Complete command reference with all subcommands and options
+- `SCHEMA-GUIDE.md`: JSON Schema documentation with validation examples
+- `API-DOCUMENTATION.md`: Internal module and class documentation
+- `STATE-MANAGEMENT.md`: VM and cluster state management internals
+
+**Success Criteria:**
+
+- [ ] All CLI commands documented with examples
+- [ ] Schema validation explained with examples
+- [ ] Internal module structure documented
+- [ ] State management explained
+- [ ] VM management API documented
+- [ ] PCIe validation tool documented
+- [ ] Development guide for extending CLI
+
+**Priority:** High - Core tooling frequently used by developers and operators
+
+---
+
+## TASK-DOC-5.9: CMake Build System Comprehensive Documentation
+
+**Files:** `docs/architecture/cmake-build-system.md`, enhanced `CMakeLists.txt` comments, `BUILD-GUIDE.md`
+
+**Description:** Standalone comprehensive documentation for CMake build system, targets, and orchestration
+
+**Content:**
+
+- CMake architecture and design patterns
+- Target reference with dependency graphs
+- Build orchestration workflow
+- Integration between Packer, Containers, and Python
+- Build customization and extension guide
+- Troubleshooting build failures
+- Performance optimization for builds
+
+**Success Criteria:**
+
+- [ ] CMake architecture documented
+- [ ] All major targets documented with dependencies
+- [ ] Build orchestration workflow explained
+- [ ] Integration between components clear
+- [ ] Build troubleshooting guide provided
+- [ ] Extension guide for adding new targets
+- [ ] CMakeLists.txt enhanced with detailed comments
+
+**Priority:** High - Foundation for all build operations
+
+---
+
+## TASK-DOC-5.10: Testing Framework Developer Guide
+
+**Files:** `tests/DEVELOPER-GUIDE.md`, `tests/test-infra/TEST-FRAMEWORK-API.md`, `tests/TEST-UTILITIES.md`
+
+**Description:** Comprehensive guide for test framework developers and contributors
+
+**Content:**
+
+- Test framework architecture and design
+- How to write new tests
+- Test framework API reference
+- Test utilities and helpers documentation
+- Mock and fixture patterns
+- CI/CD integration and test triggers
+- Performance testing guidelines
+
+**Success Criteria:**
+
+- [ ] Test framework architecture explained
+- [ ] Guide for writing new tests provided
+- [ ] Framework API fully documented
+- [ ] Test utilities and helpers referenced
+- [ ] Mock/fixture patterns documented
+- [ ] CI/CD integration explained
+- [ ] Examples for common test scenarios
+
+**Priority:** Medium - Enables contributor testing and framework extension
+
+---
+
+## TASK-DOC-5.11: GitHub Workflows & CI/CD Pipeline Documentation
+
+**Files:** `.github/workflows/README.md`, `docs/development/CI-CD-PIPELINE.md`, `docs/development/GITHUB-ACTIONS-GUIDE.md`
+
+**Description:** Documentation for GitHub Actions workflows and CI/CD pipeline automation
+
+**Content:**
+
+- GitHub Actions workflow architecture
+- CI/CD pipeline stages and triggers
+- Secrets and environment variable management
+- Automated testing and deployment workflow
+- Status checks and reporting
+- Guide for adding new workflows
+- Troubleshooting workflow failures
+
+**Success Criteria:**
+
+- [ ] Workflow architecture documented
+- [ ] All workflows described with triggers
+- [ ] Secrets management explained
+- [ ] Environment configuration documented
+- [ ] Pipeline stages and order clear
+- [ ] Guide for adding new workflows provided
+- [ ] Troubleshooting common workflow issues
+
+**Priority:** Medium - Critical for continuous integration understanding
+
+---
+
+## TASK-DOC-5.12: 3rd-Party Dependencies & Custom Builds
+
+**Files:** `3rd-party/DEPENDENCY-MANAGEMENT.md`, `3rd-party/CUSTOM-BUILDS.md`, enhanced `3rd-party/beegfs/README.md`, `3rd-party/slurm/README.md`
+
+**Description:** Enhanced documentation for third-party dependencies, package builds, and customization
+
+**Content:**
+
+- Dependency version management strategy
+- BeeGFS package build process details
+- SLURM package build process (future implementation)
+- Updating and patching procedures
+- Custom build modifications guide
+- Dependency audit and security updates
+- Adding new dependencies
+
+**Success Criteria:**
+
+- [ ] Dependency management strategy documented
+- [ ] BeeGFS build process detailed
+- [ ] SLURM build process documented (when implemented)
+- [ ] Update procedures clear
+- [ ] Custom modification guide provided
+- [ ] Security update process explained
+- [ ] Examples for common customizations
+
+**Priority:** Medium - Important for infrastructure maintainers
+
+---
+
+## TASK-DOC-5.13: Docker Development Environment Enhanced Documentation
+
+**Files:** enhanced `docker/README.md`, `docker/DEVELOPMENT-WORKFLOW.md`, `docker/GPU-SUPPORT.md`, `docker/TROUBLESHOOTING.md`
+
+**Description:** Enhanced documentation for Docker development environment setup and usage
+
+**Content:**
+
+- Development environment setup guide
+- Common development workflows
+- GPU support configuration and troubleshooting
+- Volume mounting and data sharing
+- Environment customization
+- Troubleshooting development container issues
+- Performance optimization for development
+
+**Success Criteria:**
+
+- [ ] Setup procedures clear with examples
+- [ ] Development workflows documented
+- [ ] GPU support configuration explained
+- [ ] Volume management documented
+- [ ] Environment customization guide provided
+- [ ] Troubleshooting guide comprehensive
+- [ ] Performance tips included
+
+**Priority:** Low - Supplementary development documentation
+
+---
+
 ## Component Documentation Standards
 
 **Component Documentation Should:**
