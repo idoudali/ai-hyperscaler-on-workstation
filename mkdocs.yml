@@ -69,10 +69,8 @@ plugins:
         - 'scripts/**'
         - 'config/**'
         - 'docker/**'
-        - 'python/ai_how/docs/**'
-        - 'python/ai_how/README.md'
-        - 'python/ai_how/src/ai_how/schemas/**'
         - 'tests/**'
+        - 'python/ai_how/**'
         - 'README.md'
         - '.cursor/rules/**'
       ignore:
@@ -91,6 +89,7 @@ plugins:
         - '**/.tox/**'
         - '**/htmlfiles/**'
         - 'AI-AGENT-GUIDE.md'
+        - '**/LICENSE'
       include:
         - '*.md'
         - '*.png'
@@ -107,17 +106,17 @@ plugins:
       raise_error: false
       raise_error_excludes:
         404: ['https://.*']
-  # - mkdocstrings:
-  #     handlers:
-  #       python:
-  #         options:
-  #           docstring_style: google
-  #           docstring_options:
-  #             ignore_init_summary: true
-  #           merge_init_into_class: true
-  #           show_source: false
-  #           show_root_heading: true
-  #           show_root_toc_entry: true
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
 
 # Extensions
 markdown_extensions:
@@ -219,6 +218,18 @@ nav:
           - Overview: ansible/README.md
           - Roles Index: ansible/roles/README.md
           - Playbooks Index: ansible/playbooks/README.md
+      - CLI (ai-how):
+          - Overview: python/ai_how/docs/index.md
+          - Common Concepts: python/ai_how/docs/common-concepts.md
+          - CLI Reference: python/ai_how/docs/cli-reference.md
+          - Schema Guide: python/ai_how/docs/schema-guide.md
+          - State Management: python/ai_how/docs/state-management.md
+          - Network Configuration: python/ai_how/docs/network_configuration.md
+          - PCIe Passthrough Validation: python/ai_how/docs/pcie-passthrough-validation.md
+          - Examples: python/ai_how/docs/examples.md
+          - Development: python/ai_how/docs/development.md
+          - API Reference:
+              - ai_how: python/ai_how/docs/api/ai_how.md
       - Packer:
           - Overview: packer/README.md
           - Base Image: packer/hpc-base/README.md
@@ -233,13 +244,7 @@ nav:
           - Overview: scripts/README.md
           - System Checks: scripts/system-checks/README.md
           - Experiments: scripts/experiments/README.md
-  - CLI (ai-how):
-      - Overview: python/ai_how/README.md
-      - Getting Started: python/ai_how/docs/index.md
-      - Examples: python/ai_how/docs/examples.md
-      - Development: python/ai_how/docs/development.md
-      - Network Configuration: python/ai_how/docs/network_configuration.md
-      - PCIe Validation: python/ai_how/docs/pcie-passthrough-validation.md
+
   - Testing:
       - Overview: testing/README.md
       - Test Infrastructure: testing/test-infra/README.md

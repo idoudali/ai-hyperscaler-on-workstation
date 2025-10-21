@@ -2,6 +2,8 @@
 
 This document explains how to properly configure network settings for HPC clusters using the ai-how library.
 
+> **Note**: For basic network concepts, see [Common Concepts - Network Configuration](common-concepts.md#network-configuration).
+
 ## Overview
 
 The ai-how library provides comprehensive network management for HPC clusters, including:

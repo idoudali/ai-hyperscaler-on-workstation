@@ -660,9 +660,11 @@ Django
 
 
 # This file is managed by Ansible
+```jinja2
 {% for host in groups['hpc_compute'] %}
 NodeName={{ hostvars[host]['inventory_hostname'] }} Name=gpu File=/dev/nvidia0
 {% endfor %}
+```
 
 
 This template snippet automatically generates the gres.conf file for all four compute nodes, making the configuration scalable and error-free. The ConstrainDevices=yes parameter in cgroup.conf remains crucial for enforcing job isolation by restricting a job's access to only the specific GPU device it was allocated.30

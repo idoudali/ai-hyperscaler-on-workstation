@@ -54,3 +54,6 @@ MD041: false
 # Code block style
 MD046:
   style: "fenced"
+
+# Allow link fragments for internal documentation links (MD051)
+MD051: false

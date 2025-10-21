@@ -1,7 +1,6 @@
 # AI-HOW Documentation
 
-Welcome to the AI-HOW documentation! AI-HOW is a Python CLI orchestrator for
-managing the Hyperscaler on Workstation clusters.
+Welcome to the AI-HOW documentation! For core concepts and definitions, see [Common Concepts](common-concepts.md).
 
 ## What is AI-HOW?
 
@@ -12,12 +11,7 @@ cluster management tasks.
 
 ## Features
 
-- **CLI Interface**: Simple command-line interface built with Typer
-- **Configuration Validation**: JSON Schema-based validation for configuration
-  files
-- **Rich Output**: Beautiful terminal output with Rich library
-- **YAML Support**: Native support for YAML configuration files
-- **Extensible**: Plugin-based architecture for adding new functionality
+See [Common Concepts](common-concepts.md#key-features) for detailed feature descriptions.
 
 ## Quick Start
 
@@ -35,6 +29,8 @@ pip install -e ".[docs]"
 
 ### Basic Usage
 
+For complete command reference, see [CLI Reference](cli-reference.md).
+
 ```bash
 # Get help
 ai-how --help
@@ -48,7 +44,11 @@ ai-how <command> [options]
 
 ## Documentation Structure
 
+- **[Common Concepts](common-concepts.md)**: Core definitions and terminology
+- **[CLI Reference](cli-reference.md)**: Complete command-line interface reference
 - **[API Reference](api/ai_how.md)**: Complete API documentation
+- **[Schema Guide](schema-guide.md)**: Configuration schema reference
+- **[State Management](state-management.md)**: Cluster state persistence
 - **[Examples](examples.md)**: Usage examples and common patterns
 - **[Development](development.md)**: Contributing and development guide
 

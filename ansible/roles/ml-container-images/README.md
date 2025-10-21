@@ -251,7 +251,7 @@ pmix_info
 
 ## References
 
-- [NVIDIA NGC Containers](https://catalog.ngc.nvidia.com/)
+- [NVIDIA NGC Containers](https://catalog.ngc.nvidia.com)
 - [PyTorch Docker Images](https://hub.docker.com/r/pytorch/pytorch)
 - [Open MPI Documentation](https://www.open-mpi.org/)
 - [Apptainer User Guide](https://apptainer.org/docs/user/latest/)
