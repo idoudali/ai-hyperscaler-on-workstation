@@ -1,75 +1,818 @@
 # Cluster Configuration
 
-This directory contains the core configuration files for the Hyperscaler on a
-Workstation project. The files in this directory define the entire
-infrastructure, from network topology to the specific resources allocated to
+**Status:** Production
+**Last Updated:** 2025-10-20
+
+This directory contains the core cluster configuration files for the Hyperscaler on a Workstation
+project. The files define the entire infrastructure, from network topology to resource allocation for
 each virtual machine in the HPC and Cloud clusters.
 
-## `example-multi-gpu-clusters.yaml`
+## Overview
 
-This is the **example multi-GPU cluster configuration** demonstrating a complete dual-stack AI infrastructure setup.
-All automation, including VM provisioning, GPU allocation, and Ansible playbook
-execution, is driven by the contents of this file.
+All cluster infrastructure is defined through YAML configuration files. The configuration system drives:
 
-It defines:
-
-- **Global Settings**:
-  - GPU allocation strategy with MIG-capable devices
-  - MIG slice distribution between HPC and Cloud clusters
-  - Whole GPU allocation for non-MIG workloads
-- **HPC Cluster**:
-  - SLURM controller with dedicated network subnet (192.168.100.0/24)
-  - 4 compute nodes with MIG GPU slices (hpc-mig-0 through hpc-mig-3)
-  - SLURM partitions: gpu and debug
-- **Cloud Cluster**:
-  - Kubernetes control plane with dedicated network subnet (192.168.200.0/24)
-  - CPU worker nodes for general workloads
-  - GPU worker nodes with MIG slices (cloud-mig-0 through cloud-mig-2)
-  - Kubernetes configuration: Calico CNI, NGINX ingress, local-path storage
+- **Virtual Machine Provisioning**: CPU, memory, disk allocation for all node types
+- **GPU Allocation**: PCIe passthrough device configuration and IOMMU group management
+- **Network Configuration**: Cluster-specific subnets, bridges, and IP addressing
+- **Virtualization Settings**: Hardware acceleration, CPU topology, performance tuning
+- **Host Directory Sharing**: Virtio-FS mount points for host-guest file sharing
+- **Cluster-Specific Configuration**: SLURM partitions (HPC) and Kubernetes settings (Cloud)
 
 ## Configuration Structure
 
-### GPU Allocation Strategy
+### File Organization
 
-The configuration implements a hybrid GPU allocation approach:
+```text
+config/
+├── README.md                          # This file
+├── example-multi-gpu-clusters.yaml   # Example configuration (complete setup)
+└── cluster.yaml                       # Working configuration (user-created)
+```
 
-- **MIG Slices**: 4 for HPC cluster, 3 for Cloud cluster
-- **Whole GPUs**: 1 dedicated to Cloud cluster for workloads requiring full GPU access
-- **MIG Profiles**: Supports 1g.5gb, 2g.10gb, 3g.20gb, and 7g.80gb configurations
+### Configuration Workflow
 
-### Network Topology
+1. **Start with example**: Copy `example-multi-gpu-clusters.yaml` as a template
+2. **Create working config**: Save as `cluster.yaml` in this directory
+3. **Customize**: Modify resources, networks, GPUs, and cluster settings
+4. **Validate**: Configuration is automatically validated against the schema
+5. **Deploy**: Automation tools read from `cluster.yaml`
 
-- **HPC Cluster**: 192.168.100.0/24 (virbr100)
-- **Cloud Cluster**: 192.168.200.0/24 (virbr200)
-- **Isolation**: Each cluster operates on separate virtual bridges for security
+## Configuration Schema
 
-### Resource Specifications
+The configuration follows the JSON Schema defined in
+`python/ai_how/src/ai_how/schemas/cluster.schema.json`. All configurations are automatically
+validated during:
 
-- **HPC Compute Nodes**: 8 CPU cores, 16GB RAM, 200GB disk, dedicated MIG slices
-- **Cloud GPU Workers**: 8 CPU cores, 16GB RAM, 200GB disk, MIG GPU slices
-- **Cloud CPU Workers**: 4 CPU cores, 8GB RAM, 100GB disk, no GPU
+- Configuration loading
+- Cluster provisioning
+- Infrastructure deployment
 
-## Usage
+**Schema Reference**: All field definitions, types, constraints, and validation rules are formally specified in:
 
-To use this configuration:
+- **[python/ai_how/src/ai_how/schemas/cluster.schema.json](../python/ai_how/src/ai_how/schemas/cluster.schema.json)** -
+  Authoritative schema definition
+- **[python/ai_how/src/ai_how/schemas/README.md](../python/ai_how/src/ai_how/schemas/README.md)** - Schema usage
+  documentation
 
-1. Copy the template to create your working configuration:
+### Top-Level Structure
+
+Every configuration must include these required fields per the schema:
+
+```yaml
+version: "1.0"                          # Schema version (required, pattern: "^1\\.0$")
+metadata:                               # Metadata (required)
+  name: "cluster-name"                  # Configuration name (required)
+  description: "Cluster description"    # Configuration description (required)
+global: {}                              # Global settings (optional, accepts any properties)
+clusters:                               # Cluster definitions (required)
+  hpc:                                  # HPC cluster definition (required)
+    name: "hpc-cluster"
+    # ... HPC configuration
+  cloud:                                # Cloud cluster definition (required)
+    name: "cloud-cluster"
+    # ... Cloud configuration
+```
+
+**Note**: The `global` section allows arbitrary properties (`additionalProperties: true` in schema) and is commonly
+used for GPU inventory generated by `scripts/system-checks/gpu_inventory.sh`.
+
+## Cluster Configuration Guide
+
+### HPC Cluster Configuration
+
+The HPC cluster provides SLURM-managed compute infrastructure for high-performance workloads.
+
+#### Required Fields
+
+```yaml
+clusters:
+  hpc:
+    name: "hpc-cluster"                          # Cluster name
+    base_image_path: "path/to/image.qcow2"      # Default image for all nodes
+    network:                                     # Network configuration
+      subnet: "192.168.100.0/24"                # Network subnet (CIDR format)
+      bridge: "virbr100"                        # Virtual bridge name
+    controller:                                  # SLURM controller node
+      cpu_cores: 4                              # CPU cores (minimum 2)
+      memory_gb: 8                              # Memory in GB (minimum 4)
+      disk_gb: 100                              # Disk in GB (minimum 50)
+      ip_address: "192.168.100.10"              # Static IP address
+    compute_nodes:                               # Compute node specifications
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.11"
+    slurm_config:                               # SLURM configuration
+      partitions: ["gpu", "debug"]              # Available partitions
+      default_partition: "gpu"                  # Default partition
+      max_job_time: "24:00:00"                  # Maximum job duration
+```
+
+#### Optional Fields
+
+**Compute Nodes as Templates** - Define pattern (count + DHCP):
+
+```yaml
+compute_nodes:
+  cpu_cores: 8
+  memory_gb: 16
+  disk_gb: 200
+  count: 4                              # Number of nodes
+  ip: "DHCP"                           # Use DHCP for IP assignment
+```
+
+**Hardware Acceleration** (all fields defined in `hardwareAcceleration` schema):
+
+```yaml
+hardware:
+  acceleration:
+    enable_kvm: true                    # Enable KVM virtualization (default: true)
+    enable_nested: false                # Enable nested virtualization (default: false)
+    cpu_model: "host-passthrough"       # CPU model: host, host-passthrough, host-model, qemu64
+    cpu_features:                       # Additional CPU features (optional)
+      - "+vmx"                          # Intel VT-x
+      - "+svm"                          # AMD-V
+      - "+avx2"                         # AVX2 support
+    numa_topology:                      # NUMA topology configuration (optional)
+      nodes: 2                          # Number of NUMA nodes (1-8)
+      memory_per_node: 8192             # Memory per node in MiB (min: 1024)
+    cpu_topology:                       # CPU topology configuration (optional)
+      sockets: 1                        # Number of sockets (1-4)
+      cores: 4                          # Cores per socket (1-64)
+      threads: 1                        # Threads per core (1-2)
+    performance:                        # Performance tuning (optional)
+      enable_hugepages: false           # Use hugepages (default: false)
+      hugepage_size: "2M"               # Hugepage size: 2M or 1G (default: 2M)
+      cpu_pinning: false                # Pin vCPUs to physical CPUs (default: false)
+      memory_backing: "default"         # Memory backing: default, hugepages, memfd
+```
+
+### Cloud Cluster Configuration
+
+The Cloud cluster provides Kubernetes-managed container infrastructure for cloud-native workloads.
+
+#### Required Fields
+
+```yaml
+clusters:
+  cloud:
+    name: "cloud-cluster"                        # Cluster name
+    base_image_path: "path/to/image.qcow2"      # Default image for all nodes
+    network:                                     # Network configuration
+      subnet: "192.168.200.0/24"                # Network subnet (CIDR format)
+      bridge: "virbr200"                        # Virtual bridge name
+    control_plane:                               # Kubernetes control plane
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.200.10"
+    worker_nodes:                                # Worker node groups by type
+      cpu:                                       # CPU worker group
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.200.11"
+      gpu:                                       # GPU worker group
+        - worker_type: "gpu"
+          cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          ip: "192.168.200.12"
+    kubernetes_config:                          # Kubernetes configuration
+      cni: "calico"                             # Container Network Interface
+      ingress: "nginx"                          # Ingress controller
+      storage_class: "local-path"               # Storage provisioning class
+```
+
+#### Optional Fields
+
+**Multiple Worker Nodes** - Define as array:
+
+```yaml
+worker_nodes:
+  gpu:
+    - worker_type: "gpu"
+      cpu_cores: 8
+      memory_gb: 16
+      disk_gb: 200
+      ip: "192.168.200.12"
+    - worker_type: "gpu"
+      cpu_cores: 8
+      memory_gb: 16
+      disk_gb: 200
+      ip: "192.168.200.13"
+```
+
+## GPU and PCIe Passthrough Configuration
+
+### Device Passthrough
+
+GPU and other PCI devices can be passed directly to VMs using PCIe passthrough. All fields defined in the
+`pciePassthrough` schema definition.
+
+#### Basic Configuration
+
+```yaml
+pcie_passthrough:
+  enabled: true                         # Enable passthrough (required, boolean)
+  devices:                              # List of devices (optional if enabled: false)
+    - pci_address: "0000:01:00.0"      # PCI address in BDF format (required)
+      device_type: "gpu"                # Device type (required): gpu, audio, network, storage, other
+      vendor_id: "10de"                 # Vendor ID - 4 hex digits (optional)
+      device_id: "2805"                 # Device ID - 4 hex digits (optional)
+      iommu_group: 1                    # IOMMU group number (optional, integer >= 0)
+```
+
+**Schema Field Requirements**:
+
+- `pci_address` (required): Must match pattern `^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9]{1-3}$`
+- `device_type` (required): Must be one of: `gpu`, `audio`, `network`, `storage`, `other`
+- `vendor_id` (optional): Must be 4 hexadecimal digits
+- `device_id` (optional): Must be 4 hexadecimal digits
+- `iommu_group` (optional): Integer >= 0
+
+#### IOMMU Groups
+
+Devices in the same IOMMU group must be passed together:
+
+```yaml
+pcie_passthrough:
+  enabled: true
+  devices:
+    - pci_address: "0000:01:00.0"      # Primary function (GPU)
+      device_type: "gpu"
+      vendor_id: "10de"
+      device_id: "2805"
+    - pci_address: "0000:01:00.1"      # Secondary function (Audio)
+      device_type: "audio"
+      vendor_id: "10de"
+      device_id: "22bd"
+      iommu_group: 1                    # Same group as GPU
+```
+
+### NVIDIA GPU Example
+
+NVIDIA discrete GPUs typically have two functions:
+
+```yaml
+pcie_passthrough:
+  enabled: true
+  devices:
+    # GPU primary function (must be listed first for ROM BAR)
+    - pci_address: "0000:01:00.0"
+      device_type: "gpu"
+      vendor_id: "10de"                 # NVIDIA vendor ID
+      device_id: "2805"                 # GPU model ID
+    # Audio secondary function (required for same IOMMU group)
+    - pci_address: "0000:01:00.1"
+      device_type: "audio"
+      vendor_id: "10de"
+      device_id: "22bd"
+```
+
+### Finding Your Devices
+
+The project provides an automated GPU inventory script that detects all NVIDIA GPUs and generates ready-to-use
+YAML configurations:
+
+```bash
+# Generate GPU inventory and PCIe passthrough configurations
+./scripts/system-checks/gpu_inventory.sh
+```
+
+The script output includes:
+
+- Human-readable GPU summary
+- Global GPU inventory for `cluster.yaml`
+- Complete PCIe passthrough configurations for each GPU
+- Associated sound device detection
+- IOMMU group information
+- YAML output written to `output/gpu_inventory.yaml`
+
+For detailed documentation, see:
+
+- **[scripts/system-checks/README.md](../scripts/system-checks/README.md)** - GPU inventory script documentation
+- **[scripts/system-checks/gpu_inventory.sh](../scripts/system-checks/gpu_inventory.sh)** - GPU inventory script source
+
+#### Manual Device Detection
+
+If you need to manually inspect devices:
+
+```bash
+# List all PCI devices
+lspci -v
+
+# Find NVIDIA GPUs (bus, domain, slot, function)
+lspci | grep -i nvidia
+
+# Show IOMMU groups for all devices
+for g in $(find /sys/kernel/iommu_groups -maxdepth 1 -mindepth 1 -type d | sort -V); do
+  echo "IOMMU group $(basename $g):"
+  lspci -s $(ls $g/devices | cut -d: -f3- | tr '\n' ',') || true
+done
+
+# Get vendor and device IDs for specific device
+lspci -n | grep 0000:01:00.0
+```
+
+## Virtio-FS Host Directory Sharing
+
+Virtio-FS enables high-performance file sharing between the host and guest VMs. This is useful for development
+workflows, shared datasets, and persistent storage.
+
+### Configuration
+
+Host directories can be shared with VMs using the `virtio_fs_mounts` field on controller and compute nodes:
+
+```yaml
+controller:
+  cpu_cores: 4
+  memory_gb: 8
+  disk_gb: 100
+  ip_address: "192.168.100.10"
+  virtio_fs_mounts:
+    - tag: "project-data"              # Unique mount identifier
+      host_path: "/home/user/projects" # Absolute path on host
+      mount_point: "/project"          # Mount point in guest
+      readonly: false                  # Mount as read-write
+      owner: "admin"                   # Owner user (default: admin)
+      group: "admin"                   # Owner group (default: admin)
+      mode: "0755"                     # Permissions (default: 0755)
+      options: "rw,relatime"           # Mount options (default: rw,relatime)
+```
+
+### Field Reference
+
+All fields are defined in the `virtioFsMount` schema definition:
+
+- **tag** (required): Unique identifier for the mount (alphanumeric, dashes, underscores)
+- **host_path** (required): Absolute path on the host system to share
+- **mount_point** (required): Mount point path inside the guest VM (must start with `/`)
+- **readonly** (optional): Mount as read-only (default: `false`)
+- **owner** (optional): Owner user for mount point (default: `"admin"`)
+- **group** (optional): Owner group for mount point (default: `"admin"`)
+- **mode** (optional): Permissions mode in octal format (default: `"0755"`)
+- **options** (optional): Mount options string (default: `"rw,relatime"`)
+
+### Multiple Mounts
+
+Define multiple mounts as an array:
+
+```yaml
+virtio_fs_mounts:
+  - tag: "project-data"
+    host_path: "/home/user/projects"
+    mount_point: "/project"
+    readonly: false
+  - tag: "scratch"
+    host_path: "/tmp/scratch"
+    mount_point: "/scratch"
+    readonly: false
+  - tag: "datasets"
+    host_path: "/data/ml-datasets"
+    mount_point: "/datasets"
+    readonly: true               # Read-only for safety
+    mode: "0755"
+```
+
+### Best Practices
+
+- Use absolute paths for `host_path`
+- Ensure host directories exist before VM provisioning
+- Use unique `tag` values across all mounts in a VM
+- Set `readonly: true` for shared reference data
+- Consider permissions (`mode`, `owner`, `group`) for multi-user access
+
+## Image Configuration
+
+### Base Images
+
+Each cluster and node can specify base images:
+
+```yaml
+# Cluster default image (fallback for all nodes)
+clusters:
+  hpc:
+    base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"
+    controller:
+      # Override with controller-specific image
+      base_image_path: "build/packer/hpc-controller/hpc-controller.qcow2"
+    compute_nodes:
+      - base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"  # Node-specific image
+        ip: "192.168.100.11"
+```
+
+### Image Path Rules
+
+- **Absolute paths**: Used as-is (e.g., `/opt/images/image.qcow2`)
+- **Relative paths**: Resolved from current working directory where CLI is executed
+- **Cluster default**: Used if node doesn't specify image
+- **Node override**: Node-specific image takes precedence
+
+## Configuration Examples
+
+### Example 1: Basic Single-Cluster Setup
+
+```yaml
+version: "1.0"
+metadata:
+  name: "basic-hpc"
+  description: "Basic HPC cluster with 2 compute nodes"
+
+clusters:
+  hpc:
+    name: "hpc-cluster"
+    base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"
+    network:
+      subnet: "192.168.100.0/24"
+      bridge: "virbr100"
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.100.10"
+    compute_nodes:
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.11"
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.12"
+    slurm_config:
+      partitions: ["gpu"]
+      default_partition: "gpu"
+      max_job_time: "24:00:00"
+
+  cloud:
+    name: "cloud-cluster"
+    base_image_path: "build/packer/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
+    control_plane:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.200.10"
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.200.11"
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+```
+
+### Example 2: GPU-Accelerated Setup
+
+```yaml
+version: "1.0"
+metadata:
+  name: "gpu-accelerated"
+  description: "HPC cluster with GPU acceleration"
+
+clusters:
+  hpc:
+    name: "hpc-cluster"
+    base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"
+    network:
+      subnet: "192.168.100.0/24"
+      bridge: "virbr100"
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.100.10"
+    compute_nodes:
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.11"
+        pcie_passthrough:
+          enabled: true
+          devices:
+            - pci_address: "0000:01:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2805"
+            - pci_address: "0000:01:00.1"
+              device_type: "audio"
+              vendor_id: "10de"
+              device_id: "22bd"
+    slurm_config:
+      partitions: ["gpu"]
+      default_partition: "gpu"
+      max_job_time: "24:00:00"
+
+  cloud:
+    name: "cloud-cluster"
+    base_image_path: "build/packer/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
+    control_plane:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.200.10"
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.200.11"
+      gpu:
+        - worker_type: "gpu"
+          cpu_cores: 8
+          memory_gb: 16
+          disk_gb: 200
+          ip: "192.168.200.12"
+          pcie_passthrough:
+            enabled: true
+            devices:
+              - pci_address: "0000:65:00.2"
+                device_type: "gpu"
+                vendor_id: "10de"
+                device_id: "2684"
+              - pci_address: "0000:65:00.3"
+                device_type: "audio"
+                vendor_id: "10de"
+                device_id: "22bd"
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+```
+
+### Example 3: Development Setup with Shared Directories
+
+```yaml
+version: "1.0"
+metadata:
+  name: "development-setup"
+  description: "Development cluster with shared host directories"
+
+clusters:
+  hpc:
+    name: "hpc-cluster"
+    base_image_path: "build/packer/hpc-compute/hpc-compute.qcow2"
+    network:
+      subnet: "192.168.100.0/24"
+      bridge: "virbr100"
+    controller:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.100.10"
+      virtio_fs_mounts:
+        - tag: "project-data"
+          host_path: "/home/user/projects"
+          mount_point: "/project"
+          readonly: false
+        - tag: "scratch"
+          host_path: "/tmp/scratch"
+          mount_point: "/scratch"
+          readonly: false
+    compute_nodes:
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.100.11"
+        virtio_fs_mounts:
+          - tag: "project-data"
+            host_path: "/home/user/projects"
+            mount_point: "/project"
+            readonly: false
+    slurm_config:
+      partitions: ["gpu"]
+      default_partition: "gpu"
+      max_job_time: "24:00:00"
+
+  cloud:
+    name: "cloud-cluster"
+    base_image_path: "build/packer/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: "192.168.200.0/24"
+      bridge: "virbr200"
+    control_plane:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.200.10"
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.200.11"
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"
+```
+
+## Quick Start
+
+### Creating Your Configuration
+
+1. Copy the example configuration:
 
    ```bash
    cp config/example-multi-gpu-clusters.yaml config/cluster.yaml
    ```
 
-2. Modify the `cluster.yaml` file to adjust resource allocations, network
-   configurations, or cluster specifications as needed.
+2. Edit for your environment:
 
-3. The automation tools will read from `cluster.yaml` to provision and
-   configure your infrastructure.
+   ```bash
+   vim config/cluster.yaml
+   ```
 
-## Customization
+3. Customize for your infrastructure:
+   - Update network subnets and bridges
+   - Adjust CPU, memory, disk allocations
+   - Configure GPU passthrough devices (use `scripts/system-checks/gpu_inventory.sh` for automated detection)
+   - Set SLURM and Kubernetes parameters
 
-The configuration is designed to be easily customizable:
+### Validating Configuration
 
-- Adjust CPU cores, memory, and disk allocations per node type
-- Modify network subnets and bridge names
-- Change GPU allocation strategy and MIG slice distribution
-- Update SLURM and Kubernetes configuration parameters
+```bash
+# Validate configuration against schema
+python3 -m ai_how validate-cluster config/cluster.yaml
+
+# Show validation errors
+python3 -m ai_how validate-cluster config/cluster.yaml --verbose
+```
+
+### Using Configuration
+
+```bash
+# Provision infrastructure from configuration
+ai-how cluster provision config/cluster.yaml
+
+# List configured clusters
+ai-how cluster list config/cluster.yaml
+
+# Deploy infrastructure
+ai-how deploy config/cluster.yaml
+```
+
+## Configuration Customization
+
+### Network Customization
+
+Modify network configuration to match your environment:
+
+```yaml
+network:
+  subnet: "10.0.0.0/24"         # Change network address
+  bridge: "custom-bridge"       # Change bridge name
+```
+
+### Resource Scaling
+
+Adjust compute resources:
+
+```yaml
+controller:
+  cpu_cores: 8                  # Increase for heavier workloads
+  memory_gb: 16                 # Increase for memory-intensive tasks
+  disk_gb: 200                  # Increase for larger deployments
+
+compute_nodes:
+  - cpu_cores: 16               # More cores for parallel work
+    memory_gb: 32               # More memory for larger datasets
+    disk_gb: 500                # Larger disk for output
+```
+
+### GPU Configuration
+
+Customize GPU allocation:
+
+```yaml
+pcie_passthrough:
+  enabled: true
+  devices:
+    - pci_address: "0000:03:00.0"    # Multiple GPUs
+      device_type: "gpu"
+      vendor_id: "10de"
+      device_id: "2204"               # Different GPU model
+    - pci_address: "0000:03:00.1"
+      device_type: "audio"
+      vendor_id: "10de"
+      device_id: "1aed"
+```
+
+## Troubleshooting
+
+### Configuration Validation Errors
+
+**Invalid subnet**: Ensure CIDR format (e.g., `192.168.100.0/24`)
+
+```bash
+# Valid
+subnet: "192.168.100.0/24"
+
+# Invalid
+subnet: "192.168.100"
+```
+
+**Invalid IP address**: Ensure IPv4 format
+
+```bash
+# Valid
+ip_address: "192.168.100.10"
+
+# Invalid
+ip_address: "192.168.100"
+```
+
+### PCIe Passthrough Issues
+
+**Device not found**: Verify PCI address format
+
+```bash
+# Must be 4-digit hex for domain, bus, slot, function
+pci_address: "0000:01:00.0"  # Correct
+pci_address: "1:0:0"         # Incorrect
+```
+
+**IOMMU group errors**: List devices in same group:
+
+```bash
+# Find IOMMU groups
+ls /sys/kernel/iommu_groups/*/devices/
+
+# Devices in same group must be passed together
+pcie_passthrough:
+  devices:
+    - pci_address: "0000:01:00.0"    # GPU
+    - pci_address: "0000:01:00.1"    # Audio (same group)
+```
+
+### Image Path Issues
+
+**Image not found**: Check paths:
+
+```bash
+# Verify absolute paths exist
+ls -la /opt/images/hpc-compute.qcow2
+
+# For relative paths, run CLI from correct directory
+cd /path/to/project
+ai-how cluster provision config/cluster.yaml
+```
+
+## Integration with Automation
+
+The configuration file is used by:
+
+- **VM Provisioning**: KVM/QEMU VM creation and management
+- **Network Setup**: Virtual bridge and network interface configuration
+- **Ansible Deployment**: Inventory generation and host provisioning
+- **SLURM Management**: Partition and node registration
+- **Kubernetes Setup**: Control plane and worker node initialization
+
+## Reference Documentation
+
+### Configuration Schema and Validation
+
+- **[python/ai_how/src/ai_how/schemas/cluster.schema.json](../python/ai_how/src/ai_how/schemas/cluster.schema.json)** -
+  Authoritative JSON Schema definition (all field types, patterns, and constraints)
+- **[python/ai_how/src/ai_how/schemas/README.md](../python/ai_how/src/ai_how/schemas/README.md)** - Schema usage and
+  utility functions
+
+### System Tools and Scripts
+
+- **[scripts/system-checks/gpu_inventory.sh](../scripts/system-checks/gpu_inventory.sh)** - GPU detection and PCIe
+  passthrough configuration generator
+- **[scripts/system-checks/README.md](../scripts/system-checks/README.md)** - System validation and GPU inventory
+  documentation
+- **[scripts/README.md](../scripts/README.md)** - Complete scripts overview
+
+### CLI and Infrastructure Documentation
+
+- **[python/ai_how/docs/](../python/ai_how/docs/)** - Complete CLI documentation and usage guides
+- **[python/ai_how/docs/network_configuration.md](../python/ai_how/docs/network_configuration.md)** - Network
+  configuration details
+- **[python/ai_how/docs/pcie-passthrough-validation.md](../python/ai_how/docs/pcie-passthrough-validation.md)** - PCIe
+  passthrough validation
+
+### Examples
+
+- **[config/example-multi-gpu-clusters.yaml](example-multi-gpu-clusters.yaml)** - Complete example configuration with
+  GPU passthrough
+
+## See Also
+
+- **[../README.md](../README.md)** - Project overview
+- **[../python/ai_how/README.md](../python/ai_how/README.md)** - AI-HOW CLI documentation
+- **[../python/ai_how/docs/](../python/ai_how/docs/)** - Detailed CLI and configuration guides
