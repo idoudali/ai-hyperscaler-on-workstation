@@ -616,7 +616,7 @@ The schema now supports specifying different images at multiple levels:
 - Individual node level (per-VM override)
 
 For more information on the schema and configuration options, see the [Schema
-Documentation](../python/ai_how/src/ai_how/schemas/README.md).
+Documentation](../python/ai_how/docs/schema-guide.md).
 
 ## Detailed Documentation
 

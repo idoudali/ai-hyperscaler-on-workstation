@@ -2,9 +2,13 @@
 
 This page provides practical examples of how to use AI-HOW for common tasks.
 
+> **Note**: For complete command reference and detailed options, see [CLI Reference](cli-reference.md).
+
 ## Basic Configuration Validation
 
 ### Validate a YAML Configuration File
+
+For detailed validation options and troubleshooting, see [CLI Reference - Validate Command](cli-reference.md#validate-command).
 
 ```bash
 # Basic validation
@@ -53,7 +57,7 @@ settings:
 
 ### Custom Schema Validation
 
-You can use custom JSON schemas for validation:
+You can use custom JSON schemas for validation. See [Schema Guide](schema-guide.md) for detailed schema information.
 
 ```bash
 # Validate against a custom schema
@@ -73,6 +77,9 @@ done
 ```
 
 ## Error Handling
+
+For comprehensive error handling and troubleshooting information, see [CLI Reference - Exit
+Codes](cli-reference.md#exit-codes) and [State Management - Troubleshooting](state-management.md#troubleshooting).
 
 ### Common Validation Errors
 
@@ -149,6 +156,8 @@ repos:
 3. **Permission Denied**: Ensure you have read access to configuration files
 
 ### Getting Help
+
+For complete help information, see [CLI Reference](cli-reference.md).
 
 ```bash
 # Show help for the validate command

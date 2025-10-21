@@ -44,6 +44,10 @@ plugins:
 
 nav:
   - Home: index.md
+  - Common Concepts: common-concepts.md
+  - CLI Reference: cli-reference.md
+  - Schema Guide: schema-guide.md
+  - State Management: state-management.md
   - API Reference:
     - ai_how: api/ai_how.md
   - Examples: examples.md

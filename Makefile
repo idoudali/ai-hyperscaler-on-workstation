@@ -118,7 +118,7 @@ venv-create:
 	@echo "Installing Ansible collections..."
 	@uv run ansible-galaxy collection install -r ansible/collections/requirements.yml
 	@echo "Installing MkDocs and plugins..."
-	@uv pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin mkdocs-include-markdown-plugin mkdocs-simple-plugin mkdocs-htmlproofer-plugin "mkdocstrings[python]"
+	@uv pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin mkdocs-include-markdown-plugin mkdocs-simple-plugin mkdocs-monorepo-plugin mkdocs-htmlproofer-plugin "mkdocstrings[python]"
 	@echo "Virtual environment setup complete"
 
 

@@ -1,8 +1,10 @@
 # PCIe Passthrough Validation
 
-The AI-HOW CLI now includes comprehensive validation for PCIe passthrough
+The AI-HOW CLI includes comprehensive validation for PCIe passthrough
 configuration, ensuring that devices are properly configured for GPU and other
 device passthrough to VMs.
+
+> **Note**: For core PCIe passthrough concepts, see [Common Concepts - PCIe Passthrough](common-concepts.md).
 
 ## Overview
 

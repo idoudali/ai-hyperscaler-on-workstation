@@ -3,6 +3,8 @@
 This guide provides information for developers who want to contribute to the
 AI-HOW project.
 
+> **Note**: For core concepts and terminology, see [Common Concepts](common-concepts.md).
+
 ## Development Setup
 
 ### Prerequisites
