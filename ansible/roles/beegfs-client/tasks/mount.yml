@@ -14,7 +14,7 @@
 
 - name: Build BeeGFS DKMS module if not built
   ansible.builtin.command:
-    cmd: dkms install beegfs/7.4.4 -k {{ ansible_kernel }}
+    cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
   when: dkms_status.stdout.find('installed') == -1
   register: dkms_build
   failed_when: false

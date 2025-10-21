@@ -53,8 +53,3 @@ node_modules/
 
 # Docker
 .dockerignore
-
-# Log files - exclude from YAML linting
-*.log
-
-build/LOG

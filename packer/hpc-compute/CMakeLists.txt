@@ -92,7 +92,7 @@ add_custom_target(validate-hpc-compute-packer
     COMMAND rm -rf ${HPC_OUTPUT_DIR}
     COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl ${PACKER_VARS} hpc-compute.pkr.hcl
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS init-hpc-compute-packer generate-packer-vars-hpc-compute
+    DEPENDS init-hpc-compute-packer generate-packer-vars-hpc-compute prepare-cloud-init-hpc-compute build-beegfs-packages build-slurm-packages
     COMMENT "Validating HPC Compute Packer template..."
 )
 

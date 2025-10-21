@@ -74,16 +74,17 @@ hpc-slurm/
 **Phase 3: Storage** (Tasks 027-028)
 
 - File: `completed/phase-3-storage.md`
-- Status: 67% complete (2/3 tasks)
-- Content: Virtio-FS, BeeGFS deployment
+- Status: ✅ **Code Complete** ⏳ Pending Validation (3/3 tasks code complete)
+- Content: Virtio-FS, BeeGFS 7.4.4 deployment, BeeGFS 8.1.0 upgrade
 
-### Pending Phases (3 files)
+### Pending Phases (2 files)
 
-**Phase 3: Storage Fixes** (Task 028.1)
+**Phase 3: Storage Fixes** (Task 028.1) - ⚠️ **SUPERSEDED** by BeeGFS 8.1.0 upgrade
 
 - File: `pending/phase-3-storage-fixes.md`
-- Status: In progress
-- Content: BeeGFS kernel module compatibility fix
+- Status: ⚠️ Obsolete (superseded by completed/ documentation)
+- Content: Historical reference for kernel compatibility investigation
+- **Note**: See `completed/TASK-028.1-IMPLEMENTATION.md` for current status
 
 **Phase 4: Consolidation** (Tasks 029-036)
 

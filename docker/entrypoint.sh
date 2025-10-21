@@ -81,7 +81,7 @@ setup_user() {
     chmod 755 "$home_dir" 2>/dev/null || true
 
     # Create common directories in home
-    local common_dirs=(".ssh" ".cache" ".local" ".config")
+    local common_dirs=(".ssh" ".cache" ".cache/cargo" ".local" ".config")
     for dir in "${common_dirs[@]}"; do
         local full_path="$home_dir/$dir"
         if [[ ! -d "$full_path" ]]; then
@@ -99,6 +99,10 @@ setup_user() {
 # Basic bash configuration for container user
 export PS1='\u@\h:\w\$ '
 export PATH="/opt/venv/bin:$PATH"
+
+# Configure Cargo to use cache directory
+export CARGO_HOME="$HOME/.cache/cargo"
+export PATH="$CARGO_HOME/bin:/usr/local/cargo/bin:$PATH"
 
 # Enable color support
 if [[ -x /usr/bin/dircolors ]]; then
@@ -161,10 +165,14 @@ main() {
         log_warn "Running as root, skipping user setup"
     fi
 
+    # Set up environment variables for the user
+    export CARGO_HOME="$home_dir/.cache/cargo"
+    export PATH="$CARGO_HOME/bin:/usr/local/cargo/bin:/opt/venv/bin:$PATH"
+
     # Switch to the user if not already running as them
     if [[ "$(id -u)" != "$user_id" ]]; then
         log_info "Switching to user $username (UID: $user_id)"
-        exec gosu "$username" "$@"
+        exec gosu "$username" env CARGO_HOME="$CARGO_HOME" PATH="$PATH" "$@"
     else
         log_info "Already running as target user, executing command"
         exec "$@"

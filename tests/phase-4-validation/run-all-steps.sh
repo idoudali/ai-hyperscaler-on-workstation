@@ -89,6 +89,7 @@ Description:
   - Step 00: Prerequisites
   - Step 01: Packer Controller Build
   - Step 02: Packer Compute Build
+  - Step 2a: Start Cluster VMs
   - Step 03: Runtime Deployment
   - Step 04: Functional Tests
   - Step 05: Regression Tests
@@ -160,6 +161,17 @@ main() {
     log_error "Step 02 FAILED"
     return 1
   fi
+  echo ""
+
+  # Step 2a: Start Cluster VMs (prerequisite for runtime deployment)
+  log_info "Running Step 2a: Starting Cluster VMs..."
+  cd "$PROJECT_ROOT"
+  log_info "Starting HPC cluster (this may take 2-5 minutes)..."
+  if ! make cluster-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc"; then
+    log_error "Step 2a: Cluster start FAILED"
+    return 1
+  fi
+  log_info "✓ Cluster VMs started successfully"
   echo ""
 
   # Step 3: Runtime Deployment

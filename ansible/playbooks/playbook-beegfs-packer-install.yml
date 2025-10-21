@@ -6,25 +6,25 @@
 # Note: Uses 'hosts: all' for compatibility with ansible provisioner (SSH connection)
 # Previously used 'hosts: localhost' + 'connection: local' for ansible-local provisioner
 #
-# FIXME: BeeGFS Client DKMS Module Build Disabled (Kernel 6.12.x Incompatibility)
+# BeeGFS Client DKMS Module Build (BeeGFS 8.1.0 + Kernel 6.12+ Compatible)
 # ================================================================================
 # The BeeGFS client role will SKIP DKMS kernel module build during Packer builds
-# because BeeGFS 7.4.4 is incompatible with kernel 6.12.x.
+# to reduce image build time. BeeGFS 8.1.0 is fully compatible with kernel 6.12+.
 #
 # Current Behavior:
 #   - BeeGFS client PACKAGES are installed (beegfs-client-dkms, beegfs-utils, beegfs-helperd)
-#   - DKMS kernel module build is SKIPPED (packer_build=true)
-#   - Image build completes successfully with warnings
-#   - BeeGFS filesystem CANNOT be mounted (no kernel module)
+#   - DKMS kernel module build is SKIPPED (packer_build=true) for faster image creation
+#   - Image build completes successfully
+#   - DKMS module will be built during runtime deployment
 #
 # Impact on Images:
-#   Controller Image: Server packages installed, client packages installed (no module)
-#   Compute Image: Storage + client packages installed (no module)
+#   Controller Image: Server packages + client packages installed (module built at runtime)
+#   Compute Image: Storage + client packages installed (module built at runtime)
 #
-# Required Action:
-#   Rebuild VM base images with kernel 6.1 LTS or 6.6 LTS
+# Requirements:
+#   Ensure kernel consistency between Docker build container and Packer VMs
 #   See: docs/implementation-plans/task-lists/hpc-slurm/pending/phase-3-storage-fixes.md
-#   Task: TASK-028.1 - Resolve BeeGFS kernel incompatibility
+#   Task: TASK-028.1 - BeeGFS 8.1.0 kernel consistency fixes
 # ================================================================================
 
 - name: Install BeeGFS packages on HPC Controller (Packer)

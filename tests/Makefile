@@ -1,6 +1,6 @@
 # HPC SLURM Test Suite Makefile
 
-.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-virtio-fs test-virtio-fs-start test-virtio-fs-deploy test-virtio-fs-tests test-virtio-fs-stop test-virtio-fs-status test-beegfs test-beegfs-start test-beegfs-deploy test-beegfs-tests test-beegfs-stop test-beegfs-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean
+.PHONY: help test test-all test-base-images test-container-runtime test-slurm-controller test-slurm-controller-start test-slurm-controller-deploy test-slurm-controller-tests test-slurm-controller-stop test-slurm-controller-status test-slurm-compute test-slurm-compute-start test-slurm-compute-deploy test-slurm-compute-tests test-slurm-compute-stop test-slurm-compute-status test-gpu-gres test-gpu-gres-start test-gpu-gres-deploy test-gpu-gres-tests test-gpu-gres-stop test-gpu-gres-status test-cgroup-isolation test-cgroup-isolation-start test-cgroup-isolation-deploy test-cgroup-isolation-tests test-cgroup-isolation-stop test-cgroup-isolation-status test-job-scripts test-job-scripts-start test-job-scripts-deploy test-job-scripts-tests test-job-scripts-stop test-job-scripts-status test-container-integration test-container-integration-start test-container-integration-deploy test-container-registry-deploy test-container-integration-tests test-container-integration-stop test-container-integration-status test-virtio-fs test-virtio-fs-start test-virtio-fs-deploy test-virtio-fs-tests test-virtio-fs-stop test-virtio-fs-status test-beegfs test-beegfs-start test-beegfs-deploy test-beegfs-tests test-beegfs-stop test-beegfs-status test-monitoring-stack test-dcgm-monitoring test-ansible-roles test-integration test-ai-how test-config-validation test-pcie-validation test-test-configs test-container-comprehensive test-quick test-verbose test-fail-fast test-role test-precommit test-ansible-syntax test-infrastructure test-configuration clean clean-ssh-keys
 
 help:
 	@echo "HPC SLURM Test Suite"
@@ -86,6 +86,9 @@ help:
 	@echo "Pre-commit validation (basic syntax/linting):"
 	@echo "  test-precommit         - Run all pre-commit hooks"
 	@echo "  test-ansible-syntax    - Run Ansible syntax/lint validation"
+	@echo ""
+	@echo "SSH key management:"
+	@echo "  clean-ssh-keys         - Remove SSH keys for IPs in CLUSTER_CONFIG (config-based)"
 	@echo ""
 
 # Run core infrastructure tests (fast, essential components)
@@ -548,6 +551,26 @@ verify-hpc-cloud:
 destroy-hpc-cloud:
 	@echo "Destroying HPC cloud cluster..."
 	@../ansible/run-ansible-hpc-cloud.sh destroy --force
+
+# SSH Key Management
+# Remove SSH host keys for cluster VMs to avoid "host key verification failed" errors
+# after rebuilding VMs. Uses utilities from test-infra/utils/ for IP extraction and cleanup.
+
+# Remove SSH host keys for cluster IPs from configuration file
+# Default config can be overridden with CLUSTER_CONFIG variable
+CLUSTER_CONFIG ?= ../config/example-multi-gpu-clusters.yaml
+
+clean-ssh-keys:
+	@echo "Removing SSH host keys for cluster configuration..."
+	@echo "Configuration: $(CLUSTER_CONFIG)"
+	@CLUSTER_IPS=$$(./test-infra/utils/extract-cluster-ips.sh $(CLUSTER_CONFIG) hpc 2>/dev/null || echo ""); \
+	if [ -n "$$CLUSTER_IPS" ]; then \
+		echo "Found IP(s) in config: $$CLUSTER_IPS"; \
+		./test-infra/utils/ssh-key-cleanup.sh $$CLUSTER_IPS || echo "⚠️  SSH key cleanup failed (continuing anyway)"; \
+	else \
+		echo "⚠️  No IPs found in config, skipping SSH key cleanup"; \
+	fi
+	@echo ""
 
 # Clean artifacts
 clean:

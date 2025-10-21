@@ -24,7 +24,7 @@
 - name: Check if pre-built packages exist on remote host
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: prebuilt_packages_check
   when:
     - not beegfs_storage_installed.stat.exists
@@ -37,7 +37,7 @@
 - name: Check if packages exist on Ansible controller (for runtime deployment)
   ansible.builtin.find:
     paths: "{{ beegfs_packages_source_dir | default('build/packages/beegfs') }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: controller_packages_check
   delegate_to: localhost
   become: false
@@ -80,7 +80,7 @@
 - name: Re-check if pre-built packages exist after copy
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: prebuilt_packages_check_final
   when:
     - not beegfs_storage_installed.stat.exists
@@ -93,7 +93,7 @@
   ansible.builtin.fail:
     msg: >-
       BeeGFS pre-built packages not found at {{ beegfs_packages_path }}.
-      Expected: beegfs-common_{{ beegfs_version }}_*.deb
+      Expected: beegfs-utils_{{ beegfs_version }}_*.deb
       Checked on controller: {{ beegfs_packages_source_dir | default('build/packages/beegfs') }}
       For Packer builds: Packages should be copied by Packer to /tmp/beegfs-packages/
       For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
@@ -114,7 +114,7 @@
 - name: Find BeeGFS common package
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: beegfs_common_pkg
   when: not beegfs_storage_installed.stat.exists
   tags:

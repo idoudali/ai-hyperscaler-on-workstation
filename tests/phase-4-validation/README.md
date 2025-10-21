@@ -233,7 +233,34 @@ After validation is complete, stop the cluster:
 make cluster-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc
 ```
 
+## SSH Configuration
+
+All scripts use non-interactive SSH with the following options to prevent prompts:
+
+- `StrictHostKeyChecking=no` - Auto-accept new host keys
+- `UserKnownHostsFile=/dev/null` - Don't save host keys
+- `BatchMode=yes` - Prevent interactive prompts
+- `LogLevel=ERROR` - Suppress SSH warnings
+- `ConnectTimeout=10` - Timeout after 10 seconds
+
+This ensures validation can run without human interaction for host key acceptance.
+
 ## Troubleshooting
+
+### SSH Host Key Prompts
+
+If you see SSH host key fingerprint prompts, the SSH_OPTS may not be properly configured. All validation scripts
+should use:
+
+```bash
+SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR"
+```
+
+After cluster rebuilds, you can clean old SSH keys with:
+
+```bash
+make clean-ssh-keys  # From project root or tests/ directory
+```
 
 ### Step Already Completed Warning
 
