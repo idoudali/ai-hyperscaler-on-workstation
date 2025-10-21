@@ -229,6 +229,7 @@ nav:
       - Configuration:
           - Overview: config/README.md
       - Scripts:
+          - Overview: scripts/README.md
           - System Checks: scripts/system-checks/README.md
           - Experiments: scripts/experiments/README.md
   - CLI (ai-how):
