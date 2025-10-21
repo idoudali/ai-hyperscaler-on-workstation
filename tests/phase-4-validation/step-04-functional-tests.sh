@@ -47,6 +47,10 @@ main() {
   local step_dir="$VALIDATION_ROOT/04-functional-tests"
   create_step_dir "$step_dir"
 
+  # SSH configuration for non-interactive access
+  local SSH_KEY="${PROJECT_ROOT}/build/shared/ssh-keys/id_rsa"
+  local SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR -o ConnectTimeout=10"
+
   local CONTROLLER_HOST="test-hpc-runtime-controller"
   local COMPUTE_HOST="test-hpc-runtime-compute01"
 
@@ -55,8 +59,8 @@ main() {
 
   # 4.1: Check cluster info
   log_info "4.1: Checking SLURM cluster info..."
-  log_cmd "ssh $CONTROLLER_HOST 'sinfo'"
-  if ssh -o ConnectTimeout=10 "$CONTROLLER_HOST" "sinfo" \
+  log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'sinfo'"
+  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "sinfo" \
     > "$step_dir/cluster-info.log" 2>&1; then
     log_success "SLURM cluster info retrieved"
     cat "$step_dir/cluster-info.log"
@@ -66,8 +70,8 @@ main() {
 
   # 4.2: Check node registration
   log_info "4.2: Checking compute node registration..."
-  log_cmd "ssh $CONTROLLER_HOST 'scontrol show nodes'"
-  if ssh -o ConnectTimeout=10 "$CONTROLLER_HOST" "scontrol show nodes" \
+  log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'scontrol show nodes'"
+  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "scontrol show nodes" \
     > "$step_dir/node-registration.log" 2>&1; then
     log_success "Node registration status retrieved"
 
@@ -83,8 +87,8 @@ main() {
 
   # 4.3: Test simple job
   log_info "4.3: Testing simple job execution..."
-  log_cmd "ssh $CONTROLLER_HOST 'srun -N1 hostname'"
-  if ssh -o ConnectTimeout=10 "$CONTROLLER_HOST" "srun -N1 hostname" \
+  log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'srun -N1 hostname'"
+  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "srun -N1 hostname" \
     > "$step_dir/simple-job.log" 2>&1; then
     log_success "Simple job executed successfully"
     cat "$step_dir/simple-job.log"
@@ -94,8 +98,8 @@ main() {
 
   # 4.4: Test container support
   log_info "4.4: Testing container runtime..."
-  log_cmd "ssh $CONTROLLER_HOST 'srun apptainer --version'"
-  if ssh -o ConnectTimeout=10 "$CONTROLLER_HOST" "srun apptainer --version" \
+  log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'srun apptainer --version'"
+  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "srun apptainer --version" \
     > "$step_dir/container-test.log" 2>&1; then
     log_success "Container runtime functional"
     cat "$step_dir/container-test.log"

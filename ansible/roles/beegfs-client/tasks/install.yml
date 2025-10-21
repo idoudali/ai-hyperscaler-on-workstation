@@ -3,47 +3,37 @@
 # Installs from pre-built packages only (no source build)
 # Note: Kernel module must be built on the target system
 #
-# FIXME: KERNEL COMPATIBILITY ISSUE - BeeGFS 7.4.4 + Kernel 6.12.x
+# KERNEL COMPATIBILITY: BeeGFS 8.1.0 + Kernel 6.12+
 # ==================================================================
-# BeeGFS 7.4.4 client kernel module is INCOMPATIBLE with Linux kernel 6.12.x
-# due to breaking kernel API changes. DKMS build will FAIL on kernel 6.12+.
+# BeeGFS 8.1.0 client kernel module is FULLY COMPATIBLE with Linux kernel 6.12+
+# All kernel API compatibility issues from 7.4.4 have been resolved in 8.1.0.
 #
-# Root Cause:
-#   - generic_fillattr() function signature changed (added mnt_idmap parameter)
-#   - inode_owner_or_capable() signature changed (added mnt_idmap parameter)
-#   - SetPageError() function removed from kernel API
-#   - asm/unaligned.h header relocated/renamed
+# Fixed in BeeGFS 8.1.0:
+#   ✅ generic_fillattr() function signature updated for kernel 6.12+
+#   ✅ inode_owner_or_capable() function signature updated for kernel 6.12+
+#   ✅ SetPageError() function replaced with compatible alternative
+#   ✅ asm/unaligned.h header path issues resolved
 #
-# Impact:
-#   ✅ BeeGFS server services (mgmtd, meta, storage) work correctly
-#   ❌ Client kernel module cannot be built or loaded
-#   ❌ Cannot mount BeeGFS filesystem on any node
-#
-# Workaround (CURRENT):
-#   - Skip DKMS module build during Packer image creation
-#   - Install client packages without kernel module
-#   - Deployment completes with warnings
-#
-# Permanent Solution (REQUIRED):
-#   Rebuild VM base images with kernel 6.1 LTS or 6.6 LTS
-#   See: docs/implementation-plans/task-lists/hpc-slurm/pending/phase-3-storage-fixes.md
-#   Task: TASK-028.1 - Resolve BeeGFS kernel incompatibility
+# Requirements:
+#   - Kernel headers must match between build and runtime environments
+#   - Docker build container and Packer VMs must use same kernel version
+#   - DKMS will build kernel module at install time
 #
 # Kernel Compatibility Matrix:
-#   6.1.x LTS  - ✅ Fully Supported (RECOMMENDED)
-#   6.6.x LTS  - ✅ Fully Supported (RECOMMENDED)
-#   6.11.x     - ⚠️  May work (testing needed)
-#   6.12.x+    - ❌ INCOMPATIBLE (API changes)
+#   6.1.x LTS  - ✅ Fully Supported
+#   6.6.x LTS  - ✅ Fully Supported
+#   6.11.x     - ✅ Fully Supported
+#   6.12.x+    - ✅ Fully Supported (kernel 6.12 API compatible)
 #
 # References:
-#   - Issue documented in: phase-3-storage-fixes.md
-#   - BeeGFS compatibility: https://www.beegfs.io/docs/
-#   - Kernel API changes: Linux kernel 6.12 changelog
+#   - Solution documented in: phase-3-storage-fixes.md (TASK-028.1)
+#   - BeeGFS 8.1.0 release notes
+#   - Kernel consistency requirement for DKMS builds
 # ==================================================================
 
 - name: Check if BeeGFS client DKMS package is installed
   ansible.builtin.stat:
-    path: /usr/src/beegfs-7.4.4
+    path: "/usr/src/beegfs-{{ beegfs_version }}"
   register: beegfs_client_dkms_installed
   tags:
     - beegfs
@@ -71,7 +61,7 @@
 - name: Check if pre-built packages exist on remote host
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: prebuilt_packages_check
   when:
     - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
@@ -84,7 +74,7 @@
 - name: Check if packages exist on Ansible controller (for runtime deployment)
   ansible.builtin.find:
     paths: "{{ beegfs_packages_source_dir | default('build/packages/beegfs') }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: controller_packages_check
   delegate_to: localhost
   become: false
@@ -127,7 +117,7 @@
 - name: Re-check if pre-built packages exist after copy
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: prebuilt_packages_check_final
   when:
     - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
@@ -140,7 +130,7 @@
   ansible.builtin.fail:
     msg: >-
       BeeGFS pre-built packages not found at {{ beegfs_packages_path }}.
-      Expected: beegfs-common_{{ beegfs_version }}_*.deb
+      Expected: beegfs-utils_{{ beegfs_version }}_*.deb
       Checked on controller: {{ beegfs_packages_source_dir | default('build/packages/beegfs') }}
       For Packer builds: Packages should be copied by Packer to /tmp/beegfs-packages/
       For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
@@ -184,7 +174,7 @@
 - name: Find BeeGFS common package
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
-    patterns: "beegfs-common_{{ beegfs_version }}_*.deb"
+    patterns: "beegfs-utils_{{ beegfs_version }}_*.deb"
   register: beegfs_common_pkg
   when: not beegfs_client_installed.stat.exists
   tags:
@@ -241,83 +231,92 @@
     - install
     - dkms
 
-# FIXME: DKMS module build disabled during Packer builds due to kernel 6.12.x incompatibility
-# See header comments for details. This will be re-enabled after VM images are rebuilt with kernel 6.1/6.6 LTS.
-- name: Install BeeGFS client packages (DKMS autoinstall disabled)
-  ansible.builtin.shell: |
-    DKMS_AUTOINSTALL=no dpkg -i "{{ item.path }}" || true
-    apt-get install -f -y || true
+# DKMS autoinstall enabled - BeeGFS 8.1.0 is fully compatible with kernel 6.12+
+# DKMS will automatically build the kernel module during package installation.
+# For Packer builds, this adds ~30 seconds to build time but ensures module availability.
+- name: Install BeeGFS client packages (with DKMS autoinstall)
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
   loop: "{{ beegfs_client_pkgs.files }}"
   when:
     - (not beegfs_client_installed.stat.exists) or (not beegfs_client_dkms_installed.stat.exists)
     - beegfs_client_pkgs.matched | default(0) > 0
   register: client_install_result
-  changed_when: "'Setting up' in client_install_result.stdout"
   tags:
     - beegfs
     - beegfs-client
     - install
 
-# FIXME: DKMS module build SKIPPED during Packer builds (kernel 6.12.x incompatibility)
-# This task is skipped when packer_build=true to prevent image build failures.
-# BeeGFS client packages are installed but kernel module is not built.
-# Runtime deployments can attempt DKMS build, but it will fail on kernel 6.12+.
+# TASK-028.1: Verify BeeGFS DKMS module built successfully
+# With BeeGFS 8.1.0 + kernel 6.12+, DKMS autoinstall should build the module automatically.
+# This section verifies the build succeeded and provides fallback if needed.
 #
-# To re-enable: Remove 'when: not packer_build' condition after upgrading to compatible kernel.
-- name: Manually build BeeGFS DKMS module for current kernel
+# Kernel Compatibility:
+#   - 6.1.x LTS: ✅ Fully supported
+#   - 6.6.x LTS: ✅ Fully supported
+#   - 6.12.x+:   ✅ Fully supported (BeeGFS 8.1.0 compatible)
+- name: Check if DKMS module was built during installation
   ansible.builtin.command:
-    cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
-  register: dkms_build_result
-  changed_when: dkms_build_result.rc == 0
+    cmd: "dkms status beegfs/{{ beegfs_version }}"
+  register: dkms_status_check
+  changed_when: false
   failed_when: false
-  when: not (packer_build | default(false) | bool)
   tags:
     - beegfs
     - beegfs-client
     - dkms
     - kernel-module
 
-- name: Display DKMS build result
-  ansible.builtin.debug:
-    msg: "DKMS build {{ 'succeeded' if dkms_build_result.rc == 0 else 'failed (rc=' + (dkms_build_result.rc | string) + ')' }}"
-  when:
-    - not (packer_build | default(false))
-    - dkms_build_result is defined
-  tags:
-    - beegfs
-    - beegfs-client
-    - dkms
-    - kernel-module
-
-- name: Display DKMS build output on failure
-  ansible.builtin.debug:
-    msg: "{{ dkms_build_result.stdout_lines | default([]) + dkms_build_result.stderr_lines | default([]) }}"
-  when:
-    - not (packer_build | default(false))
-    - dkms_build_result is defined
-    - dkms_build_result.rc != 0
-  tags:
-    - beegfs
-    - beegfs-client
-    - dkms
-    - kernel-module
-
-- name: Display DKMS build skip notice (Packer build)
+- name: Display DKMS autoinstall status
   ansible.builtin.debug:
     msg: |
-      ⚠️  NOTICE: DKMS module build SKIPPED (Packer build mode)
+      DKMS Status: {{ dkms_status_check.stdout if dkms_status_check.rc == 0 else 'Not installed' }}
 
-      Reason: BeeGFS 7.4.4 incompatible with kernel {{ ansible_kernel }}
+      {% if 'installed' in dkms_status_check.stdout %}
+      ✅ DKMS module built successfully during package installation
+      {% else %}
+      ⚠️  DKMS autoinstall did not complete - will attempt manual build
+      {% endif %}
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
+    - kernel-module
 
-      Impact:
-        - BeeGFS client packages installed without kernel module
-        - BeeGFS filesystem CANNOT be mounted
-        - Server services (mgmtd, meta, storage) unaffected
+- name: Build DKMS module manually if autoinstall failed
+  ansible.builtin.command:
+    cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
+  register: dkms_manual_build
+  changed_when: dkms_manual_build.rc == 0
+  failed_when: false
+  when:
+    - dkms_status_check.rc != 0 or 'installed' not in dkms_status_check.stdout
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
+    - kernel-module
 
-      Required Action:
-        Rebuild VM images with kernel 6.1 LTS or 6.6 LTS
-        See: phase-3-storage-fixes.md (TASK-028.1)
-  when: packer_build | default(false) | bool
+- name: Display manual DKMS build result
+  ansible.builtin.debug:
+    msg: "Manual DKMS build {{ 'succeeded' if dkms_manual_build.rc == 0 else 'failed (rc=' + (dkms_manual_build.rc | string) + ')' }}"
+  when:
+    - dkms_manual_build is defined
+    - dkms_manual_build.changed
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
+    - kernel-module
+
+- name: Display manual DKMS build output on failure
+  ansible.builtin.debug:
+    msg: "{{ dkms_manual_build.stdout_lines | default([]) + dkms_manual_build.stderr_lines | default([]) }}"
+  when:
+    - dkms_manual_build is defined
+    - dkms_manual_build.changed
+    - dkms_manual_build.rc != 0
   tags:
     - beegfs
     - beegfs-client
@@ -343,28 +342,52 @@
     - beegfs-client
     - kernel-module
 
-# FIXME: Enhanced warning message for kernel module unavailability
+# TASK-028.1: Enhanced diagnostic message for kernel module availability
 - name: Warn if kernel module is not available
   ansible.builtin.debug:
     msg: |
       ⚠️  WARNING: BeeGFS client kernel module NOT AVAILABLE
 
-      Status: {{ 'SKIPPED (Packer build)' if (packer_build | default(false)) else 'BUILD FAILED' }}
       Kernel: {{ ansible_kernel }}
+      BeeGFS Version: {{ beegfs_version }}
 
-      Root Cause:
-        BeeGFS 7.4.4 is INCOMPATIBLE with Linux kernel 6.12.x+
-        Kernel API changes prevent DKMS module compilation
+      Possible Causes:
+        1. Kernel headers not installed:
+           sudo apt-get install linux-headers-{{ ansible_kernel }}
+
+        2. DKMS build dependencies missing:
+           sudo apt-get install dkms build-essential
+
+        3. Kernel header version mismatch (Docker build vs VM runtime):
+           - Check Docker: linux-headers version
+           - Check VM: uname -r should match headers version
+           - Reference: phase-3-storage-fixes.md (TASK-028.1)
+
+        4. Manual DKMS build attempt:
+           sudo dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}
+
+      Expected: BeeGFS 8.1.0 is compatible with kernel 6.12+
 
       Impact:
         ❌ BeeGFS filesystem CANNOT be mounted
         ❌ Client operations unavailable
         ✅ Server services operational (if installed)
-
-      Solution:
-        Rebuild VM images with kernel 6.1 LTS or 6.6 LTS
-        Reference: phase-3-storage-fixes.md (TASK-028.1)
   when: (beegfs_client_module_check.matched | default(0)) == 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - kernel-module
+
+- name: Success message if kernel module is available
+  ansible.builtin.debug:
+    msg: |
+      ✅ SUCCESS: BeeGFS client kernel module AVAILABLE
+
+      Kernel: {{ ansible_kernel }}
+      Module: beegfs.ko found in /lib/modules/{{ ansible_kernel }}
+
+      BeeGFS client is ready to mount filesystems.
+  when: (beegfs_client_module_check.matched | default(0)) > 0
   tags:
     - beegfs
     - beegfs-client

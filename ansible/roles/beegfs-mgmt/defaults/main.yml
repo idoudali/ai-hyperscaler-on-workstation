@@ -2,7 +2,7 @@
 # BeeGFS Management Service Role - Default Variables
 
 # BeeGFS version
-beegfs_version: "7.4.4"
+beegfs_version: "8.1.0"
 
 # Pre-built packages configuration
 # For Packer builds: packages are copied to /tmp/beegfs-packages/ by Packer

@@ -40,6 +40,7 @@ RUN apt-get update && \
     libtool \
     libvirt-clients \
     libvirt-dev \
+    linux-headers-cloud-amd64 \
     lsb-release \
     ninja-build \
     pkg-config \
@@ -183,6 +184,27 @@ SHELL ["/bin/sh", "-c"]
 # Install to /usr/local/bin for system-wide access
 # hadolint ignore=DL4006
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" INSTALLER_NO_MODIFY_PATH=1 sh
+
+# Install Rust toolchain (required for BeeGFS 8.x management service)
+# Install system-wide so all users can access it
+# hadolint ignore=DL3059
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --default-toolchain stable --no-modify-path && \
+    chmod -R a+w ${RUSTUP_HOME} ${CARGO_HOME} && \
+    rustc --version && \
+    cargo --version
+
+# Install Rust packaging tools (required for BeeGFS Rust management service)
+# cargo-deb: Build Debian packages from Cargo projects
+# cargo-rpm: Build RPM packages from Cargo projects
+# cargo-about: Generate license information for third-party dependencies
+# hadolint ignore=DL3059
+RUN cargo install cargo-deb cargo-rpm cargo-about && \
+    chmod -R a+w ${RUSTUP_HOME} ${CARGO_HOME}
 
 # Set up a virtual environment for Python in a common location
 RUN python3 -m venv /opt/venv

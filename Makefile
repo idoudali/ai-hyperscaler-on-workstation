@@ -188,7 +188,7 @@ clean-ai-how: venv-create
 #==============================================================================
 # Cluster Lifecycle Management
 #==============================================================================
-.PHONY: cluster-inventory cluster-start cluster-stop cluster-deploy cluster-destroy cluster-status
+.PHONY: cluster-inventory cluster-start cluster-stop cluster-deploy cluster-destroy cluster-status clean-ssh-keys
 
 # Cluster configuration file
 CLUSTER_CONFIG ?= config/example-multi-gpu-clusters.yaml
@@ -228,11 +228,12 @@ cluster-inventory:
 	@echo "   SSH User: admin (matches Packer VMs)"
 
 # Start cluster VMs
-cluster-start:
+cluster-start: clean-ssh-keys
 	@echo "Starting HPC cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc start $(CLUSTER_CONFIG)
 	@echo "✅ Cluster VMs started successfully"
+	@echo ""
 
 # Stop cluster VMs (graceful shutdown)
 cluster-stop:
@@ -296,6 +297,26 @@ cluster-status:
 	@echo "Checking HPC cluster status..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc status $(CLUSTER_CONFIG)
+
+#==============================================================================
+# SSH Key Management
+#==============================================================================
+# Remove SSH host keys for cluster VMs to avoid "host key verification failed" errors
+# after rebuilding VMs. Uses vm-utils functions to discover running VMs and their IPs.
+
+# Remove SSH host keys for cluster IPs defined in configuration
+# This is called BEFORE cluster-start to proactively clean old keys
+clean-ssh-keys:
+	@echo "Removing SSH host keys for cluster configuration..."
+	@echo "Configuration: $(CLUSTER_CONFIG)"
+	@CLUSTER_IPS=$$(tests/test-infra/utils/extract-cluster-ips.sh $(CLUSTER_CONFIG) hpc 2>/dev/null || echo ""); \
+	if [ -n "$$CLUSTER_IPS" ]; then \
+		echo "Found IP(s) in config: $$CLUSTER_IPS"; \
+		tests/test-infra/utils/ssh-key-cleanup.sh $$CLUSTER_IPS || echo "⚠️  SSH key cleanup failed (continuing anyway)"; \
+	else \
+		echo "⚠️  No IPs found in config, skipping SSH key cleanup"; \
+	fi
+	@echo ""
 
 #==============================================================================
 # Cluster Validation Workflow
@@ -387,6 +408,9 @@ help:
 	@echo "  make cluster-deploy    - Deploy runtime configuration to running cluster."
 	@echo "  make cluster-destroy   - Destroy HPC cluster VMs (ai-how hpc destroy)."
 	@echo "  make cluster-status    - Check HPC cluster status (ai-how hpc status)."
+	@echo ""
+	@echo "SSH Key Management Commands:"
+	@echo "  make clean-ssh-keys         - Remove SSH keys for IPs in CLUSTER_CONFIG (run before cluster-start)."
 	@echo ""
 	@echo "Cluster Validation Workflows:"
 	@echo "  make validate-cluster-full    - Full validation: inventory -> start -> deploy -> test."

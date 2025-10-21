@@ -7,18 +7,31 @@ set -eo pipefail
 
 echo "=== HPC Controller Setup Started ==="
 
-# Fix broken beegfs-client-dkms package if present
-# BeeGFS 7.4.4 DKMS module cannot build on kernel 6.12+
-# This is expected in Packer build mode
+# TASK-028.1: BeeGFS 8.1.0 Compatibility with Default Debian Trixie Kernel
+# BeeGFS 8.1.0 supports kernel 6.12+ - using default Debian Trixie kernel
+echo "================================================================"
+echo "TASK-028.1: Using Default Debian Trixie Kernel for BeeGFS 8.1.0"
+echo "================================================================"
+
+# Display current kernel information
+echo "Current kernel information:"
+uname -r || echo "Kernel version check failed"
+dpkg -l | grep -E 'linux-image-[0-9]' | awk '{print $2, $3}' || true
+
+echo "================================================================"
+echo "Debian Trixie default kernel will be used (6.12+ with BeeGFS 8.1.0 support)"
+echo "================================================================"
+
+# Clean up any broken BeeGFS packages from previous installations
+# BeeGFS 8.1.0 DKMS module will be built during Ansible deployment
 echo "Checking for broken BeeGFS packages..."
 if dpkg -s beegfs-client-dkms >/dev/null 2>&1; then
-    echo "Found beegfs-client-dkms package - removing to prevent dpkg errors..."
-    dpkg --remove --force-remove-reinstreq beegfs-client-dkms 2>&1 || true
-    echo "Fixing broken dependencies..."
+    echo "Found beegfs-client-dkms package - checking status..."
+    dpkg --configure -a 2>&1 || true
     apt-get install -f -y 2>&1 || true
-    echo "BeeGFS DKMS cleanup completed"
+    echo "BeeGFS package check completed"
 else
-    echo "No beegfs-client-dkms package found - skipping cleanup"
+    echo "No beegfs-client-dkms package found - clean install expected"
 fi
 
 # Update package lists
