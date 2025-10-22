@@ -267,11 +267,11 @@ cluster-deploy: cluster-inventory
 	@echo "Using Docker container for isolated execution"
 	@echo "SSH Key: build/shared/ssh-keys/id_rsa"
 	@echo ""
-	@DOCKER_NETWORK_MODE=host $(DEV_CONTAINER_SCRIPT) ansible-playbook \
+	@DOCKER_NETWORK_MODE=host $(DEV_CONTAINER_SCRIPT) bash -c "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
 		-i $(INVENTORY_OUTPUT) \
-		-e "cluster_config=$(CLUSTER_CONFIG)" \
-		-e "cluster_name=$(CLUSTER_NAME)" \
-		ansible/playbooks/playbook-hpc-runtime.yml
+		-e \"cluster_config=$(CLUSTER_CONFIG)\" \
+		-e \"cluster_name=$(CLUSTER_NAME)\" \
+		ansible/playbooks/playbook-hpc-runtime.yml"
 	@echo ""
 	@echo "=========================================="
 	@echo "✅ Runtime Configuration Deployed"

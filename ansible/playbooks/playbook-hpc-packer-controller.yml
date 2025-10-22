@@ -14,6 +14,8 @@
     monitoring_role: server
     install_monitoring_stack: true
     install_slurm_controller: true
+    install_beegfs: true
+    beegfs_packages_path: "/tmp/beegfs-packages"
     container_runtime_enable_service: false
 
   roles:
@@ -21,6 +23,14 @@
     - role: container-runtime
     - role: slurm-controller
     - role: monitoring-stack
+    - role: beegfs-mgmt
+      when: install_beegfs | default(true)
+    - role: beegfs-meta
+      when: install_beegfs | default(true)
+    - role: beegfs-storage
+      when: install_beegfs | default(true)
+    - role: beegfs-client
+      when: install_beegfs | default(true)
 
   tasks:
     # Keep all validation tasks from playbook-hpc-controller.yml lines 46-135
@@ -91,6 +101,20 @@
         msg: "Node Exporter version: {{ node_exporter_check.stdout.split('\n')[0] }}"
       when: node_exporter_check.rc == 0
 
+    - name: Verify BeeGFS packages installation
+      command: "dpkg -l | grep beegfs"
+      register: beegfs_packages_check
+      changed_when: false
+      failed_when: false
+      when: install_beegfs | default(true)
+
+    - name: Display BeeGFS packages
+      debug:
+        msg: "BeeGFS packages installed: {{ beegfs_packages_check.stdout_lines }}"
+      when:
+        - install_beegfs | default(true)
+        - beegfs_packages_check.stdout_lines is defined
+
     - name: Display deployment summary
       debug:
         msg: |
@@ -98,6 +122,7 @@
           - SLURM Controller: Installed
           - Monitoring Stack: Installed (Prometheus, Grafana, Node Exporter)
           - Container Runtime: Installed
+          - BeeGFS: {{ 'Installed' if install_beegfs | default(true) else 'Skipped' }}
           - Services: Enabled but not started (Packer mode)
 
     - name: Gather installed package facts

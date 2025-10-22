@@ -1,6 +1,6 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-041)
 
-**Status**: ~69% Complete (9/13 tasks)
+**Status**: ~77% Complete (10/13 tasks)
 **Last Updated**: 2025-10-22 (Status Updated)
 **Priority**: HIGH
 **Tasks**: 13 (Ansible: 8, Storage: 4, Testing: 3)
@@ -19,14 +19,14 @@
 | **035** | ✅ **COMPLETE** | 100% | Phase 4 validation framework created (tests/phase-4-validation/) |
 | **036** | ❌ **PENDING** | 0% | test-hpc-packer-*-framework.sh NOT created |
 | **037** | ❌ **PENDING** | 0% | 13 old frameworks + 10 configs still exist |
-| **038** | ❌ **PENDING** | 0% | playbook-beegfs-packer-install.yml still separate |
+| **038** | ✅ **COMPLETE** | 100% | BeeGFS Packer installation consolidated into HPC playbooks |
 | **039** | ❌ **PENDING** | 0% | No virtio_fs in playbook-hpc-runtime.yml |
 | **040** | ❌ **PENDING** | 0% | Registry uses /opt/containers not /mnt/beegfs |
 | **041** | ❌ **PENDING** | 0% | No virtio_fs_mounts in cluster config schema |
 
-**Completed**: Tasks 029-035 (Ansible consolidation + validation framework achieved!)  
-**Pending**: Tasks 036-041 (HPC test frameworks + Storage enhancements)  
-**Achievement**: ✅ **43% playbook reduction achieved** (14 → 8 playbooks, target: 7)
+**Completed**: Tasks 029-035, 038 (Ansible consolidation + validation framework + BeeGFS consolidation achieved!)  
+**Pending**: Tasks 036-037, 039-041 (HPC test frameworks + Storage enhancements)  
+**Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)
 
 ## Overview
 
@@ -35,14 +35,13 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 
 ## Current State (As of 2025-10-22 - Status Updated)
 
-**Ansible Playbooks:** ✅ **8 playbooks** (down from 14 - 43% reduction)
+**Ansible Playbooks:** ✅ **7 playbooks** (down from 14 - 50% reduction achieved!)
 
 - Core HPC (3 playbooks): ✅ **CONSOLIDATED & VERIFIED**
   - `playbook-hpc-packer-controller.yml` ✅ EXISTS - Packer controller image builds
   - `playbook-hpc-packer-compute.yml` ✅ EXISTS - Packer compute image builds
   - `playbook-hpc-runtime.yml` ✅ EXISTS - Unified runtime configuration
-- Storage (3 playbooks): ⚠️ **AWAITING CONSOLIDATION**
-  - `playbook-beegfs-packer-install.yml` ⚠️ EXISTS - Should be consolidated (Task 038)
+- Storage (2 playbooks): ✅ **CONSOLIDATED**
   - `playbook-beegfs-runtime-config.yml` ✅ EXISTS - BeeGFS runtime (keep)
   - `playbook-virtio-fs-runtime-config.yml` ✅ EXISTS - VirtIO-FS runtime (keep)
 - Infrastructure (2 playbooks): ✅ **VERIFIED**

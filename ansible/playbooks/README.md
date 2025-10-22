@@ -51,9 +51,11 @@ Playbooks specifically designed for use during Packer image builds to pre-instal
 
 | Playbook | Component | Purpose | Use Case |
 |----------|-----------|---------|----------|
-| **playbook-beegfs-packer-install.yml** | BeeGFS (Packer) | BeeGFS installation in Packer builds | Pre-build image preparation |
-| **playbook-hpc-packer-controller.yml** | HPC Controller (Packer) | Controller image preparation | Controller image building |
-| **playbook-hpc-packer-compute.yml** | HPC Compute (Packer) | Compute node image preparation | Compute image building |
+| **playbook-hpc-packer-controller.yml** | HPC Controller (Packer) | Controller image preparation with BeeGFS | Controller image building |
+| **playbook-hpc-packer-compute.yml** | HPC Compute (Packer) | Compute node image preparation with BeeGFS | Compute image building |
+
+**Note:** BeeGFS installation is now integrated into the HPC Packer playbooks. The separate `playbook-beegfs-packer-install.yml`
+has been consolidated for simplicity.
 
 ## Quick Start Usage
 

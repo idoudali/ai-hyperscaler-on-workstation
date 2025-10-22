@@ -28,11 +28,10 @@ ansible/
 │   ├── README.md                  # Roles index and overview
 │   └── [role-name]/README.md      # Role-specific documentation
 ├── playbooks/                     # Ansible playbooks (see playbooks/README.md)
-│   ├── playbook-hpc*.yml          # HPC cluster deployment playbooks
+│   ├── playbook-hpc*.yml          # HPC cluster deployment playbooks (includes BeeGFS)
 │   ├── playbook-cloud.yml         # Cloud infrastructure deployment
 │   ├── playbook-container*.yml    # Container deployment playbooks
-│   ├── playbook-slurm*.yml        # SLURM runtime configuration
-│   ├── playbook-beegfs*.yml       # BeeGFS configuration playbooks
+│   ├── playbook-beegfs*.yml       # BeeGFS runtime configuration playbooks
 │   ├── playbook-*-runtime*.yml    # Runtime configuration playbooks
 │   ├── README.md                  # Playbooks index and usage guide
 │   └── (See README.md for complete playbook listing)

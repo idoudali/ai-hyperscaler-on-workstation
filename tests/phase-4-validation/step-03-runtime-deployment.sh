@@ -58,8 +58,8 @@ main() {
   cd "$PROJECT_ROOT"
 
   log_info "3.1: Checking playbook syntax..."
-  log_cmd "make run-docker COMMAND='ansible-playbook ansible/playbooks/playbook-hpc-runtime.yml --syntax-check'"
-  if ! make run-docker COMMAND="ansible-playbook ansible/playbooks/playbook-hpc-runtime.yml --syntax-check" \
+  log_cmd "make run-docker COMMAND='ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/playbooks/playbook-hpc-runtime.yml --syntax-check'"
+  if ! make run-docker COMMAND="ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/playbooks/playbook-hpc-runtime.yml --syntax-check" \
     > "$step_dir/syntax-check.log" 2>&1; then
     log_error "Playbook syntax check failed"
     tail -20 "$step_dir/syntax-check.log"
