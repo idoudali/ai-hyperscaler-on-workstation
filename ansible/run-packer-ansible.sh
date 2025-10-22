@@ -149,8 +149,8 @@ run_ansible_playbook() {
         "${ANSIBLE_DIR}/playbooks/playbook-hpc-runtime.yml"
         -u "$SSH_USERNAME"
         --extra-vars "ansible_python_interpreter=/usr/bin/python3"
-        --extra-vars "packer_build=true"
-        --extra-vars "nvidia_install_cuda=false"
+        --extra-vars '{"packer_build":true}'
+        --extra-vars '{"nvidia_install_cuda":false}'
         --extra-vars "target_hosts=all"
         --become
         --become-user=root

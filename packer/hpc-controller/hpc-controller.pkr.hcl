@@ -211,24 +211,8 @@ build {
     ]
   }
 
-  # Install BeeGFS packages (management, metadata, storage, client)
-  # Note: Using 'ansible' provisioner (not 'ansible-local') to run Ansible from host/container
-  # This avoids needing Ansible installed in the VM and prevents uploading .venv (504MB)
-  provisioner "ansible" {
-    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-beegfs-packer-install.yml"
-    ansible_env_vars = local.ansible_env_vars
-    extra_arguments = [
-      "-u", var.ssh_username,
-      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
-      "--extra-vars", "packer_build=true",
-      "--extra-vars", "install_only=true",
-      "--extra-vars", "beegfs_packages_path=/tmp/beegfs-packages",
-      "--become",
-      "--become-user=root",
-      "-v"
-    ]
-    use_proxy = false
-  }
+  # Note: BeeGFS packages are now installed as part of the HPC controller playbook
+  # No separate BeeGFS provisioner needed - packages are copied above and installed below
 
   # Copy pre-built SLURM packages to VM
   provisioner "shell" {
@@ -276,14 +260,16 @@ build {
     extra_arguments = [
       "-u", var.ssh_username,
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
-      "--extra-vars", "packer_build=true",
+      "--extra-vars", "{\"packer_build\":true}",
       "--extra-vars", "hpc_node_type=controller",
+      "--extra-vars", "{\"install_beegfs\":true}",
+      "--extra-vars", "beegfs_packages_path=/tmp/beegfs-packages",
       # The following features may not be implemented yet in the Ansible roles/playbook.
       # These variables are included for future compatibility. If the roles do not exist,
       # they will be ignored or may cause errors.
-      "--extra-vars", "install_slurm_controller=true",
-      "--extra-vars", "install_monitoring_stack=true",
-      "--extra-vars", "install_database=true",
+      "--extra-vars", "{\"install_slurm_controller\":true}",
+      "--extra-vars", "{\"install_monitoring_stack\":true}",
+      "--extra-vars", "{\"install_database\":true}",
       "--become",
       "--become-user=root",
       "-v"

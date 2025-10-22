@@ -263,7 +263,7 @@ step3_runtime_deployment() {
 
   # 3.1: Syntax check
   log_info "3.1: Checking playbook syntax..."
-  make run-docker COMMAND="ansible-playbook ansible/playbooks/playbook-hpc-runtime.yml --syntax-check" \
+  make run-docker COMMAND="ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/playbooks/playbook-hpc-runtime.yml --syntax-check" \
     > "$STEP_DIR/syntax-check.log" 2>&1 || {
     log_error "Playbook syntax check failed"
     tail -20 "$STEP_DIR/syntax-check.log"

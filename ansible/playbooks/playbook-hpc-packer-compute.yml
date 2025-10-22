@@ -16,6 +16,8 @@
     install_container_runtime: true
     install_gpu_support: true
     install_monitoring_stack: true
+    install_beegfs: true
+    beegfs_packages_path: "/tmp/beegfs-packages"
     container_runtime_enable_service: false
 
   roles:
@@ -25,6 +27,10 @@
       when: gpu_enabled | default(true)
     - role: monitoring-stack
     - role: slurm-compute
+    - role: beegfs-storage
+      when: install_beegfs | default(true)
+    - role: beegfs-client
+      when: install_beegfs | default(true)
 
   tasks:
     # Keep all validation tasks from playbook-hpc-compute.yml lines 53-140
@@ -69,6 +75,20 @@
       changed_when: false
       failed_when: false
 
+    - name: Verify BeeGFS packages installation
+      command: "dpkg -l | grep beegfs"
+      register: beegfs_packages_check
+      changed_when: false
+      failed_when: false
+      when: install_beegfs | default(true)
+
+    - name: Display BeeGFS packages
+      debug:
+        msg: "BeeGFS packages installed: {{ beegfs_packages_check.stdout_lines }}"
+      when:
+        - install_beegfs | default(true)
+        - beegfs_packages_check.stdout_lines is defined
+
     - name: Display deployment summary
       debug:
         msg: |
@@ -77,4 +97,5 @@
           - Container Runtime: Installed
           - GPU Drivers: {{ 'Installed' if nvidia_driver_version.rc == 0 else 'Skipped' }}
           - Node Exporter: Installed
+          - BeeGFS: {{ 'Installed' if install_beegfs | default(true) else 'Skipped' }}
           - Services: Enabled but not started (Packer mode)
