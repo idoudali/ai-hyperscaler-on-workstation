@@ -172,5 +172,5 @@ After resolving the libvirt issue:
 ## References
 
 - [libvirt Python Bindings Documentation](https://libvirt.org/python.html)
-- [Ubuntu libvirt Package](https://packages.ubuntu.com/search?keywords=libvirt-dev)
+- **TODO**: **Ubuntu libvirt Package** - Find correct packages.ubuntu.com URL (currently returns 504 error)
 - [Python Virtual Environments](https://docs.python.org/3/library/venv.html)

@@ -360,6 +360,6 @@ This role is typically deployed before:
 
 - **[../README.md](../README.md)** - Main Ansible overview
 - **[../nvidia-gpu-drivers/README.md](../nvidia-gpu-drivers/README.md)** - GPU driver installation
-- **[../../docs/architecture/](../../docs/architecture/)** - HPC architecture
+- **TODO**: **HPC Architecture Documentation** - Create docs/architecture/ directory with HPC architecture documentation
 - **[GCC Documentation](https://gcc.gnu.org/)** - Compiler documentation
 - **[Open MPI Documentation](https://www.open-mpi.org/)** - MPI documentation

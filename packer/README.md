@@ -584,15 +584,15 @@ This script is pre-configured for passthrough testing and rapid validation of th
 
 All HPC images include BeeGFS client capabilities. For detailed configuration:
 
-- [BeeGFS Setup Guide](../../docs/beegfs-setup.md) <!-- TODO: Create this guide -->
-- [BeeGFS Ansible Role](../../ansible/roles/beegfs/README.md) <!-- TODO: Verify path -->
+- **TODO**: **BeeGFS Setup Guide** - Create guide for BeeGFS setup
+- **TODO**: **BeeGFS Ansible Role** - Verify path and create unified BeeGFS role
 
 #### Container Runtime Usage
 
 All images include Apptainer for containerized workloads. For detailed usage:
 
-- [Container Runtime Role](../../ansible/roles/container-runtime/README.md)
-- [Apptainer User Guide](../../docs/apptainer-usage.md) <!-- TODO: Create this guide -->
+- **Container Runtime Role** (../../ansible/roles/container-runtime/README.md)
+- **TODO**: **Apptainer User Guide** - Create guide for Apptainer usage
 
 ## Integration with ai-how CLI
 
@@ -646,7 +646,7 @@ For comprehensive information about each image type, see:
 - **[Ansible Roles](../ansible/roles/README.md)** - Role-based provisioning documentation
 - **[SLURM Configuration](../ansible/roles/slurm-controller/README.md)** - SLURM setup and configuration
 - **[GPU Drivers](../ansible/roles/nvidia-gpu-drivers/README.md)** - NVIDIA driver installation and configuration
-- **[Container Runtime](../ansible/roles/container-runtime/README.md)** - Apptainer setup and usage
+- **Container Runtime** (../ansible/roles/container-runtime/README.md) - Apptainer setup and usage
 - **[Monitoring Stack](../ansible/roles/monitoring-stack/README.md)** - Prometheus and monitoring configuration
 - **[ai-how CLI](../python/ai_how/README.md)** - Deployment and management CLI
 

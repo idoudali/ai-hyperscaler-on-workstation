@@ -194,8 +194,7 @@ production deployment:
 
 ### Related Documentation
 
-- [QEMU GPU Passthrough
-  Guide](https://wiki.qemu.org/Documentation/GPU_Passthrough)
+- **TODO**: **QEMU GPU Passthrough Guide** - Find correct QEMU GPU passthrough documentation URL
 - [VFIO Driver
   Documentation](https://www.kernel.org/doc/html/latest/driver-api/vfio.html)
 - [KVM Virtualization](https://www.linux-kvm.org/page/Main_Page)

@@ -212,4 +212,4 @@ level. This provides the context needed for advanced users and contributors.
 - Architecture docs focus on integration and design rationale
 - Bridge provides context for why components exist
 
-See [Implementation Priority](../implementation-priority.md) for timeline integration.
+**TODO**: Create Implementation Priority Document - Timeline and phase definitions.

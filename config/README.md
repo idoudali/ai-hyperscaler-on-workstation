@@ -49,7 +49,7 @@ validated during:
 
 **Schema Reference**: All field definitions, types, constraints, and validation rules are formally specified in:
 
-- **[python/ai_how/src/ai_how/schemas/cluster.schema.json](../python/ai_how/src/ai_how/schemas/cluster.schema.json)** -
+- **python/ai_how/src/ai_how/schemas/cluster.schema.json** -
   Authoritative schema definition
 - **[python/ai_how/src/ai_how/schemas/README.md](../python/ai_how/src/ai_how/schemas/README.md)** - Schema usage
   documentation
@@ -293,7 +293,7 @@ The script output includes:
 For detailed documentation, see:
 
 - **[scripts/system-checks/README.md](../scripts/system-checks/README.md)** - GPU inventory script documentation
-- **[scripts/system-checks/gpu_inventory.sh](../scripts/system-checks/gpu_inventory.sh)** - GPU inventory script source
+- **scripts/system-checks/gpu_inventory.sh** - GPU inventory script source
 
 #### Manual Device Detection
 
@@ -785,14 +785,14 @@ The configuration file is used by:
 
 ### Configuration Schema and Validation
 
-- **[python/ai_how/src/ai_how/schemas/cluster.schema.json](../python/ai_how/src/ai_how/schemas/cluster.schema.json)** -
+- **python/ai_how/src/ai_how/schemas/cluster.schema.json** -
   Authoritative JSON Schema definition (all field types, patterns, and constraints)
 - **[python/ai_how/src/ai_how/schemas/README.md](../python/ai_how/src/ai_how/schemas/README.md)** - Schema usage and
   utility functions
 
 ### System Tools and Scripts
 
-- **[scripts/system-checks/gpu_inventory.sh](../scripts/system-checks/gpu_inventory.sh)** - GPU detection and PCIe
+- **scripts/system-checks/gpu_inventory.sh** - GPU detection and PCIe
   passthrough configuration generator
 - **[scripts/system-checks/README.md](../scripts/system-checks/README.md)** - System validation and GPU inventory
   documentation
@@ -800,7 +800,7 @@ The configuration file is used by:
 
 ### CLI and Infrastructure Documentation
 
-- **[python/ai_how/docs/](../python/ai_how/docs/)** - Complete CLI documentation and usage guides
+- **[python/ai_how/docs/](../python/ai_how/docs/index.md)** - Complete CLI documentation and usage guides
 - **[python/ai_how/docs/network_configuration.md](../python/ai_how/docs/network_configuration.md)** - Network
   configuration details
 - **[python/ai_how/docs/pcie-passthrough-validation.md](../python/ai_how/docs/pcie-passthrough-validation.md)** - PCIe
@@ -808,11 +808,11 @@ The configuration file is used by:
 
 ### Examples
 
-- **[config/example-multi-gpu-clusters.yaml](example-multi-gpu-clusters.yaml)** - Complete example configuration with
+- **config/example-multi-gpu-clusters.yaml** - Complete example configuration with
   GPU passthrough
 
 ## See Also
 
 - **[../README.md](../README.md)** - Project overview
 - **[../python/ai_how/README.md](../python/ai_how/README.md)** - AI-HOW CLI documentation
-- **[../python/ai_how/docs/](../python/ai_how/docs/)** - Detailed CLI and configuration guides
+- **[../python/ai_how/docs/](../python/ai_how/docs/index.md)** - Detailed CLI and configuration guides

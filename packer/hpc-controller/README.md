@@ -181,21 +181,21 @@ After deploying the controller VM, configure cluster services. See component-spe
 For SLURM controller setup, configuration files, and cluster registration:
 
 - [SLURM Controller Role](../../ansible/roles/slurm-controller/README.md)
-- [SLURM Configuration Guide](../../docs/slurm-configuration.md) <!-- TODO: Create this guide -->
+- **TODO**: **SLURM Configuration Guide** - Create guide for SLURM configuration
 
 ### BeeGFS Management Services Configuration
 
 For BeeGFS management, metadata, and storage service setup:
 
-- [BeeGFS Ansible Role](../../ansible/roles/beegfs/README.md) <!-- TODO: Verify path -->
-- [BeeGFS Configuration Guide](../../docs/beegfs-setup.md) <!-- TODO: Create this guide -->
+- **TODO**: **BeeGFS Ansible Role** - Verify path and create unified BeeGFS role
+- **TODO**: **BeeGFS Configuration Guide** - Create guide for BeeGFS setup
 
 ### Monitoring Stack Configuration
 
 For Prometheus server configuration and target setup:
 
 - [Monitoring Stack Role](../../ansible/roles/monitoring-stack/README.md)
-- [Prometheus Configuration Guide](../../docs/prometheus-setup.md) <!-- TODO: Create this guide -->
+- **TODO**: **Prometheus Configuration Guide** - Create guide for Prometheus setup
 
 ## Customization
 
@@ -227,7 +227,7 @@ For component-specific troubleshooting, see:
 #### SLURM Controller Issues
 
 - [SLURM Controller Troubleshooting](../../ansible/roles/slurm-controller/README.md#troubleshooting)
-- [SLURM Troubleshooting Guide](../../docs/troubleshooting/slurm.md) <!-- TODO: Create this guide -->
+- **TODO**: **SLURM Troubleshooting Guide** - Create troubleshooting guide for SLURM
 
 **Quick diagnostic commands:**
 
@@ -241,7 +241,7 @@ sudo journalctl -u slurmctld -u slurmdbd
 
 #### BeeGFS Services Issues
 
-- [BeeGFS Troubleshooting](../../docs/troubleshooting/beegfs.md) <!-- TODO: Create this guide -->
+- **TODO**: **BeeGFS Troubleshooting** - Create troubleshooting guide for BeeGFS
 
 **Quick diagnostic commands:**
 
@@ -256,7 +256,7 @@ sudo journalctl -u beegfs-mgmtd
 #### Prometheus Server Issues
 
 - [Monitoring Stack Troubleshooting](../../ansible/roles/monitoring-stack/README.md#troubleshooting)
-- [Prometheus Troubleshooting Guide](../../docs/troubleshooting/prometheus.md) <!-- TODO: Create this guide -->
+- **TODO**: **Prometheus Troubleshooting Guide** - Create troubleshooting guide for Prometheus
 
 **Quick diagnostic commands:**
 

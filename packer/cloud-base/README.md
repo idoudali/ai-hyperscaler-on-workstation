@@ -35,5 +35,5 @@ cmake --build build --target format-cloud-packer
 
 ## Related Documentation
 
-- [Build System Architecture](docs/architecture/build-system.md)
-- [Packer Overview](packer/README.md)
+- **Build System Architecture** (docs/architecture/build-system.md)
+- **Packer Overview** (packer/README.md)

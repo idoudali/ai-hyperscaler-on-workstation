@@ -384,7 +384,7 @@ grep "| default(" playbooks/playbook-hpc-runtime.yml
 
 - See [Container Registry role documentation](../roles/container-registry/README.md)
 
-See individual role documentation at [roles/](../roles/) for complete variable listings.
+See individual role documentation at [roles/](../roles/README.md) for complete variable listings.
 
 ## Troubleshooting Playbook Execution
 
@@ -465,5 +465,5 @@ ansible-playbook -i inventories/hpc/hosts.yml playbooks/playbook-hpc-runtime.yml
 
 - **[../README.md](../README.md)** - Main Ansible overview
 - **[../roles/README.md](../roles/README.md)** - Roles index and documentation
-- **[../inventories/](../inventories/)** - Inventory examples and generator
+- **TODO**: **Inventory Examples and Generator** - Create inventories/ directory with inventory examples and generator
 - **[../README-packer-ansible.md](../README-packer-ansible.md)** - Packer-specific usage

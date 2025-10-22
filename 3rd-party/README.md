@@ -39,5 +39,5 @@ The build process ensures that packages are available for Packer image building.
 
 ## Related Documentation
 
-- [Build System Architecture](docs/architecture/build-system.md)
-- [Packer Images](packer/README.md)
+- **Build System Architecture** (docs/architecture/build-system.md)
+- **Packer Images** (packer/README.md)

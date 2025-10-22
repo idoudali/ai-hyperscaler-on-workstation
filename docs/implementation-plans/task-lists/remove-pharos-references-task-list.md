@@ -69,9 +69,11 @@ The following replacement strategy will be used throughout:
 
 1. Update site name: `Pharos.ai Hyperscaler on Workstation` → `AI-HOW: AI Hyperscaler on Workstation`
 2. Update site author: `Pharos.ai Team` → `AI-HOW Team`
-3. Update site URL: `https://pharos-ai.github.io/hyperscaler-on-workstation` → `https://idoudali.github.io/ai-hyperscaler-on-workskation` ✅
+3. Update site URL: `https://pharos-ai.github.io/hyperscaler-on-workstation`
+→ `https://idoudali.github.io/ai-hyperscaler-on-workskation` ✅
 4. Update repo name: `pharos.ai/hyperscaler-on-workstation` → `idoudali/ai-hyperscaler-on-workskation` ✅
-5. Update repo URL: `https://github.com/pharos-ai/hyperscaler-on-workstation` → `https://github.com/idoudali/ai-hyperscaler-on-workskation` ✅
+5. Update repo URL: `https://github.com/pharos-ai/hyperscaler-on-workstation`
+→ `https://github.com/idoudali/ai-hyperscaler-on-workskation` ✅
 6. Update copyright: `Copyright &copy; 2024 Pharos.ai` → `Copyright &copy; 2024-2025 AI-HOW Team` ✅
 7. Update social links: `https://github.com/pharos-ai` → `https://github.com/idoudali` ✅
 
@@ -891,8 +893,8 @@ If issues arise during implementation:
 
 ## References
 
-- [Workspace Rules: Commit Workflow](../../.cursorrules)
-- [Markdown Formatting Standards](../../.cursorrules)
+- **TODO**: **Workspace Rules: Commit Workflow** - Create .cursorrules file with commit workflow rules
+- **TODO**: **Markdown Formatting Standards** - Create .cursorrules file with markdown formatting standards
 - [Development Container Configuration](../../docker/README.md)
 
 ---

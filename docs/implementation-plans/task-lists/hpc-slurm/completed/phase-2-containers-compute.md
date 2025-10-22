@@ -1726,4 +1726,4 @@ Phase 2 successfully delivered:
 
 ## Next Phase
 
-→ [Phase 3: Infrastructure Enhancements](../phase-3-storage.md)
+→ **TODO**: Create Phase 3: Infrastructure Enhancements - Storage and infrastructure enhancements

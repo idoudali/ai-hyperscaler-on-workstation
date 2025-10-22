@@ -190,4 +190,4 @@ lifecycle management of the Hyperscaler on Workstation system.
 - Operations docs focus on management procedures
 - Integration ensures operational requirements are met
 
-See [Implementation Priority](../implementation-priority.md) for timeline integration.
+**TODO**: Create Implementation Priority Document - Timeline and phase definitions.

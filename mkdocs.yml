@@ -90,6 +90,7 @@ plugins:
         - '**/dist-info/**'
         - '**/.tox/**'
         - '**/htmlfiles/**'
+        - 'AI-AGENT-GUIDE.md'
       include:
         - '*.md'
         - '*.png'

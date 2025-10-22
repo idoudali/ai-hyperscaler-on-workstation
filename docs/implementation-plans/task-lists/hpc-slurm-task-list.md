@@ -145,6 +145,6 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 ## Quick Links
 
 - **Main README**: [`../../README.md`](../../README.md)
-- **Design Document**: [`../hpc-slurm-deployment.md`](../hpc-slurm-deployment.md)
-- **Testing Guide**: [`../../TESTING-GUIDE.md`](../../TESTING-GUIDE.md)
-- **Ansible Guide**: [`../../ANSIBLE-PLAYBOOK-GUIDE.md`](../../ANSIBLE-PLAYBOOK-GUIDE.md)
+- **TODO**: Create Design Document - HPC SLURM deployment design document
+- **TODO**: Create Testing Guide - Comprehensive testing guide
+- **TODO**: Create Ansible Guide - Ansible playbook guide

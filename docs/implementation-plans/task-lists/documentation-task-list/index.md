@@ -27,7 +27,7 @@ project, split into manageable sections for easier task management by LLM assist
 
 ## Implementation Strategy
 
-### **[Implementation Priority](./implementation-priority.md)**
+### **TODO: Create Implementation Priority Document** - Timeline and phase definitions
 
 - **Phase 0**: Documentation Structure Creation (Week 0)
 - **Phase 1**: Critical User Documentation (Weeks 1-2)
@@ -37,7 +37,7 @@ project, split into manageable sections for easier task management by LLM assist
 
 ## Standards and Guidelines
 
-### **[Documentation Guidelines](./guidelines.md)**
+### **TODO: Create Documentation Guidelines** - Standards and quality requirements
 
 - Content standards for different document types
 - Formatting requirements
@@ -81,8 +81,8 @@ Use this index to navigate between different categories of tasks. Each file cont
 - **index.md**: This navigation file
 - **overview.md**: Project context and high-level structure
 - **category-*.md**: Task definitions organized by category
-- **implementation-priority.md**: Timeline and phase definitions
-- **guidelines.md**: Standards and quality requirements
+- **TODO: implementation-priority.md**: Timeline and phase definitions
+- **TODO: guidelines.md**: Standards and quality requirements
 
 This organization allows LLM assistants to:
 

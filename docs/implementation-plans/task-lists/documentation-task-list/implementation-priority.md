@@ -216,4 +216,4 @@ This file outlines the implementation timeline and phases for the documentation 
 - Develop component docs in parallel with high-level docs
 - Regular progress reviews and adjustments
 
-See [Documentation Guidelines](../guidelines.md) for standards and quality requirements.
+**TODO**: Create Documentation Guidelines - Standards and quality requirements document.

@@ -380,5 +380,5 @@ This role works with:
 
 - **[../README.md](../README.md)** - Main Ansible overview
 - **[../beegfs-client/README.md](../beegfs-client/README.md)** - BeeGFS client setup
-- **[QEMU Virtio-FS](https://qemu.readthedocs.io/en/latest/tools/virtiofsd.html)** - virtiofsd documentation
+- **TODO**: **QEMU Virtio-FS** - Find correct QEMU virtiofsd documentation URL
 - **[Linux Kernel Virtio-FS](https://www.kernel.org/doc/html/latest/filesystems/virtiofs.html)** - Kernel docs

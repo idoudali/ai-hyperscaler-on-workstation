@@ -32,7 +32,7 @@ pip install -e .
 ## Development
 
 This project uses [Nox](https://nox.thea.codes/) with
-[nox-uv](https://github.com/wntrblm/nox-uv) for fast and reliable testing and
+**nox-uv** for fast and reliable testing and
 development workflows.
 
 ### Quick Start with Nox
