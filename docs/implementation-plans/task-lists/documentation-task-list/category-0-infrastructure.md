@@ -315,4 +315,4 @@ After completing Category 0 tasks:
 3. Contributors can begin working on Phase 1 content
 4. Progress can be tracked by filling in placeholders
 
-See [Implementation Priority](../implementation-priority.md) for next phase details.
+**TODO**: Create Implementation Priority Document - Timeline and phase definitions.

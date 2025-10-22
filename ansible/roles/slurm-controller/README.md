@@ -348,5 +348,5 @@ slurm_max_array_size: 10000000  # Array job limit
 
 - **[../README.md](../README.md)** - Main Ansible overview
 - **[../slurm-compute/README.md](../slurm-compute/README.md)** - Compute node configuration
-- **[../../docs/architecture/](../../docs/architecture/)** - HPC architecture documentation
+- **TODO**: **HPC Architecture Documentation** - Create docs/architecture/ directory with HPC architecture documentation
 - **[SLURM Official Docs](https://slurm.schedmd.com/)** - SLURM documentation

@@ -349,5 +349,5 @@ This role works with:
 
 - **[../README.md](../README.md)** - Main Ansible overview
 - **[../slurm-controller/README.md](../slurm-controller/README.md)** - Controller configuration
-- **[../../docs/architecture/](../../docs/architecture/)** - HPC architecture
+- **TODO**: **HPC Architecture Documentation** - Create docs/architecture/ directory with HPC architecture documentation
 - **[SLURM Compute Node Docs](https://slurm.schedmd.com/slurmd.html)** - Official documentation

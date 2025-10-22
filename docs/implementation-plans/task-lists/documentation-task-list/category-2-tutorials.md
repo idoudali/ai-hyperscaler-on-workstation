@@ -259,4 +259,4 @@ tutorials build on quickstarts to provide complete learning paths.
 - Troubleshooting covers what can go wrong
 - Bridge provides context for both success and failure
 
-See [Implementation Priority](../implementation-priority.md) for timeline integration.
+**TODO**: Create Implementation Priority Document - Timeline and phase definitions.

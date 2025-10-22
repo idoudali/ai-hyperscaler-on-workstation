@@ -191,15 +191,15 @@ After deploying the compute VM, configure SLURM, GPU resources, and storage. See
 For SLURM compute daemon setup and GRES configuration:
 
 - [SLURM Compute Role](../../ansible/roles/slurm-compute/README.md)
-- [SLURM GRES Configuration](../../docs/slurm-gres-config.md) <!-- TODO: Create this guide -->
+- **TODO**: Create SLURM GRES Configuration guide - SLURM GRES configuration
 
 ### GPU Configuration
 
 For NVIDIA driver configuration, MIG setup, and GPU resource management:
 
 - [NVIDIA GPU Drivers Role](../../ansible/roles/nvidia-gpu-drivers/README.md)
-- [GPU Configuration Guide](../../docs/gpu-setup.md) <!-- TODO: Create this guide -->
-- [MIG Configuration Guide](../../docs/mig-setup.md) <!-- TODO: Create this guide -->
+- **TODO**: Create GPU Configuration Guide - GPU setup and configuration
+- **TODO**: Create MIG Configuration Guide - Multi-Instance GPU setup
 
 **Quick GPU verification:**
 
@@ -220,7 +220,7 @@ For BeeGFS client setup, see the [main Packer README](../README.md#common-usage-
 For Apptainer GPU integration and containerized workloads:
 
 - [Container Runtime Role](../../ansible/roles/container-runtime/README.md)
-- [GPU Containers Guide](../../docs/gpu-containers.md) <!-- TODO: Create this guide -->
+- **TODO**: Create GPU Containers Guide - GPU container usage
 
 **Quick container test:**
 
@@ -233,8 +233,8 @@ apptainer exec --nv docker://nvidia/cuda:12.0-base nvidia-smi
 
 For detailed SLURM GPU job submission, GRES usage, and job script examples:
 
-- [SLURM GPU Jobs Guide](../../docs/slurm-gpu-jobs.md) <!-- TODO: Create this guide -->
-- [GPU Workload Examples](../../docs/examples/gpu-workloads.md) <!-- TODO: Create examples -->
+- **TODO**: Create SLURM GPU Jobs Guide - SLURM GPU job submission
+- **TODO**: Create GPU Workload Examples - GPU workload examples
 
 ### Quick GPU Job Submission
 
@@ -302,7 +302,7 @@ For common build issues (SSH timeout, disk space, BeeGFS packages), see the
 For GPU driver build issues and troubleshooting:
 
 - [NVIDIA GPU Drivers Troubleshooting](../../ansible/roles/nvidia-gpu-drivers/README.md#troubleshooting)
-- [GPU Driver Issues Guide](../../docs/troubleshooting/gpu-drivers.md) <!-- TODO: Create this guide -->
+- **TODO**: Create GPU Driver Issues Guide - Troubleshooting guide for GPU drivers
 
 **Quick diagnostic:**
 
@@ -317,8 +317,8 @@ vim ansible/roles/nvidia-gpu-drivers/tasks/main.yml
 
 For GPU runtime issues (visibility, drivers, MIG):
 
-- [GPU Runtime Troubleshooting](../../docs/troubleshooting/gpu-runtime.md) <!-- TODO: Create this guide -->
-- [MIG Troubleshooting](../../docs/troubleshooting/mig.md) <!-- TODO: Create this guide -->
+- **TODO**: Create GPU Runtime Troubleshooting Guide - Troubleshooting guide for GPU runtime
+- **TODO**: Create MIG Troubleshooting Guide - Troubleshooting guide for MIG issues
 
 **Quick diagnostics:**
 
@@ -345,8 +345,8 @@ For general performance optimization (build speed, image size reduction), see th
 
 For detailed GPU performance tuning, power management, and MIG optimization:
 
-- [GPU Performance Guide](../../docs/gpu-performance.md) <!-- TODO: Create this guide -->
-- [MIG Optimization Guide](../../docs/mig-optimization.md) <!-- TODO: Create this guide -->
+- **TODO**: Create GPU Performance Guide - GPU performance optimization
+- **TODO**: Create MIG Optimization Guide - MIG optimization
 
 **Quick GPU tuning:**
 
@@ -414,9 +414,9 @@ Compute nodes include BeeGFS client, not management services:
 
 For comprehensive GPU hardware specifications, MIG profiles, and monitoring:
 
-- [Supported GPU Hardware](../../docs/reference/gpu-hardware.md) <!-- TODO: Create this reference -->
-- [MIG Profiles Reference](../../docs/reference/mig-profiles.md) <!-- TODO: Create this reference -->
-- [GPU Monitoring Guide](../../docs/gpu-monitoring.md) <!-- TODO: Create this guide -->
+- **TODO**: Create Supported GPU Hardware Reference - Supported GPU hardware
+- **TODO**: Create MIG Profiles Reference - MIG profiles
+- **TODO**: Create GPU Monitoring Guide - GPU monitoring
 
 ### Quick References
 

@@ -194,4 +194,4 @@ tests/
 3. **Update MkDocs configuration** to reflect new structure
 4. **Begin content population** starting with Phase 1 critical path
 
-See [Implementation Priority](./implementation-priority.md) for detailed timeline and task breakdown.
+**TODO**: Create Implementation Priority Document - Detailed timeline and task breakdown.

@@ -238,4 +238,4 @@ This role works with:
 - **[../beegfs-storage/README.md](../beegfs-storage/README.md)** - Storage node setup
 - **[../beegfs-meta/README.md](../beegfs-meta/README.md)** - Metadata node setup
 - **[../beegfs-client/README.md](../beegfs-client/README.md)** - Client mount setup
-- **[BeeGFS Official Docs](https://www.beegfs.io/wiki/)** - BeeGFS documentation
+- **TODO**: **BeeGFS Official Docs** - Find correct BeeGFS documentation URL (wiki appears down)

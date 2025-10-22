@@ -2745,7 +2745,7 @@ make test-container-runtime → make test-hpc-packer-compute
 
 ## Next Phase
 
-→ [Phase 5: Enhanced Monitoring & Observability](phase-5-monitoring.md) (if exists)
+→ **TODO**: Create Phase 5: Enhanced Monitoring & Observability - Monitoring and observability phase
 
 → [Phase 6: Final Validation & Production Readiness](phase-6-validation.md) (if exists)
 
@@ -2755,8 +2755,8 @@ make test-container-runtime → make test-hpc-packer-compute
 
 - [Reference: Testing Framework Patterns](../reference/testing-framework.md)
 - [Reference: Infrastructure Summary](../reference/infrastructure-summary.md)
-- [Reference: Ansible Role Architecture](../reference/ansible-roles.md)
-- [Guide: HPC Cluster Deployment](../guides/hpc-deployment.md)
+- **TODO**: Create Reference: Ansible Role Architecture - Ansible role architecture reference
+- **TODO**: Create Guide: HPC Cluster Deployment - HPC cluster deployment guide
 
 ---
 

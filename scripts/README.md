@@ -393,6 +393,6 @@ When adding new scripts:
 ## See Also
 
 - **[system-checks/README.md](system-checks/README.md)** - System validation scripts
-- **[../Makefile](../Makefile)** - Build system (invokes some scripts)
+- **TODO**: **Makefile** - Create root Makefile for build system (invokes some scripts)
 - **[../README.md](../README.md)** - Project overview
-- **[../AI-AGENT-GUIDE.md](../AI-AGENT-GUIDE.md)** - AI agent development guide
+- **TODO**: **AI Agent Development Guide** - Create AI agent development guide

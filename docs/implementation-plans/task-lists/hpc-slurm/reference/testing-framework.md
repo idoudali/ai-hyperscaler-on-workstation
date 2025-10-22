@@ -217,6 +217,6 @@ When implementing a new task with testing:
 
 ## Related Documentation
 
-- [TASK-018: DCGM GPU Monitoring](../completed/phase-1-core-infrastructure.md#task-018-deploy-dcgm-gpu-monitoring)
-- [Standard Test Framework Pattern Documentation](../../../STANDARD-TEST-FRAMEWORK-PATTERN.md)
+- **TODO**: **TASK-018: DCGM GPU Monitoring** - Add task-018-deploy-dcgm-gpu-monitoring anchor to phase-1-core-infrastructure.md
+- **TODO**: Create Standard Test Framework Pattern Documentation - Standard test framework pattern documentation
 - [Infrastructure Summary](infrastructure-summary.md)

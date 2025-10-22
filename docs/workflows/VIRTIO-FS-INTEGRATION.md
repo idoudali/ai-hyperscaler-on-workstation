@@ -453,7 +453,7 @@ sudo apt update && sudo apt upgrade linux-image-generic
 ## References
 
 - [Virtio-FS Documentation](https://virtio-fs.gitlab.io/)
-- [QEMU Virtio-FS Guide](https://qemu.readthedocs.io/en/latest/tools/virtiofsd.html)
+- **TODO**: **QEMU Virtio-FS Guide** - Find correct QEMU virtiofsd documentation URL
 - [Libvirt Filesystem Passthrough](https://libvirt.org/kbase/virtiofs.html)
 - [Linux Kernel Virtio-FS Driver](https://www.kernel.org/doc/html/latest/filesystems/virtiofs.html)
 

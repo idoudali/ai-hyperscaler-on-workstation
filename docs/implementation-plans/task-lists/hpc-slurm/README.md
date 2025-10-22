@@ -159,4 +159,4 @@ The original `hpc-slurm-task-list.md` (6,823 lines) has been split into:
 
 - **Master Index**: [`../hpc-slurm-task-list.md`](../hpc-slurm-task-list.md)
 - **Main README**: [`../../../README.md`](../../../README.md)
-- **Design Document**: [`../../hpc-slurm-deployment.md`](../../hpc-slurm-deployment.md)
+- **TODO**: Create Design Document - HPC SLURM deployment design document

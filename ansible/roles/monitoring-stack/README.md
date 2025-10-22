@@ -408,7 +408,7 @@ This role integrates with:
 ## See Also
 
 - **[../README.md](../README.md)** - Main Ansible overview
-- **[../../docs/architecture/](../../docs/architecture/)** - HPC architecture
+- **TODO**: **HPC Architecture Documentation** - Create docs/architecture/ directory with HPC architecture documentation
 - **[Prometheus Documentation](https://prometheus.io/docs/)** - Prometheus guide
 - **[Grafana Documentation](https://grafana.com/docs/)** - Grafana guide
 - **[NVIDIA DCGM](https://developer.nvidia.com/dcgm)** - DCGM documentation
