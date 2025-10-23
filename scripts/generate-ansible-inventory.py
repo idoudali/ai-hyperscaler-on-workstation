@@ -12,6 +12,7 @@ The inventory uses the same SSH keys and username as the Packer build system:
 import sys
 import yaml
 import os
+import json
 from pathlib import Path
 
 
@@ -80,6 +81,20 @@ def generate_inventory(config_path: str, cluster_name: str, ssh_key_path: str = 
 
     inventory_lines.append("[hpc:vars]")
     inventory_lines.append("ansible_python_interpreter=/usr/bin/python3")
+
+    # Extract VirtIO-FS mount configuration from controller
+    if 'controller' in cluster and 'virtio_fs_mounts' in cluster['controller']:
+        virtio_fs_mounts = cluster['controller']['virtio_fs_mounts']
+        if virtio_fs_mounts:  # Only add if not empty
+            # Convert to JSON string for Ansible variable (properly escaped)
+            virtio_fs_json = json.dumps(virtio_fs_mounts, separators=(',', ':'))
+            inventory_lines.append(f"virtio_fs_mounts={virtio_fs_json}")
+            print(f"✅ Found {len(virtio_fs_mounts)} VirtIO-FS mount(s) in controller configuration", file=sys.stderr)
+        else:
+            print("ℹ️  VirtIO-FS mounts defined but empty in controller configuration", file=sys.stderr)
+    else:
+        print("ℹ️  No VirtIO-FS mounts found in controller configuration", file=sys.stderr)
+
     inventory_lines.append("")
 
     return "\n".join(inventory_lines)

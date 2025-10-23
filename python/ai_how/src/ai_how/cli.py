@@ -5,13 +5,15 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Annotated, Union
+from typing import Annotated, Any, Union
 
 import typer
 import yaml
+from expandvars import UnboundVariable  # type: ignore[import-untyped]
 from rich.console import Console
 from rich.table import Table
 
+from ai_how.config import ConfigProcessor
 from ai_how.pcie_validation.pcie_passthrough import PCIePassthroughValidator
 from ai_how.utils.logging import configure_logging
 from ai_how.validation import validate_config
@@ -19,6 +21,49 @@ from ai_how.vm_management.hpc_manager import HPCClusterManager, HPCManagerError
 
 app = typer.Typer(help="AI-HOW CLI for managing HPC and Cloud clusters")
 console = Console()
+
+
+def load_and_render_config(config_path: Path) -> dict[str, Any]:
+    """Load and render configuration template with variable expansion.
+
+    Args:
+        config_path: Path to the configuration file
+
+    Returns:
+        Rendered configuration dictionary
+
+    Raises:
+        UnboundVariable: If a required variable is not defined
+        yaml.YAMLError: If configuration YAML is invalid
+        FileNotFoundError: If configuration file doesn't exist
+    """
+    # Check if the file is a template (contains variables)
+    with open(config_path, encoding="utf-8") as f:
+        content = f.read()
+
+    # If the file contains variables, render it
+    if "${" in content:
+        # Create a temporary output path to avoid overwriting the original
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as temp_file:
+            temp_output_path = Path(temp_file.name)
+
+        try:
+            processor = ConfigProcessor(config_path, temp_output_path)
+            result = processor.process_config()
+            # Clean up the temporary file
+            temp_output_path.unlink()
+            return result
+        except Exception:
+            # Clean up the temporary file on error
+            if temp_output_path.exists():
+                temp_output_path.unlink()
+            raise
+    else:
+        # No variables, load directly
+        with open(config_path, encoding="utf-8") as f:
+            return yaml.safe_load(f)
 
 
 def abort_not_implemented(feature: str) -> None:
@@ -134,9 +179,8 @@ def validate(
     console.print(f"Validating {config}...")
 
     try:
-        # Load configuration for validation
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
+        # Load and render configuration for validation
+        config_data = load_and_render_config(config)
 
         # Step 1: Schema validation
         console.print("🔍 [cyan]Step 1:[/cyan] Schema validation...")
@@ -188,6 +232,144 @@ def validate(
         raise typer.Exit(code=1) from e
 
 
+@app.command()
+def render(
+    template: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to template configuration file with bash variables",
+        ),
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output path for rendered configuration (default: template_name.yaml)",
+        ),
+    ] = None,
+    show_variables: Annotated[
+        bool,
+        typer.Option(
+            "--show-variables",
+            help="Show which variables were found and expanded",
+        ),
+    ] = False,
+    validate_only: Annotated[
+        bool,
+        typer.Option(
+            "--validate-only",
+            help="Only validate template without rendering (useful for CI/CD)",
+        ),
+    ] = False,
+) -> None:
+    """Render template configuration with bash-compatible variable expansion.
+
+    This command processes a template configuration file that contains bash-style
+    variables and saves the rendered configuration with all variables expanded.
+
+    Supported variable syntax:
+    - $VAR or ${VAR}: Basic variable expansion
+    - ${VAR:-default}: Use default value if VAR is not set
+    - ${VAR:=default}: Use default value and set VAR if not set
+    - ${VAR:?error}: Raise error if VAR is not set
+    - ${VAR:+value}: Use value if VAR is set, empty if not
+    - $$: Literal dollar sign
+
+    Special variables:
+    - $TOT: Project root directory (top of tree)
+    - $PWD: Current working directory
+    - $HOME: User home directory
+    - $USER: Username
+    - All system environment variables
+
+    Examples:
+        # Render template to default output location
+        ai-how render config/cluster.template.yaml
+
+        # Render template to specific output location
+        ai-how render config/cluster.template.yaml -o config/cluster.yaml
+
+        # Show which variables were expanded
+        ai-how render config/cluster.template.yaml --show-variables
+
+        # Validate template without rendering (useful for CI/CD)
+        ai-how render config/cluster.template.yaml --validate-only
+    """
+    try:
+        console.print(f"🔧 [cyan]Processing template:[/cyan] {template}")
+
+        # Initialize processor
+        processor = ConfigProcessor(template, output)
+
+        if validate_only:
+            # Only validate the template
+            console.print("🔍 [cyan]Validating template (no rendering)...[/cyan]")
+            validation_result = processor.validate_template()
+
+            console.print("[green]✅ Template validation successful![/green]")
+            console.print(f"📁 Template: {validation_result['template_path']}")
+            console.print(
+                f"🔢 Variables found: {validation_result['total_variables']} total, "
+                f"{validation_result['unique_variables']} unique"
+            )
+
+            if show_variables and validation_result["variables_found"]:
+                console.print("\n🔍 [cyan]Variables detected:[/cyan]")
+                for var_name, count in validation_result["variables_found"].items():
+                    console.print(f"  - ${var_name}: {count} occurrence{'s' if count > 1 else ''}")
+
+            return
+
+        # Process the configuration
+        config_data = processor.process_config()
+
+        # Show success message
+        console.print("[green]✅ Template rendered successfully![/green]")
+        console.print(f"📁 Input template: {template}")
+        console.print(f"📁 Output config: {processor.output_path}")
+
+        # Show variables if requested
+        if show_variables:
+            variables_found = processor.get_variables_found(config_data)
+            if variables_found:
+                console.print("\n🔍 [cyan]Variables expanded:[/cyan]")
+                for var_name, count in variables_found.items():
+                    console.print(f"  - ${var_name}: {count} occurrence{'s' if count > 1 else ''}")
+            else:
+                console.print("\nℹ️  [yellow]No variables found in template[/yellow]")
+
+        # Show file size info
+        input_size = template.stat().st_size
+        output_size = processor.output_path.stat().st_size
+        console.print("\n📊 [cyan]File info:[/cyan]")
+        console.print(f"  - Template size: {input_size:,} bytes")
+        console.print(f"  - Rendered size: {output_size:,} bytes")
+
+    except UnboundVariable as e:
+        console.print("[red]❌ Variable expansion error:[/red]")
+        console.print(f"   {e}")
+        console.print("\n[yellow]💡 Tips:[/yellow]")
+        console.print(f"   - Use ${'{VAR:-default}'} to provide default values")
+        console.print(f"   - Use ${'{VAR:?error message}'} for required variables")
+        console.print("   - Check that all required environment variables are set")
+        raise typer.Exit(code=1) from e
+    except FileNotFoundError as e:
+        console.print(f"[red]❌ Template file not found:[/red] {e}")
+        raise typer.Exit(code=1) from e
+    except yaml.YAMLError as e:
+        console.print(f"[red]❌ Invalid YAML in template:[/red] {e}")
+        console.print("\n[yellow]💡 Check your YAML syntax and indentation[/yellow]")
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        console.print(f"[red]❌ Unexpected error processing template:[/red] {e}")
+        console.print("\n[yellow]💡 Check template file and try again[/yellow]")
+        raise typer.Exit(code=1) from e
+
+
 hpc = typer.Typer(help="HPC cluster lifecycle")
 cloud = typer.Typer(help="Cloud (K8s) cluster lifecycle")
 app.add_typer(hpc, name="hpc")
@@ -227,11 +409,10 @@ def start(
     console.print(f"Starting HPC cluster using config: {config}")
 
     try:
-        # Load and validate configuration
-        logger.debug(f"Loading configuration from: {config}")
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-        logger.debug("Configuration loaded successfully")
+        # Load and render configuration
+        logger.debug(f"Loading and rendering configuration from: {config}")
+        config_data = load_and_render_config(config)
+        logger.debug("Configuration loaded and rendered successfully")
 
         # Initialize HPC manager
         logger.debug("Initializing HPC cluster manager")
@@ -290,9 +471,8 @@ def stop(
     console.print("Stopping HPC cluster...")
 
     try:
-        # Load configuration
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
+        # Load and render configuration
+        config_data = load_and_render_config(config)
 
         # Initialize HPC manager
         hpc_manager = HPCClusterManager(config_data, state_path)
@@ -334,9 +514,8 @@ def status(
     state_path = ctx.obj["state"]
 
     try:
-        # Load configuration
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
+        # Load and render configuration
+        config_data = load_and_render_config(config)
 
         # Initialize HPC manager
         hpc_manager = HPCClusterManager(config_data, state_path)
@@ -385,9 +564,8 @@ def destroy(
     console.print("Destroying HPC cluster...")
 
     try:
-        # Load configuration
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
+        # Load and render configuration
+        config_data = load_and_render_config(config)
 
         # Initialize HPC manager
         hpc_manager = HPCClusterManager(config_data, state_path)
@@ -493,9 +671,8 @@ def plan_clusters(
         logger.info(f"Planning clusters from config: {config}, format: {output_format}")
 
     try:
-        # Load configuration
-        with open(config, encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
+        # Load and render configuration
+        config_data = load_and_render_config(config)
 
         # Parse cluster configuration
         planned_data = _parse_cluster_config(config_data)

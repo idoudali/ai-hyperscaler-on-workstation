@@ -73,9 +73,9 @@ repos:
     hooks:
       - id: make-lint
         name: make-lint
-        entry: make
+        entry: bash
         language: system
-        args: ['lint-ai-how']
+        args: ['-c', 'unset FORCE_COLOR NO_COLOR && make lint-ai-how']
         files: ^python/ai_how/
         types: [python]
         pass_filenames: false
@@ -86,9 +86,9 @@ repos:
 
       - id: make-format
         name: make-format
-        entry: make
+        entry: bash
         language: system
-        args: ['format-ai-how']
+        args: ['-c', 'unset FORCE_COLOR NO_COLOR && make format-ai-how']
         files: ^python/ai_how/
         types: [python]
         pass_filenames: false

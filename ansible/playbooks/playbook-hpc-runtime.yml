@@ -41,6 +41,7 @@
           - Job scripts deployment
           - Monitoring stack (Prometheus, Grafana, DCGM)
           - Container runtime validation
+          - VirtIO-FS host directory sharing (if configured)
 
           ====================================================================
 
@@ -163,6 +164,43 @@
         msg: "Configuring HPC controller: {{ inventory_hostname }} -> {{ slurm_node_name | default('controller') }}"
 
   tasks:
+    # Parse VirtIO-FS mounts from JSON string (if provided as string)
+    - name: Parse VirtIO-FS mounts configuration
+      set_fact:
+        virtio_fs_mounts_parsed: "{{ virtio_fs_mounts | from_json if virtio_fs_mounts is string else virtio_fs_mounts }}"
+      when: virtio_fs_mounts is defined
+      tags:
+        - virtio-fs
+        - storage
+        - mounts
+
+    # Configure VirtIO-FS mounts on controller (if configured)
+    - name: Configure VirtIO-FS Host Mounts on Controller
+      import_role:
+        name: virtio-fs-mount
+      when:
+        - virtio_fs_mounts_parsed is defined
+        - virtio_fs_mounts_parsed | length > 0
+      vars:
+        packer_build: false
+        virtio_fs_perform_mounts: true
+        virtio_fs_mounts: "{{ virtio_fs_mounts_parsed }}"
+      tags:
+        - virtio-fs
+        - storage
+        - mounts
+
+    - name: Display VirtIO-FS configuration status
+      debug:
+        msg: |
+          VirtIO-FS Configuration:
+          - Mounts configured: {{ virtio_fs_mounts_parsed | length if virtio_fs_mounts_parsed is defined else 0 }}
+          - Mount points: {{ virtio_fs_mounts_parsed | map(attribute='mount_point') | list if virtio_fs_mounts_parsed is defined else [] }}
+      when: virtio_fs_mounts_parsed is defined
+      tags:
+        - virtio-fs
+        - storage
+
     - name: Configure SLURM controller services
       import_role:
         name: slurm-controller
@@ -402,11 +440,15 @@
           2. Check node states: scontrol show nodes
           3. Test job submission: srun -N1 hostname
           4. Run comprehensive tests: make test-hpc-runtime
+          5. Test VirtIO-FS mounts: ls -la /mnt/host-* (if configured)
 
           Monitoring:
           - Prometheus: http://controller:9090
           - Grafana: http://controller:3000
           - Node metrics: http://nodes:9100/metrics
+
+          Storage:
+          - VirtIO-FS mounts: {{ virtio_fs_mounts | length if virtio_fs_mounts is defined else 0 }} configured
 
           For troubleshooting:
           - Controller logs: journalctl -u slurmctld -f
