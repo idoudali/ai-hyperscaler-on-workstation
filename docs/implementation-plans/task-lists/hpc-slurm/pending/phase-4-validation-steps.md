@@ -42,6 +42,7 @@ cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
 ./tests/phase-4-validation/step-03-runtime-deployment.sh
 ./tests/phase-4-validation/step-04-functional-tests.sh
 ./tests/phase-4-validation/step-05-regression-tests.sh
+./tests/phase-4-validation/step-06-config-rendering.sh
 
 # Run any step with verbose logging
 ./tests/phase-4-validation/step-01-packer-controller.sh --verbose
@@ -109,6 +110,7 @@ ls -R  # Shows all step directories and logs
 | **Step 3: Runtime Playbook** | ✅ **AUTOMATED** | `step-03-runtime-deployment.sh` | Deploy and validate cluster functionality |
 | **Step 4: Functional Tests** | ✅ **AUTOMATED** | `step-04-functional-tests.sh` | Test SLURM jobs, GPU, containers |
 | **Step 5: Regression Tests** | ✅ **AUTOMATED** | `step-05-regression-tests.sh` | Compare against old playbooks |
+| **Step 6: Configuration Rendering** | ✅ **AUTOMATED** | `step-06-config-rendering.sh` | Test template rendering and VirtIO-FS |
 
 **Overall**: ✅ **AUTOMATED FRAMEWORK READY** - All steps available as modular scripts with state tracking
 
@@ -183,6 +185,12 @@ validation-output/
     │   ├── slurm-config-diff.log
     │   ├── service-status.log
     │   ├── feature-matrix.log
+    │   └── validation-summary.txt
+    ├── 06-config-rendering/
+    │   ├── ai-how-render.log
+    │   ├── make-targets.log
+    │   ├── virtio-fs-config.log
+    │   ├── cluster-state.log
     │   └── validation-summary.txt
     └── validation-report.md
 ```
@@ -472,6 +480,58 @@ If Step 5 reveals issues:
 
 ---
 
+## Validation Step 6: Configuration Template Rendering and VirtIO-FS
+
+**Automated Script**: Use `./tests/phase-4-validation/step-06-config-rendering.sh` for automated execution.
+
+**Priority**: 🟡 HIGH  
+**Estimated Time**: 5-10 minutes  
+**Purpose**: Verify configuration template rendering and VirtIO-FS mount functionality
+
+**What it does**:
+
+1. Tests `ai-how render` command with variable expansion
+2. Validates template syntax and variable detection
+3. Tests `make config-render` and `make config-validate` targets
+4. Verifies VirtIO-FS mount configuration in cluster config
+5. Tests VirtIO-FS mount handling in runtime playbook
+6. Validates cluster state directory management
+
+**Prerequisites**: Steps 1-5 must have passed (cluster deployed and running)
+
+See the script source for implementation details.
+
+### Expected Results
+
+- ✅ `ai-how render` command processes template successfully
+- ✅ Variable expansion works for all bash-compatible syntax
+- ✅ Template validation detects variables correctly
+- ✅ `make config-render` generates rendered configuration
+- ✅ `make config-validate` validates template without rendering
+- ✅ VirtIO-FS mount configuration present in cluster config
+- ✅ VirtIO-FS mounts configured on controller (if cluster running)
+- ✅ Cluster state directory created and managed properly
+
+### Troubleshooting
+
+If Step 6 fails, check:
+
+1. `$VALIDATION_ROOT/06-config-rendering/ai-how-render.log` - Template rendering errors
+2. `$VALIDATION_ROOT/06-config-rendering/make-targets.log` - Makefile target execution
+3. `$VALIDATION_ROOT/06-config-rendering/virtio-fs-config.log` - VirtIO-FS configuration
+4. `$VALIDATION_ROOT/06-config-rendering/cluster-state.log` - Cluster state directory
+5. Python dependencies: `uv run python -c "import expandvars"`
+6. Template syntax: Check for unbound variables or YAML errors
+
+**Common Issues**:
+
+- **Unbound variables**: Use `${VAR:-default}` syntax for optional variables
+- **Template syntax errors**: Check YAML indentation and structure
+- **Missing dependencies**: Ensure `expandvars` package is installed
+- **VirtIO-FS not configured**: Check cluster configuration schema
+
+---
+
 ## Final Validation Report
 
 The automated framework generates a comprehensive validation report automatically.
@@ -503,6 +563,7 @@ cat > "$VALIDATION_ROOT/validation-report.md" <<'REPORT_EOF'
 | 3. Runtime Playbook Deploy | ⏳ | Check step summary |
 | 4. Functional Tests | ⏳ | Check step summary |
 | 5. Regression Tests | ⏳ | Check step summary |
+| 6. Configuration Rendering | ⏳ | Check step summary |
 
 **Overall Status**: ⏳ PENDING MANUAL REVIEW
 
@@ -524,6 +585,9 @@ See: `04-functional-tests/validation-summary.txt`
 
 ### Step 5: Regression Testing
 See: `05-regression-tests/validation-summary.txt`
+
+### Step 6: Configuration Rendering
+See: `06-config-rendering/validation-summary.txt`
 
 ---
 
@@ -556,6 +620,8 @@ If validation PASSED:
 1. Proceed with Task 035: Create unified HPC runtime test framework
 2. Proceed with Task 036: Create HPC Packer test frameworks
 3. Proceed with Task 037: Update test Makefile and delete obsolete tests
+4. Configuration template rendering system is ready for production use
+5. VirtIO-FS mount functionality is integrated and validated
 
 If validation FAILED:
 1. Review failure logs in validation output directory
@@ -1360,5 +1426,5 @@ sinfo && srun hostname
 
 **Document Status**: ✅ Automated Framework Complete - Production Fixes Applied and Tested  
 **Validation Status**: ✅ **PRODUCTION READY** - Automated validation framework in `tests/phase-4-validation/`  
-**Last Updated**: 2025-10-19 16:30 EEST  
-**Framework Version**: 3.0 (Modular with State Tracking)
+**Last Updated**: 2025-10-23 16:30 EEST  
+**Framework Version**: 3.1 (Modular with State Tracking + Configuration Rendering)

@@ -350,20 +350,37 @@ class HPCClusterManager:
             logger.info("Destroying HPC cluster")
 
             cluster_state = self.state_manager.get_state()
+            cluster_name = self.hpc_config["name"]
+
             if not cluster_state:
-                logger.info("No cluster state found, nothing to destroy")
-                return True
+                logger.info("No cluster state found, discovering VMs by name pattern")
+                # Discover VMs by name pattern when no state is available
+                vm_names = self._discover_cluster_vms(cluster_name)
+                if not vm_names:
+                    logger.info("No cluster VMs found, nothing to destroy")
+                    return True
+
+                # Create a temporary state-like structure for cleanup
+                vm_objects = []
+                for vm_name in vm_names:
+                    # Create a simple VM info object for cleanup
+                    vm_objects.append(type("VMInfo", (), {"name": vm_name})())
+
+                all_vms = vm_objects
+            else:
+                # Use state-tracked VMs
+                all_vms = cluster_state.get_all_vms()
 
             # Destroy all VMs
-            all_vms = cluster_state.get_all_vms()
             for vm in all_vms:
                 try:
                     if self.vm_lifecycle.vm_exists(vm.name):
+                        logger.info(f"Destroying VM: {vm.name}")
                         self.vm_lifecycle.destroy_vm(vm.name, remove_storage=False)
 
                     # Clean up volume
                     try:
-                        self.volume_manager.destroy_vm_volume(cluster_state.cluster_name, vm.name)
+                        self.volume_manager.destroy_vm_volume(cluster_name, vm.name)
                     except VolumeManagerError as e:
                         logger.warning(f"Failed to destroy volume for VM {vm.name}: {e}")
 
@@ -372,18 +389,19 @@ class HPCClusterManager:
 
             # Destroy cluster storage pool
             try:
-                self.volume_manager.destroy_cluster_pool(cluster_state.cluster_name, force=True)
+                self.volume_manager.destroy_cluster_pool(cluster_name, force=True)
             except VolumeManagerError as e:
                 logger.warning(f"Failed to destroy cluster storage pool: {e}")
 
             # Destroy cluster virtual network
             try:
-                self.network_manager.destroy_cluster_network(cluster_state.cluster_name, force=True)
+                self.network_manager.destroy_cluster_network(cluster_name, force=True)
             except NetworkManagerError as e:
                 logger.warning(f"Failed to destroy cluster network: {e}")
 
-            # Clear cluster state
-            self.state_manager.clear_state()
+            # Clear cluster state if it exists
+            if cluster_state:
+                self.state_manager.clear_state()
 
             logger.info("HPC cluster destroyed successfully")
             return True
@@ -391,6 +409,39 @@ class HPCClusterManager:
         except Exception as e:
             logger.error(f"Failed to destroy HPC cluster: {e}")
             raise HPCManagerError(f"Failed to destroy HPC cluster: {e}") from e
+
+    def _discover_cluster_vms(self, cluster_name: str) -> list[str]:
+        """Discover cluster VMs by name pattern when no state is available.
+
+        Args:
+            cluster_name: Name of the cluster to discover VMs for
+
+        Returns:
+            List of VM names that match the cluster pattern
+        """
+        try:
+            logger.info(f"Discovering VMs for cluster: {cluster_name}")
+
+            # Get all VMs from libvirt
+            all_vms = self.vm_lifecycle.list_vms()
+            logger.debug(f"Found {len(all_vms)} total VMs in libvirt")
+
+            # Filter VMs that match the cluster name pattern
+            cluster_vms = []
+            for vm_name in all_vms:
+                if vm_name.startswith(f"{cluster_name}-"):
+                    cluster_vms.append(vm_name)
+                    logger.debug(f"Found cluster VM: {vm_name}")
+
+            logger.info(f"Discovered {len(cluster_vms)} VMs for cluster {cluster_name}")
+            return cluster_vms
+
+        except VMLifecycleError as e:
+            logger.warning(f"Failed to discover cluster VMs: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error discovering cluster VMs: {e}")
+            return []
 
     def status_cluster(self) -> dict[str, Any]:
         """Get cluster status information.
