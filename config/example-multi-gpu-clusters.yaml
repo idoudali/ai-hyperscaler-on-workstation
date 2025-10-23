@@ -115,6 +115,31 @@ clusters:
       default_partition: "gpu"
       max_job_time: "24:00:00"
 
+    # Storage backend configuration (cluster-wide)
+    # See config/README.md for detailed documentation
+    storage:
+      # BeeGFS parallel filesystem
+      beegfs:
+        enabled: true  # Enable BeeGFS deployment
+        mount_point: "/mnt/beegfs"
+
+        # Service placement (auto-detected from roles if not specified)
+        management_node: "controller"  # Management service location
+        metadata_nodes:  # Metadata service locations
+          - "controller"
+        storage_nodes:   # Storage service locations (defaults to all compute nodes)
+          - "compute-01"
+          - "compute-02"
+
+        # Client configuration
+        client_config:
+          mount_options: "defaults,_netdev"
+          auto_mount: true
+
+      # VirtIO-FS host directory sharing (per-node)
+      virtio_fs:
+        enabled: true  # Enable VirtIO-FS on applicable nodes
+
   cloud:
     name: "cloud-cluster"
     # Default base image path for cloud cluster - can be absolute or relative to the current working directory
