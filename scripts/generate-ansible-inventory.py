@@ -95,6 +95,23 @@ def generate_inventory(config_path: str, cluster_name: str, ssh_key_path: str = 
     else:
         print("ℹ️  No VirtIO-FS mounts found in controller configuration", file=sys.stderr)
 
+    # Extract BeeGFS configuration from storage section
+    if 'storage' in cluster and 'beegfs' in cluster['storage']:
+        beegfs_config = cluster['storage']['beegfs']
+        if beegfs_config.get('enabled', False):
+            # Convert to JSON string for Ansible variable
+            beegfs_json = json.dumps(beegfs_config, separators=(',', ':'))
+            inventory_lines.append(f"beegfs_config={beegfs_json}")
+            inventory_lines.append(f"beegfs_enabled=true")
+            print(f"✅ BeeGFS enabled with mount point: {beegfs_config.get('mount_point', '/mnt/beegfs')}",
+                  file=sys.stderr)
+        else:
+            inventory_lines.append(f"beegfs_enabled=false")
+            print("ℹ️  BeeGFS disabled in cluster configuration", file=sys.stderr)
+    else:
+        inventory_lines.append(f"beegfs_enabled=false")
+        print("ℹ️  No BeeGFS configuration found in cluster", file=sys.stderr)
+
     inventory_lines.append("")
 
     return "\n".join(inventory_lines)

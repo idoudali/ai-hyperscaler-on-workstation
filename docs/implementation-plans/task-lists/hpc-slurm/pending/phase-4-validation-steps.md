@@ -112,7 +112,7 @@ ls -R  # Shows all step directories and logs
 | **Step 2: Compute Build** | ✅ **AUTOMATED** | `step-02-packer-compute.sh` | Build with locally-built SLURM packages |
 | **Step 3: Configuration Rendering** | ✅ **AUTOMATED** | `step-03-config-rendering.sh` | Test template rendering (before deployment) |
 | **Step 4: Runtime Playbook** | ✅ **AUTOMATED** | `step-04-runtime-deployment.sh` | Deploy and validate cluster functionality |
-| **Step 5: Storage Consolidation** | ⏳ **PLANNED** | `step-05-storage-consolidation.sh` | Test BeeGFS & VirtIO-FS consolidation (Task 043) |
+| **Step 5: Storage Consolidation** | ✅ **AUTOMATED** | `step-05-storage-consolidation.sh` | Test BeeGFS & VirtIO-FS consolidation (Task 041-043) |
 | **Step 6: Functional Tests** | ✅ **AUTOMATED** | `step-06-functional-tests.sh` | Test SLURM jobs, GPU, containers |
 | **Step 7: Regression Tests** | ✅ **AUTOMATED** | `step-07-regression-tests.sh` | Compare against old playbooks |
 
@@ -546,77 +546,110 @@ If Step 3 fails, check:
 
 ---
 
-## Validation Step 5: Storage Runtime Consolidation (Task 043)
+## Validation Step 5: Storage Configuration Schema and Consolidation (Tasks 041-043)
 
-**Automated Script**: Use `./tests/phase-4-validation/step-05-storage-consolidation.sh` (to be created as part of Task 043)
+**Automated Script**: Use `./tests/phase-4-validation/step-05-storage-consolidation.sh`
 
 **Priority**: 🟡 HIGH  
 **Estimated Time**: 15-20 minutes  
-**Purpose**: Verify BeeGFS and VirtIO-FS runtime consolidation into unified HPC runtime playbook
+**Purpose**: Verify storage configuration schema (Task 041) and BeeGFS/VirtIO-FS runtime consolidation (Task 043)
 
 **What it does**:
 
-1. Validates BeeGFS configuration in cluster config schema
-2. Tests BeeGFS deployment via unified runtime playbook
-3. Verifies all BeeGFS services start correctly
-4. Tests BeeGFS filesystem mount on all nodes
-5. Validates VirtIO-FS mounts still work after consolidation
-6. Confirms standalone storage playbooks can be deleted
-7. Verifies single playbook deploys complete HPC + storage stack
+1. **Task 041 Validation**:
+   - Validates cluster configuration schema includes storage backend configuration
+   - Tests VirtIO-FS mount configuration parsing and validation
+   - Verifies BeeGFS configuration schema in cluster config
+   - Tests inventory generation with storage configuration
+   - Validates configuration template rendering with storage variables
+
+2. **Task 043 Validation** (Storage Consolidation):
+   - Tests BeeGFS deployment via unified runtime playbook
+   - Verifies all BeeGFS services start correctly
+   - Tests BeeGFS filesystem mount on all nodes
+   - Validates VirtIO-FS mounts still work after consolidation
+   - Confirms standalone storage playbooks can be deleted
+   - Verifies single playbook deploys complete HPC + storage stack
 
 **Prerequisites**: Steps 1-4 must have passed (images built, config validated, cluster deployed)
 
-**Implementation Plan** (Part of Task 043):
+**Implementation Plan** (Tasks 041-043):
 
 ```bash
 #!/bin/bash
 # step-05-storage-consolidation.sh
 
-# 1. Validate cluster configuration with BeeGFS enabled
+# ========================================
+# Task 041: Storage Configuration Schema
+# ========================================
+
+# 1. Validate cluster configuration schema includes storage backend
 uv run ai-how validate config/example-multi-gpu-clusters.yaml
 
-# 2. Check BeeGFS configuration in cluster config
-grep -A 20 "storage:" config/example-multi-gpu-clusters.yaml
+# 2. Check storage configuration in cluster config
+grep -A 30 "storage:" config/example-multi-gpu-clusters.yaml
 
-# 3. Generate inventory with BeeGFS config
+# 3. Test VirtIO-FS mount configuration parsing
+grep -A 10 "virtio_fs_mounts:" config/example-multi-gpu-clusters.yaml
+
+# 4. Test BeeGFS configuration schema
+grep -A 15 "beegfs:" config/example-multi-gpu-clusters.yaml
+
+# 5. Generate inventory with storage configuration
 make cluster-inventory
 
-# 4. Verify BeeGFS variables in inventory
+# 6. Verify storage variables in inventory
+grep "virtio_fs_mounts" ansible/inventories/test/hosts
 grep "beegfs_enabled" ansible/inventories/test/hosts
 grep "beegfs_config" ansible/inventories/test/hosts
 
-# 5. Deploy with BeeGFS enabled (unified playbook)
+# 7. Test configuration template rendering with storage variables
+make config-render
+grep -A 5 "storage:" output/cluster-state/rendered-config.yaml
+
+# ========================================
+# Task 043: Storage Runtime Consolidation
+# ========================================
+
+# 8. Deploy with storage enabled (unified playbook)
 make cluster-deploy
 
-# 6. Verify BeeGFS services on controller
+# 9. Verify BeeGFS services on controller
 ssh controller "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage"
 
-# 7. Verify BeeGFS client on all nodes
+# 10. Verify BeeGFS client on all nodes
 ssh controller "systemctl status beegfs-client"
 ssh compute01 "systemctl status beegfs-client"
 
-# 8. Check BeeGFS filesystem mount
+# 11. Check BeeGFS filesystem mount
 ssh controller "mount | grep beegfs"
 ssh controller "beegfs-ctl --listnodes --nodetype=all"
 ssh controller "beegfs-df"
 
-# 9. Test BeeGFS write/read
+# 12. Test BeeGFS write/read
 ssh controller "echo 'test' > /mnt/beegfs/test.txt"
 ssh compute01 "cat /mnt/beegfs/test.txt"
 
-# 10. Verify VirtIO-FS still works
+# 13. Verify VirtIO-FS still works
 ssh controller "mount | grep virtiofs"
 ssh controller "ls -la /mnt/host-repo"
 
-# 11. Confirm deployment used single playbook
+# 14. Confirm deployment used single playbook
 # (Check that playbook-hpc-runtime.yml was used, not standalone storage playbooks)
 ```
 
 ### Expected Results
 
-- ✅ Cluster configuration validates with BeeGFS schema
-- ✅ BeeGFS configuration present in cluster config
-- ✅ Inventory generation includes BeeGFS variables
+**Task 041 (Storage Configuration Schema)**:
+
+- ✅ Cluster configuration validates with storage backend schema
+- ✅ VirtIO-FS mount configuration present and valid
+- ✅ BeeGFS configuration schema present in cluster config
+- ✅ Inventory generation includes storage variables (virtio_fs_mounts, beegfs_enabled, beegfs_config)
+- ✅ Configuration template rendering works with storage variables
+
+**Task 043 (Storage Runtime Consolidation)**:
+
 - ✅ Unified runtime playbook deploys BeeGFS successfully
 - ✅ All BeeGFS services running (mgmtd, meta, storage, client)
 - ✅ BeeGFS filesystem mounted on all nodes
@@ -628,23 +661,45 @@ ssh controller "ls -la /mnt/host-repo"
 
 If Step 5 fails, check:
 
+**Task 041 (Storage Configuration Schema) Issues**:
+
 1. `$VALIDATION_ROOT/05-storage-consolidation/config-validation.log` - Configuration schema issues
-2. `$VALIDATION_ROOT/05-storage-consolidation/inventory-generation.log` - BeeGFS config not passed
-3. `$VALIDATION_ROOT/05-storage-consolidation/beegfs-deployment.log` - Service deployment issues
-4. `$VALIDATION_ROOT/05-storage-consolidation/beegfs-status.log` - Service status problems
-5. BeeGFS service logs: `journalctl -u beegfs-mgmtd -n 50`, `journalctl -u beegfs-client -n 50`
-6. Network connectivity between nodes for BeeGFS ports
+2. `$VALIDATION_ROOT/05-storage-consolidation/inventory-generation.log` - Storage config not passed
+3. `$VALIDATION_ROOT/05-storage-consolidation/template-rendering.log` - Template rendering issues
+
+**Task 043 (Storage Runtime Consolidation) Issues**:
+4. `$VALIDATION_ROOT/05-storage-consolidation/beegfs-deployment.log` - Service deployment issues
+5. `$VALIDATION_ROOT/05-storage-consolidation/beegfs-status.log` - Service status problems
+6. BeeGFS service logs: `journalctl -u beegfs-mgmtd -n 50`, `journalctl -u beegfs-client -n 50`
+7. Network connectivity between nodes for BeeGFS ports
 
 **Common Issues**:
+
+**Task 041 Issues**:
+
+- **Schema validation fails**: Check storage section format in cluster config
+- **Inventory missing storage variables**: Verify `scripts/generate-ansible-inventory.py` parses storage config
+- **Template rendering fails**: Check storage variables are properly defined
+
+**Task 043 Issues**:
 
 - **BeeGFS services don't start**: Check if packages were installed during Packer build
 - **Mount fails**: Verify BeeGFS management service is running and accessible
 - **Client can't connect**: Check network connectivity and firewall rules
-- **Inventory missing variables**: Verify `scripts/generate-ansible-inventory.py` parses BeeGFS config
+- **VirtIO-FS mounts broken**: Verify VirtIO-FS configuration is preserved
 
-### Success Criteria for Task 043
+### Success Criteria for Tasks 041-043
 
-- [ ] BeeGFS configuration schema added to cluster config
+**Task 041 (Storage Configuration Schema)**:
+
+- [ ] Storage backend configuration schema added to cluster config
+- [ ] VirtIO-FS mount configuration parsing implemented
+- [ ] BeeGFS configuration schema integrated
+- [ ] Inventory generation script parses storage configuration
+- [ ] Configuration template rendering supports storage variables
+
+**Task 043 (Storage Runtime Consolidation)**:
+
 - [ ] BeeGFS deployment integrated into unified runtime playbook
 - [ ] Inventory generation extracts and passes BeeGFS configuration
 - [ ] All BeeGFS services deploy and start correctly

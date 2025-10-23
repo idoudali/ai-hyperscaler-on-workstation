@@ -1,6 +1,6 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-043)
 
-**Status**: ~94% Complete (15/17 tasks)
+**Status**: ~94% Complete (16/17 tasks)
 **Last Updated**: 2025-10-23 (Status Updated with Template Rendering + Task 043 Added)
 **Priority**: HIGH
 **Tasks**: 17 (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1)
@@ -22,12 +22,12 @@
 | **038** | ✅ **COMPLETE** | 100% | BeeGFS Packer installation consolidated into HPC playbooks |
 | **039** | ✅ **COMPLETE** | 100% | VirtIO-FS integrated into playbook-hpc-runtime.yml |
 | **040** | ❌ **PENDING** | 0% | Registry uses /opt/containers not /mnt/beegfs |
-| **041** | ✅ **COMPLETE** | 100% | virtio_fs_mounts added to cluster config schema |
+| **041** | ✅ **COMPLETE** | 100% | virtio_fs_mounts and beegfs_config added to cluster config schema |
 | **042** | ✅ **COMPLETE** | 100% | Configuration template rendering system implemented |
 | **043** | ❌ **PENDING** | 0% | BeeGFS & VirtIO-FS consolidation into runtime playbook |
 
 **Completed**: Tasks 029-035, 038, 039, 041, 042 (Ansible consolidation + validation framework +
-BeeGFS consolidation + VirtIO-FS integration + template rendering achieved!)  
+BeeGFS consolidation + VirtIO-FS integration + storage schema + template rendering achieved!)  
 **Pending**: Tasks 036-037, 040, 043 (HPC test frameworks + Container registry + Storage consolidation)  
 **Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)
 
@@ -2517,7 +2517,7 @@ srun --gres=gpu:1 apptainer exec \
 - **Dependencies**: TASK-039 (VirtIO-FS integration)
 - **Estimated Time**: 1 hour
 - **Difficulty**: Junior
-- **Status**: ❌ Not Started (Verified 2025-10-20 - No virtio_fs_mounts in cluster config)
+- **Status**: ✅ Complete (Verified 2025-10-23 - virtio_fs_mounts and beegfs_config added to cluster config)
 - **Priority**: HIGH
 
 **Description:** Update cluster configuration YAML schema to support VirtIO-FS mounts and storage
@@ -3040,13 +3040,13 @@ uv run ai-how validate config/example-multi-gpu-clusters.yaml
 - ❌ **PENDING**: Test Makefile NOT updated with new targets (Task 037)
 - **Status:** All 15 old test frameworks verified in codebase - NO consolidation done yet
 
-**Phase 4.5 - Storage Enhancement (Tasks 038-041): ✅ PARTIALLY COMPLETE**
+**Phase 4.5 - Storage Enhancement (Tasks 038-041): ✅ MOSTLY COMPLETE**
 
 - ✅ **COMPLETE**: BeeGFS Packer installation consolidated into HPC playbooks (Task 038)
 - ✅ **COMPLETE**: VirtIO-FS integrated into playbook-hpc-runtime.yml (Task 039)
 - ❌ **PENDING**: Registry uses /opt/containers not /mnt/beegfs (Task 040)
 - ✅ **COMPLETE**: virtio_fs_mounts added to cluster config schema (Task 041)
-- **Status:** 3/4 storage tasks complete - BeeGFS consolidation and VirtIO-FS integration achieved
+- **Status:** 3/4 storage tasks complete - BeeGFS consolidation, VirtIO-FS integration, and storage schema achieved
 
 **Phase 4.6 - Configuration Management (Task 042): ✅ COMPLETE**
 
@@ -3617,12 +3617,12 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - [x] Task 034: ✅ **COMPLETE** - 9 obsolete playbooks DELETED (verified absent)
 - [x] Task 034.1: ✅ **COMPLETE** - SLURM install.yml uses pre-built packages
 
-**Phase 4.5 Storage (Tasks 038-041): ✅ PARTIALLY COMPLETE (Verified 2025-10-23)**
+**Phase 4.5 Storage (Tasks 038-041): ✅ MOSTLY COMPLETE (Verified 2025-10-23)**
 
 - [x] Task 038: ✅ **COMPLETE** - BeeGFS Packer installation consolidated into HPC playbooks
 - [x] Task 039: ✅ **COMPLETE** - VirtIO-FS integrated into playbook-hpc-runtime.yml
 - [ ] Task 040: ❌ **NOT STARTED** - Registry uses /opt/containers (not BeeGFS)
-- [ ] Task 041: ❌ **NOT STARTED** - No virtio_fs_mounts in cluster config
+- [x] Task 041: ✅ **COMPLETE** - virtio_fs_mounts and beegfs_config added to cluster config schema
 
 **Phase 4 Testing (Tasks 035-037): ❌ NOT STARTED (Verified 2025-10-20)**
 

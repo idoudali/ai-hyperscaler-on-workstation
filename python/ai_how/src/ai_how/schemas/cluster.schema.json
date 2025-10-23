@@ -119,6 +119,77 @@
       "description": "List of virtio-fs host directory mounts",
       "items": { "$ref": "#/definitions/virtioFsMount" }
     },
+    "beegfsConfig": {
+      "type": "object",
+      "description": "BeeGFS parallel filesystem configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable BeeGFS deployment",
+          "default": false
+        },
+        "mount_point": {
+          "type": "string",
+          "description": "Mount point for BeeGFS filesystem",
+          "pattern": "^/.*$",
+          "default": "/mnt/beegfs"
+        },
+        "management_node": {
+          "type": "string",
+          "description": "Node to run BeeGFS management service",
+          "default": "controller"
+        },
+        "metadata_nodes": {
+          "type": "array",
+          "description": "Nodes to run BeeGFS metadata service",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "storage_nodes": {
+          "type": "array",
+          "description": "Nodes to run BeeGFS storage service",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "client_config": {
+          "type": "object",
+          "description": "BeeGFS client configuration",
+          "properties": {
+            "mount_options": {
+              "type": "string",
+              "description": "Mount options for BeeGFS client",
+              "default": "defaults,_netdev"
+            },
+            "auto_mount": {
+              "type": "boolean",
+              "description": "Automatically mount BeeGFS on boot",
+              "default": true
+            }
+          }
+        }
+      },
+      "required": ["enabled", "mount_point"]
+    },
+    "virtioFsConfig": {
+      "type": "object",
+      "description": "VirtIO-FS configuration for host directory sharing",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable VirtIO-FS on applicable nodes",
+          "default": false
+        }
+      },
+      "required": ["enabled"]
+    },
+    "storageConfig": {
+      "type": "object",
+      "description": "Storage backend configuration for the cluster",
+      "properties": {
+        "beegfs": { "$ref": "#/definitions/beegfsConfig" },
+        "virtio_fs": { "$ref": "#/definitions/virtioFsConfig" }
+      }
+    },
     "hardwareAcceleration": {
       "type": "object",
       "properties": {
@@ -180,6 +251,7 @@
         },
         "network": { "$ref": "#/definitions/network" },
         "hardware": { "$ref": "#/definitions/hardwareConfig" },
+        "storage": { "$ref": "#/definitions/storageConfig" },
         "controller": { "$ref": "#/definitions/controllerNode" },
         "compute_nodes": { "$ref": "#/definitions/computeNodeGroup" },
         "slurm_config": {

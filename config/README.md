@@ -384,6 +384,135 @@ virtio_fs_mounts:
 - Set `readonly: true` for shared reference data
 - Consider permissions (`mode`, `owner`, `group`) for multi-user access
 
+## Storage Configuration
+
+The cluster configuration supports two types of storage backends: BeeGFS parallel filesystem and
+VirtIO-FS host directory sharing. These can be configured at the cluster level under the
+`storage` section.
+
+### BeeGFS Parallel Filesystem
+
+BeeGFS provides high-performance distributed storage across multiple nodes in the cluster. It's ideal
+for HPC workloads that require shared storage with high throughput and low latency.
+
+#### Configuration
+
+```yaml
+clusters:
+  hpc:
+    # ... other cluster configuration ...
+    storage:
+      beegfs:
+        enabled: true                    # Enable BeeGFS deployment
+        mount_point: "/mnt/beegfs"       # Mount point for BeeGFS filesystem
+        
+        # Service placement (auto-detected from roles if not specified)
+        management_node: "controller"    # Management service location
+        metadata_nodes:                  # Metadata service locations
+          - "controller"
+        storage_nodes:                   # Storage service locations
+          - "compute-01"
+          - "compute-02"
+        
+        # Client configuration
+        client_config:
+          mount_options: "defaults,_netdev"  # Mount options for BeeGFS client
+          auto_mount: true                   # Automatically mount on boot
+```
+
+#### Field Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | Yes | Enable BeeGFS deployment |
+| `mount_point` | string | Yes | Mount point for BeeGFS filesystem (must start with `/`) |
+| `management_node` | string | No | Node to run BeeGFS management service (default: `controller`) |
+| `metadata_nodes` | array | No | Nodes to run BeeGFS metadata service (auto-detected if not specified) |
+| `storage_nodes` | array | No | Nodes to run BeeGFS storage service (defaults to all compute nodes) |
+| `client_config` | object | No | BeeGFS client configuration |
+| `client_config.mount_options` | string | No | Mount options for BeeGFS client (default: `defaults,_netdev`) |
+| `client_config.auto_mount` | boolean | No | Automatically mount BeeGFS on boot (default: `true`) |
+
+#### Service Placement
+
+- **Management Node**: Runs the BeeGFS management daemon (typically the controller)
+- **Metadata Nodes**: Run BeeGFS metadata service (can be multiple for HA)
+- **Storage Nodes**: Run BeeGFS storage service (typically compute nodes)
+
+If not specified, the system will auto-detect appropriate nodes based on their roles.
+
+### VirtIO-FS Configuration
+
+VirtIO-FS can be enabled cluster-wide for host directory sharing. Individual mount configurations
+are still specified per-node using `virtio_fs_mounts`.
+
+#### Configuration
+
+```yaml
+clusters:
+  hpc:
+    # ... other cluster configuration ...
+    storage:
+      virtio_fs:
+        enabled: true    # Enable VirtIO-FS on applicable nodes
+```
+
+#### Field Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | Yes | Enable VirtIO-FS on applicable nodes |
+
+### Complete Storage Example
+
+```yaml
+clusters:
+  hpc:
+    name: "hpc-cluster"
+    # ... other cluster configuration ...
+    
+    # Storage backend configuration (cluster-wide)
+    storage:
+      # BeeGFS parallel filesystem
+      beegfs:
+        enabled: true
+        mount_point: "/mnt/beegfs"
+        management_node: "controller"
+        metadata_nodes:
+          - "controller"
+        storage_nodes:
+          - "compute-01"
+          - "compute-02"
+        client_config:
+          mount_options: "defaults,_netdev"
+          auto_mount: true
+          
+      # VirtIO-FS host directory sharing
+      virtio_fs:
+        enabled: true
+    
+    controller:
+      # ... controller configuration ...
+      virtio_fs_mounts:
+        - tag: "project-repo"
+          host_path: "/home/user/projects"
+          mount_point: "/project"
+          readonly: false
+        - tag: "datasets"
+          host_path: "/data/ml-datasets"
+          mount_point: "/datasets"
+          readonly: true
+```
+
+### Best Practices
+
+- **BeeGFS**: Use for high-performance shared storage across compute nodes
+- **VirtIO-FS**: Use for sharing host directories with specific VMs
+- **Service Placement**: Place management and metadata services on reliable nodes (controller)
+- **Storage Nodes**: Distribute across multiple compute nodes for better performance
+- **Mount Points**: Use consistent mount points across the cluster for BeeGFS
+- **Permissions**: Ensure proper permissions for shared storage access
+
 ## Image Configuration
 
 ### Base Images
