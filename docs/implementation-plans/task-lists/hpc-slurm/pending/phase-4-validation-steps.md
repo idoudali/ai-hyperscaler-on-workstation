@@ -38,11 +38,14 @@ cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
 ./tests/phase-4-validation/step-01-packer-controller.sh
 ./tests/phase-4-validation/step-02-packer-compute.sh
 
-# Runtime and testing
-./tests/phase-4-validation/step-03-runtime-deployment.sh
-./tests/phase-4-validation/step-04-functional-tests.sh
-./tests/phase-4-validation/step-05-regression-tests.sh
-./tests/phase-4-validation/step-06-config-rendering.sh
+# Configuration validation (before deployment)
+./tests/phase-4-validation/step-03-config-rendering.sh
+
+# Runtime deployment and testing
+./tests/phase-4-validation/step-04-runtime-deployment.sh
+./tests/phase-4-validation/step-05-storage-consolidation.sh
+./tests/phase-4-validation/step-06-functional-tests.sh
+./tests/phase-4-validation/step-07-regression-tests.sh
 
 # Run any step with verbose logging
 ./tests/phase-4-validation/step-01-packer-controller.sh --verbose
@@ -107,12 +110,17 @@ ls -R  # Shows all step directories and logs
 | **Prerequisites** | ✅ **AUTOMATED** | `step-00-prerequisites.sh` | Docker, CMake, SLURM packages |
 | **Step 1: Controller Build** | ✅ **AUTOMATED** | `step-01-packer-controller.sh` | Build with locally-built SLURM packages |
 | **Step 2: Compute Build** | ✅ **AUTOMATED** | `step-02-packer-compute.sh` | Build with locally-built SLURM packages |
-| **Step 3: Runtime Playbook** | ✅ **AUTOMATED** | `step-03-runtime-deployment.sh` | Deploy and validate cluster functionality |
-| **Step 4: Functional Tests** | ✅ **AUTOMATED** | `step-04-functional-tests.sh` | Test SLURM jobs, GPU, containers |
-| **Step 5: Regression Tests** | ✅ **AUTOMATED** | `step-05-regression-tests.sh` | Compare against old playbooks |
-| **Step 6: Configuration Rendering** | ✅ **AUTOMATED** | `step-06-config-rendering.sh` | Test template rendering and VirtIO-FS |
+| **Step 3: Configuration Rendering** | ✅ **AUTOMATED** | `step-03-config-rendering.sh` | Test template rendering (before deployment) |
+| **Step 4: Runtime Playbook** | ✅ **AUTOMATED** | `step-04-runtime-deployment.sh` | Deploy and validate cluster functionality |
+| **Step 5: Storage Consolidation** | ⏳ **PLANNED** | `step-05-storage-consolidation.sh` | Test BeeGFS & VirtIO-FS consolidation (Task 043) |
+| **Step 6: Functional Tests** | ✅ **AUTOMATED** | `step-06-functional-tests.sh` | Test SLURM jobs, GPU, containers |
+| **Step 7: Regression Tests** | ✅ **AUTOMATED** | `step-07-regression-tests.sh` | Compare against old playbooks |
 
 **Overall**: ✅ **AUTOMATED FRAMEWORK READY** - All steps available as modular scripts with state tracking
+
+**Note**: Step 5 (Storage Consolidation) will be implemented as part of Task 043 to validate the consolidated
+storage runtime playbook. Step 3 (Configuration Rendering) validates templates before deployment, and Steps 4-7
+follow the logical deployment and testing flow.
 
 **Previous Sessions** (archived - using repository packages):
 
@@ -166,12 +174,24 @@ validation-output/
     │   ├── packer-build.log
     │   ├── packer-build-error.log
     │   └── validation-summary.txt
-    ├── 03-runtime-playbook/
+    ├── 03-config-rendering/
+    │   ├── ai-how-render.log
+    │   ├── make-targets.log
+    │   ├── virtio-fs-config.log
+    │   ├── cluster-state.log
+    │   └── validation-summary.txt
+    ├── 04-runtime-playbook/
     │   ├── syntax-check.log
     │   ├── ansible-deploy.log
     │   ├── ansible-deploy-error.log
     │   └── validation-summary.txt
-    ├── 04-functional-tests/
+    ├── 05-storage-consolidation/
+    │   ├── config-validation.log
+    │   ├── inventory-generation.log
+    │   ├── beegfs-deployment.log
+    │   ├── beegfs-status.log
+    │   └── validation-summary.txt
+    ├── 06-functional-tests/
     │   ├── cluster-info.log
     │   ├── node-registration.log
     │   ├── simple-job.log
@@ -181,16 +201,10 @@ validation-output/
     │   ├── cgroup-test.log
     │   ├── monitoring-test.log
     │   └── validation-summary.txt
-    ├── 05-regression-tests/
+    ├── 07-regression-tests/
     │   ├── slurm-config-diff.log
     │   ├── service-status.log
     │   ├── feature-matrix.log
-    │   └── validation-summary.txt
-    ├── 06-config-rendering/
-    │   ├── ai-how-render.log
-    │   ├── make-targets.log
-    │   ├── virtio-fs-config.log
-    │   ├── cluster-state.log
     │   └── validation-summary.txt
     └── validation-report.md
 ```
@@ -325,9 +339,9 @@ If Step 2 fails, check:
 
 ---
 
-## Validation Step 3: Runtime Playbook Deployment
+## Validation Step 4: Runtime Playbook Deployment
 
-**Automated Script**: Use `./tests/phase-4-validation/step-03-runtime-deployment.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-04-runtime-deployment.sh` for automated execution.
 
 **Priority**: 🔴 CRITICAL  
 **Estimated Time**: 10-20 minutes  
@@ -344,7 +358,7 @@ If Step 2 fails, check:
 5. Tests SSH connectivity
 6. Deploys runtime configuration via Ansible
 7. Analyzes deployment results
-8. Leaves cluster running for Steps 4-5
+8. Leaves cluster running for Steps 5-7
 
 **Cluster Management**:
 
@@ -356,27 +370,27 @@ See the script source for implementation details.
 
 ### Expected Results
 
-- ✅ **Step 3.1**: Playbook syntax validates
-- ✅ **Step 3.2**: Inventory generated from cluster configuration
-- ✅ **Step 3.3**: Cluster configuration validates
-- ✅ **Step 3.4**: Cluster VMs start successfully
-- ✅ **Step 3.5**: SSH connectivity confirmed
-- ✅ **Step 3.6**: Runtime configuration deploys successfully
-- ✅ **Step 3.7**: No Ansible task failures
+- ✅ **Step 4.1**: Playbook syntax validates
+- ✅ **Step 4.2**: Inventory generated from cluster configuration
+- ✅ **Step 4.3**: Cluster configuration validates
+- ✅ **Step 4.4**: Cluster VMs start successfully
+- ✅ **Step 4.5**: SSH connectivity confirmed
+- ✅ **Step 4.6**: Runtime configuration deploys successfully
+- ✅ **Step 4.7**: No Ansible task failures
 - ✅ All services started (slurmctld, slurmdbd, slurmd, munge)
-- ✅ Cluster remains running for Steps 4-5
+- ✅ Cluster remains running for Steps 5-7
 
 ### Troubleshooting
 
-If Step 3 fails, check:
+If Step 4 fails, check:
 
-1. `$VALIDATION_ROOT/03-runtime-playbook/syntax-check.log` - Syntax errors
-2. `$VALIDATION_ROOT/03-runtime-playbook/inventory-generation.log` - Inventory generation issues
-3. `$VALIDATION_ROOT/03-runtime-playbook/config-validation.log` - Configuration validation results
-4. `$VALIDATION_ROOT/03-runtime-playbook/cluster-start.log` - VM startup issues
-5. `$VALIDATION_ROOT/03-runtime-playbook/ssh-connectivity.log` - SSH connectivity problems
-6. `$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy.log` - Full deployment log
-7. `$VALIDATION_ROOT/03-runtime-playbook/ansible-deploy-error.log` - Extracted errors
+1. `$VALIDATION_ROOT/04-runtime-playbook/syntax-check.log` - Syntax errors
+2. `$VALIDATION_ROOT/04-runtime-playbook/inventory-generation.log` - Inventory generation issues
+3. `$VALIDATION_ROOT/04-runtime-playbook/config-validation.log` - Configuration validation results
+4. `$VALIDATION_ROOT/04-runtime-playbook/cluster-start.log` - VM startup issues
+5. `$VALIDATION_ROOT/04-runtime-playbook/ssh-connectivity.log` - SSH connectivity problems
+6. `$VALIDATION_ROOT/04-runtime-playbook/ansible-deploy.log` - Full deployment log
+7. `$VALIDATION_ROOT/04-runtime-playbook/ansible-deploy-error.log` - Extracted errors
 
 **Common Issues**:
 
@@ -386,9 +400,9 @@ If Step 3 fails, check:
 
 ---
 
-## Validation Step 4: Functional Cluster Tests
+## Validation Step 6: Functional Cluster Tests
 
-**Automated Script**: Use `./tests/phase-4-validation/step-04-functional-tests.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-06-functional-tests.sh` for automated execution.
 
 **Priority**: 🔴 CRITICAL  
 **Estimated Time**: 5-10 minutes  
@@ -405,7 +419,7 @@ If Step 3 fails, check:
 7. Checks cgroup configuration
 8. Tests monitoring endpoints (Prometheus, Node Exporter)
 
-**Prerequisites**: Step 3 must have passed (cluster deployed and running)
+**Prerequisites**: Steps 4-5 must have passed (cluster deployed and storage configured)
 
 See the script source for implementation details.
 
@@ -422,7 +436,7 @@ See the script source for implementation details.
 
 ### Troubleshooting
 
-If Step 4 fails, check:
+If Step 6 fails, check:
 
 1. Service status on controller: `systemctl status slurmctld slurmdbd munge`
 2. Service status on compute: `systemctl status slurmd munge`
@@ -433,9 +447,9 @@ If Step 4 fails, check:
 
 ---
 
-## Validation Step 5: Regression Testing
+## Validation Step 7: Regression Testing
 
-**Automated Script**: Use `./tests/phase-4-validation/step-05-regression-tests.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-07-regression-tests.sh` for automated execution.
 
 **Priority**: 🟡 HIGH  
 **Estimated Time**: 5 minutes  
@@ -471,7 +485,7 @@ See the script source for implementation details.
 
 ### Troubleshooting
 
-If Step 5 reveals issues:
+If Step 7 reveals issues:
 
 1. Review configuration differences carefully
 2. Check for missing features in feature matrix
@@ -480,9 +494,9 @@ If Step 5 reveals issues:
 
 ---
 
-## Validation Step 6: Configuration Template Rendering and VirtIO-FS
+## Validation Step 3: Configuration Template Rendering and VirtIO-FS
 
-**Automated Script**: Use `./tests/phase-4-validation/step-06-config-rendering.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-03-config-rendering.sh` for automated execution.
 
 **Priority**: 🟡 HIGH  
 **Estimated Time**: 5-10 minutes  
@@ -497,7 +511,7 @@ If Step 5 reveals issues:
 5. Tests VirtIO-FS mount handling in runtime playbook
 6. Validates cluster state directory management
 
-**Prerequisites**: Steps 1-5 must have passed (cluster deployed and running)
+**Prerequisites**: Steps 1-2 must have passed (Packer images built)
 
 See the script source for implementation details.
 
@@ -514,12 +528,12 @@ See the script source for implementation details.
 
 ### Troubleshooting
 
-If Step 6 fails, check:
+If Step 3 fails, check:
 
-1. `$VALIDATION_ROOT/06-config-rendering/ai-how-render.log` - Template rendering errors
-2. `$VALIDATION_ROOT/06-config-rendering/make-targets.log` - Makefile target execution
-3. `$VALIDATION_ROOT/06-config-rendering/virtio-fs-config.log` - VirtIO-FS configuration
-4. `$VALIDATION_ROOT/06-config-rendering/cluster-state.log` - Cluster state directory
+1. `$VALIDATION_ROOT/03-config-rendering/ai-how-render.log` - Template rendering errors
+2. `$VALIDATION_ROOT/03-config-rendering/make-targets.log` - Makefile target execution
+3. `$VALIDATION_ROOT/03-config-rendering/virtio-fs-config.log` - VirtIO-FS configuration
+4. `$VALIDATION_ROOT/03-config-rendering/cluster-state.log` - Cluster state directory
 5. Python dependencies: `uv run python -c "import expandvars"`
 6. Template syntax: Check for unbound variables or YAML errors
 
@@ -529,6 +543,118 @@ If Step 6 fails, check:
 - **Template syntax errors**: Check YAML indentation and structure
 - **Missing dependencies**: Ensure `expandvars` package is installed
 - **VirtIO-FS not configured**: Check cluster configuration schema
+
+---
+
+## Validation Step 5: Storage Runtime Consolidation (Task 043)
+
+**Automated Script**: Use `./tests/phase-4-validation/step-05-storage-consolidation.sh` (to be created as part of Task 043)
+
+**Priority**: 🟡 HIGH  
+**Estimated Time**: 15-20 minutes  
+**Purpose**: Verify BeeGFS and VirtIO-FS runtime consolidation into unified HPC runtime playbook
+
+**What it does**:
+
+1. Validates BeeGFS configuration in cluster config schema
+2. Tests BeeGFS deployment via unified runtime playbook
+3. Verifies all BeeGFS services start correctly
+4. Tests BeeGFS filesystem mount on all nodes
+5. Validates VirtIO-FS mounts still work after consolidation
+6. Confirms standalone storage playbooks can be deleted
+7. Verifies single playbook deploys complete HPC + storage stack
+
+**Prerequisites**: Steps 1-4 must have passed (images built, config validated, cluster deployed)
+
+**Implementation Plan** (Part of Task 043):
+
+```bash
+#!/bin/bash
+# step-05-storage-consolidation.sh
+
+# 1. Validate cluster configuration with BeeGFS enabled
+uv run ai-how validate config/example-multi-gpu-clusters.yaml
+
+# 2. Check BeeGFS configuration in cluster config
+grep -A 20 "storage:" config/example-multi-gpu-clusters.yaml
+
+# 3. Generate inventory with BeeGFS config
+make cluster-inventory
+
+# 4. Verify BeeGFS variables in inventory
+grep "beegfs_enabled" ansible/inventories/test/hosts
+grep "beegfs_config" ansible/inventories/test/hosts
+
+# 5. Deploy with BeeGFS enabled (unified playbook)
+make cluster-deploy
+
+# 6. Verify BeeGFS services on controller
+ssh controller "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage"
+
+# 7. Verify BeeGFS client on all nodes
+ssh controller "systemctl status beegfs-client"
+ssh compute01 "systemctl status beegfs-client"
+
+# 8. Check BeeGFS filesystem mount
+ssh controller "mount | grep beegfs"
+ssh controller "beegfs-ctl --listnodes --nodetype=all"
+ssh controller "beegfs-df"
+
+# 9. Test BeeGFS write/read
+ssh controller "echo 'test' > /mnt/beegfs/test.txt"
+ssh compute01 "cat /mnt/beegfs/test.txt"
+
+# 10. Verify VirtIO-FS still works
+ssh controller "mount | grep virtiofs"
+ssh controller "ls -la /mnt/host-repo"
+
+# 11. Confirm deployment used single playbook
+# (Check that playbook-hpc-runtime.yml was used, not standalone storage playbooks)
+```
+
+### Expected Results
+
+- ✅ Cluster configuration validates with BeeGFS schema
+- ✅ BeeGFS configuration present in cluster config
+- ✅ Inventory generation includes BeeGFS variables
+- ✅ Unified runtime playbook deploys BeeGFS successfully
+- ✅ All BeeGFS services running (mgmtd, meta, storage, client)
+- ✅ BeeGFS filesystem mounted on all nodes
+- ✅ BeeGFS write/read operations work across nodes
+- ✅ VirtIO-FS mounts still functional
+- ✅ Single playbook deployment confirmed
+
+### Troubleshooting
+
+If Step 5 fails, check:
+
+1. `$VALIDATION_ROOT/05-storage-consolidation/config-validation.log` - Configuration schema issues
+2. `$VALIDATION_ROOT/05-storage-consolidation/inventory-generation.log` - BeeGFS config not passed
+3. `$VALIDATION_ROOT/05-storage-consolidation/beegfs-deployment.log` - Service deployment issues
+4. `$VALIDATION_ROOT/05-storage-consolidation/beegfs-status.log` - Service status problems
+5. BeeGFS service logs: `journalctl -u beegfs-mgmtd -n 50`, `journalctl -u beegfs-client -n 50`
+6. Network connectivity between nodes for BeeGFS ports
+
+**Common Issues**:
+
+- **BeeGFS services don't start**: Check if packages were installed during Packer build
+- **Mount fails**: Verify BeeGFS management service is running and accessible
+- **Client can't connect**: Check network connectivity and firewall rules
+- **Inventory missing variables**: Verify `scripts/generate-ansible-inventory.py` parses BeeGFS config
+
+### Success Criteria for Task 043
+
+- [ ] BeeGFS configuration schema added to cluster config
+- [ ] BeeGFS deployment integrated into unified runtime playbook
+- [ ] Inventory generation extracts and passes BeeGFS configuration
+- [ ] All BeeGFS services deploy and start correctly
+- [ ] BeeGFS filesystem functional across all nodes
+- [ ] VirtIO-FS functionality preserved
+- [ ] `playbook-beegfs-runtime-config.yml` can be deleted
+- [ ] `playbook-virtio-fs-runtime-config.yml` can be deleted
+- [ ] Single `playbook-hpc-runtime.yml` deploys complete stack
+- [ ] Documentation updated with new workflow
+- [ ] Playbook count reduced from 7 to 5
 
 ---
 
@@ -560,10 +686,11 @@ cat > "$VALIDATION_ROOT/validation-report.md" <<'REPORT_EOF'
 |----------------|--------|-------|
 | 1. Packer Controller Build | ⏳ | Check step summary |
 | 2. Packer Compute Build | ⏳ | Check step summary |
-| 3. Runtime Playbook Deploy | ⏳ | Check step summary |
-| 4. Functional Tests | ⏳ | Check step summary |
-| 5. Regression Tests | ⏳ | Check step summary |
-| 6. Configuration Rendering | ⏳ | Check step summary |
+| 3. Configuration Rendering | ⏳ | Check step summary |
+| 4. Runtime Playbook Deploy | ⏳ | Check step summary |
+| 5. Storage Consolidation | ⏳ | Check step summary (Task 043) |
+| 6. Functional Tests | ⏳ | Check step summary |
+| 7. Regression Tests | ⏳ | Check step summary |
 
 **Overall Status**: ⏳ PENDING MANUAL REVIEW
 
@@ -577,17 +704,20 @@ See: `01-packer-controller/validation-summary.txt`
 ### Step 2: Packer Compute Build
 See: `02-packer-compute/validation-summary.txt`
 
-### Step 3: Runtime Playbook Deployment
-See: `03-runtime-playbook/validation-summary.txt`
+### Step 3: Configuration Rendering
+See: `03-config-rendering/validation-summary.txt`
 
-### Step 4: Functional Cluster Tests
-See: `04-functional-tests/validation-summary.txt`
+### Step 4: Runtime Playbook Deployment
+See: `04-runtime-playbook/validation-summary.txt`
 
-### Step 5: Regression Testing
-See: `05-regression-tests/validation-summary.txt`
+### Step 5: Storage Consolidation (Task 043)
+See: `05-storage-consolidation/validation-summary.txt`
 
-### Step 6: Configuration Rendering
-See: `06-config-rendering/validation-summary.txt`
+### Step 6: Functional Cluster Tests
+See: `06-functional-tests/validation-summary.txt`
+
+### Step 7: Regression Testing
+See: `07-regression-tests/validation-summary.txt`
 
 ---
 
@@ -620,8 +750,9 @@ If validation PASSED:
 1. Proceed with Task 035: Create unified HPC runtime test framework
 2. Proceed with Task 036: Create HPC Packer test frameworks
 3. Proceed with Task 037: Update test Makefile and delete obsolete tests
-4. Configuration template rendering system is ready for production use
-5. VirtIO-FS mount functionality is integrated and validated
+4. Proceed with Task 043: Consolidate BeeGFS & VirtIO-FS runtime playbooks
+5. Configuration template rendering system is ready for production use
+6. VirtIO-FS mount functionality is integrated and validated
 
 If validation FAILED:
 1. Review failure logs in validation output directory
@@ -655,9 +786,11 @@ echo "Review the following files:"
 echo "  - $VALIDATION_ROOT/validation-report.md"
 echo "  - $VALIDATION_ROOT/01-packer-controller/validation-summary.txt"
 echo "  - $VALIDATION_ROOT/02-packer-compute/validation-summary.txt"
-echo "  - $VALIDATION_ROOT/03-runtime-playbook/validation-summary.txt"
-echo "  - $VALIDATION_ROOT/04-functional-tests/validation-summary.txt"
-echo "  - $VALIDATION_ROOT/05-regression-tests/validation-summary.txt"
+echo "  - $VALIDATION_ROOT/03-config-rendering/validation-summary.txt"
+echo "  - $VALIDATION_ROOT/04-runtime-playbook/validation-summary.txt"
+echo "  - $VALIDATION_ROOT/05-storage-consolidation/validation-summary.txt"
+echo "  - $VALIDATION_ROOT/06-functional-tests/validation-summary.txt"
+echo "  - $VALIDATION_ROOT/07-regression-tests/validation-summary.txt"
 echo ""
 echo "Next steps:"
 echo "  1. Review all validation summaries"
@@ -726,7 +859,7 @@ make run-docker COMMAND="cmake --build build --target build-hpc-compute-image"
 # NOTE: Packer builds now use locally-built SLURM packages copied to /tmp/slurm-packages/
 # This replaces the broken Debian repository installation on Trixie
 
-# 6. Deploy and test runtime configuration (Steps 3-5)
+# 6. Deploy and test runtime configuration (Steps 3-7)
 # Option A: Single command deployment (inventory auto-generated)
 make cluster-deploy
 
@@ -860,17 +993,20 @@ ansible-playbook -i inventories/test playbook-cgroup-runtime-config.yml
   - **No host tool installation required** (Docker is the only host requirement)
 - **Timing Estimates**:
   - **Packer builds**: 15-30 minutes each (Steps 1-2)
-  - **Cluster startup**: 2-5 minutes (Step 3.4)
-  - **Runtime deployment**: 10-20 minutes (Step 3.6)
-  - **Functional tests**: 5-10 minutes (Step 4)
-  - **Total validation time**: ~45-90 minutes for full workflow
+  - **Configuration validation**: 5-10 minutes (Step 3)
+  - **Cluster startup**: 2-5 minutes (Step 4.4)
+  - **Runtime deployment**: 10-20 minutes (Step 4.6)
+  - **Storage consolidation**: 15-20 minutes (Step 5)
+  - **Functional tests**: 5-10 minutes (Step 6)
+  - **Regression tests**: 5 minutes (Step 7)
+  - **Total validation time**: ~60-120 minutes for full workflow
 - **Test cluster** is automatically created from `config/example-multi-gpu-clusters.yaml`
 - **GPU tests** will be skipped if no GPU nodes present
 - **Multi-node tests** will be skipped if only 1 node present
 - All outputs are timestamped and saved for debugging
 - **Prerequisites**:
   - Docker daemon must be running
-  - Libvirt/QEMU for VM management (for Steps 3-5)
+  - Libvirt/QEMU for VM management (for Steps 3-7)
   - Development Docker image must be built: `make build-docker` (⚠️ requires internet)
   - CMake must be configured: `make config` (offline)
   - After prerequisites, **all validation runs offline**
@@ -940,7 +1076,7 @@ ansible-playbook -i inventories/test playbook-cgroup-runtime-config.yml
 - Controller: `validation-output/phase-4-validation-20251018-133137/01-packer-controller/`
 - Compute: `validation-output/phase-4-validation-20251018-133137/02-packer-compute/`
 
-### Steps 3-5: Runtime and Functional Tests - PENDING
+### Steps 3-7: Runtime and Functional Tests - PENDING
 
 **Requirements**:
 
@@ -951,12 +1087,14 @@ ansible-playbook -i inventories/test playbook-cgroup-runtime-config.yml
 **Next Actions**:
 
 1. Set up test cluster environment
-2. Run Step 3: Runtime playbook deployment
-3. Run Step 4: Functional cluster tests
-4. Run Step 5: Regression testing
+2. Run Step 3: Configuration rendering validation
+3. Run Step 4: Runtime playbook deployment
+4. Run Step 5: Storage consolidation (Task 043)
+5. Run Step 6: Functional cluster tests
+6. Run Step 7: Regression testing
 
 **Note**: Steps 1-2 validation is sufficient to confirm consolidated playbooks work correctly.
-Steps 3-5 can be executed when test infrastructure is available.
+Steps 3-7 can be executed when test infrastructure is available.
 
 ---
 
@@ -1027,20 +1165,20 @@ dependency issues identified in validation failures.
 
 #### Updated Validation Steps
 
-**Step 3 Enhancements** (Runtime Playbook Deployment):
+**Step 4 Enhancements** (Runtime Playbook Deployment):
 
-- **3.1**: Playbook syntax check (unchanged)
-- **3.2**: **NEW** - Generate inventory from cluster configuration
-- **3.3**: Validate cluster configuration (unchanged)
-- **3.4**: **NEW** - Start cluster VMs automatically
-- **3.5**: **NEW** - Wait for VMs and verify SSH connectivity
-- **3.6**: Deploy runtime configuration (now uses `make cluster-deploy`)
-- **3.7**: Check play recap (unchanged)
-- **3.8**: **NEW** - Cluster cleanup notes (keeps running for Steps 4-5)
+- **4.1**: Playbook syntax check (unchanged)
+- **4.2**: **NEW** - Generate inventory from cluster configuration
+- **4.3**: Validate cluster configuration (unchanged)
+- **4.4**: **NEW** - Start cluster VMs automatically
+- **4.5**: **NEW** - Wait for VMs and verify SSH connectivity
+- **4.6**: Deploy runtime configuration (now uses `make cluster-deploy`)
+- **4.7**: Check play recap (unchanged)
+- **4.8**: **NEW** - Cluster cleanup notes (keeps running for Steps 5-7)
 
-**Step 5 Enhancement** (Regression Testing):
+**Step 7 Enhancement** (Regression Testing):
 
-- **5.4**: **NEW** - Automatic cluster stop after all tests complete
+- **7.4**: **NEW** - Automatic cluster stop after all tests complete
 
 #### Benefits
 
@@ -1265,7 +1403,7 @@ make cluster-inventory               # Generates inventory with correct key path
 - ✅ SSH keys auto-generated and mounted in Docker
 - ✅ Username corrected (`admin` vs `ubuntu`)
 - ✅ Documentation updated
-- ⏭️ Ready for re-validation of Steps 3-5
+- ⏭️ Ready for re-validation of Steps 3-7
 
 ---
 

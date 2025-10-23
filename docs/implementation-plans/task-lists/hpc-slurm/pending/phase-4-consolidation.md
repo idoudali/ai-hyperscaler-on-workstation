@@ -1,9 +1,9 @@
-# Phase 4: Infrastructure Consolidation (Tasks 029-041)
+# Phase 4: Infrastructure Consolidation (Tasks 029-043)
 
-**Status**: ~96% Complete (15/16 tasks)
-**Last Updated**: 2025-10-23 (Status Updated with Template Rendering)
+**Status**: ~94% Complete (15/17 tasks)
+**Last Updated**: 2025-10-23 (Status Updated with Template Rendering + Task 043 Added)
 **Priority**: HIGH
-**Tasks**: 14 (Ansible: 8, Storage: 4, Testing: 3, Configuration: 1)
+**Tasks**: 17 (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1)
 
 ## ✅ **Progress Summary**
 
@@ -24,10 +24,11 @@
 | **040** | ❌ **PENDING** | 0% | Registry uses /opt/containers not /mnt/beegfs |
 | **041** | ✅ **COMPLETE** | 100% | virtio_fs_mounts added to cluster config schema |
 | **042** | ✅ **COMPLETE** | 100% | Configuration template rendering system implemented |
+| **043** | ❌ **PENDING** | 0% | BeeGFS & VirtIO-FS consolidation into runtime playbook |
 
 **Completed**: Tasks 029-035, 038, 039, 041, 042 (Ansible consolidation + validation framework +
 BeeGFS consolidation + VirtIO-FS integration + template rendering achieved!)  
-**Pending**: Tasks 036-037, 040 (HPC test frameworks + Container registry storage enhancement)  
+**Pending**: Tasks 036-037, 040, 043 (HPC test frameworks + Container registry + Storage consolidation)  
 **Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)
 
 ## Overview
@@ -2740,6 +2741,272 @@ ai-how render config/example-multi-gpu-clusters.yaml -o custom-config.yaml
 
 ---
 
+### Task 043: Consolidate BeeGFS and VirtIO-FS Runtime Playbooks
+
+- **ID**: TASK-043
+- **Phase**: 4.7 - Storage Runtime Consolidation
+- **Dependencies**: TASK-039 (VirtIO-FS integration), TASK-041 (storage schema)
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+- **Status**: ❌ Not Started
+- **Priority**: HIGH
+
+**Description:** Consolidate BeeGFS and VirtIO-FS runtime configuration into the unified HPC runtime playbook,
+eliminating the need for separate storage configuration playbooks and achieving better integration with cluster
+configuration.
+
+**Current State:**
+
+- `playbook-beegfs-runtime-config.yml` - Separate playbook (207 lines), requires separate execution
+- `playbook-virtio-fs-runtime-config.yml` - Separate playbook (143 lines), functionality duplicated in `playbook-hpc-runtime.yml`
+- BeeGFS has no cluster configuration schema (all hardcoded or inventory-based)
+- VirtIO-FS is integrated but standalone playbook still exists
+- Users must run 2-3 playbooks for complete HPC+storage deployment
+
+**Deliverables:**
+
+1. **Integrate BeeGFS into `playbook-hpc-runtime.yml`:**
+   - Add BeeGFS deployment play after VirtIO-FS configuration
+   - Deploy management/metadata services on controller
+   - Deploy storage services on compute nodes
+   - Deploy client on all nodes
+   - Conditional execution based on `beegfs_enabled` variable
+
+2. **Add BeeGFS to cluster configuration schema (`config/example-multi-gpu-clusters.yaml`):**
+   - Add `storage.beegfs` section to cluster config
+   - Enable/disable flag
+   - Mount point configuration
+   - Management server selection
+   - Storage node selection
+   - Client configuration options
+
+3. **Update inventory generation (`scripts/generate-ansible-inventory.py`):**
+   - Parse BeeGFS configuration from cluster config
+   - Pass to Ansible inventory as variables
+   - Auto-detect which nodes should run BeeGFS services
+
+4. **Delete/deprecate standalone playbooks:**
+   - Mark `playbook-beegfs-runtime-config.yml` as deprecated (or delete after validation)
+   - Delete `playbook-virtio-fs-runtime-config.yml` (functionality fully integrated)
+   - Update documentation to reflect single playbook workflow
+
+**Cluster Configuration Schema:**
+
+```yaml
+# config/example-multi-gpu-clusters.yaml
+clusters:
+  hpc:
+    # Storage backend configuration (cluster-wide)
+    storage:
+      # BeeGFS parallel filesystem
+      beegfs:
+        enabled: true  # Enable BeeGFS deployment
+        mount_point: "/mnt/beegfs"
+        
+        # Service placement (auto-detected from roles if not specified)
+        management_node: "controller"  # Management service location
+        metadata_nodes:  # Metadata service locations
+          - "controller"
+        storage_nodes:   # Storage service locations (defaults to all compute nodes)
+          - "compute-01"
+          - "compute-02"
+        
+        # Client configuration
+        client_config:
+          mount_options: "defaults,_netdev"
+          auto_mount: true
+          
+      # VirtIO-FS host directory sharing (per-node)
+      virtio_fs:
+        enabled: true  # Enable VirtIO-FS on applicable nodes
+        
+    controller:
+      # ... existing controller config ...
+      
+      # VirtIO-FS mounts (node-specific)
+      virtio_fs_mounts:
+        - tag: "project-repo"
+          host_path: "${TOT}"
+          mount_point: "${TOT}"
+          readonly: false
+          owner: "admin"
+          group: "admin"
+          mode: "0755"
+```
+
+**Implementation in playbook-hpc-runtime.yml:**
+
+```yaml
+# Add after VirtIO-FS configuration (around line 203):
+
+# Deploy BeeGFS Parallel Filesystem (if enabled)
+- name: Deploy BeeGFS Management Service
+  hosts: hpc_controllers
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tasks:
+    - name: Check if BeeGFS is enabled
+      set_fact:
+        beegfs_enabled: "{{ beegfs_enabled | default(false) | bool }}"
+      
+    - name: Deploy BeeGFS management service
+      import_role:
+        name: beegfs-mgmt
+      when: beegfs_enabled | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Deploy BeeGFS Metadata Service
+  hosts: hpc_controllers
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tasks:
+    - name: Deploy BeeGFS metadata service
+      import_role:
+        name: beegfs-meta
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Deploy BeeGFS Storage Services
+  hosts: compute_nodes
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tasks:
+    - name: Deploy BeeGFS storage service
+      import_role:
+        name: beegfs-storage
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Deploy BeeGFS Client on All Nodes
+  hosts: hpc_controllers,compute_nodes
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tasks:
+    - name: Deploy BeeGFS client
+      import_role:
+        name: beegfs-client
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Verify BeeGFS Cluster Status
+  hosts: hpc_controllers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check BeeGFS cluster status
+      command: beegfs-ctl --listnodes --nodetype=all
+      register: beegfs_status
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      
+    - name: Display BeeGFS status
+      debug:
+        msg: "BeeGFS cluster deployed with {{ beegfs_status.stdout_lines | length }} nodes"
+      when: 
+        - beegfs_enabled | default(false) | bool
+        - beegfs_status.rc == 0
+      tags:
+        - beegfs
+        - storage
+```
+
+**Inventory Generation Update (`scripts/generate-ansible-inventory.py`):**
+
+```python
+# Add after VirtIO-FS configuration (around line 97):
+
+# Extract BeeGFS configuration from storage section
+if 'storage' in cluster and 'beegfs' in cluster['storage']:
+    beegfs_config = cluster['storage']['beegfs']
+    if beegfs_config.get('enabled', False):
+        # Convert to JSON string for Ansible variable
+        beegfs_json = json.dumps(beegfs_config, separators=(',', ':'))
+        inventory_lines.append(f"beegfs_config={beegfs_json}")
+        inventory_lines.append(f"beegfs_enabled=true")
+        print(f"✅ BeeGFS enabled with mount point: {beegfs_config.get('mount_point', '/mnt/beegfs')}", 
+              file=sys.stderr)
+    else:
+        inventory_lines.append(f"beegfs_enabled=false")
+        print("ℹ️  BeeGFS disabled in cluster configuration", file=sys.stderr)
+else:
+    inventory_lines.append(f"beegfs_enabled=false")
+    print("ℹ️  No BeeGFS configuration found in cluster", file=sys.stderr)
+```
+
+**Validation Criteria:**
+
+- [ ] BeeGFS deploys successfully via `playbook-hpc-runtime.yml`
+- [ ] BeeGFS configuration in cluster config schema
+- [ ] BeeGFS deployment skipped when `beegfs.enabled: false`
+- [ ] All BeeGFS services start correctly
+- [ ] BeeGFS filesystem mounted on all nodes
+- [ ] Standalone BeeGFS playbook deprecated/deleted
+- [ ] Standalone VirtIO-FS playbook deleted
+- [ ] Single playbook deploys complete HPC + storage stack
+- [ ] Inventory generation passes BeeGFS config correctly
+- [ ] Documentation updated with new workflow
+
+**Test Commands:**
+
+```bash
+# Deploy complete HPC + Storage stack with single command
+ansible-playbook -i inventory playbooks/playbook-hpc-runtime.yml
+
+# Verify BeeGFS deployed
+ssh controller "beegfs-ctl --listnodes --nodetype=all"
+ssh controller "beegfs-df"
+ssh controller "mount | grep beegfs"
+
+# Verify VirtIO-FS mounted
+ssh controller "mount | grep virtiofs"
+
+# Test BeeGFS write
+ssh controller "echo 'test' > /mnt/beegfs/test.txt"
+ssh compute01 "cat /mnt/beegfs/test.txt"
+
+# Validate configuration
+uv run ai-how validate config/example-multi-gpu-clusters.yaml
+```
+
+**Benefits:**
+
+- ✅ Single playbook for complete HPC + storage deployment
+- ✅ Centralized configuration via cluster config file
+- ✅ Conditional storage deployment (enable/disable via config)
+- ✅ Reduced playbook count (7 → 5 playbooks)
+- ✅ Simpler deployment workflow
+- ✅ Better integration between HPC and storage layers
+- ✅ Consistent configuration management
+
+**Playbook Reduction:**
+
+- **Before:** 7 playbooks (3 HPC + 2 storage + 2 infrastructure)
+- **After:** 5 playbooks (3 HPC + 0 storage standalone + 2 infrastructure)
+- **Deleted:** `playbook-beegfs-runtime-config.yml`, `playbook-virtio-fs-runtime-config.yml`
+
+---
+
 ## Current Outcomes (As of 2025-10-23 - Status Updated with Template Rendering)
 
 **✅ Phase 4 Core Consolidation Complete (Tasks 029-034.1):**
@@ -2778,8 +3045,19 @@ ai-how render config/example-multi-gpu-clusters.yaml -o custom-config.yaml
 - ✅ **COMPLETE**: BeeGFS Packer installation consolidated into HPC playbooks (Task 038)
 - ✅ **COMPLETE**: VirtIO-FS integrated into playbook-hpc-runtime.yml (Task 039)
 - ❌ **PENDING**: Registry uses /opt/containers not /mnt/beegfs (Task 040)
-- ❌ **PENDING**: No virtio_fs_mounts in cluster config schema (Task 041)
-- **Status:** 2/4 storage tasks complete - BeeGFS consolidation and VirtIO-FS integration achieved
+- ✅ **COMPLETE**: virtio_fs_mounts added to cluster config schema (Task 041)
+- **Status:** 3/4 storage tasks complete - BeeGFS consolidation and VirtIO-FS integration achieved
+
+**Phase 4.6 - Configuration Management (Task 042): ✅ COMPLETE**
+
+- ✅ **COMPLETE**: Configuration template rendering system implemented (Task 042)
+- **Status:** Template rendering with bash-compatible variable expansion fully operational
+
+**Phase 4.7 - Storage Runtime Consolidation (Task 043): 📋 PLANNED**
+
+- 📋 **PLANNED**: BeeGFS & VirtIO-FS runtime playbook consolidation (Task 043)
+- **Status:** Implementation plan complete, ready for development
+- **Validation:** Step 7 added to phase-4-validation framework
 
 **Infrastructure Status:**
 
