@@ -260,6 +260,8 @@ nav:
       - Docker Development:
           - Overview: docker/README.md
           - Development Workflow: docker/development-workflow.md
+      - Documentation Build System:
+          - Overview: components/documentation-build-system.md
 
   - Testing:
       - Overview: testing/README.md
