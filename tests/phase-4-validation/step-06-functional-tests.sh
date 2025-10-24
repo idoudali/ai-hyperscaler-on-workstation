@@ -9,9 +9,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 show_step_help() {
   cat << 'EOF'
-Phase 4 Validation - Step 04: Functional Tests
+Phase 4 Validation - Step 06: Functional Tests
 
-Usage: ./step-04-functional-tests.sh [OPTIONS]
+Usage: ./step-06-functional-tests.sh [OPTIONS]
 
 Options:
   -v, --verbose                 Enable verbose command logging
@@ -26,7 +26,7 @@ Description:
   - Tests simple job execution
   - Tests container runtime (Apptainer)
 
-  Prerequisites: Step 03 must be completed (cluster running)
+  Prerequisites: Step 04 must be completed (cluster running)
   Time: 2-5 minutes
 
 EOF
@@ -36,15 +36,15 @@ source "$SCRIPT_DIR/lib-common.sh"
 parse_validation_args "$@"
 
 main() {
-  log_step_title "04" "Functional Cluster Tests"
+  log_step_title "06" "Functional Cluster Tests"
 
-  if is_step_completed "step-04-functional-tests"; then
-    log_warning "Step 04 already completed at $(get_step_completion_time 'step-04-functional-tests')"
+  if is_step_completed "step-06-functional-tests"; then
+    log_warning "Step 06 already completed at $(get_step_completion_time 'step-06-functional-tests')"
     return 0
   fi
 
   init_state
-  local step_dir="$VALIDATION_ROOT/04-functional-tests"
+  local step_dir="$VALIDATION_ROOT/06-functional-tests"
   create_step_dir "$step_dir"
 
   # SSH configuration for non-interactive access
@@ -57,8 +57,8 @@ main() {
   log_info "Controller: $CONTROLLER_HOST"
   log_info "Compute: $COMPUTE_HOST"
 
-  # 4.1: Check cluster info
-  log_info "4.1: Checking SLURM cluster info..."
+  # 6.1: Check cluster info
+  log_info "6.1: Checking SLURM cluster info..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'sinfo'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "sinfo" \
     > "$step_dir/cluster-info.log" 2>&1; then
@@ -68,8 +68,8 @@ main() {
     log_warning "Failed to get cluster info (cluster may not be ready)"
   fi
 
-  # 4.2: Check node registration
-  log_info "4.2: Checking compute node registration..."
+  # 6.2: Check node registration
+  log_info "6.2: Checking compute node registration..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'scontrol show nodes'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "scontrol show nodes" \
     > "$step_dir/node-registration.log" 2>&1; then
@@ -85,8 +85,8 @@ main() {
     log_warning "Failed to get node status"
   fi
 
-  # 4.3: Test simple job
-  log_info "4.3: Testing simple job execution..."
+  # 6.3: Test simple job
+  log_info "6.3: Testing simple job execution..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'srun -N1 hostname'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "srun -N1 hostname" \
     > "$step_dir/simple-job.log" 2>&1; then
@@ -96,8 +96,8 @@ main() {
     log_warning "Simple job execution failed"
   fi
 
-  # 4.4: Test container support
-  log_info "4.4: Testing container runtime..."
+  # 6.4: Test container support
+  log_info "6.4: Testing container runtime..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'srun apptainer --version'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "srun apptainer --version" \
     > "$step_dir/container-test.log" 2>&1; then
@@ -108,7 +108,7 @@ main() {
   fi
 
   cat > "$step_dir/validation-summary.txt" << EOF
-=== Step 04: Functional Tests ===
+=== Step 06: Functional Tests ===
 Timestamp: $(date)
 
 ✅ PASSED
@@ -127,8 +127,8 @@ Logs:
 
 EOF
 
-  mark_step_completed "step-04-functional-tests"
-  log_success "Step 04 PASSED: Functional tests completed"
+  mark_step_completed "step-06-functional-tests"
+  log_success "Step 06 PASSED: Functional tests completed"
   cat "$step_dir/validation-summary.txt"
 
   return 0
