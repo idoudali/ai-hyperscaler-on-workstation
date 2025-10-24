@@ -9,9 +9,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 show_step_help() {
   cat << 'EOF'
-Phase 4 Validation - Step 05: Regression Testing
+Phase 4 Validation - Step 07: Regression Testing
 
-Usage: ./step-05-regression-tests.sh [OPTIONS]
+Usage: ./step-07-regression-tests.sh [OPTIONS]
 
 Options:
   -v, --verbose                 Enable verbose command logging
@@ -35,20 +35,20 @@ source "$SCRIPT_DIR/lib-common.sh"
 parse_validation_args "$@"
 
 main() {
-  log_step_title "05" "Regression Testing"
+  log_step_title "07" "Regression Testing"
 
-  if is_step_completed "step-05-regression-tests"; then
-    log_warning "Step 05 already completed at $(get_step_completion_time 'step-05-regression-tests')"
+  if is_step_completed "step-07-regression-tests"; then
+    log_warning "Step 07 already completed at $(get_step_completion_time 'step-07-regression-tests')"
     return 0
   fi
 
   init_state
-  local step_dir="$VALIDATION_ROOT/05-regression-tests"
+  local step_dir="$VALIDATION_ROOT/07-regression-tests"
   create_step_dir "$step_dir"
 
   cd "$PROJECT_ROOT"
 
-  log_info "5.1: Comparing consolidated playbook against backups..."
+  log_info "7.1: Comparing consolidated playbook against backups..."
 
   if [ -d "backup/playbooks-20251017/" ]; then
     log_info "Found old playbooks backup"
@@ -99,7 +99,7 @@ EOF
   fi
 
   cat > "$step_dir/validation-summary.txt" << EOF
-=== Step 05: Regression Testing ===
+=== Step 07: Regression Testing ===
 Timestamp: $(date)
 
 ✅ PASSED
@@ -113,8 +113,8 @@ Report: $step_dir/comparison-report.txt
 
 EOF
 
-  mark_step_completed "step-05-regression-tests"
-  log_success "Step 05 PASSED: Regression testing completed"
+  mark_step_completed "step-07-regression-tests"
+  log_success "Step 07 PASSED: Regression testing completed"
   cat "$step_dir/validation-summary.txt"
 
   return 0

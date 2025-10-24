@@ -89,10 +89,11 @@ Description:
   - Step 00: Prerequisites
   - Step 01: Packer Controller Build
   - Step 02: Packer Compute Build
-  - Step 2a: Start Cluster VMs
-  - Step 03: Runtime Deployment
-  - Step 04: Functional Tests
-  - Step 05: Regression Tests
+  - Step 03: Configuration Rendering
+  - Step 04: Runtime Deployment
+  - Step 05: Storage Consolidation
+  - Step 06: Functional Tests
+  - Step 07: Regression Tests
 
   All outputs are saved to: validation-output/phase-4-validation-TIMESTAMP/
 
@@ -163,37 +164,42 @@ main() {
   fi
   echo ""
 
-  # Step 2a: Start Cluster VMs (prerequisite for runtime deployment)
-  log_info "Running Step 2a: Starting Cluster VMs..."
-  cd "$PROJECT_ROOT"
-  log_info "Starting HPC cluster (this may take 2-5 minutes)..."
-  if ! make cluster-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc"; then
-    log_error "Step 2a: Cluster start FAILED"
-    return 1
-  fi
-  log_info "✓ Cluster VMs started successfully"
-  echo ""
-
-  # Step 3: Runtime Deployment
-  log_info "Running Step 03: Runtime Deployment..."
-  if ! bash "$SCRIPT_DIR/step-03-runtime-deployment.sh"; then
+  # Step 3: Configuration Rendering
+  log_info "Running Step 03: Configuration Rendering..."
+  if ! bash "$SCRIPT_DIR/step-03-config-rendering.sh"; then
     log_error "Step 03 FAILED"
     return 1
   fi
   echo ""
 
-  # Step 4: Functional Tests
-  log_info "Running Step 04: Functional Tests..."
-  if ! bash "$SCRIPT_DIR/step-04-functional-tests.sh"; then
+  # Step 4: Runtime Deployment
+  log_info "Running Step 04: Runtime Deployment..."
+  if ! bash "$SCRIPT_DIR/step-04-runtime-deployment.sh"; then
     log_error "Step 04 FAILED"
     return 1
   fi
   echo ""
 
-  # Step 5: Regression Tests
-  log_info "Running Step 05: Regression Tests..."
-  if ! bash "$SCRIPT_DIR/step-05-regression-tests.sh"; then
+  # Step 5: Storage Consolidation
+  log_info "Running Step 05: Storage Consolidation..."
+  if ! bash "$SCRIPT_DIR/step-05-storage-consolidation.sh"; then
     log_error "Step 05 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 6: Functional Tests
+  log_info "Running Step 06: Functional Tests..."
+  if ! bash "$SCRIPT_DIR/step-06-functional-tests.sh"; then
+    log_error "Step 06 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 7: Regression Tests
+  log_info "Running Step 07: Regression Tests..."
+  if ! bash "$SCRIPT_DIR/step-07-regression-tests.sh"; then
+    log_error "Step 07 FAILED"
     return 1
   fi
   echo ""

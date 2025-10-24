@@ -32,14 +32,20 @@ operations.
 # Step 02: Packer Compute Build (15-30 min)
 ./step-02-packer-compute.sh
 
-# Step 03: Runtime Deployment (10-20 min)
-./step-03-runtime-deployment.sh
+# Step 03: Configuration Rendering (5-10 min)
+./step-03-config-rendering.sh
 
-# Step 04: Functional Tests (2-5 min)
-./step-04-functional-tests.sh
+# Step 04: Runtime Deployment (10-20 min)
+./step-04-runtime-deployment.sh
 
-# Step 05: Regression Tests (1-2 min)
-./step-05-regression-tests.sh
+# Step 05: Storage Consolidation (15-20 min)
+./step-05-storage-consolidation.sh
+
+# Step 06: Functional Tests (2-5 min)
+./step-06-functional-tests.sh
+
+# Step 07: Regression Tests (1-2 min)
+./step-07-regression-tests.sh
 ```
 
 ## Resume from Existing Validation
@@ -126,7 +132,20 @@ Builds the HPC compute VM image:
 
 Output: `build/packer/hpc-compute/hpc-compute/*.qcow2`
 
-### Step 03: Runtime Deployment (10-20 minutes)
+### Step 03: Configuration Rendering (5-10 minutes)
+
+Validates configuration template rendering and VirtIO-FS mount functionality:
+
+- Tests `ai-how render` command with variable expansion
+- Validates template syntax and variable detection
+- Tests `make config-render` and `make config-validate` targets
+- Verifies VirtIO-FS mount configuration in cluster config
+- Tests VirtIO-FS mount handling in runtime playbook
+- Validates cluster state directory management
+
+**Prerequisites:** Steps 1-2 must have passed (Packer images built)
+
+### Step 04: Runtime Deployment (10-20 minutes)
 
 Deploys and validates runtime configuration:
 
@@ -138,9 +157,25 @@ Deploys and validates runtime configuration:
 - Deploys runtime configuration
 - Analyzes deployment results
 
-**Note:** Cluster remains running for Steps 4-5
+**Note:** Cluster remains running for Steps 5-7
 
-### Step 04: Functional Tests (2-5 minutes)
+### Step 05: Storage Consolidation (15-20 minutes)
+
+Validates storage configuration schema and BeeGFS/VirtIO-FS runtime consolidation:
+
+- Validates cluster configuration schema includes storage backend configuration
+- Tests VirtIO-FS mount configuration parsing and validation
+- Verifies BeeGFS configuration schema in cluster config
+- Tests inventory generation with storage configuration
+- Validates configuration template rendering with storage variables
+- Tests BeeGFS deployment via unified runtime playbook
+- Verifies all BeeGFS services start correctly
+- Tests BeeGFS filesystem mount on all nodes
+- Validates VirtIO-FS mounts still work after consolidation
+
+**Prerequisites:** Steps 1-4 must have passed (images built, config validated, cluster deployed)
+
+### Step 06: Functional Tests (2-5 minutes)
 
 Tests deployed cluster functionality:
 
@@ -149,9 +184,9 @@ Tests deployed cluster functionality:
 - Tests simple job execution
 - Tests container runtime (Apptainer)
 
-**Prerequisites:** Step 03 must be completed (cluster running)
+**Prerequisites:** Step 04 must be completed (cluster running)
 
-### Step 05: Regression Tests (1-2 minutes)
+### Step 07: Regression Tests (1-2 minutes)
 
 Validates consolidation against backups:
 
@@ -182,9 +217,11 @@ validation-output/phase-4-validation-YYYYMMDD-HHMMSS/
 │   ├── packer-build.log
 │   └── packer-build-error.log
 ├── 02-packer-compute/                # Step 02 logs and results
-├── 03-runtime-playbook/              # Step 03 logs and results
-├── 04-functional-tests/              # Step 04 logs and results
-└── 05-regression-tests/              # Step 05 logs and results
+├── 03-config-rendering/              # Step 03 logs and results
+├── 04-runtime-playbook/              # Step 04 logs and results
+├── 05-storage-consolidation/         # Step 05 logs and results
+├── 06-functional-tests/              # Step 06 logs and results
+└── 07-regression-tests/              # Step 07 logs and results
 ```
 
 ## Environment Variables

@@ -1,9 +1,9 @@
 # Phase 4 Consolidation Validation Steps
 
-**Document Version**: 3.0  
+**Document Version**: 3.1  
 **Created**: 2025-10-18  
-**Updated**: 2025-10-22 (Status verified - framework operational)  
-**Status**: ✅ **AUTOMATED FRAMEWORK AVAILABLE**  
+**Updated**: 2025-10-23 (Framework fully implemented - 7-step process complete)  
+**Status**: ✅ **FRAMEWORK IMPLEMENTED AND READY**  
 **Phase**: 4 - Infrastructure Consolidation  
 **Validation Type**: Critical - Must Pass Before Phase Complete
 
@@ -11,7 +11,7 @@
 
 ## 🚀 Quick Start - Automated Validation
 
-**New in v3.0**: A comprehensive automated validation framework is now available!
+**New in v3.1**: The complete 7-step automated validation framework is now fully implemented and ready for use!
 
 ### Run Complete Validation (Recommended)
 
@@ -116,11 +116,11 @@ ls -R  # Shows all step directories and logs
 | **Step 6: Functional Tests** | ✅ **AUTOMATED** | `step-06-functional-tests.sh` | Test SLURM jobs, GPU, containers |
 | **Step 7: Regression Tests** | ✅ **AUTOMATED** | `step-07-regression-tests.sh` | Compare against old playbooks |
 
-**Overall**: ✅ **AUTOMATED FRAMEWORK READY** - All steps available as modular scripts with state tracking
+**Overall**: ✅ **FRAMEWORK IMPLEMENTED AND READY** - All 7 steps implemented as modular scripts with state tracking
 
-**Note**: Step 5 (Storage Consolidation) will be implemented as part of Task 043 to validate the consolidated
-storage runtime playbook. Step 3 (Configuration Rendering) validates templates before deployment, and Steps 4-7
-follow the logical deployment and testing flow.
+**Note**: All 7 steps are now fully implemented and operational. Step 3 (Configuration Rendering) validates
+templates before deployment, Step 5 (Storage Consolidation) validates BeeGFS & VirtIO-FS consolidation for
+Tasks 041-043, and Steps 4-7 follow the logical deployment and testing flow.
 
 **Previous Sessions** (archived - using repository packages):
 
@@ -626,9 +626,34 @@ ssh controller "mount | grep beegfs"
 ssh controller "beegfs-ctl --listnodes --nodetype=all"
 ssh controller "beegfs-df"
 
-# 12. Test BeeGFS write/read
-ssh controller "echo 'test' > /mnt/beegfs/test.txt"
-ssh compute01 "cat /mnt/beegfs/test.txt"
+# 12. Test BeeGFS write/read operations across nodes
+# 12a. Create test files on controller
+ssh controller "echo 'controller-test-$(date +%s)' > /mnt/beegfs/controller-test.txt"
+ssh controller "echo 'shared-data-$(date +%s)' > /mnt/beegfs/shared-data.txt"
+ssh controller "mkdir -p /mnt/beegfs/test-dir && echo 'nested-file' > /mnt/beegfs/test-dir/nested.txt"
+
+# 12b. Verify compute nodes can read controller-created files
+ssh compute01 "cat /mnt/beegfs/controller-test.txt"
+ssh compute01 "cat /mnt/beegfs/shared-data.txt"
+ssh compute01 "cat /mnt/beegfs/test-dir/nested.txt"
+
+# 12c. Create test files on compute nodes
+ssh compute01 "echo 'compute01-test-$(date +%s)' > /mnt/beegfs/compute01-test.txt"
+ssh compute02 "echo 'compute02-test-$(date +%s)' > /mnt/beegfs/compute02-test.txt"
+
+# 12d. Verify controller can read compute-created files
+ssh controller "cat /mnt/beegfs/compute01-test.txt"
+ssh controller "cat /mnt/beegfs/compute02-test.txt"
+
+# 12e. Test file permissions and metadata consistency
+ssh controller "ls -la /mnt/beegfs/"
+ssh compute01 "ls -la /mnt/beegfs/"
+ssh compute02 "ls -la /mnt/beegfs/"
+
+# 12f. Test concurrent access (if multiple compute nodes)
+ssh compute01 "echo 'concurrent-test-$(date +%s)' > /mnt/beegfs/concurrent-test.txt" &
+ssh compute02 "sleep 1 && cat /mnt/beegfs/concurrent-test.txt" &
+wait
 
 # 13. Verify VirtIO-FS still works
 ssh controller "mount | grep virtiofs"
@@ -653,7 +678,9 @@ ssh controller "ls -la /mnt/host-repo"
 - ✅ Unified runtime playbook deploys BeeGFS successfully
 - ✅ All BeeGFS services running (mgmtd, meta, storage, client)
 - ✅ BeeGFS filesystem mounted on all nodes
-- ✅ BeeGFS write/read operations work across nodes
+- ✅ BeeGFS cross-node file sharing verified (Controller ↔ Compute)
+- ✅ BeeGFS concurrent access tested (multi-node operations)
+- ✅ BeeGFS metadata consistency verified (permissions, listings)
 - ✅ VirtIO-FS mounts still functional
 - ✅ Single playbook deployment confirmed
 
@@ -704,6 +731,9 @@ If Step 5 fails, check:
 - [ ] Inventory generation extracts and passes BeeGFS configuration
 - [ ] All BeeGFS services deploy and start correctly
 - [ ] BeeGFS filesystem functional across all nodes
+- [ ] BeeGFS cross-node file sharing verified (Controller ↔ Compute)
+- [ ] BeeGFS concurrent access tested (multi-node operations)
+- [ ] BeeGFS metadata consistency verified (permissions, listings)
 - [ ] VirtIO-FS functionality preserved
 - [ ] `playbook-beegfs-runtime-config.yml` can be deleted
 - [ ] `playbook-virtio-fs-runtime-config.yml` can be deleted
@@ -1153,9 +1183,58 @@ Steps 3-7 can be executed when test infrastructure is available.
 
 ---
 
-**Document Status**: ✅ Automated Framework Complete  
-**Validation Status**: ✅ **AUTOMATED SCRIPTS AVAILABLE** - All steps can be run via `tests/phase-4-validation/`  
-**Last Updated**: 2025-10-19 16:30 EEST
+**Document Status**: ✅ Framework Implementation Complete  
+**Validation Status**: ✅ **7-STEP FRAMEWORK IMPLEMENTED** - All steps operational via `tests/phase-4-validation/`  
+**Last Updated**: 2025-10-23 16:45 EEST
+
+---
+
+## ✅ Implementation Complete (2025-10-23 16:45 EEST)
+
+### 7-Step Validation Framework Fully Implemented
+
+The complete Phase 4 validation framework has been successfully implemented according to this plan:
+
+**New Scripts Created:**
+
+- `step-03-config-rendering.sh` - Configuration template rendering and VirtIO-FS validation
+- `step-05-storage-consolidation.sh` - BeeGFS & VirtIO-FS consolidation testing (Tasks 041-043)
+
+**Existing Scripts Renumbered:**
+
+- `step-03-runtime-deployment.sh` → `step-04-runtime-deployment.sh`
+- `step-04-functional-tests.sh` → `step-06-functional-tests.sh`
+- `step-05-regression-tests.sh` → `step-07-regression-tests.sh`
+
+**Framework Updates:**
+
+- `run-all-steps.sh` - Updated to orchestrate all 7 steps in correct order
+- `README.md` - Updated with comprehensive 7-step process documentation
+- All scripts support state tracking, resumable execution, and modular independent execution
+
+**Validation Process:**
+
+1. **Step 00**: Prerequisites (Docker, CMake, SLURM packages)
+2. **Step 01**: Packer Controller Build (15-30 min)
+3. **Step 02**: Packer Compute Build (15-30 min)
+4. **Step 03**: Configuration Rendering (5-10 min) - **NEW**
+5. **Step 04**: Runtime Deployment (10-20 min)
+6. **Step 05**: Storage Consolidation (15-20 min) - **NEW**
+7. **Step 06**: Functional Tests (2-5 min)
+8. **Step 07**: Regression Tests (1-2 min)
+
+**Ready for Use:**
+
+```bash
+# Run complete validation
+./tests/phase-4-validation/run-all-steps.sh
+
+# Run individual steps
+./tests/phase-4-validation/step-03-config-rendering.sh
+./tests/phase-4-validation/step-05-storage-consolidation.sh
+```
+
+The framework now fully matches the comprehensive validation plan and is ready for Phase 4 consolidation validation.
 
 ---
 
