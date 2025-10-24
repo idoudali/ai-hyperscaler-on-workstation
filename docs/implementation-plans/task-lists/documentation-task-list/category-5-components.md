@@ -552,6 +552,137 @@ command reference, schema details, internal APIs, and state management
 
 ---
 
+## TASK-DOC-5.14: Documentation Build System
+
+**Files:** `docs/components/documentation-build-system.md`, enhanced `mkdocs.yml` comments
+
+**Description:** Component-level documentation for the documentation build system configuration, maintenance, and standards
+
+**Content:**
+
+- **MkDocs Configuration:**
+  - MkDocs configuration architecture (`mkdocs.yml`)
+  - Plugin configuration and purpose:
+    - mkdocs-simple-plugin for multi-directory documentation
+    - mkdocs-awesome-pages-plugin for navigation
+    - mkdocstrings for Python API documentation
+    - mkdocs-htmlproofer for link validation
+    - mkdocs-include-markdown for content reuse
+  - Theme configuration (Material for MkDocs)
+  - Navigation structure and organization
+  - Multi-directory documentation aggregation
+- **Build Workflow:**
+  - Build and serve commands (`make docs-build`, `make docs-serve`)
+  - Documentation standards and conventions
+  - How to add new documentation sections
+  - Integration with CI/CD pipeline
+- **Troubleshooting:**
+  - Common build failures and solutions
+  - Plugin configuration issues
+  - Link validation errors
+- **Customization:**
+  - Theme customization guide
+  - Adding new plugins
+  - Extension guide
+
+**Success Criteria:**
+
+- [ ] MkDocs configuration architecture documented
+- [ ] All plugins explained with purpose and configuration
+- [ ] Navigation structure management documented
+- [ ] Multi-directory aggregation explained
+- [ ] Build commands and workflow documented
+- [ ] Documentation standards clearly defined
+- [ ] Troubleshooting guide comprehensive
+- [ ] Theme customization guide provided
+- [ ] CI/CD integration explained
+- [ ] Guide for adding new sections/pages
+
+**Priority:** Medium - Important for documentation maintainers and contributors
+
+---
+
+## TASK-DOC-5.15: Code Quality & Linters Configuration
+
+**Files:** `docs/development/code-quality-linters.md`, enhanced `.pre-commit-config.yaml` and `.markdownlint.yaml` comments
+
+**Description:** Comprehensive documentation for all code quality tools, linters, formatters, and checkers used in the project
+
+**Content:**
+
+- **Pre-commit Hooks Framework:**
+  - Pre-commit architecture and workflow
+  - Hook configuration reference (`.pre-commit-config.yaml`)
+  - Installation and setup (`pre-commit install`)
+  - Running hooks manually (`pre-commit run`, `pre-commit run --all-files`)
+  - Stage-specific hooks (pre-commit, commit-msg)
+  - How to add/modify hooks
+  - Exclusion patterns and file filtering
+  - Integration with CI/CD pipeline
+- **Markdown Linting (markdownlint):**
+  - Configuration reference (`.markdownlint.yaml`)
+  - All configured rules with rationale:
+    - Line length (120 characters)
+    - Heading style (ATX-style with `#`)
+    - List markers (dash `-` for unordered lists)
+    - Code fence style (backticks with language hints)
+    - Trailing spaces (2 allowed for line breaks)
+  - Rules disabled and why
+  - Project-specific markdown conventions
+  - Automated fixing with `--fix` flag
+- **Shell Script Linting (shellcheck):**
+  - Configuration and disabled rules
+  - Common patterns and exceptions
+  - Integration with pre-commit
+- **CMake Formatting (cmake-format):**
+  - Configuration reference (`.cmake-format.py`)
+  - Formatting standards
+  - Usage and integration
+- **Python Quality Tools (via Nox):**
+  - Ruff for linting and formatting
+  - Mypy for type checking
+  - Integration with pre-commit via Makefile targets
+- **Commit Message Validation:**
+  - Conventional Commits standard
+  - Configured scopes and types
+  - Validation workflow
+- **General File Checks:**
+  - Trailing whitespace
+  - End-of-file fixer
+  - YAML/JSON/TOML validation
+  - Large file detection
+  - Private key detection
+- **Troubleshooting:**
+  - Common hook failures and solutions
+  - Validation error resolution
+  - Editor integration (VS Code, Vim, etc.)
+  - Performance optimization
+- **Best Practices:**
+  - When to add new checks
+  - How to exclude files properly
+  - Balancing strictness vs usability
+  - CI/CD integration patterns
+
+**Success Criteria:**
+
+- [ ] Pre-commit framework architecture documented
+- [ ] All hooks explained with purpose and configuration
+- [ ] Markdownlint rules documented with rationale
+- [ ] Shellcheck configuration explained
+- [ ] CMake formatting documented
+- [ ] Python quality tools integration explained
+- [ ] Commit message validation documented
+- [ ] Installation and setup guide provided
+- [ ] Manual execution commands documented
+- [ ] Troubleshooting guide comprehensive
+- [ ] Best practices for adding/modifying checks
+- [ ] CI/CD integration documented
+- [ ] Editor integration guidance provided
+
+**Priority:** Medium - Important for contributors and maintainers
+
+---
+
 ## Component Documentation Standards
 
 **Component Documentation Should:**
