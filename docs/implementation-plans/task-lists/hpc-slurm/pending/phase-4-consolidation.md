@@ -1,6 +1,6 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-043)
 
-**Status**: ~94% Complete (16/17 tasks)
+**Status**: 82% Complete (14/17 tasks)
 **Last Updated**: 2025-10-23 (Status Updated with Template Rendering + Task 043 Added)
 **Priority**: HIGH
 **Tasks**: 17 (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1)
@@ -24,11 +24,11 @@
 | **040** | ❌ **PENDING** | 0% | Registry uses /opt/containers not /mnt/beegfs |
 | **041** | ✅ **COMPLETE** | 100% | virtio_fs_mounts and beegfs_config added to cluster config schema |
 | **042** | ✅ **COMPLETE** | 100% | Configuration template rendering system implemented |
-| **043** | ❌ **PENDING** | 0% | BeeGFS & VirtIO-FS consolidation into runtime playbook |
+| **043** | ✅ **COMPLETE** | 100% | BeeGFS & VirtIO-FS consolidation into runtime playbook |
 
-**Completed**: Tasks 029-035, 038, 039, 041, 042 (Ansible consolidation + validation framework +
+**Completed**: Tasks 029-035, 038, 039, 041, 042, 043 (Ansible consolidation + validation framework +
 BeeGFS consolidation + VirtIO-FS integration + storage schema + template rendering achieved!)  
-**Pending**: Tasks 036-037, 040, 043 (HPC test frameworks + Container registry + Storage consolidation)  
+**Pending**: Tasks 036-037, 040 (HPC test frameworks + Container registry + Storage consolidation)  
 **Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)
 
 ## Overview
@@ -38,20 +38,17 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 
 ## Current State (As of 2025-10-22 - Status Updated)
 
-**Ansible Playbooks:** ✅ **7 playbooks** (down from 14 - 50% reduction achieved!)
+**Ansible Playbooks:** ✅ **5 playbooks** (down from 14 - 64% reduction achieved!)
 
 - Core HPC (3 playbooks): ✅ **CONSOLIDATED & VERIFIED**
   - `playbook-hpc-packer-controller.yml` ✅ EXISTS - Packer controller image builds
   - `playbook-hpc-packer-compute.yml` ✅ EXISTS - Packer compute image builds
   - `playbook-hpc-runtime.yml` ✅ EXISTS - Unified runtime configuration
-- Storage (2 playbooks): ✅ **CONSOLIDATED**
-  - `playbook-beegfs-runtime-config.yml` ✅ EXISTS - BeeGFS runtime (keep)
-  - `playbook-virtio-fs-runtime-config.yml` ✅ EXISTS - VirtIO-FS runtime (keep)
 - Infrastructure (2 playbooks): ✅ **VERIFIED**
   - `playbook-cloud.yml` ✅ EXISTS - Kubernetes cloud setup
   - `playbook-container-registry.yml` ✅ EXISTS - Container registry deployment
 
-**Deleted Playbooks (9 files):** ❌
+**Deleted Playbooks (11 files):** ❌
 
 - `playbook-hpc.yml`
 - `playbook-hpc-controller.yml`
@@ -62,6 +59,8 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 - `playbook-job-scripts-runtime-config.yml`
 - `playbook-dcgm-runtime-config.yml`
 - `playbook-container-validation-runtime-config.yml`
+- `playbook-beegfs-runtime-config.yml`
+- `playbook-virtio-fs-runtime-config.yml`
 
 **Test Frameworks:** ⚠️ **15 OLD frameworks still exist** (consolidation NOT started)
 
@@ -2748,7 +2747,7 @@ ai-how render config/example-multi-gpu-clusters.yaml -o custom-config.yaml
 - **Dependencies**: TASK-039 (VirtIO-FS integration), TASK-041 (storage schema)
 - **Estimated Time**: 3 hours
 - **Difficulty**: Intermediate
-- **Status**: ❌ Not Started
+- **Status**: ✅ Complete (2025-10-24)
 - **Priority**: HIGH
 
 **Description:** Consolidate BeeGFS and VirtIO-FS runtime configuration into the unified HPC runtime playbook,
@@ -3002,8 +3001,42 @@ uv run ai-how validate config/example-multi-gpu-clusters.yaml
 **Playbook Reduction:**
 
 - **Before:** 7 playbooks (3 HPC + 2 storage + 2 infrastructure)
-- **After:** 5 playbooks (3 HPC + 0 storage standalone + 2 infrastructure)
-- **Deleted:** `playbook-beegfs-runtime-config.yml`, `playbook-virtio-fs-runtime-config.yml`
+- **After:** 5 playbooks (3 HPC + 0 storage + 2 infrastructure)
+- **Deleted:** `playbook-virtio-fs-runtime-config.yml` (functionality fully integrated)
+- **Deleted:** `playbook-beegfs-runtime-config.yml` (functionality fully integrated)
+- **Reduction:** 64% from original 14 playbooks
+
+**Implementation Notes (2025-10-24):**
+
+✅ **Completed Implementation:**
+
+1. Added BeeGFS deployment plays to `playbook-hpc-runtime.yml`:
+   - Management service on controller
+   - Metadata service on controller
+   - Storage services on compute nodes
+   - Client mounts on all nodes
+   - Verification and testing tasks
+
+2. Deleted `playbook-virtio-fs-runtime-config.yml` (functionality already integrated in Task 039)
+
+3. Deleted `playbook-beegfs-runtime-config.yml` (functionality fully integrated into runtime playbook)
+
+4. Verified integration:
+   - Configuration rendering works with template variables
+   - Inventory generation passes BeeGFS config correctly
+   - Playbook syntax validated (no linter errors)
+   - Test script created and validates successfully
+
+**Achievements:**
+
+- ✅ Single playbook deployment for HPC + Storage
+- ✅ 64% playbook reduction from original 14 playbooks (now 5)
+- ✅ Complete elimination of standalone storage playbooks
+- ✅ Centralized configuration via cluster config file
+- ✅ Conditional storage deployment (enable/disable via config)
+- ✅ Better integration between HPC and storage layers
+
+**Test Script:** `/tmp/test-task-043-deployment.sh`
 
 ---
 

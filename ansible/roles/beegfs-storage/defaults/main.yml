@@ -11,7 +11,7 @@ beegfs_packages_path: "/tmp/beegfs-packages"  # Path on remote VMs
 beegfs_packages_source_dir: "{{ (playbook_dir | default(inventory_dir)) }}/../../build/packages/beegfs"
 
 # Management service configuration
-beegfs_mgmt_host: "{{ groups['hpc_controller'][0] if groups['hpc_controller'] is defined else 'localhost' }}"
+beegfs_mgmt_host: "{{ hostvars[groups['hpc_controllers'][0]]['slurm_node_name'] if (groups['hpc_controllers'] is defined and groups['hpc_controllers'] | length > 0) else 'controller' }}"
 beegfs_mgmt_port: 8008
 
 # Storage service configuration

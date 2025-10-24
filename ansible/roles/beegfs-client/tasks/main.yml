@@ -23,3 +23,11 @@
     - beegfs
     - beegfs-client
     - mount
+
+- name: Include BeeGFS client verification tasks
+  ansible.builtin.include_tasks: verify.yml
+  when: not install_only
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify

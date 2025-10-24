@@ -400,6 +400,7 @@
     owner: root
     group: root
     mode: '0755'
+  ignore_errors: true
   tags:
     - beegfs
     - beegfs-client

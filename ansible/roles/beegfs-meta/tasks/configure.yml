@@ -14,22 +14,45 @@
     - beegfs-meta
     - configuration
 
+- name: Create BeeGFS authentication file (required even when disabled)
+  ansible.builtin.file:
+    path: /etc/beegfs/conn.auth
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+  tags:
+    - beegfs
+    - beegfs-meta
+    - configuration
+
 - name: Check if metadata service storage is already initialized
   ansible.builtin.stat:
-    path: "{{ beegfs_meta_storage_directory }}/format.conf"
+    path: "{{ beegfs_meta_storage_directory }}/meta.sqlite"
   register: beegfs_meta_initialized
   tags:
     - beegfs
     - beegfs-meta
     - initialization
 
-- name: Initialize BeeGFS metadata service storage
+- name: Create BeeGFS metadata storage directory
+  ansible.builtin.file:
+    path: "{{ beegfs_meta_storage_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - not beegfs_meta_initialized.stat.exists or beegfs_meta_force_init
+    - beegfs_meta_allow_first_run_init
+  tags:
+    - beegfs
+    - beegfs-meta
+    - initialization
+
+- name: Run BeeGFS metadata service setup
   ansible.builtin.command:
-    cmd: >
-      /opt/beegfs/sbin/beegfs-setup-meta
-      -p {{ beegfs_meta_storage_directory }}
-      -s 1
-      -m {{ beegfs_mgmt_host }}
+    cmd: /opt/beegfs/sbin/beegfs-setup-meta -p {{ beegfs_meta_storage_directory }} -m {{ beegfs_mgmt_host }} -C -f
   when:
     - not beegfs_meta_initialized.stat.exists or beegfs_meta_force_init
     - beegfs_meta_allow_first_run_init
@@ -38,6 +61,10 @@
     - beegfs
     - beegfs-meta
     - initialization
+    - setup
+
+# Note: BeeGFS 8.1.0+ metadata service initializes automatically on first start
+# No manual initialization required
 
 - name: Display configuration status
   ansible.builtin.debug:

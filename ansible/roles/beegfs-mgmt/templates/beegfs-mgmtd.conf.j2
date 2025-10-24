@@ -1,36 +1,36 @@
-# BeeGFS Management Service Configuration
+# BeeGFS Management Service Configuration (BeeGFS 8.1.0+)
 # Managed by Ansible - Do not edit manually
 
-# Storage configuration
-storeAllowFirstRunInit = {{ beegfs_mgmt_allow_first_run_init | lower }}
-storeMgmtdDirectory = {{ beegfs_mgmt_storage_directory }}
-
-# Management daemon configuration (for beegfs-ctl)
-sysMgmtdHost = {{ ansible_default_ipv4.address | default('localhost') }}
-
-# Network configuration
-connInterfacesFile =
-connNetFilterFile =
-connMgmtdPortTCP = {{ beegfs_mgmt_port }}
-connMgmtdPortUDP = {{ beegfs_mgmt_port }}
-connPortShift = 0
-connDisableAuthentication = true
+# Management database file location
+db-file = "{{ beegfs_mgmt_storage_directory }}/mgmtd.sqlite"
 
 # Logging configuration
-logLevel = {{ beegfs_mgmt_log_level }}
-logNoDate = false
-logNumLines = 50000
-logNumRotatedFiles = 5
-logStdFile = {{ beegfs_mgmt_log_directory }}/beegfs-mgmtd.log
+log-target = "stderr"
+log-level = "{{ ['error', 'warn', 'info', 'debug', 'trace'][beegfs_mgmt_log_level - 1] if beegfs_mgmt_log_level <= 5 else 'warn' }}"
 
-# System settings
-runDaemonized = true
-pidFile = /var/run/beegfs-mgmtd.pid
+# Connection settings
+beemsg-port = {{ beegfs_mgmt_port }}
+grpc-port = {{ beegfs_mgmt_port | int + 2 }}
 
-# Tuning parameters
-tuneNumWorkers = 4
-tuneProcessFDLimit = 50000
+# Network interfaces (use default interface if not specified)
+{% if beegfs_mgmt_interfaces is defined and beegfs_mgmt_interfaces %}
+interfaces = [{% for interface in (beegfs_mgmt_interfaces if beegfs_mgmt_interfaces is iterable and beegfs_mgmt_interfaces is not string else [beegfs_mgmt_interfaces]) %}"{{ interface }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endif %}
 
-# Client statistics (optional)
-sysAllowNewServers = true
-sysAllowNewTargets = true
+# Authentication (disabled by default for development)
+auth-disable = true
+
+# General settings
+registration-disable = false
+node-offline-timeout = "180s"
+client-auto-remove-timeout = "30m"
+
+# License settings (disabled for open source)
+license-disable = true
+
+# TLS settings (disabled for development)
+tls-disable = true
+
+# Quota settings (disabled by default)
+quota-enable = false
+quota-enforce = false

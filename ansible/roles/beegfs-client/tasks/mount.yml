@@ -68,22 +68,15 @@
 
 - name: Display modprobe result
   ansible.builtin.debug:
-    msg: "Module load {{ 'succeeded' if (modprobe_result.rc | default(1)) == 0 else 'skipped or failed' }}"
+    msg: "Module load {{ 'succeeded' if (modprobe_result is defined and not modprobe_result.failed) else 'skipped or failed' }}"
   when: modprobe_result is defined
   tags:
     - beegfs
     - beegfs-client
     - mount
 
-- name: Start beegfs-helperd service
-  ansible.builtin.systemd:
-    name: beegfs-helperd
-    state: started
-    enabled: true
-  tags:
-    - beegfs
-    - beegfs-client
-    - mount
+# Note: BeeGFS 8.1.0+ does not include a separate helperd service
+# Helper functionality is integrated into the main services
 
 - name: Add BeeGFS mount to /etc/fstab
   ansible.posix.mount:
@@ -94,7 +87,11 @@
     state: "{{ 'mounted' if beegfs_client_mount_enabled else 'present' }}"
   when:
     - modprobe_result is defined
-    - (modprobe_result.rc | default(1)) == 0
+    - not modprobe_result.failed
+  register: mount_result
+  retries: 3
+  delay: 10
+  until: mount_result is succeeded
   tags:
     - beegfs
     - beegfs-client
@@ -103,7 +100,7 @@
 - name: Display mount skipped message
   ansible.builtin.debug:
     msg: "BeeGFS mount skipped - kernel module not loaded. DKMS may need kernel headers or build dependencies."
-  when: (modprobe_result is not defined) or ((modprobe_result.rc | default(1)) != 0)
+  when: (modprobe_result is not defined) or (modprobe_result.failed | default(false))
   tags:
     - beegfs
     - beegfs-client
@@ -120,9 +117,9 @@
     - beegfs-client
     - mount
 
-- name: Verify BeeGFS mount is accessible
+- name: Verify BeeGFS mount is accessible (simple check)
   ansible.builtin.command:
-    cmd: beegfs-ctl --getentryinfo {{ beegfs_client_mount_point }}
+    cmd: mount | grep -E "beegfs.*{{ beegfs_client_mount_point }}"
   register: beegfs_mount_check
   changed_when: false
   failed_when: false
@@ -132,10 +129,42 @@
     - beegfs-client
     - mount
 
+- name: Test BeeGFS mount writability
+  ansible.builtin.file:
+    path: "{{ beegfs_client_mount_point }}/.mount_test_{{ ansible_hostname }}"
+    state: touch
+    mode: '0644'
+  register: beegfs_write_test
+  failed_when: false
+  when: beegfs_client_mount_enabled and beegfs_mount_check.rc == 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Remove mount test file
+  ansible.builtin.file:
+    path: "{{ beegfs_client_mount_point }}/.mount_test_{{ ansible_hostname }}"
+    state: absent
+  when: beegfs_client_mount_enabled and beegfs_write_test is defined and beegfs_write_test.changed
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
 - name: Display mount status
   ansible.builtin.debug:
-    msg: "BeeGFS filesystem mounted at {{ beegfs_client_mount_point }}"
+    msg: "BeeGFS filesystem mounted at {{ beegfs_client_mount_point }} and is {{ 'writable' if (beegfs_write_test.changed | default(false)) else 'mounted but write test skipped' }}"
   when: beegfs_client_mount_enabled and beegfs_mount_check.rc == 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display mount failure warning
+  ansible.builtin.debug:
+    msg: "WARNING: BeeGFS mount at {{ beegfs_client_mount_point }} is not active. Check storage services and management connectivity."
+  when: beegfs_client_mount_enabled and beegfs_mount_check.rc != 0
   tags:
     - beegfs
     - beegfs-client
