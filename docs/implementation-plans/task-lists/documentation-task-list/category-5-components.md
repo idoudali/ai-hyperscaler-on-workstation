@@ -2,7 +2,7 @@
 
 **Status:** Planning
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-10-21
 
 **Priority:** 2-3 - Component References
 
@@ -267,36 +267,52 @@ principle that "component documentation lives with the component, not in docs/".
 - All markdownlint errors resolved and pre-commit hooks pass
 - Commit: 8087887
 
-## TASK-DOC-5.8: Python CLI Comprehensive Documentation (ai-how)
+## TASK-DOC-5.8: Python CLI Comprehensive Documentation (ai-how) ✅ COMPLETED
 
 **Files:**
 
-- `python/ai_how/CLI-REFERENCE.md`
-- `python/ai_how/SCHEMA-GUIDE.md`
-- `python/ai_how/API-DOCUMENTATION.md`
-- `python/ai_how/STATE-MANAGEMENT.md`
+- `python/ai_how/docs/cli-reference.md`
+- `python/ai_how/docs/schema-guide.md`
+- `python/ai_how/docs/api/ai_how.md`
+- `python/ai_how/docs/state-management.md`
+- `python/ai_how/docs/common-concepts.md`
 
 **Description:** Comprehensive documentation for the AI-HOW Python CLI package including
 command reference, schema details, internal APIs, and state management
 
 **Content:**
 
-- `CLI-REFERENCE.md`: Complete command reference with all subcommands and options
-- `SCHEMA-GUIDE.md`: JSON Schema documentation with validation examples
-- `API-DOCUMENTATION.md`: Internal module and class documentation
-- `STATE-MANAGEMENT.md`: VM and cluster state management internals
+- `cli-reference.md`: Complete command reference with all subcommands and options
+- `schema-guide.md`: JSON Schema documentation with validation examples
+- `api/ai_how.md`: Internal module and class documentation
+- `state-management.md`: VM and cluster state management internals
+- `common-concepts.md`: Core concepts and terminology definitions
 
 **Success Criteria:**
 
-- [ ] All CLI commands documented with examples
-- [ ] Schema validation explained with examples
-- [ ] Internal module structure documented
-- [ ] State management explained
-- [ ] VM management API documented
-- [ ] PCIe validation tool documented
-- [ ] Development guide for extending CLI
+- [x] All CLI commands documented with examples
+- [x] Schema validation explained with examples
+- [x] Internal module structure documented
+- [x] State management explained
+- [x] VM management API documented
+- [x] PCIe validation tool documented
+- [x] Development guide for extending CLI
 
 **Priority:** High - Core tooling frequently used by developers and operators
+
+**Completion Notes:**
+
+- Created comprehensive `python/ai_how/docs/cli-reference.md` (1,041 lines) with complete CLI command reference
+- Created detailed `python/ai_how/docs/schema-guide.md` (1,206 lines) with JSON Schema documentation and examples
+- Created comprehensive `python/ai_how/docs/state-management.md` (926 lines) with cluster state management internals
+- Created `python/ai_how/docs/common-concepts.md` (153 lines) with core terminology and concepts
+- Enhanced `python/ai_how/docs/api/ai_how.md` with complete API reference using mkdocstrings
+- Updated `python/ai_how/mkdocs.yml` to include all new documentation in navigation
+- Updated main `mkdocs.yml` to integrate CLI documentation into main site navigation
+- All documentation follows consistent formatting and includes practical examples
+- Documentation integrated with MkDocs build system and mkdocstrings for API generation
+- All markdownlint errors resolved and pre-commit hooks pass
+- Commit: bef8d30e2465b3ea3d34d2198ef6840e21e82d36
 
 ---
 
