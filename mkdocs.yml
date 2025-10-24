@@ -257,6 +257,9 @@ nav:
           - Overview: scripts/README.md
           - System Checks: scripts/system-checks/README.md
           - Experiments: scripts/experiments/README.md
+      - Docker Development:
+          - Overview: docker/README.md
+          - Development Workflow: docker/development-workflow.md
 
   - Testing:
       - Overview: testing/README.md
