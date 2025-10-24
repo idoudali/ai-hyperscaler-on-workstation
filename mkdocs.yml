@@ -217,6 +217,8 @@ nav:
       - Build System:
           - Overview: components/README.md
           - CMake Implementation: components/cmake-implementation.md
+      - Testing Framework:
+          - Developer Guide: components/testing-framework-guide.md
       - Ansible:
           - Overview: ansible/README.md
           - Roles Index: ansible/roles/README.md
