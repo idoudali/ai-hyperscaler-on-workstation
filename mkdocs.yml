@@ -245,6 +245,12 @@ nav:
       - Containers:
           - Overview: containers/README.md
           - PyTorch CUDA 12.1 MPI 4.1: containers/images/pytorch-cuda12.1-mpi4.1/README.md
+      - Third-Party Dependencies:
+          - Overview: 3rd-party/README.md
+          - Dependency Management: 3rd-party/dependency-management.md
+          - Custom Builds: 3rd-party/custom-builds.md
+          - BeeGFS Build: 3rd-party/beegfs/README.md
+          - SLURM Build: 3rd-party/slurm/README.md
       - Configuration:
           - Overview: config/README.md
       - Scripts:

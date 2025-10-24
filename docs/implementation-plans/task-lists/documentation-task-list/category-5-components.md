@@ -470,9 +470,9 @@ command reference, schema details, internal APIs, and state management
 
 ---
 
-## TASK-DOC-5.12: 3rd-Party Dependencies & Custom Builds
+## TASK-DOC-5.12: 3rd-Party Dependencies & Custom Builds ✅ COMPLETED
 
-**Files:** `3rd-party/DEPENDENCY-MANAGEMENT.md`, `3rd-party/CUSTOM-BUILDS.md`, enhanced `3rd-party/beegfs/README.md`, `3rd-party/slurm/README.md`
+**Files:** `3rd-party/dependency-management.md`, `3rd-party/custom-builds.md`, enhanced `3rd-party/beegfs/README.md`, `3rd-party/slurm/README.md`
 
 **Description:** Enhanced documentation for third-party dependencies, package builds, and customization
 
@@ -488,15 +488,28 @@ command reference, schema details, internal APIs, and state management
 
 **Success Criteria:**
 
-- [ ] Dependency management strategy documented
-- [ ] BeeGFS build process detailed
-- [ ] SLURM build process documented (when implemented)
-- [ ] Update procedures clear
-- [ ] Custom modification guide provided
-- [ ] Security update process explained
-- [ ] Examples for common customizations
+- [x] Dependency management strategy documented
+- [x] BeeGFS build process detailed
+- [x] SLURM build process documented (when implemented)
+- [x] Update procedures clear
+- [x] Custom modification guide provided
+- [x] Security update process explained
+- [x] Examples for common customizations
 
 **Priority:** Medium - Important for infrastructure maintainers
+
+**Completion Notes:**
+
+- Created comprehensive `3rd-party/dependency-management.md` (380+ lines) documenting dependency
+  inventory, version management strategy, security updates, and best practices
+- Created detailed `3rd-party/custom-builds.md` (550+ lines) covering customization workflows,
+  BeeGFS/SLURM specific customizations, patch management, testing procedures
+- Enhanced `3rd-party/beegfs/README.md` (265+ lines) with build process, configuration,
+  performance optimization, troubleshooting, and security considerations
+- SLURM documentation already comprehensive in `3rd-party/slurm/README.md` (existing)
+- Updated `mkdocs.yml` to add Third-Party Dependencies section with all component references
+- All files follow lowercase naming convention and pass pre-commit validation
+- Commit: [awaiting creation]
 
 ---
 
