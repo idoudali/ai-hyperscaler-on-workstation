@@ -210,6 +210,8 @@ nav:
   - Development:
       - Python Dependencies Setup: development/python-dependencies-setup.md
       - Cursor Agent Setup: development/cursor-agent-setup.md
+      - CI/CD Pipeline: development/ci-cd-pipeline.md
+      - GitHub Actions Guide: development/github-actions-guide.md
       - Documentation Structure: DOCUMENTATION-STRUCTURE.md
       - Structure Verification: STRUCTURE-VERIFICATION.md
       - Placeholder Creation Summary: PLACEHOLDER-CREATION-SUMMARY.md
