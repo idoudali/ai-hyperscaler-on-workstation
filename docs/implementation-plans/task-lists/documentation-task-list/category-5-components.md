@@ -687,21 +687,43 @@ command reference, schema details, internal APIs, and state management
 
 **Success Criteria:**
 
-- [ ] Pre-commit framework architecture documented
-- [ ] All hooks explained with purpose and configuration
-- [ ] Markdownlint rules documented with rationale
-- [ ] Shellcheck configuration explained
-- [ ] CMake formatting documented
-- [ ] Python quality tools integration explained
-- [ ] Commit message validation documented
-- [ ] Installation and setup guide provided
-- [ ] Manual execution commands documented
-- [ ] Troubleshooting guide comprehensive
-- [ ] Best practices for adding/modifying checks
-- [ ] CI/CD integration documented
-- [ ] Editor integration guidance provided
+- [x] Pre-commit framework architecture documented
+- [x] All hooks explained with purpose and configuration
+- [x] Markdownlint rules documented with rationale
+- [x] Shellcheck configuration explained
+- [x] CMake formatting documented
+- [x] Python quality tools integration explained
+- [x] Commit message validation documented
+- [x] Installation and setup guide provided
+- [x] Manual execution commands documented
+- [x] Troubleshooting guide comprehensive
+- [x] Best practices for adding/modifying checks
+- [x] CI/CD integration documented
+- [x] Editor integration guidance provided
 
 **Priority:** Medium - Important for contributors and maintainers
+
+**Completion Notes:**
+
+- Created `docs/development/code-quality-linters.md` (850+ lines) with comprehensive guide covering:
+  - Pre-commit framework architecture and workflow
+  - Installation, setup, and manual execution
+  - All 12+ hooks explained with purpose and configuration
+  - Detailed markdownlint rules (MD001, MD003, MD004, MD008, MD009, MD010, MD013, MD024, MD025, MD040)
+  - Disabled rules with rationale
+  - Shell script linting with common shellcheck checks (SC2006, SC2181, SC2086)
+  - CMake formatting configuration and standards
+  - Python quality tools (Ruff, Mypy) integration
+  - Conventional Commits standard with examples
+  - Configured scopes (13 scopes) and types (10 types)
+  - All 12+ general file checks documented
+  - Comprehensive troubleshooting section
+  - Editor integration for VS Code, Vim, Neovim
+  - Performance optimization techniques
+  - Best practices for adding/modifying checks
+  - CI/CD integration patterns with GitHub Actions
+- Updated `mkdocs.yml` to add Code Quality & Linters section under Development
+- All files follow lowercase naming convention and pass pre-commit validation
 
 ---
 
