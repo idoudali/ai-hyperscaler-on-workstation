@@ -1004,8 +1004,8 @@ playbook-hpc-runtime.yml            # NEW - Unified runtime configuration
 
 # Storage infrastructure - optional backends (3)
 playbook-beegfs-packer-install.yml  # KEEP - BeeGFS Packer installation
-playbook-beegfs-runtime-config.yml  # KEEP - BeeGFS runtime configuration
-playbook-virtio-fs-runtime-config.yml  # KEEP - VirtIO-FS shared directories
+# playbook-beegfs-runtime-config.yml  # DELETED - BeeGFS functionality integrated into playbook-hpc-runtime.yml
+# playbook-virtio-fs-runtime-config.yml  # DELETED - VirtIO-FS functionality integrated into playbook-hpc-runtime.yml
 
 # Separate infrastructure (2)
 playbook-cloud.yml                  # KEEP - Kubernetes cloud infrastructure
@@ -2756,8 +2756,8 @@ configuration.
 
 **Current State:**
 
-- `playbook-beegfs-runtime-config.yml` - Separate playbook (207 lines), requires separate execution
-- `playbook-virtio-fs-runtime-config.yml` - Separate playbook (143 lines), functionality duplicated in `playbook-hpc-runtime.yml`
+- ~~`playbook-beegfs-runtime-config.yml`~~ - **DELETED** (functionality integrated into `playbook-hpc-runtime.yml`)
+- ~~`playbook-virtio-fs-runtime-config.yml`~~ - **DELETED** (functionality integrated into `playbook-hpc-runtime.yml`)
 - BeeGFS has no cluster configuration schema (all hardcoded or inventory-based)
 - VirtIO-FS is integrated but standalone playbook still exists
 - Users must run 2-3 playbooks for complete HPC+storage deployment
@@ -2785,9 +2785,9 @@ configuration.
    - Auto-detect which nodes should run BeeGFS services
 
 4. **Delete/deprecate standalone playbooks:**
-   - Mark `playbook-beegfs-runtime-config.yml` as deprecated (or delete after validation)
-   - Delete `playbook-virtio-fs-runtime-config.yml` (functionality fully integrated)
-   - Update documentation to reflect single playbook workflow
+   - ✅ **Deleted:** `playbook-beegfs-runtime-config.yml` (functionality fully integrated)
+   - ✅ **Deleted:** `playbook-virtio-fs-runtime-config.yml` (functionality fully integrated)
+   - ✅ **Updated:** Documentation to reflect single playbook workflow
 
 **Cluster Configuration Schema:**
 

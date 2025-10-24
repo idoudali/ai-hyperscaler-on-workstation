@@ -40,6 +40,130 @@ This page provides the complete API reference for the AI-HOW package.
         - get_schema_description
         - get_required_fields
 
+## Storage Configuration
+
+### Storage Backend Support
+
+AI-HOW now supports flexible storage backend configuration for clusters, including:
+
+- **BeeGFS Parallel Filesystem**: High-performance distributed storage for HPC workloads
+- **VirtIO-FS Host Directory Sharing**: Efficient host-to-VM directory sharing for datasets and development
+
+### Storage Configuration Schema
+
+The storage configuration is defined within the cluster definition:
+
+```yaml
+clusters:
+  hpc:
+    - name: "my-cluster"
+      # ... other cluster configurations ...
+      storage:
+        # BeeGFS parallel filesystem configuration
+        beegfs:
+          enabled: true
+          mount_point: "/mnt/beegfs"
+          management_node: "controller"
+          metadata_nodes:
+            - "controller"
+          storage_nodes:
+            - "compute-01"
+            - "compute-02"
+          client_config:
+            mount_options: "defaults,_netdev"
+            auto_mount: true
+
+        # VirtIO-FS host directory sharing configuration
+        virtio_fs:
+          enabled: true
+```
+
+### Storage Configuration Fields
+
+#### BeeGFS Configuration
+
+- `enabled` (boolean): Enable/disable BeeGFS deployment
+- `mount_point` (string): Filesystem mount point on client nodes
+- `management_node` (string): BeeGFS Management Service node
+- `metadata_nodes` (array): BeeGFS Metadata Service nodes
+- `storage_nodes` (array): BeeGFS Storage Service nodes
+- `client_config` (object): Advanced client configuration
+  - `mount_options` (string): Mount options for BeeGFS client
+  - `auto_mount` (boolean): Auto-mount filesystem at boot
+
+#### VirtIO-FS Configuration
+
+- `enabled` (boolean): Enable/disable VirtIO-FS functionality
+
+### Node-Specific Storage Mounts
+
+For node-specific VirtIO-FS mounts, configure within individual VM definitions:
+
+```yaml
+controller:
+  # ... controller configuration ...
+  virtio_fs_mounts:
+    - tag: "project-repo"
+      host_path: "/home/user/Projects/pharos.ai-hyperscaler"
+      mount_point: "/mnt/host-repo"
+      readonly: false
+      owner: "admin"
+      group: "admin"
+      mode: "0755"
+      options: "rw,relatime"
+```
+
+### Storage Configuration Validation
+
+Storage configurations are validated as part of the standard configuration validation process:
+
+```bash
+ai-how validate config.yaml
+```
+
+This validates:
+
+- Storage backend configuration syntax
+- Mount point accessibility
+- Node assignment consistency
+- Permission and ownership settings
+
+### Storage Deployment Integration
+
+Storage backends are deployed through the unified `playbook-hpc-runtime.yml` playbook, which consolidates:
+
+- **BeeGFS Runtime Configuration**: Previously handled by `playbook-beegfs-runtime-config.yml` (now deleted)
+- **VirtIO-FS Runtime Configuration**: Previously handled by `playbook-virtio-fs-runtime-config.yml` (now deleted)
+- **HPC Runtime Configuration**: Core HPC infrastructure deployment
+
+This consolidation simplifies the deployment workflow by reducing the number of playbooks users need to run from 7 to 5.
+
+### BeeGFS Service Management
+
+BeeGFS services are managed through systemd with the following components:
+
+- **beegfs-mgmt**: Management service (handles cluster coordination)
+- **beegfs-meta**: Metadata service (handles file metadata)
+- **beegfs-storage**: Storage service (handles data storage)
+- **beegfs-client**: Client service (handles filesystem mounting)
+
+**Note**: The `beegfs-helperd` service has been deprecated in BeeGFS 8.1.0+ and is no longer used.
+
+### Phase 4 Validation Framework
+
+The AI-HOW validation framework has been updated to reflect the consolidated storage configuration approach:
+
+**Updated Validation Steps:**
+
+- **Step 04**: Runtime Deployment (previously Step 03)
+- **Step 06**: Functional Tests (previously Step 04)
+- **Step 07**: Regression Tests (previously Step 05)
+
+**Validation Script Updates:**
+
+- `step-05-regression-tests.sh` → `step-07-regression-tests.sh`
+- All validation steps now reflect the consolidated playbook approach
+
 ## State Management
 
 ### State Models

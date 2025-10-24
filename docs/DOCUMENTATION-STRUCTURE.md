@@ -5,7 +5,10 @@
 
 ## Overview
 
-This document provides a complete overview of the Hyperscaler on Workstation project documentation structure. The documentation is organized following the principle that component-specific documentation lives next to the code implementing that component, while high-level documentation lives in `docs/` for cross-component guides, tutorials, and architecture.
+This document provides a complete overview of the Hyperscaler on Workstation project documentation structure.
+The documentation is organized following the principle that component-specific documentation lives next to the
+code implementing that component, while high-level documentation lives in `docs/` for cross-component guides,
+tutorials, and architecture.
 
 ## High-Level Documentation (docs/)
 
@@ -36,6 +39,7 @@ docs/
 │   ├── containers.md                  # Container architecture overview
 │   ├── slurm.md                       # SLURM cluster architecture
 │   └── monitoring.md                  # Monitoring architecture
+├── storage-configuration.md           # Storage backend configuration guide
 ├── operations/                        # Operational procedures (cross-component)
 │   ├── deployment.md
 │   ├── maintenance.md
@@ -126,23 +130,27 @@ tests/
 ## Documentation Philosophy
 
 ### Component-Specific Documentation
+
 - Lives next to the code implementing that component
 - Maintains close coupling between code and documentation
 - Easier to keep documentation in sync with code changes
 - Examples: Ansible roles, Packer templates, CLI commands
 
 ### High-Level Documentation
+
 - Lives in `docs/` for cross-component guides, tutorials, and architecture
 - Provides user-facing documentation that spans multiple components
 - Examples: Getting started guides, architecture overviews, troubleshooting
 
 ## File Status
 
-All placeholder files are currently marked with `**Status:** TODO` and contain a brief overview section. As content is added to each file, the status should be updated to reflect the completion level.
+All placeholder files are currently marked with `**Status:** TODO` and contain a brief overview section. As content is
+added to each file, the status should be updated to reflect the completion level.
 
 ## Navigation
 
 The documentation structure is designed to work with MkDocs, which will provide:
+
 - Automatic navigation based on directory structure
 - Search functionality across all documentation
 - Cross-references between documents

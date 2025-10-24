@@ -55,7 +55,7 @@ containers, and development files without network overhead.
 - ✅ `ansible/roles/virtio-fs-mount/tasks/main.yml` - Virtio-fs mount configuration
 - ✅ `ansible/roles/virtio-fs-mount/tasks/setup-mounts.yml` - Mount point setup and fstab configuration
 - ✅ `ansible/roles/virtio-fs-mount/defaults/main.yml` - Default mount configurations
-- ✅ `ansible/playbooks/playbook-virtio-fs-runtime-config.yml` - Runtime mount configuration
+- ✅ `ansible/playbooks/playbook-hpc-runtime.yml` - Runtime mount configuration (integrated)
 - ✅ `tests/suites/virtio-fs/check-virtio-fs-config.sh` - Configuration validation
 - ✅ `tests/suites/virtio-fs/check-mount-functionality.sh` - Mount operation tests
 - ✅ `tests/suites/virtio-fs/check-performance.sh` - I/O performance validation
@@ -203,8 +203,7 @@ distributed storage that scales with cluster size.
 - ✅ `ansible/roles/beegfs-client/tasks/mount.yml` - Filesystem mounting
 - ✅ `ansible/roles/beegfs-client/defaults/main.yml` - Default variables
 - ✅ `ansible/roles/beegfs-client/templates/beegfs-client.conf.j2` - Client configuration template
-- ✅ `ansible/roles/beegfs-client/templates/beegfs-helperd.conf.j2` - Helperd configuration template
-- ✅ `ansible/playbooks/playbook-beegfs-runtime-config.yml` - BeeGFS cluster deployment
+- ✅ `ansible/playbooks/playbook-hpc-runtime.yml` - BeeGFS cluster deployment (integrated)
 - ✅ `tests/suites/beegfs/check-beegfs-services.sh` - Service validation
 - ✅ `tests/suites/beegfs/check-filesystem-operations.sh` - Filesystem I/O tests
 - ✅ `tests/suites/beegfs/check-performance-scaling.sh` - Performance benchmarks

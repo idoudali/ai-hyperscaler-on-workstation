@@ -99,7 +99,7 @@ This role handles the guest-side configuration of virtio-fs mounts:
 
 ### 3. Runtime Configuration Playbook
 
-**File:** `ansible/playbooks/playbook-virtio-fs-runtime-config.yml`
+**File:** `ansible/playbooks/playbook-hpc-runtime.yml` (integrated)
 
 This playbook applies virtio-fs configuration to running VMs:
 
@@ -227,7 +227,7 @@ EOF
 
 # 3. Run the runtime configuration playbook
 ansible-playbook -i inventory.ini \
-  ansible/playbooks/playbook-virtio-fs-runtime-config.yml
+  ansible/playbooks/playbook-hpc-runtime.yml
 ```
 
 ### Manual Mounting
