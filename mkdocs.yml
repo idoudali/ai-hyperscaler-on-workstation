@@ -212,6 +212,7 @@ nav:
       - Cursor Agent Setup: development/cursor-agent-setup.md
       - CI/CD Pipeline: development/ci-cd-pipeline.md
       - GitHub Actions Guide: development/github-actions-guide.md
+      - Code Quality & Linters: development/code-quality-linters.md
       - Documentation Structure: DOCUMENTATION-STRUCTURE.md
       - Structure Verification: STRUCTURE-VERIFICATION.md
       - Placeholder Creation Summary: PLACEHOLDER-CREATION-SUMMARY.md
