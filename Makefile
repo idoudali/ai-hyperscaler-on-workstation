@@ -104,21 +104,25 @@ lint-docker:
 #==============================================================================
 # Python Virtual Environment Management (uv)
 #==============================================================================
-.PHONY: venv-create pre-commit-install pre-commit-run pre-commit-run-all
+.PHONY: venv-mkdocs venv-create pre-commit-install pre-commit-run pre-commit-run-all
 
-# Create Python virtual environment and install all dependencies
-venv-create:
+# Create Python virtual environment and install MkDocs dependencies
+venv-mkdocs:
 	@echo "Creating Python virtual environment using uv..."
 	@uv venv --clear $(VENV_NAME)
 	@echo "Virtual environment created at $(VENV_PATH)"
+	@echo "Installing MkDocs and plugins..."
+	@uv pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin mkdocs-include-markdown-plugin mkdocs-simple-plugin mkdocs-monorepo-plugin mkdocs-htmlproofer-plugin "mkdocstrings[python]"
+	@echo "MkDocs virtual environment setup complete"
+
+# Create Python virtual environment and install all dependencies
+venv-create: venv-mkdocs
 	@echo "Installing workspace packages in editable mode..."
 	@uv pip install --reinstall -e $(PYTHON_DIR)/ai_how
 	@echo "Installing Ansible and dependencies..."
 	@uv pip install -r ansible/requirements.txt
 	@echo "Installing Ansible collections..."
 	@uv run ansible-galaxy collection install -r ansible/collections/requirements.yml
-	@echo "Installing MkDocs and plugins..."
-	@uv pip install mkdocs mkdocs-material mkdocs-awesome-pages-plugin mkdocs-include-markdown-plugin mkdocs-simple-plugin mkdocs-monorepo-plugin mkdocs-htmlproofer-plugin "mkdocstrings[python]"
 	@echo "Virtual environment setup complete"
 
 
@@ -143,14 +147,18 @@ pre-commit-run-all:
 .PHONY: docs-build docs-serve docs-clean
 
 # Build the documentation site
-docs-build: venv-create
+docs-build: venv-mkdocs
 	@echo "Building documentation with MkDocs..."
-	@uv run mkdocs build
+	# Add ai_how package source to PYTHONPATH so mkdocstrings can find the module
+	# without requiring installation of the package and its dependencies
+	@PYTHONPATH=$(PYTHON_DIR)/ai_how/src:$$PYTHONPATH uv run mkdocs build
 
 # Serve the documentation locally for development
-docs-serve: venv-create
+docs-serve: venv-mkdocs
 	@echo "Serving documentation locally at http://localhost:8000..."
-	@uv run mkdocs serve
+	# Add ai_how package source to PYTHONPATH so mkdocstrings can find the module
+	# without requiring installation of the package and its dependencies
+	@PYTHONPATH=$(PYTHON_DIR)/ai_how/src:$$PYTHONPATH uv run mkdocs serve
 
 # Clean the documentation build artifacts
 docs-clean:
@@ -436,6 +444,7 @@ help:
 	@echo "  make config         - Configure the CMake project."
 	@echo ""
 	@echo "Python Virtual Environment Commands (uv):"
+	@echo "  make venv-mkdocs    - Create virtual environment and install MkDocs dependencies."
 	@echo "  make venv-create    - Create virtual environment and install all dependencies."
 	@echo ""
 	@echo "Pre-commit Hooks Commands (pre-commit):"
