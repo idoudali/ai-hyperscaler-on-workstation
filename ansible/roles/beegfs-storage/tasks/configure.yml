@@ -14,6 +14,18 @@
     - beegfs-storage
     - configuration
 
+- name: Create BeeGFS authentication file (required even when disabled)
+  ansible.builtin.file:
+    path: /etc/beegfs/conn.auth
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+  tags:
+    - beegfs
+    - beegfs-storage
+    - configuration
+
 - name: Check if storage service is already initialized
   ansible.builtin.stat:
     path: "{{ beegfs_storage_directory }}/format.conf"
@@ -23,14 +35,24 @@
     - beegfs-storage
     - initialization
 
-- name: Initialize BeeGFS storage service
+- name: Create BeeGFS storage directory
+  ansible.builtin.file:
+    path: "{{ beegfs_storage_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - not beegfs_storage_initialized.stat.exists or beegfs_storage_force_init
+    - beegfs_storage_allow_first_run_init
+  tags:
+    - beegfs
+    - beegfs-storage
+    - initialization
+
+- name: Run BeeGFS storage service setup
   ansible.builtin.command:
-    cmd: >
-      /opt/beegfs/sbin/beegfs-setup-storage
-      -p {{ beegfs_storage_directory }}
-      -s {{ beegfs_storage_num_targets }}
-      -i {{ 201 + (groups['hpc_compute'].index(inventory_hostname) | default(0)) if groups['hpc_compute'] is defined else 201 }}
-      -m {{ beegfs_mgmt_host }}
+    cmd: /opt/beegfs/sbin/beegfs-setup-storage -p {{ beegfs_storage_directory }} -m {{ beegfs_mgmt_host }} -C -f
   when:
     - not beegfs_storage_initialized.stat.exists or beegfs_storage_force_init
     - beegfs_storage_allow_first_run_init
@@ -39,6 +61,10 @@
     - beegfs
     - beegfs-storage
     - initialization
+    - setup
+
+# Note: BeeGFS 8.1.0+ storage service initializes automatically on first start
+# No manual initialization required
 
 - name: Display configuration status
   ansible.builtin.debug:

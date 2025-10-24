@@ -1,6 +1,10 @@
 ---
 # BeeGFS Management Service Role - Handlers
 
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
 - name: Restart BeeGFS management service
   ansible.builtin.systemd:
     name: beegfs-mgmtd

@@ -13,10 +13,10 @@
     - beegfs-client
     - configuration
 
-- name: Configure BeeGFS helperd service
-  ansible.builtin.template:
-    src: beegfs-helperd.conf.j2
-    dest: /etc/beegfs/beegfs-helperd.conf
+- name: Create BeeGFS client mount preference file
+  ansible.builtin.file:
+    path: /etc/beegfs/beegfs-client-mount.pref
+    state: touch
     owner: root
     group: root
     mode: '0644'
@@ -25,16 +25,23 @@
     - beegfs-client
     - configuration
 
-- name: Enable BeeGFS helperd service
-  ansible.builtin.systemd:
-    name: beegfs-helperd
-    enabled: "{{ beegfs_client_service_enabled }}"
-    state: started
-    daemon_reload: true
+- name: Create BeeGFS authentication file (required even when disabled)
+  ansible.builtin.file:
+    path: /etc/beegfs/conn.auth
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
   tags:
     - beegfs
     - beegfs-client
-    - service
+    - configuration
+
+# Note: beegfs-setup-client does not exist in BeeGFS 8.1.0+
+# Client initialization is handled automatically when mounting
+
+# Note: BeeGFS 8.1.0+ does not include a separate helperd service
+# Helper functionality is integrated into the main services
 
 - name: Display configuration status
   ansible.builtin.debug:

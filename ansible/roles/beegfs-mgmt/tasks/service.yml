@@ -10,6 +10,30 @@
     - beegfs-mgmt
     - service
 
+- name: Create custom BeeGFS management service systemd override
+  ansible.builtin.file:
+    path: /etc/systemd/system/beegfs-mgmtd.service.d
+    state: directory
+    mode: '0755'
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
+- name: Configure BeeGFS management service to use custom config
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/opt/beegfs/sbin/beegfs-mgmtd --config-file /etc/beegfs/beegfs-mgmtd.conf --log-target=journald
+    dest: /etc/systemd/system/beegfs-mgmtd.service.d/override.conf
+    mode: '0644'
+  notify: Reload systemd daemon
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - service
+
 - name: Enable and start BeeGFS management service
   ansible.builtin.systemd:
     name: beegfs-mgmtd

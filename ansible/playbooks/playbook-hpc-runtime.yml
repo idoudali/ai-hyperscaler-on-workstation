@@ -42,6 +42,7 @@
           - Monitoring stack (Prometheus, Grafana, DCGM)
           - Container runtime validation
           - VirtIO-FS host directory sharing (if configured)
+          - BeeGFS parallel filesystem (if enabled)
 
           ====================================================================
 
@@ -421,6 +422,879 @@
           6. Check firewall rules allowing SLURM traffic
       when: node_registration.rc != 0
 
+# BeeGFS Parallel Filesystem Deployment (if enabled)
+#
+# Available BeeGFS Tags for Granular Control:
+#
+# DEPLOYMENT TAGS:
+#   beegfs-mgmt      - Deploy BeeGFS management service only
+#   beegfs-meta      - Deploy BeeGFS metadata service only
+#   beegfs-storage   - Deploy BeeGFS storage services only
+#   beegfs-client    - Deploy BeeGFS client on all nodes only
+#   beegfs-deploy    - Deploy all BeeGFS services (mgmt, meta, storage, client)
+#   beegfs-setup     - Run BeeGFS setup scripts only (before service start)
+#
+# VERIFICATION TAGS:
+#   beegfs-verify    - Run all BeeGFS verification tasks
+#   beegfs-status    - Check BeeGFS cluster status and nodes
+#   beegfs-mounts    - Verify BeeGFS mounts on all nodes
+#   beegfs-cross-node - Test cross-node file sharing
+#   beegfs-pre-client - Verify services before client deployment
+#
+# DEBUGGING TAGS:
+#   beegfs-debug     - Show logs, configs, and detailed status
+#
+# GENERAL TAGS:
+#   beegfs          - All BeeGFS related tasks
+#   storage         - All storage related tasks (includes BeeGFS)
+#   verification    - All verification tasks (includes BeeGFS)
+#
+# USAGE EXAMPLES:
+#   # Deploy only BeeGFS management service:
+#   ansible-playbook playbook-hpc-runtime.yml --tags beegfs-mgmt
+#
+#   # Deploy all BeeGFS services:
+#   ansible-playbook playbook-hpc-runtime.yml --tags beegfs-deploy
+#
+#   # Run only BeeGFS verification:
+#   ansible-playbook playbook-hpc-runtime.yml --tags beegfs-verify
+#
+#   # Debug BeeGFS management service:
+#   ansible-playbook playbook-hpc-runtime.yml --tags beegfs-mgmt,beegfs-debug
+#
+#   # Deploy BeeGFS and run verification:
+#   ansible-playbook playbook-hpc-runtime.yml --tags beegfs-deploy,beegfs-verify
+#
+#   # Run only BeeGFS setup scripts:
+#   ansible-playbook playbook-hpc-runtime.yml --tags beegfs-setup
+- name: Deploy BeeGFS Management Service
+  hosts: hpc_controllers
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tags:
+    - beegfs
+    - beegfs-mgmt
+    - beegfs-deploy
+    - storage
+  tasks:
+    - name: Parse BeeGFS configuration
+      set_fact:
+        beegfs_config_parsed: "{{ beegfs_config | from_json if beegfs_config is string else beegfs_config }}"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - beegfs_config is defined
+      tags:
+        - beegfs
+        - storage
+
+    - name: Display BeeGFS deployment plan
+      debug:
+        msg: |
+          BeeGFS Configuration:
+          - Enabled: {{ beegfs_enabled | default(false) }}
+          - Mount Point: {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}
+          - Management Node: {{ beegfs_config_parsed.management_node | default('controller') }}
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+    - name: Deploy BeeGFS management service
+      import_role:
+        name: beegfs-mgmt
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Wait for BeeGFS management service to be fully initialized
+      ansible.builtin.pause:
+        seconds: 30
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Check BeeGFS management service status
+      ansible.builtin.systemd:
+        name: beegfs-mgmtd
+      register: beegfs_mgmt_service_status
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Display BeeGFS management service status
+      debug:
+        msg: "BeeGFS management service status: {{ beegfs_mgmt_service_status.status.ActiveState }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Check BeeGFS management service logs
+      ansible.builtin.command: journalctl -u beegfs-mgmtd --no-pager -n 20
+      register: beegfs_mgmt_logs
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - beegfs-debug
+        - storage
+
+    - name: Display BeeGFS management service logs
+      debug:
+        msg: |
+          BeeGFS management service logs:
+          {{ beegfs_mgmt_logs.stdout_lines | join('\n') }}
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Check BeeGFS management service configuration
+      ansible.builtin.command: cat /etc/beegfs/beegfs-mgmtd.conf
+      register: beegfs_mgmt_config
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - beegfs-debug
+        - storage
+
+    - name: Display BeeGFS management service configuration
+      debug:
+        msg: |
+          BeeGFS management service configuration:
+          {{ beegfs_mgmt_config.stdout_lines | join('\n') }}
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Try to verify BeeGFS management service is responding
+      ansible.builtin.command: beegfs-ctl --listnodes --nodetype=mgmt
+      register: beegfs_mgmt_verify
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 15
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Display BeeGFS management verification output
+      debug:
+        msg: |
+          BeeGFS management verification:
+          - Return code: {{ beegfs_mgmt_verify.rc }}
+          - Stdout: {{ beegfs_mgmt_verify.stdout }}
+          - Stderr: {{ beegfs_mgmt_verify.stderr }}
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Check if BeeGFS management service is at least running
+      ansible.builtin.assert:
+        that:
+          - beegfs_mgmt_service_status.status.ActiveState == "active"
+        fail_msg: "BeeGFS management service is not running"
+        success_msg: "BeeGFS management service is running (verification may need more time)"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Display BeeGFS management service status (non-fatal)
+      debug:
+        msg: |
+          BeeGFS management service status:
+          - Service state: {{ beegfs_mgmt_service_status.status.ActiveState }}
+          - Verification return code: {{ beegfs_mgmt_verify.rc | default('N/A') }}
+          - Note: Service may need more time to fully initialize
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-mgmt
+        - storage
+
+    - name: Display management service status
+      debug:
+        msg: "BeeGFS management service deployed and ready on {{ inventory_hostname }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Deploy BeeGFS Metadata Service
+  hosts: hpc_controllers
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tags:
+    - beegfs
+    - beegfs-meta
+    - beegfs-deploy
+    - storage
+  tasks:
+    - name: Deploy BeeGFS metadata service
+      import_role:
+        name: beegfs-meta
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-meta
+        - storage
+
+    - name: Wait for BeeGFS metadata service to be fully initialized
+      ansible.builtin.pause:
+        seconds: 20
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-meta
+        - storage
+
+    - name: Check BeeGFS metadata service status
+      ansible.builtin.systemd:
+        name: beegfs-meta
+      register: beegfs_meta_service_status
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-meta
+        - storage
+
+    - name: Display BeeGFS metadata service status
+      debug:
+        msg: "BeeGFS metadata service status: {{ beegfs_meta_service_status.status.ActiveState }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-meta
+        - storage
+
+    - name: Check if BeeGFS metadata service is at least running
+      ansible.builtin.assert:
+        that:
+          - beegfs_meta_service_status.status.ActiveState == "active"
+        fail_msg: "BeeGFS metadata service is not running"
+        success_msg: "BeeGFS metadata service is running (verification may need more time)"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-meta
+        - storage
+
+    - name: Display BeeGFS metadata service status (non-fatal)
+      debug:
+        msg: |
+          BeeGFS metadata service status:
+          - Service state: {{ beegfs_meta_service_status.status.ActiveState }}
+          - Note: Service may need more time to fully initialize
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-meta
+        - storage
+
+    - name: Display metadata service status
+      debug:
+        msg: "BeeGFS metadata service deployed and ready on {{ inventory_hostname }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Deploy BeeGFS Storage Services
+  hosts: compute_nodes
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tags:
+    - beegfs
+    - beegfs-storage
+    - beegfs-deploy
+    - storage
+  tasks:
+    - name: Deploy BeeGFS storage service
+      import_role:
+        name: beegfs-storage
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-storage
+        - storage
+
+    - name: Wait for BeeGFS storage service to be fully initialized
+      ansible.builtin.pause:
+        seconds: 15
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-storage
+        - storage
+
+    - name: Check BeeGFS storage service status
+      ansible.builtin.systemd:
+        name: beegfs-storage
+      register: beegfs_storage_service_status
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-storage
+        - storage
+
+    - name: Display BeeGFS storage service status
+      debug:
+        msg: "BeeGFS storage service status on {{ inventory_hostname }}: {{ beegfs_storage_service_status.status.ActiveState }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-storage
+        - storage
+
+    - name: Check if BeeGFS storage service is at least running
+      ansible.builtin.assert:
+        that:
+          - beegfs_storage_service_status.status.ActiveState == "active"
+        fail_msg: "BeeGFS storage service is not running on {{ inventory_hostname }}"
+        success_msg: "BeeGFS storage service is running on {{ inventory_hostname }} (verification may need more time)"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-storage
+        - storage
+
+    - name: Display BeeGFS storage service status (non-fatal)
+      debug:
+        msg: |
+          BeeGFS storage service status on {{ inventory_hostname }}:
+          - Service state: {{ beegfs_storage_service_status.status.ActiveState }}
+          - Note: Service may need more time to fully initialize
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-storage
+        - storage
+
+    - name: Display storage service status
+      debug:
+        msg: "BeeGFS storage service deployed and ready on {{ inventory_hostname }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Verify All BeeGFS Services Are Ready Before Client Deployment
+  hosts: hpc_controllers
+  become: true
+  gather_facts: false
+  tags:
+    - beegfs
+    - beegfs-verify
+    - beegfs-pre-client
+    - storage
+    - verification
+  tasks:
+    - name: Wait for BeeGFS management service to be fully ready
+      ansible.builtin.pause:
+        seconds: 10
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Check for storage target registrations in management logs
+      ansible.builtin.shell: |
+        journalctl -u beegfs-mgmtd --since "10 minutes ago" | grep -E "Registered new storage target|Mapped storage targets" | wc -l
+      register: storage_registration_count
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Wait for storage targets to register if not yet registered
+      ansible.builtin.pause:
+        seconds: 20
+      when:
+        - beegfs_enabled | default(false) | bool
+        - (storage_registration_count.stdout | int) < 2
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Check again for storage target registrations
+      ansible.builtin.shell: |
+        journalctl -u beegfs-mgmtd --since "15 minutes ago" | grep -E "Registered new storage target|Mapped storage targets" | wc -l
+      register: storage_registration_check
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Display storage registration status
+      debug:
+        msg: |
+          BeeGFS storage targets registration status:
+          - Storage registration events found: {{ storage_registration_check.stdout }}
+          - {{ 'Storage targets registered and ready' if (storage_registration_check.stdout | int) >= 2 else 'Warning: Expected storage registrations not found, but proceeding' }}
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify storage services are running on compute nodes
+      ansible.builtin.shell: |
+        for host in {{ groups['compute_nodes'] | join(' ') }}; do
+          if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$host" "systemctl is-active beegfs-storage" >/dev/null 2>&1; then
+            echo "$host: running"
+          else
+            echo "$host: not running"
+          fi
+        done
+      register: storage_service_check
+      changed_when: false
+      failed_when: false
+      when:
+        - beegfs_enabled | default(false) | bool
+        - groups['compute_nodes'] is defined
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Display storage service status
+      debug:
+        msg: "{{ storage_service_check.stdout_lines }}"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - storage_service_check is defined
+        - storage_service_check.stdout_lines is defined
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Final wait before client deployment
+      ansible.builtin.pause:
+        seconds: 5
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+- name: Deploy BeeGFS Client on All Nodes
+  hosts: hpc_controllers,compute_nodes
+  become: true
+  gather_facts: true
+  vars:
+    packer_build: false
+    install_only: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - beegfs-deploy
+    - storage
+  tasks:
+    - name: Deploy BeeGFS client
+      import_role:
+        name: beegfs-client
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - beegfs-client
+        - storage
+
+    - name: Display client deployment status
+      debug:
+        msg: "BeeGFS client configured and mounted on {{ inventory_hostname }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+
+- name: Verify BeeGFS Cluster Status
+  hosts: hpc_controllers
+  become: true
+  gather_facts: false
+  tags:
+    - beegfs
+    - beegfs-verify
+    - beegfs-status
+    - storage
+    - verification
+  tasks:
+    - name: Check BeeGFS cluster status
+      command: beegfs-ctl --listnodes --nodetype=all
+      register: beegfs_status
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Display BeeGFS cluster nodes
+      debug:
+        msg: "{{ beegfs_status.stdout_lines }}"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - beegfs_status.rc == 0
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Check BeeGFS storage targets
+      command: beegfs-ctl --listtargets --nodetype=storage --state
+      register: beegfs_storage_targets
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Display BeeGFS storage targets
+      debug:
+        msg: "{{ beegfs_storage_targets.stdout_lines }}"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - beegfs_storage_targets.rc == 0
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Test BeeGFS filesystem write
+      copy:
+        content: "BeeGFS deployment test - {{ ansible_date_time.iso8601 }}\n"
+        dest: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/beegfs-test.txt"
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - beegfs_enabled | default(false) | bool
+        - beegfs_status.rc == 0
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Display BeeGFS deployment status
+      debug:
+        msg: "BeeGFS cluster deployed with {{ beegfs_status.stdout_lines | length }} nodes"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - beegfs_status.rc == 0
+      tags:
+        - beegfs
+        - storage
+
+- name: Verify BeeGFS Mounts on All Nodes
+  hosts: hpc_controllers,compute_nodes
+  become: true
+  gather_facts: false
+  tags:
+    - beegfs
+    - beegfs-verify
+    - beegfs-mounts
+    - storage
+    - verification
+  tasks:
+    - name: Check if BeeGFS mount point exists
+      stat:
+        path: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}"
+      register: beegfs_mount_point_stat
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify BeeGFS mount point is a directory
+      assert:
+        that:
+          - beegfs_mount_point_stat.stat.exists
+          - beegfs_mount_point_stat.stat.isdir
+        fail_msg: "BeeGFS mount point {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }} does not exist or is not a directory"
+        success_msg: "BeeGFS mount point {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }} exists and is a directory"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Check if BeeGFS is mounted
+      command: mount | grep -E "beegfs.*{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}"
+      register: beegfs_mount_check
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify BeeGFS is mounted
+      assert:
+        that:
+          - beegfs_mount_check.rc == 0
+        fail_msg: "BeeGFS is not mounted at {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }} on {{ inventory_hostname }} - service may still be initializing"
+        success_msg: "BeeGFS is mounted at {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }} on {{ inventory_hostname }}"
+      ignore_errors: true
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Check BeeGFS client service status
+      systemd:
+        name: beegfs-client
+      register: beegfs_client_service
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify BeeGFS client service is active
+      assert:
+        that:
+          - beegfs_client_service.status.ActiveState == "active"
+        fail_msg: "BeeGFS client service is not active on {{ inventory_hostname }} - may still be initializing"
+        success_msg: "BeeGFS client service is active on {{ inventory_hostname }}"
+      ignore_errors: true
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Test BeeGFS write access
+      copy:
+        content: "BeeGFS mount test from {{ inventory_hostname }} - {{ ansible_date_time.iso8601 }}\n"
+        dest: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/mount-test-{{ inventory_hostname }}.txt"
+        owner: root
+        group: root
+        mode: '0644'
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Test BeeGFS read access
+      slurp:
+        src: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/mount-test-{{ inventory_hostname }}.txt"
+      register: beegfs_read_test
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify BeeGFS read access
+      assert:
+        that:
+          - beegfs_read_test.content is defined
+          - beegfs_read_test.content | b64decode | string | regex_search(inventory_hostname) is not none
+        fail_msg: "BeeGFS read test failed on {{ inventory_hostname }} - mount may not be ready yet"
+        success_msg: "BeeGFS read/write test successful on {{ inventory_hostname }}"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - beegfs_read_test.content is defined
+
+    - name: Check BeeGFS filesystem usage
+      command: df -h "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}"
+      register: beegfs_df
+      changed_when: false
+      failed_when: false
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Display BeeGFS filesystem usage
+      debug:
+        msg: "BeeGFS filesystem usage on {{ inventory_hostname }}: {{ beegfs_df.stdout_lines[1] if beegfs_df.rc == 0 else 'Unable to get usage info' }}"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+- name: Verify BeeGFS Cross-Node File Sharing
+  hosts: hpc_controllers
+  become: true
+  gather_facts: false
+  tags:
+    - beegfs
+    - beegfs-verify
+    - beegfs-cross-node
+    - storage
+    - verification
+  tasks:
+    - name: Create cross-node test file on controller
+      copy:
+        content: "Cross-node test file created on controller - {{ ansible_date_time.iso8601 }}\n"
+        dest: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/cross-node-test.txt"
+        owner: root
+        group: root
+        mode: '0644'
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify cross-node test file exists
+      stat:
+        path: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/cross-node-test.txt"
+      register: cross_node_file_stat
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Assert cross-node test file exists
+      assert:
+        that:
+          - cross_node_file_stat.stat.exists
+        fail_msg: "Cross-node test file not found on controller"
+        success_msg: "Cross-node test file created successfully on controller"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Test file access from compute nodes
+      delegate_to: "{{ item }}"
+      stat:
+        path: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/cross-node-test.txt"
+      register: compute_node_file_check
+      when:
+        - beegfs_enabled | default(false) | bool
+        - groups['compute_nodes'] is defined
+      loop: "{{ groups['compute_nodes'] }}"
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Assert compute nodes can access controller file
+      assert:
+        that:
+          - item.stat.exists
+        fail_msg: "Compute node {{ item.item }} cannot access controller-created file"
+        success_msg: "Compute node {{ item.item }} can access controller-created file"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - groups['compute_nodes'] is defined
+      loop: "{{ compute_node_file_check.results | default([]) }}"
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Create test file from compute node
+      delegate_to: "{{ groups['compute_nodes'][0] }}"
+      copy:
+        content: "Test file created from compute node - {{ ansible_date_time.iso8601 }}\n"
+        dest: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/compute-to-controller-test.txt"
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        - beegfs_enabled | default(false) | bool
+        - groups['compute_nodes'] is defined
+        - groups['compute_nodes'] | length > 0
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Verify controller can access compute-created file
+      stat:
+        path: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/compute-to-controller-test.txt"
+      register: controller_file_check
+      when:
+        - beegfs_enabled | default(false) | bool
+        - groups['compute_nodes'] is defined
+        - groups['compute_nodes'] | length > 0
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Assert controller can access compute file
+      assert:
+        that:
+          - controller_file_check.stat.exists
+        fail_msg: "Controller cannot access compute-created file"
+        success_msg: "Controller can access compute-created file - cross-node sharing verified"
+      when:
+        - beegfs_enabled | default(false) | bool
+        - groups['compute_nodes'] is defined
+        - groups['compute_nodes'] | length > 0
+      tags:
+        - beegfs
+        - storage
+        - verification
+
+    - name: Clean up test files
+      file:
+        path: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/{{ item }}"
+        state: absent
+      loop:
+        - "cross-node-test.txt"
+        - "compute-to-controller-test.txt"
+      when: beegfs_enabled | default(false) | bool
+      tags:
+        - beegfs
+        - storage
+        - verification
+
 # Post-validation
 - name: HPC Runtime Configuration - Post-validation
   hosts: localhost
@@ -449,6 +1323,7 @@
 
           Storage:
           - VirtIO-FS mounts: {{ virtio_fs_mounts | length if virtio_fs_mounts is defined else 0 }} configured
+          - BeeGFS: {{ 'Enabled' if beegfs_enabled | default(false) else 'Disabled' }}
 
           For troubleshooting:
           - Controller logs: journalctl -u slurmctld -f

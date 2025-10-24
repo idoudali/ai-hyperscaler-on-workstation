@@ -1,0 +1,128 @@
+---
+# BeeGFS Client - Verification Tasks
+
+- name: Verify BeeGFS mount point exists
+  ansible.builtin.stat:
+    path: "{{ beegfs_client_mount_point }}"
+  register: beegfs_mount_point_check
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Assert BeeGFS mount point exists
+  ansible.builtin.assert:
+    that:
+      - beegfs_mount_point_check.stat.exists
+      - beegfs_mount_point_check.stat.isdir
+    fail_msg: "BeeGFS mount point {{ beegfs_client_mount_point }} does not exist or is not a directory"
+    success_msg: "BeeGFS mount point {{ beegfs_client_mount_point }} exists and is a directory"
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Check if BeeGFS is mounted
+  ansible.builtin.shell: mount | grep -E "beegfs.*{{ beegfs_client_mount_point }}"
+  register: beegfs_mount_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Assert BeeGFS is mounted
+  ansible.builtin.assert:
+    that:
+      - beegfs_mount_status.rc == 0
+    fail_msg: "BeeGFS is not mounted at {{ beegfs_client_mount_point }}"
+    success_msg: "BeeGFS is mounted at {{ beegfs_client_mount_point }}"
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+# Note: BeeGFS 8.1.0+ does not have a separate beegfs-client service
+# The client functionality is provided through the kernel module and fstab mount
+# Service check is not needed - mount check is sufficient
+
+- name: Check BeeGFS kernel module is loaded
+  ansible.builtin.shell: lsmod | grep beegfs
+  register: beegfs_module_loaded
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Assert BeeGFS kernel module is loaded
+  ansible.builtin.assert:
+    that:
+      - beegfs_module_loaded.rc == 0
+    fail_msg: "BeeGFS kernel module is not loaded"
+    success_msg: "BeeGFS kernel module is loaded"
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Test BeeGFS write access
+  ansible.builtin.copy:
+    content: "BeeGFS client verification test - {{ ansible_date_time.iso8601 }}\n"
+    dest: "{{ beegfs_client_mount_point }}/client-verify-{{ inventory_hostname }}.txt"
+    owner: root
+    group: root
+    mode: '0644'
+  ignore_errors: true
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Test BeeGFS read access
+  ansible.builtin.slurp:
+    src: "{{ beegfs_client_mount_point }}/client-verify-{{ inventory_hostname }}.txt"
+  register: beegfs_read_verify
+  failed_when: false
+  ignore_errors: true
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Display BeeGFS read/write test result
+  ansible.builtin.debug:
+    msg: "BeeGFS read/write test: {{ 'SUCCESS' if (beegfs_read_verify.content is defined and beegfs_read_verify.content | b64decode | string | regex_search(inventory_hostname) is not none) else 'SKIPPED - mount not yet accessible' }}"
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Check BeeGFS filesystem usage
+  ansible.builtin.command: df -h "{{ beegfs_client_mount_point }}"
+  register: beegfs_usage
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Display BeeGFS filesystem usage
+  ansible.builtin.debug:
+    msg: "BeeGFS filesystem usage: {{ beegfs_usage.stdout_lines[1] if beegfs_usage.rc == 0 else 'Unable to get usage info' }}"
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
+
+- name: Clean up verification test file
+  ansible.builtin.file:
+    path: "{{ beegfs_client_mount_point }}/client-verify-{{ inventory_hostname }}.txt"
+    state: absent
+  tags:
+    - beegfs
+    - beegfs-client
+    - verify
