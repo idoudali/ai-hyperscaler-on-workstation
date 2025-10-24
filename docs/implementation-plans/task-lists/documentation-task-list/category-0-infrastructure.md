@@ -195,6 +195,7 @@ nav:
       - Overview: architecture/overview.md
       - Network: architecture/network.md
       - Storage: architecture/storage.md
+      - Storage Configuration: storage-configuration.md
       - GPU: architecture/gpu.md
       - Containers: architecture/containers.md
       - SLURM: architecture/slurm.md

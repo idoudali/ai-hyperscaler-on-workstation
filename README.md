@@ -590,6 +590,7 @@ ai-hyperscaler-on-workskation/
 │   ├── pyproject.toml         # Package configuration
 │   └── noxfile.py            # Development automation
 ├── docs/                      # Documentation and design documents
+│   ├── storage-configuration.md # Storage backend configuration guide
 └── Makefile                  # Main development workflow automation
 ```
 

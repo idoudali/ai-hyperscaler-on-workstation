@@ -735,8 +735,8 @@ If Step 5 fails, check:
 - [ ] BeeGFS concurrent access tested (multi-node operations)
 - [ ] BeeGFS metadata consistency verified (permissions, listings)
 - [ ] VirtIO-FS functionality preserved
-- [ ] `playbook-beegfs-runtime-config.yml` can be deleted
-- [ ] `playbook-virtio-fs-runtime-config.yml` can be deleted
+- [x] `playbook-beegfs-runtime-config.yml` has been deleted (functionality integrated into playbook-hpc-runtime.yml)
+- [x] `playbook-virtio-fs-runtime-config.yml` has been deleted (functionality integrated into playbook-hpc-runtime.yml)
 - [ ] Single `playbook-hpc-runtime.yml` deploys complete stack
 - [ ] Documentation updated with new workflow
 - [ ] Playbook count reduced from 7 to 5
@@ -1204,7 +1204,7 @@ The complete Phase 4 validation framework has been successfully implemented acco
 
 - `step-03-runtime-deployment.sh` → `step-04-runtime-deployment.sh`
 - `step-04-functional-tests.sh` → `step-06-functional-tests.sh`
-- `step-05-regression-tests.sh` → `step-07-regression-tests.sh`
+- ✅ `step-05-regression-tests.sh` → `step-07-regression-tests.sh` (completed)
 
 **Framework Updates:**
 

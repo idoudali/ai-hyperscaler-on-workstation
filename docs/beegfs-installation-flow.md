@@ -61,10 +61,11 @@ When deploying to existing VMs (like test clusters), Ansible:
   - Runs on `localhost` with `connection: local`
   - Installs all BeeGFS roles appropriate for the node type
 
-- **`playbook-beegfs-runtime-config.yml`**: Used at runtime for full deployment
+- **`playbook-hpc-runtime.yml`**: Used at runtime for full deployment (BeeGFS functionality integrated)
   - Installs (if needed) AND configures services
   - Starts and enables systemd services
   - Used by test framework and production deployments
+  - BeeGFS deployment is conditional based on `beegfs_enabled` variable
 
 ### Ansible Roles
 
@@ -171,7 +172,7 @@ make run-docker COMMAND="cmake --build build --target build-hpc-compute-image"
 
 ```bash
 # Deploy to VMs without BeeGFS
-ansible-playbook -i inventory.yml playbook-beegfs-runtime-config.yml
+ansible-playbook -i inventory.yml playbook-hpc-runtime.yml
 ```
 
 **Result**: Ansible detects BeeGFS is not installed, copies packages from controller, and installs them.
