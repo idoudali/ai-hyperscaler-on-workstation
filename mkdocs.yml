@@ -214,6 +214,9 @@ nav:
       - Structure Verification: STRUCTURE-VERIFICATION.md
       - Placeholder Creation Summary: PLACEHOLDER-CREATION-SUMMARY.md
   - Components:
+      - Build System:
+          - Overview: components/README.md
+          - CMake Implementation: components/cmake-implementation.md
       - Ansible:
           - Overview: ansible/README.md
           - Roles Index: ansible/roles/README.md
