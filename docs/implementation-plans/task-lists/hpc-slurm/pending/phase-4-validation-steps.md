@@ -20,7 +20,7 @@ cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
 ./tests/phase-4-validation/run-all-steps.sh
 ```
 
-**Time**: 60-90 minutes  
+**Time**: 70-100 minutes  
 **Features**:
 
 - ✅ Automatic state tracking (resume if interrupted)
@@ -38,14 +38,27 @@ cd /home/doudalis/Projects/pharos.ai-hyperscaler-on-workskation-2
 ./tests/phase-4-validation/step-01-packer-controller.sh
 ./tests/phase-4-validation/step-02-packer-compute.sh
 
-# Configuration validation (before deployment)
-./tests/phase-4-validation/step-03-config-rendering.sh
+# Container image build
+./tests/phase-4-validation/step-03-container-image-build.sh
 
 # Runtime deployment and testing
-./tests/phase-4-validation/step-04-runtime-deployment.sh
-./tests/phase-4-validation/step-05-storage-consolidation.sh
-./tests/phase-4-validation/step-06-functional-tests.sh
-./tests/phase-4-validation/step-07-regression-tests.sh
+./tests/phase-4-validation/step-05-runtime-deployment.sh
+
+# BeeGFS setup validation
+./tests/phase-4-validation/step-07-beegfs-validation.sh
+
+# Container image push to validated storage
+./tests/phase-4-validation/step-08-container-image-push.sh
+
+# Functional and regression testing
+./tests/phase-4-validation/step-09-functional-tests.sh
+./tests/phase-4-validation/step-10-regression-tests.sh
+
+# Configuration validation (before deployment)
+./tests/phase-4-validation/step-04-config-rendering.sh
+
+# VirtIO-FS mount validation
+./tests/phase-4-validation/step-06-virtio-fs-validation.sh
 
 # Run any step with verbose logging
 ./tests/phase-4-validation/step-01-packer-controller.sh --verbose
@@ -110,17 +123,22 @@ ls -R  # Shows all step directories and logs
 | **Prerequisites** | ✅ **AUTOMATED** | `step-00-prerequisites.sh` | Docker, CMake, SLURM packages |
 | **Step 1: Controller Build** | ✅ **AUTOMATED** | `step-01-packer-controller.sh` | Build with locally-built SLURM packages |
 | **Step 2: Compute Build** | ✅ **AUTOMATED** | `step-02-packer-compute.sh` | Build with locally-built SLURM packages |
-| **Step 3: Configuration Rendering** | ✅ **AUTOMATED** | `step-03-config-rendering.sh` | Test template rendering (before deployment) |
-| **Step 4: Runtime Playbook** | ✅ **AUTOMATED** | `step-04-runtime-deployment.sh` | Deploy and validate cluster functionality |
-| **Step 5: Storage Consolidation** | ✅ **AUTOMATED** | `step-05-storage-consolidation.sh` | Test BeeGFS & VirtIO-FS consolidation (Task 041-043) |
-| **Step 6: Functional Tests** | ✅ **AUTOMATED** | `step-06-functional-tests.sh` | Test SLURM jobs, GPU, containers |
-| **Step 7: Regression Tests** | ✅ **AUTOMATED** | `step-07-regression-tests.sh` | Compare against old playbooks |
+| **Step 3: Container Image Build** | ✅ **AUTOMATED** | `step-03-container-image-build.sh` | Build container SIF images for deployment testing |
+| **Step 4: Runtime Playbook** | ✅ **AUTOMATED** | `step-05-runtime-deployment.sh` | Deploy and validate cluster functionality |
+| **Step 5: BeeGFS Setup Validation** | ✅ **AUTOMATED** | `step-07-beegfs-validation.sh` | Test BeeGFS container registry (Task 040) & storage consolidation (Task 041-043) |
+| **Step 6: Container Image Push** | ✅ **AUTOMATED** | `step-08-container-image-push.sh` | Push container images to validated storage backend |
+| **Step 7: Functional Tests** | ✅ **AUTOMATED** | `step-09-functional-tests.sh` | Test SLURM jobs, GPU, containers |
+| **Step 8: Regression Tests** | ✅ **AUTOMATED** | `step-10-regression-tests.sh` | Compare against old playbooks |
+| **Step 9: Configuration Rendering** | ✅ **AUTOMATED** | `step-04-config-rendering.sh` | Test template rendering (before deployment) |
+| **Step 10: VirtIO-FS Mount Validation** | ✅ **AUTOMATED** | `step-06-virtio-fs-validation.sh` | Test VirtIO-FS mount configuration and functionality |
 
-**Overall**: ✅ **FRAMEWORK IMPLEMENTED AND READY** - All 7 steps implemented as modular scripts with state tracking
+**Overall**: ✅ **FRAMEWORK IMPLEMENTED AND READY** - All 10 steps implemented as modular scripts with state tracking
 
-**Note**: All 7 steps are now fully implemented and operational. Step 3 (Configuration Rendering) validates
-templates before deployment, Step 5 (Storage Consolidation) validates BeeGFS & VirtIO-FS consolidation for
-Tasks 041-043, and Steps 4-7 follow the logical deployment and testing flow.
+**Note**: All 10 steps are now fully implemented and operational. Step 3 (Container Image Build) creates SIF images
+for testing, Step 4 (Runtime Playbook) deploys and validates cluster functionality, Step 5 (BeeGFS Validation) tests
+storage consolidation for Tasks 041-043, Step 6 (Container Image Push) pushes images to validated storage,
+Steps 7-8 follow the logical testing flow, Step 9 (Configuration Rendering) validates templates, and
+Step 10 (VirtIO-FS Validation) tests mount configuration.
 
 **Previous Sessions** (archived - using repository packages):
 
@@ -339,9 +357,183 @@ If Step 2 fails, check:
 
 ---
 
+## Validation Step 3: Container Image Build
+
+**Automated Script**: Use `./tests/phase-4-validation/step-03-container-image-build.sh` for automated execution.
+
+**Priority**: 🟡 HIGH  
+**Estimated Time**: 5-10 minutes  
+**Purpose**: Build container SIF images for deployment testing using existing container build system
+
+**What it does**:
+
+1. **Container System Setup**:
+   - Sets up container tools and HPC CLI using CMake targets
+   - Installs container dependencies in virtual environment
+   - Configures HPC container manager CLI
+
+2. **Container Image Building**:
+   - Builds Docker images using existing CMake targets
+   - Converts Docker images to Apptainer SIF format
+   - Uses project's container definitions (PyTorch CUDA 12.1 + MPI 4.1)
+   - Leverages existing container build system infrastructure
+
+3. **Container Image Validation**:
+   - Verifies container images were created successfully
+   - Tests container image integrity and metadata
+   - Validates container can be executed
+   - Checks container image size and dependencies
+
+4. **Container Registry Preparation**:
+   - Prepares container images for registry deployment
+   - Organizes containers by category (ml-frameworks, custom-images, base-images)
+   - Creates container metadata and manifests
+   - Validates container naming and versioning
+
+**Prerequisites**: Steps 1-2 must have passed (Packer images built)
+
+**Implementation Plan**:
+
+```bash
+#!/bin/bash
+# step-03-container-image-build.sh
+
+echo "=========================================="
+echo "Step 3: Container Image Build"
+echo "=========================================="
+
+# ========================================
+# Step 1: Set Up Container Build System
+# ========================================
+
+echo "Setting up container build system..."
+
+# Set up container tools and HPC CLI
+make run-docker COMMAND="cmake --build build --target setup-container-tools"
+make run-docker COMMAND="cmake --build build --target setup-hpc-cli"
+
+# ========================================
+# Step 2: Build Container Images Using CMake
+# ========================================
+
+echo "Building container images using existing CMake targets..."
+
+# Build all Docker images
+echo "Building Docker images..."
+make run-docker COMMAND="cmake --build build --target build-all-docker-images"
+
+# Convert all Docker images to Apptainer SIF format
+echo "Converting Docker images to Apptainer..."
+make run-docker COMMAND="cmake --build build --target convert-all-to-apptainer"
+
+# ========================================
+# Step 3: Validate Container Images
+# ========================================
+
+echo "Validating container images..."
+
+# Check if containers were created
+echo "Checking created containers..."
+if ls build/containers/apptainer/*.sif 2>/dev/null; then
+    echo "Found CMake-built container images:"
+    ls -la build/containers/apptainer/*.sif
+fi
+
+# Test container execution
+echo "Testing container execution..."
+for container in build/containers/apptainer/*.sif; do
+    if [ -f "$container" ]; then
+        echo "Testing $(basename "$container")..."
+        make run-docker COMMAND="apptainer exec $container python3 --version"
+    fi
+done
+
+# Test container metadata
+echo "Testing container metadata..."
+for container in build/containers/apptainer/*.sif; do
+    if [ -f "$container" ]; then
+        echo "Inspecting $(basename "$container")..."
+        make run-docker COMMAND="apptainer inspect $container"
+    fi
+done
+
+# ========================================
+# Step 4: Prepare for Registry Deployment
+# ========================================
+
+echo "Preparing containers for registry deployment..."
+
+# Create container manifests
+echo "Creating container manifests..."
+for container in build/containers/apptainer/*.sif; do
+    if [ -f "$container" ]; then
+        echo "Container: $(basename "$container")" >> build/containers/.registry-manifest.txt
+        echo "  Size: $(du -h "$container" | cut -f1)" >> build/containers/.registry-manifest.txt
+        echo "  Path: $container" >> build/containers/.registry-manifest.txt
+        echo "" >> build/containers/.registry-manifest.txt
+    fi
+done
+
+# Display container summary
+echo "Container build summary:"
+cat build/containers/.registry-manifest.txt
+
+echo "=========================================="
+echo "✅ Container Image Build Complete"
+echo "=========================================="
+```
+
+### Expected Results
+
+**Container Images Created**:
+
+- ✅ pytorch-cuda12.1-mpi4.1.sif (PyTorch + CUDA 12.1 + MPI 4.1 for HPC workloads)
+- ✅ Additional containers as defined in `containers/images/` directory
+
+**Container Validation**:
+
+- ✅ All containers execute successfully
+- ✅ Container metadata is accessible
+- ✅ Container sizes are reasonable
+- ✅ Container manifests created
+- ✅ PyTorch CUDA functionality verified
+- ✅ MPI functionality verified
+
+**Registry Preparation**:
+
+- ✅ Containers organized by category
+- ✅ Registry manifest created
+- ✅ Containers ready for deployment testing
+- ✅ HPC container manager CLI configured
+
+### Success Criteria
+
+- [ ] Container build system setup completed successfully
+- [ ] At least 1 container image created successfully (pytorch-cuda12.1-mpi4.1.sif)
+- [ ] All containers execute without errors
+- [ ] Container metadata is accessible
+- [ ] Registry manifest is created
+- [ ] HPC container manager CLI is functional
+- [ ] Containers are ready for Step 6 (Storage Consolidation) testing
+
+### Failure Recovery
+
+If container build fails:
+
+1. Check Docker is running: `docker ps`
+2. Rebuild development image: `make build-docker`
+3. Check available CMake targets: `make run-docker COMMAND="cmake --build build --target help-containers"`
+4. Verify Apptainer/Singularity is available in container
+5. Check container build system setup: `make run-docker COMMAND="cmake --build build --target setup-container-tools"`
+6. Check HPC CLI setup: `make run-docker COMMAND="cmake --build build --target setup-hpc-cli"`
+7. Check disk space: `df -h`
+8. Verify container definitions exist in `containers/images/` directory
+
+---
+
 ## Validation Step 4: Runtime Playbook Deployment
 
-**Automated Script**: Use `./tests/phase-4-validation/step-04-runtime-deployment.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-05-runtime-deployment.sh` for automated execution.
 
 **Priority**: 🔴 CRITICAL  
 **Estimated Time**: 10-20 minutes  
@@ -400,9 +592,306 @@ If Step 4 fails, check:
 
 ---
 
-## Validation Step 6: Functional Cluster Tests
+## Validation Step 5: BeeGFS Setup Validation
 
-**Automated Script**: Use `./tests/phase-4-validation/step-06-functional-tests.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-07-beegfs-validation.sh`
+
+**Priority**: 🟡 HIGH  
+**Estimated Time**: 15-20 minutes  
+**Purpose**: Verify BeeGFS container registry (Task 040) and storage consolidation (Task 043)
+
+**What it does**:
+
+1. **BeeGFS Configuration Validation**:
+   - Validates cluster configuration schema includes BeeGFS configuration
+   - Tests BeeGFS configuration parsing and validation
+   - Verifies BeeGFS configuration in cluster config
+   - Tests inventory generation with BeeGFS configuration
+   - Validates configuration template rendering with BeeGFS variables
+
+2. **BeeGFS Deployment Testing**:
+   - Tests BeeGFS deployment via unified runtime playbook
+   - Verifies all BeeGFS services start correctly
+   - Tests BeeGFS filesystem mount on all nodes
+   - Validates BeeGFS cross-node file sharing
+   - Tests BeeGFS concurrent access and metadata consistency
+
+3. **BeeGFS Container Registry Testing**:
+   - Tests container registry deployment with BeeGFS backend
+   - Verifies registry automatically uses BeeGFS when available
+   - Tests fallback to local storage when BeeGFS unavailable
+   - Validates container distribution across all nodes via BeeGFS
+   - Tests container registry in Packer images (local storage)
+   - Verifies no sync script needed with BeeGFS backend
+
+**Prerequisites**: Steps 1-4 must have passed (images built, containers created, config validated, cluster deployed)
+
+**Implementation Plan** (BeeGFS Validation):
+
+```bash
+#!/bin/bash
+# step-07-beegfs-validation.sh
+
+# ========================================
+# BeeGFS Configuration Validation
+# ========================================
+
+# 1. Validate cluster configuration schema includes BeeGFS configuration
+uv run ai-how validate config/example-multi-gpu-clusters.yaml
+
+# 2. Check BeeGFS configuration in cluster config
+grep -A 15 "beegfs:" config/example-multi-gpu-clusters.yaml
+
+# 3. Test BeeGFS configuration parsing
+grep -A 10 "beegfs_config:" config/example-multi-gpu-clusters.yaml
+
+# 4. Generate inventory with BeeGFS configuration
+make cluster-inventory
+
+# 5. Verify BeeGFS variables in inventory
+grep "beegfs_enabled" ansible/inventories/test/hosts
+grep "beegfs_config" ansible/inventories/test/hosts
+
+# 6. Test configuration template rendering with BeeGFS variables
+make config-render
+grep -A 10 "beegfs:" output/cluster-state/rendered-config.yaml
+
+# ========================================
+# BeeGFS Deployment Testing
+# ========================================
+
+# 7. Deploy with BeeGFS enabled (unified playbook)
+make cluster-deploy
+
+# 8. Verify BeeGFS services on controller
+ssh admin@192.168.100.10 "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage"
+
+# 9. Verify BeeGFS client on all nodes
+ssh admin@192.168.100.10 "systemctl status beegfs-client"
+ssh admin@192.168.100.11 "systemctl status beegfs-client"
+
+# 10. Check BeeGFS filesystem mount
+ssh admin@192.168.100.10 "mount | grep beegfs"
+ssh admin@192.168.100.10 "beegfs-ctl --listnodes --nodetype=all"
+ssh admin@192.168.100.10 "beegfs-df"
+
+# 11. Test BeeGFS write/read operations across nodes
+# 11a. Create test files on controller
+ssh admin@192.168.100.10 "echo 'controller-test-$(date +%s)' > /mnt/beegfs/controller-test.txt"
+ssh admin@192.168.100.10 "echo 'shared-data-$(date +%s)' > /mnt/beegfs/shared-data.txt"
+ssh admin@192.168.100.10 "mkdir -p /mnt/beegfs/test-dir && echo 'nested-file' > /mnt/beegfs/test-dir/nested.txt"
+
+# 11b. Verify compute nodes can read controller-created files
+ssh admin@192.168.100.11 "cat /mnt/beegfs/controller-test.txt"
+ssh admin@192.168.100.11 "cat /mnt/beegfs/shared-data.txt"
+ssh admin@192.168.100.11 "cat /mnt/beegfs/test-dir/nested.txt"
+
+# 11c. Create test files on compute nodes
+ssh admin@192.168.100.11 "echo 'compute01-test-$(date +%s)' > /mnt/beegfs/compute01-test.txt"
+ssh admin@192.168.100.12 "echo 'compute02-test-$(date +%s)' > /mnt/beegfs/compute02-test.txt"
+
+# 11d. Verify controller can read compute-created files
+ssh admin@192.168.100.10 "cat /mnt/beegfs/compute01-test.txt"
+ssh admin@192.168.100.10 "cat /mnt/beegfs/compute02-test.txt"
+
+# 11e. Test file permissions and metadata consistency
+ssh admin@192.168.100.10 "ls -la /mnt/beegfs/"
+ssh admin@192.168.100.11 "ls -la /mnt/beegfs/"
+ssh admin@192.168.100.12 "ls -la /mnt/beegfs/"
+
+# 11f. Test concurrent access (if multiple compute nodes)
+ssh admin@192.168.100.11 "echo 'concurrent-test-$(date +%s)' > /mnt/beegfs/concurrent-test.txt" &
+ssh admin@192.168.100.12 "sleep 1 && cat /mnt/beegfs/concurrent-test.txt" &
+wait
+
+# ========================================
+# BeeGFS Container Registry Testing
+# ========================================
+
+# 12. Test container registry with BeeGFS backend
+ansible-playbook -i ansible/inventories/test/hosts ansible/playbooks/playbook-container-registry.yml
+
+# 13. Verify container registry uses BeeGFS
+ssh admin@192.168.100.10 "ls -la /mnt/beegfs/containers/"
+ssh admin@192.168.100.10 "mount | grep beegfs"
+
+# 14. Test container distribution across nodes
+ssh admin@192.168.100.10 "echo 'test-container' > /mnt/beegfs/containers/ml-frameworks/test.sif"
+ssh admin@192.168.100.11 "ls -la /mnt/beegfs/containers/ml-frameworks/test.sif"
+ssh admin@192.168.100.12 "ls -la /mnt/beegfs/containers/ml-frameworks/test.sif"
+
+# 15. Test fallback to local storage (disable BeeGFS)
+ansible-playbook -i ansible/inventories/test/hosts ansible/playbooks/playbook-container-registry.yml \
+  --extra-vars "container_registry_on_beegfs=false"
+
+# 16. Verify Packer images have container registry
+ls -la build/packer/hpc-controller/hpc-controller/hpc-controller.qcow2
+ls -la build/packer/hpc-compute/hpc-compute/hpc-compute.qcow2
+
+# 17. Clean up test files
+ssh admin@192.168.100.10 "rm -f /mnt/beegfs/controller-test.txt /mnt/beegfs/shared-data.txt \
+    /mnt/beegfs/compute01-test.txt /mnt/beegfs/compute02-test.txt /mnt/beegfs/concurrent-test.txt"
+ssh admin@192.168.100.10 "rm -rf /mnt/beegfs/test-dir"
+ssh admin@192.168.100.10 "rm -f /mnt/beegfs/containers/ml-frameworks/test.sif"
+```
+
+### Expected Results
+
+**BeeGFS Configuration Validation**:
+
+- ✅ Cluster configuration validates with BeeGFS backend schema
+- ✅ BeeGFS configuration present and valid
+- ✅ Inventory generation includes BeeGFS variables (beegfs_enabled, beegfs_config)
+- ✅ Configuration template rendering works with BeeGFS variables
+
+**BeeGFS Deployment Testing**:
+
+- ✅ Unified runtime playbook deploys BeeGFS successfully
+- ✅ All BeeGFS services running (mgmtd, meta, storage, client)
+- ✅ BeeGFS filesystem mounted on all nodes
+- ✅ BeeGFS cross-node file sharing verified (Controller ↔ Compute)
+- ✅ BeeGFS concurrent access tested (multi-node operations)
+- ✅ BeeGFS metadata consistency verified (permissions, listings)
+
+**BeeGFS Container Registry Testing**:
+
+- ✅ Container registry deploys with BeeGFS backend
+- ✅ Registry automatically uses BeeGFS when available
+- ✅ Container distribution works across all nodes via BeeGFS
+- ✅ Fallback to local storage works when BeeGFS unavailable
+
+### Troubleshooting
+
+If Step 7 fails, check:
+
+**BeeGFS Configuration Issues**:
+
+1. `$VALIDATION_ROOT/07-beegfs-validation/config-validation.log` - Configuration schema issues
+2. `$VALIDATION_ROOT/07-beegfs-validation/inventory-generation.log` - BeeGFS config not passed
+3. `$VALIDATION_ROOT/07-beegfs-validation/template-rendering.log` - Template rendering issues
+
+**BeeGFS Deployment Issues**:
+
+1. `$VALIDATION_ROOT/07-beegfs-validation/beegfs-deployment.log` - Service deployment issues
+2. `$VALIDATION_ROOT/07-beegfs-validation/beegfs-status.log` - Service status problems
+3. BeeGFS service logs: `journalctl -u beegfs-mgmtd -n 50`, `journalctl -u beegfs-client -n 50`
+4. Network connectivity between nodes for BeeGFS ports
+
+**Common Issues**:
+
+- **BeeGFS services don't start**: Check if packages were installed during Packer build
+- **Mount fails**: Verify BeeGFS management service is running and accessible
+- **Client can't connect**: Check network connectivity and firewall rules
+- **Container registry issues**: Verify BeeGFS mount points are accessible
+
+---
+
+## Validation Step 6: Container Image Push
+
+**Automated Script**: Use `./tests/phase-4-validation/step-08-container-image-push.sh`
+
+**Priority**: 🟡 HIGH  
+**Estimated Time**: 5-10 minutes  
+**Purpose**: Push container images to validated storage backend
+
+**What it does**:
+
+1. **Container Image Push**:
+   - Uses container images built in Step 3
+   - Pushes images to validated BeeGFS storage (from Step 7)
+   - Tests container distribution across all nodes
+   - Validates container execution on all nodes
+
+2. **Container Registry Management**:
+   - Tests container registry management functionality
+   - Validates container metadata and inspection
+   - Tests container registry sync (if using local storage)
+   - Verifies container naming and versioning
+
+**Prerequisites**: Steps 1-7 must have passed (images built, config validated, cluster deployed, storage validated)
+
+**Implementation Plan** (Container Image Push):
+
+```bash
+#!/bin/bash
+# step-08-container-image-push.sh
+
+# ========================================
+# Container Image Push
+# ========================================
+
+# 1. Determine registry path (BeeGFS or local)
+REGISTRY_PATH=$(ssh admin@192.168.100.10 \
+    "if [ -d /mnt/beegfs/containers ]; then echo /mnt/beegfs/containers; else echo /opt/containers; fi")
+echo "Using registry path: $REGISTRY_PATH"
+
+# 2. Use test container from Step 3
+TEST_CONTAINER=$(find build/containers -name "*.sif" -type f | head -1)
+if [ -z "$TEST_CONTAINER" ]; then
+    echo "No container found, creating test container..."
+    make run-docker COMMAND="apptainer build test-container.sif docker://hello-world"
+    TEST_CONTAINER="test-container.sif"
+fi
+
+# 3. Copy container to registry
+echo "Copying $TEST_CONTAINER to registry..."
+scp "$TEST_CONTAINER" "admin@192.168.100.10:$REGISTRY_PATH/ml-frameworks/"
+
+# 4. Verify container was copied
+ssh admin@192.168.100.10 "ls -la \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\""
+
+# ========================================
+# Container Distribution Testing
+# ========================================
+
+# 5. Check if container exists on all nodes (BeeGFS should auto-distribute)
+ssh admin@192.168.100.10 "ls -la \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\""
+ssh admin@192.168.100.11 "ls -la \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\""
+ssh admin@192.168.100.12 "ls -la \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\""
+
+# 6. Test container execution on each node
+ssh admin@192.168.100.10 "apptainer exec \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\" echo 'Hello from controller'"
+ssh admin@192.168.100.11 "apptainer exec \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\" echo 'Hello from compute01'"
+ssh admin@192.168.100.12 "apptainer exec \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\" echo 'Hello from compute02'"
+
+# ========================================
+# Container Registry Management
+# ========================================
+
+# 7. List all containers in registry
+ssh admin@192.168.100.10 "find \"\$REGISTRY_PATH\" -name '*.sif' -type f"
+
+# 8. Test container metadata
+ssh admin@192.168.100.10 "apptainer inspect \"\$REGISTRY_PATH/ml-frameworks/\$TEST_CONTAINER\""
+
+# 9. Test container registry sync (if using local storage)
+if [ "$REGISTRY_PATH" = "/opt/containers" ]; then
+    echo "Testing container sync to nodes (local storage mode)..."
+    ssh admin@192.168.100.10 "/usr/local/bin/registry-sync-to-nodes.sh"
+fi
+```
+
+### Expected Results
+
+**Container Image Push**:
+
+- ✅ Container images pushed to validated storage backend
+- ✅ Container distribution verified across all nodes
+- ✅ Container execution tested on all nodes
+- ✅ Container metadata accessible
+
+**Container Registry Management**:
+
+- ✅ Container registry management functional
+- ✅ Container metadata and inspection working
+- ✅ Container registry sync working (if local storage)
+- ✅ Container naming and versioning validated
+
+---
+
+## Validation Step 7: Functional Cluster Tests
+
+**Automated Script**: Use `./tests/phase-4-validation/step-09-functional-tests.sh` for automated execution.
 
 **Priority**: 🔴 CRITICAL  
 **Estimated Time**: 5-10 minutes  
@@ -419,7 +908,8 @@ If Step 4 fails, check:
 7. Checks cgroup configuration
 8. Tests monitoring endpoints (Prometheus, Node Exporter)
 
-**Prerequisites**: Steps 4-5 must have passed (cluster deployed and storage configured)
+**Prerequisites**: Steps 1-6 must have passed (images built, containers created, config validated,
+cluster deployed, storage validated, containers pushed)
 
 See the script source for implementation details.
 
@@ -447,9 +937,9 @@ If Step 6 fails, check:
 
 ---
 
-## Validation Step 7: Regression Testing
+## Validation Step 8: Regression Testing
 
-**Automated Script**: Use `./tests/phase-4-validation/step-07-regression-tests.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-10-regression-tests.sh` for automated execution.
 
 **Priority**: 🟡 HIGH  
 **Estimated Time**: 5 minutes  
@@ -494,9 +984,9 @@ If Step 7 reveals issues:
 
 ---
 
-## Validation Step 3: Configuration Template Rendering and VirtIO-FS
+## Validation Step 9: Configuration Template Rendering and VirtIO-FS
 
-**Automated Script**: Use `./tests/phase-4-validation/step-03-config-rendering.sh` for automated execution.
+**Automated Script**: Use `./tests/phase-4-validation/step-04-config-rendering.sh` for automated execution.
 
 **Priority**: 🟡 HIGH  
 **Estimated Time**: 5-10 minutes  
@@ -546,121 +1036,227 @@ If Step 3 fails, check:
 
 ---
 
-## Validation Step 5: Storage Configuration Schema and Consolidation (Tasks 041-043)
+## Validation Step 10: VirtIO-FS Mount Validation
 
-**Automated Script**: Use `./tests/phase-4-validation/step-05-storage-consolidation.sh`
+**Automated Script**: Use `./tests/phase-4-validation/step-06-virtio-fs-validation.sh`
 
 **Priority**: 🟡 HIGH  
-**Estimated Time**: 15-20 minutes  
-**Purpose**: Verify storage configuration schema (Task 041) and BeeGFS/VirtIO-FS runtime consolidation (Task 043)
+**Estimated Time**: 10-15 minutes  
+**Purpose**: Verify VirtIO-FS mount configuration and functionality (Task 041)
 
 **What it does**:
 
-1. **Task 041 Validation**:
-   - Validates cluster configuration schema includes storage backend configuration
+1. **VirtIO-FS Configuration Validation**:
+   - Validates cluster configuration schema includes VirtIO-FS mount configuration
    - Tests VirtIO-FS mount configuration parsing and validation
-   - Verifies BeeGFS configuration schema in cluster config
-   - Tests inventory generation with storage configuration
-   - Validates configuration template rendering with storage variables
+   - Verifies VirtIO-FS mount configuration in cluster config
+   - Tests inventory generation with VirtIO-FS configuration
+   - Validates configuration template rendering with VirtIO-FS variables
 
-2. **Task 043 Validation** (Storage Consolidation):
-   - Tests BeeGFS deployment via unified runtime playbook
-   - Verifies all BeeGFS services start correctly
-   - Tests BeeGFS filesystem mount on all nodes
-   - Validates VirtIO-FS mounts still work after consolidation
-   - Confirms standalone storage playbooks can be deleted
-   - Verifies single playbook deploys complete HPC + storage stack
+2. **VirtIO-FS Mount Testing**:
+   - Tests VirtIO-FS mount functionality on controller node
+   - Verifies VirtIO-FS mounts are accessible and writable
+   - Tests VirtIO-FS mount permissions and metadata
+   - Validates VirtIO-FS mount persistence across reboots
+   - Tests VirtIO-FS mount performance and stability
 
-**Prerequisites**: Steps 1-4 must have passed (images built, config validated, cluster deployed)
+**Prerequisites**: Steps 1-5 must have passed (images built, containers created, config validated, cluster deployed)
 
-**Implementation Plan** (Tasks 041-043):
+**Implementation Plan** (VirtIO-FS Validation):
 
 ```bash
 #!/bin/bash
-# step-05-storage-consolidation.sh
+# step-06-virtio-fs-validation.sh
 
 # ========================================
-# Task 041: Storage Configuration Schema
+# VirtIO-FS Configuration Validation
 # ========================================
 
-# 1. Validate cluster configuration schema includes storage backend
+# 1. Validate cluster configuration schema includes VirtIO-FS configuration
 uv run ai-how validate config/example-multi-gpu-clusters.yaml
 
-# 2. Check storage configuration in cluster config
-grep -A 30 "storage:" config/example-multi-gpu-clusters.yaml
-
-# 3. Test VirtIO-FS mount configuration parsing
+# 2. Check VirtIO-FS mount configuration in cluster config
 grep -A 10 "virtio_fs_mounts:" config/example-multi-gpu-clusters.yaml
 
-# 4. Test BeeGFS configuration schema
-grep -A 15 "beegfs:" config/example-multi-gpu-clusters.yaml
+# 3. Test VirtIO-FS mount configuration parsing
+grep -A 5 "virtio_fs:" config/example-multi-gpu-clusters.yaml
 
-# 5. Generate inventory with storage configuration
+# 4. Generate inventory with VirtIO-FS configuration
 make cluster-inventory
 
-# 6. Verify storage variables in inventory
+# 5. Verify VirtIO-FS variables in inventory
 grep "virtio_fs_mounts" ansible/inventories/test/hosts
-grep "beegfs_enabled" ansible/inventories/test/hosts
-grep "beegfs_config" ansible/inventories/test/hosts
 
-# 7. Test configuration template rendering with storage variables
+# 6. Test configuration template rendering with VirtIO-FS variables
 make config-render
-grep -A 5 "storage:" output/cluster-state/rendered-config.yaml
+grep -A 5 "virtio_fs:" output/cluster-state/rendered-config.yaml
 
 # ========================================
-# Task 043: Storage Runtime Consolidation
+# VirtIO-FS Mount Testing
 # ========================================
 
-# 8. Deploy with storage enabled (unified playbook)
-make cluster-deploy
+# 7. Test VirtIO-FS mount functionality on controller
+ssh admin@192.168.100.10 "mount | grep virtiofs"
 
-# 9. Verify BeeGFS services on controller
-ssh controller "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage"
+# 8. Verify VirtIO-FS mounts are accessible and writable
+ssh admin@192.168.100.10 "ls -la /mnt/host-repo"
+ssh admin@192.168.100.10 "echo 'test-file-$(date +%s)' > /mnt/host-repo/virtio-fs-test.txt"
 
-# 10. Verify BeeGFS client on all nodes
-ssh controller "systemctl status beegfs-client"
-ssh compute01 "systemctl status beegfs-client"
+# 9. Test VirtIO-FS mount permissions and metadata
+ssh admin@192.168.100.10 "ls -la /mnt/host-repo/virtio-fs-test.txt"
+ssh admin@192.168.100.10 "cat /mnt/host-repo/virtio-fs-test.txt"
 
-# 11. Check BeeGFS filesystem mount
-ssh controller "mount | grep beegfs"
-ssh controller "beegfs-ctl --listnodes --nodetype=all"
-ssh controller "beegfs-df"
+# 10. Test VirtIO-FS mount performance
+ssh admin@192.168.100.10 "dd if=/dev/zero of=/mnt/host-repo/performance-test bs=1M count=10"
 
-# 12. Test BeeGFS write/read operations across nodes
-# 12a. Create test files on controller
-ssh controller "echo 'controller-test-$(date +%s)' > /mnt/beegfs/controller-test.txt"
-ssh controller "echo 'shared-data-$(date +%s)' > /mnt/beegfs/shared-data.txt"
-ssh controller "mkdir -p /mnt/beegfs/test-dir && echo 'nested-file' > /mnt/beegfs/test-dir/nested.txt"
+# 11. Clean up test files
+ssh admin@192.168.100.10 "rm -f /mnt/host-repo/virtio-fs-test.txt /mnt/host-repo/performance-test"
+```
 
-# 12b. Verify compute nodes can read controller-created files
-ssh compute01 "cat /mnt/beegfs/controller-test.txt"
-ssh compute01 "cat /mnt/beegfs/shared-data.txt"
-ssh compute01 "cat /mnt/beegfs/test-dir/nested.txt"
+## Helper Target: Container Image Build and Distribution
 
-# 12c. Create test files on compute nodes
-ssh compute01 "echo 'compute01-test-$(date +%s)' > /mnt/beegfs/compute01-test.txt"
-ssh compute02 "echo 'compute02-test-$(date +%s)' > /mnt/beegfs/compute02-test.txt"
+**Purpose**: Build container images and ensure they are properly copied and exist on the cluster
 
-# 12d. Verify controller can read compute-created files
-ssh controller "cat /mnt/beegfs/compute01-test.txt"
-ssh controller "cat /mnt/beegfs/compute02-test.txt"
+**When to use**: Before running Step 5 (Storage Consolidation) or when testing container registry functionality
 
-# 12e. Test file permissions and metadata consistency
-ssh controller "ls -la /mnt/beegfs/"
-ssh compute01 "ls -la /mnt/beegfs/"
-ssh compute02 "ls -la /mnt/beegfs/"
+**Automated Script**: Use `./tests/phase-4-validation/helper-container-image-build.sh`
 
-# 12f. Test concurrent access (if multiple compute nodes)
-ssh compute01 "echo 'concurrent-test-$(date +%s)' > /mnt/beegfs/concurrent-test.txt" &
-ssh compute02 "sleep 1 && cat /mnt/beegfs/concurrent-test.txt" &
-wait
+**Usage Examples**:
 
-# 13. Verify VirtIO-FS still works
-ssh controller "mount | grep virtiofs"
-ssh controller "ls -la /mnt/host-repo"
+```bash
+# Run full helper (build + distribute)
+./tests/phase-4-validation/helper-container-image-build.sh
 
-# 14. Confirm deployment used single playbook
-# (Check that playbook-hpc-runtime.yml was used, not standalone storage playbooks)
+# Run with verbose logging
+./tests/phase-4-validation/helper-container-image-build.sh --verbose
+
+# Skip building, only test distribution
+./tests/phase-4-validation/helper-container-image-build.sh --skip-build
+
+# Use specific test container
+./tests/phase-4-validation/helper-container-image-build.sh --test-container my-pytorch.sif
+
+# Get help
+./tests/phase-4-validation/helper-container-image-build.sh --help
+```
+
+**Manual Implementation**:
+
+```bash
+#!/bin/bash
+# Helper: Build and distribute container images
+
+echo "=========================================="
+echo "Helper: Container Image Build & Distribution"
+echo "=========================================="
+
+# ========================================
+# Step 1: Build Container Images
+# ========================================
+
+echo "Step 1: Building container images..."
+
+# Build development container image (if not already built)
+make build-docker
+
+# Build specific container images for testing
+# Example: Build a test ML framework container
+make run-docker COMMAND="cmake --build build --target build-test-container"
+
+# Alternative: Build using hpc-container-manager if available
+# hpc-container-manager build --framework pytorch --version 2.0.1 --output test-pytorch.sif
+
+# Verify container images were created
+echo "Checking for container images..."
+ls -la build/containers/ || echo "No containers in build/containers/"
+ls -la *.sif 2>/dev/null || echo "No .sif files in current directory"
+
+# ========================================
+# Step 2: Deploy Container Registry Infrastructure
+# ========================================
+
+echo "Step 2: Deploying container registry infrastructure..."
+
+# Deploy container registry with BeeGFS backend
+ansible-playbook -i ansible/inventories/test/hosts ansible/playbooks/playbook-container-registry.yml
+
+# Verify registry infrastructure
+ssh admin@192.168.100.10 "ls -la /mnt/beegfs/containers/ || ls -la /opt/containers/"
+
+# ========================================
+# Step 3: Copy Container Images to Registry
+# ========================================
+
+echo "Step 3: Copying container images to registry..."
+
+# Determine registry path (BeeGFS or local)
+REGISTRY_PATH=$(ssh admin@192.168.100.10 \
+    "if [ -d /mnt/beegfs/containers ]; then echo /mnt/beegfs/containers; else echo /opt/containers; fi")
+echo "Using registry path: $REGISTRY_PATH"
+
+# Create test container if none exists
+if [ ! -f "test-container.sif" ]; then
+    echo "Creating test container..."
+    # Create a simple test container (using Apptainer/Singularity)
+    make run-docker COMMAND="apptainer build test-container.sif docker://hello-world"
+fi
+
+# Copy container to registry
+echo "Copying test-container.sif to registry..."
+scp test-container.sif admin@192.168.100.10:$REGISTRY_PATH/ml-frameworks/
+
+# Verify container was copied
+ssh admin@192.168.100.10 "ls -la $REGISTRY_PATH/ml-frameworks/test-container.sif"
+
+# ========================================
+# Step 4: Verify Container Distribution
+# ========================================
+
+echo "Step 4: Verifying container distribution across nodes..."
+
+# Check if container exists on all nodes (BeeGFS should auto-distribute)
+ssh admin@192.168.100.10 "ls -la $REGISTRY_PATH/ml-frameworks/test-container.sif"
+ssh admin@192.168.100.11 "ls -la $REGISTRY_PATH/ml-frameworks/test-container.sif"
+ssh admin@192.168.100.12 "ls -la $REGISTRY_PATH/ml-frameworks/test-container.sif"
+
+# Test container execution on each node
+echo "Testing container execution..."
+ssh admin@192.168.100.10 "apptainer exec $REGISTRY_PATH/ml-frameworks/test-container.sif echo 'Hello from controller'"
+ssh admin@192.168.100.11 "apptainer exec $REGISTRY_PATH/ml-frameworks/test-container.sif echo 'Hello from compute01'"
+ssh admin@192.168.100.12 "apptainer exec $REGISTRY_PATH/ml-frameworks/test-container.sif echo 'Hello from compute02'"
+
+# ========================================
+# Step 5: Test Container Registry Management
+# ========================================
+
+echo "Step 5: Testing container registry management..."
+
+# List all containers in registry
+ssh admin@192.168.100.10 "find $REGISTRY_PATH -name '*.sif' -type f"
+
+# Test container metadata
+ssh admin@192.168.100.10 "apptainer inspect $REGISTRY_PATH/ml-frameworks/test-container.sif"
+
+# Test container registry sync (if using local storage)
+if [ "$REGISTRY_PATH" = "/opt/containers" ]; then
+    echo "Testing container sync to nodes (local storage mode)..."
+    ssh admin@192.168.100.10 "/usr/local/bin/registry-sync-to-nodes.sh"
+fi
+
+echo "=========================================="
+echo "✅ Container Image Build & Distribution Complete"
+echo "=========================================="
+echo ""
+echo "Summary:"
+echo "- Container images built and copied to registry"
+echo "- Registry path: $REGISTRY_PATH"
+echo "- Container distribution verified across all nodes"
+echo "- Container execution tested on all nodes"
+echo ""
+echo "Next steps:"
+echo "1. Run Step 5: Storage Consolidation validation"
+echo "2. Test container registry with BeeGFS backend"
+echo "3. Verify container distribution and execution"
 ```
 
 ### Expected Results
@@ -789,20 +1385,23 @@ See: `01-packer-controller/validation-summary.txt`
 ### Step 2: Packer Compute Build
 See: `02-packer-compute/validation-summary.txt`
 
-### Step 3: Configuration Rendering
-See: `03-config-rendering/validation-summary.txt`
+### Step 3: Container Image Build
+See: `03-container-image-build/validation-summary.txt`
 
-### Step 4: Runtime Playbook Deployment
-See: `04-runtime-playbook/validation-summary.txt`
+### Step 4: Configuration Rendering
+See: `04-config-rendering/validation-summary.txt`
 
-### Step 5: Storage Consolidation (Task 043)
-See: `05-storage-consolidation/validation-summary.txt`
+### Step 5: Runtime Playbook Deployment
+See: `05-runtime-playbook/validation-summary.txt`
 
-### Step 6: Functional Cluster Tests
-See: `06-functional-tests/validation-summary.txt`
+### Step 6: Storage Consolidation (Task 043)
+See: `06-storage-consolidation/validation-summary.txt`
 
-### Step 7: Regression Testing
-See: `07-regression-tests/validation-summary.txt`
+### Step 7: Functional Cluster Tests
+See: `07-functional-tests/validation-summary.txt`
+
+### Step 8: Regression Testing
+See: `08-regression-tests/validation-summary.txt`
 
 ---
 
@@ -1197,19 +1796,21 @@ The complete Phase 4 validation framework has been successfully implemented acco
 
 **New Scripts Created:**
 
-- `step-03-config-rendering.sh` - Configuration template rendering and VirtIO-FS validation
-- `step-05-storage-consolidation.sh` - BeeGFS & VirtIO-FS consolidation testing (Tasks 041-043)
+- `step-04-config-rendering.sh` - Configuration template rendering and VirtIO-FS validation
+- `step-06-storage-consolidation.sh` - BeeGFS & VirtIO-FS consolidation testing (Tasks 041-043)
 
 **Existing Scripts Renumbered:**
 
-- `step-03-runtime-deployment.sh` → `step-04-runtime-deployment.sh`
-- `step-04-functional-tests.sh` → `step-06-functional-tests.sh`
-- ✅ `step-05-regression-tests.sh` → `step-07-regression-tests.sh` (completed)
+- `step-03-config-rendering.sh` → `step-04-config-rendering.sh`
+- `step-04-runtime-deployment.sh` → `step-05-runtime-deployment.sh`
+- `step-05-storage-consolidation.sh` → `step-06-storage-consolidation.sh`
+- `step-06-functional-tests.sh` → `step-07-functional-tests.sh`
+- `step-07-regression-tests.sh` → `step-08-regression-tests.sh`
 
 **Framework Updates:**
 
-- `run-all-steps.sh` - Updated to orchestrate all 7 steps in correct order
-- `README.md` - Updated with comprehensive 7-step process documentation
+- `run-all-steps.sh` - Updated to orchestrate all 8 steps in correct order
+- `README.md` - Updated with comprehensive 8-step process documentation
 - All scripts support state tracking, resumable execution, and modular independent execution
 
 **Validation Process:**
@@ -1217,11 +1818,12 @@ The complete Phase 4 validation framework has been successfully implemented acco
 1. **Step 00**: Prerequisites (Docker, CMake, SLURM packages)
 2. **Step 01**: Packer Controller Build (15-30 min)
 3. **Step 02**: Packer Compute Build (15-30 min)
-4. **Step 03**: Configuration Rendering (5-10 min) - **NEW**
-5. **Step 04**: Runtime Deployment (10-20 min)
-6. **Step 05**: Storage Consolidation (15-20 min) - **NEW**
-7. **Step 06**: Functional Tests (2-5 min)
-8. **Step 07**: Regression Tests (1-2 min)
+4. **Step 03**: Container Image Build (5-10 min) - **NEW**
+5. **Step 04**: Configuration Rendering (5-10 min)
+6. **Step 05**: Runtime Deployment (10-20 min)
+7. **Step 06**: Storage Consolidation (15-20 min)
+8. **Step 07**: Functional Tests (2-5 min)
+9. **Step 08**: Regression Tests (1-2 min)
 
 **Ready for Use:**
 
@@ -1230,8 +1832,8 @@ The complete Phase 4 validation framework has been successfully implemented acco
 ./tests/phase-4-validation/run-all-steps.sh
 
 # Run individual steps
-./tests/phase-4-validation/step-03-config-rendering.sh
-./tests/phase-4-validation/step-05-storage-consolidation.sh
+./tests/phase-4-validation/step-04-config-rendering.sh
+./tests/phase-4-validation/step-06-storage-consolidation.sh
 ```
 
 The framework now fully matches the comprehensive validation plan and is ready for Phase 4 consolidation validation.

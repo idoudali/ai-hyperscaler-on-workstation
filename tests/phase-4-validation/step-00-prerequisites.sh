@@ -6,6 +6,26 @@
 
 set -euo pipefail
 
+# ============================================================================
+# Step Configuration
+# ============================================================================
+
+# Step identification
+STEP_NUMBER="00"
+STEP_NAME="prerequisites"
+STEP_DESCRIPTION="Prerequisites"
+STEP_ID="step-${STEP_NUMBER}-${STEP_NAME}"
+
+# Step-specific configuration
+STEP_DIR_NAME="${STEP_NUMBER}-${STEP_NAME}"
+STEP_DEPENDENCIES=()  # No dependencies for prerequisites
+# shellcheck disable=SC2034
+export STEP_DEPENDENCIES
+
+# ============================================================================
+# Script Setup
+# ============================================================================
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ============================================================================
@@ -13,10 +33,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ============================================================================
 
 show_step_help() {
-  cat << 'EOF'
-Phase 4 Validation - Step 00: Prerequisites
+  cat << EOF
+Phase 4 Validation - Step ${STEP_NUMBER}: ${STEP_DESCRIPTION}
 
-Usage: ./step-00-prerequisites.sh [OPTIONS]
+Usage: ./${STEP_ID}.sh [OPTIONS]
 
 Options:
   -v, --verbose                 Enable verbose command logging
@@ -48,17 +68,17 @@ parse_validation_args "$@"
 # ============================================================================
 
 main() {
-  log_step_title "00" "Prerequisites"
+  log_step_title "$STEP_NUMBER" "$STEP_DESCRIPTION"
 
   # Check if already completed
-  if is_step_completed "step-00-prerequisites"; then
-    log_warning "Prerequisites already completed at $(get_step_completion_time 'step-00-prerequisites')"
+  if is_step_completed "$STEP_ID"; then
+    log_warning "${STEP_DESCRIPTION} already completed at $(get_step_completion_time "$STEP_ID")"
     log_info "Skipping..."
     return 0
   fi
 
   init_state
-  local step_dir="$VALIDATION_ROOT/00-prerequisites"
+  local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
   create_step_dir "$step_dir"
 
   # Save environment info
@@ -75,7 +95,7 @@ Prerequisites:
 EOF
 
   # 1. Check Docker
-  log_info "1. Checking Docker..."
+  log_info "${STEP_NUMBER}.1: Checking Docker..."
   if ! command -v docker &> /dev/null; then
     log_error "Docker not found"
     return 1
@@ -85,7 +105,7 @@ EOF
   echo "  Docker: $DOCKER_VERSION" >> "$VALIDATION_ROOT/validation-info.txt"
 
   # 2. Check/configure CMake
-  log_info "2. Checking CMake..."
+  log_info "${STEP_NUMBER}.2: Checking CMake..."
   if ! verify_cmake_configured; then
     log_warning "CMake not configured, configuring now..."
     cd "$PROJECT_ROOT"
@@ -100,7 +120,7 @@ EOF
   echo "  CMake: Configured" >> "$VALIDATION_ROOT/validation-info.txt"
 
   # 3. Build/verify Docker image
-  log_info "3. Checking Docker image pharos-dev:latest..."
+  log_info "${STEP_NUMBER}.3: Checking Docker image pharos-dev:latest..."
   if ! verify_docker_image; then
     log_warning "Docker image not found, building..."
     cd "$PROJECT_ROOT"
@@ -115,14 +135,14 @@ EOF
   echo "  Docker Image: pharos-dev:latest" >> "$VALIDATION_ROOT/validation-info.txt"
 
   # 4. Verify tools in container
-  log_info "4. Verifying tools in container..."
+  log_info "${STEP_NUMBER}.4: Verifying tools in container..."
   check_tool_in_container "packer"
   check_tool_in_container "ansible" "ansible --version"
   check_tool_in_container "cmake"
   echo "  Container Tools: Verified" >> "$VALIDATION_ROOT/validation-info.txt"
 
   # 5. Build SLURM packages
-  log_info "5. Building SLURM packages from source..."
+  log_info "${STEP_NUMBER}.5: Building SLURM packages from source..."
   cd "$PROJECT_ROOT"
   log_cmd "make run-docker COMMAND='cmake --build build --target build-slurm-packages'"
   if ! make run-docker COMMAND="cmake --build build --target build-slurm-packages" \
@@ -139,7 +159,7 @@ EOF
   echo "  SLURM Packages: Built and Verified" >> "$VALIDATION_ROOT/validation-info.txt"
 
   # 6. Verify configurations and playbooks
-  log_info "6. Verifying configurations and playbooks..."
+  log_info "${STEP_NUMBER}.6: Verifying configurations and playbooks..."
   verify_example_config || return 1
 
   # Check playbooks (non-fatal)
@@ -154,7 +174,7 @@ EOF
 
   # Create summary
   cat > "$step_dir/validation-summary.txt" << EOF
-=== Step 00: Prerequisites Validation ===
+=== Step ${STEP_NUMBER}: ${STEP_DESCRIPTION} Validation ===
 Timestamp: $(date)
 
 ✅ PASSED
@@ -170,8 +190,8 @@ Details:
 
 EOF
 
-  mark_step_completed "step-00-prerequisites"
-  log_success "Step 00 PASSED: Prerequisites validation complete"
+  mark_step_completed "$STEP_ID"
+  log_success "Step ${STEP_NUMBER} PASSED: ${STEP_DESCRIPTION} validation complete"
   cat "$step_dir/validation-summary.txt"
 
   return 0

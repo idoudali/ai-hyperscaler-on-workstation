@@ -483,7 +483,7 @@ mount | grep virtiofs
 
 ## See Also
 
-- [BeeGFS Installation Flow](beegfs-installation-flow.md) - Detailed BeeGFS setup guide
+- [BeeGFS Installation Flow](components/beegfs/installation-flow.md) - Detailed BeeGFS setup guide
 - [VirtIO-FS Integration](workflows/VIRTIO-FS-INTEGRATION.md) - VirtIO-FS implementation details
 - [Cluster Configuration Schema](implementation-plans/task-lists/hpc-slurm/pending/phase-4-consolidation.md) -
   Complete schema reference

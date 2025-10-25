@@ -1,9 +1,52 @@
 ---
 # Container Registry Role - Default Variables
-# Default configuration for container registry infrastructure
+# Storage-agnostic container registry with configurable backend dependencies
 
-# Container registry base directory
-container_registry_base_path: "/opt/containers"
+# ========================================
+# Storage Backend Configuration
+# ========================================
+
+# Storage backend selection (beegfs, nfs, local, custom)
+container_registry_storage_backend: "beegfs"
+
+# Storage backend dependency configuration
+container_registry_storage_dependencies:
+  beegfs:
+    required_roles:
+      - beegfs-client
+    mount_point_var: "beegfs_client_mount_point"
+    mount_check_cmd: "mount | grep beegfs"
+    service_check_cmd: "systemctl is-active beegfs-client"
+  nfs:
+    required_roles:
+      - nfs-client
+    mount_point_var: "nfs_client_mount_point"
+    mount_check_cmd: "mount | grep nfs"
+    service_check_cmd: "systemctl is-active nfs-client"
+  local:
+    required_roles: []
+    mount_point_var: "container_registry_local_mount_point"
+    mount_check_cmd: "test -d"
+    service_check_cmd: "true"
+
+# ========================================
+# Registry Path Configuration
+# ========================================
+
+# Base registry paths for different storage backends
+container_registry_paths:
+  beegfs: "/mnt/beegfs/containers"
+  nfs: "/mnt/nfs/containers"
+  local: "/opt/containers"
+  custom: "{{ container_registry_custom_path | default('/opt/containers') }}"
+
+# Legacy variables for backward compatibility
+container_registry_on_beegfs: "{{ container_registry_storage_backend == 'beegfs' }}"
+container_registry_beegfs_path: "{{ container_registry_paths.beegfs }}"
+container_registry_local_path: "{{ container_registry_paths.local }}"
+
+# Auto-detect storage backend and use appropriate path
+container_registry_base_path: "{{ container_registry_paths[container_registry_storage_backend] }}"
 
 # Registry subdirectories
 container_registry_subdirs:

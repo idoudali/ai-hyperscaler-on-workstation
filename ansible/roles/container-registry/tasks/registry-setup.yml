@@ -13,6 +13,17 @@
     - container-registry
     - registry-setup
 
+- name: Display registry setup information
+  debug:
+    msg:
+      - "Setting up container registry infrastructure"
+      - "Storage backend: {{ container_registry_storage_backend }}"
+      - "Registry path: {{ container_registry_base_path }}"
+      - "Subdirectories: {{ container_registry_subdirs | join(', ') }}"
+  tags:
+    - container-registry
+    - registry-setup
+
 - name: Create container registry subdirectories
   file:
     path: "{{ container_registry_base_path }}/{{ item }}"

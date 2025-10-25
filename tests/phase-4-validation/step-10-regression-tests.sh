@@ -1,17 +1,37 @@
 #!/bin/bash
 #
-# Phase 4 Validation: Step 5 - Regression Testing
+# Phase 4 Validation: Step 10 - Regression Testing
 #
 
 set -euo pipefail
 
+# ============================================================================
+# Step Configuration
+# ============================================================================
+
+# Step identification
+STEP_NUMBER="10"
+STEP_NAME="regression-tests"
+STEP_DESCRIPTION="Regression Testing"
+STEP_ID="step-${STEP_NUMBER}-${STEP_NAME}"
+
+# Step-specific configuration
+STEP_DIR_NAME="${STEP_NUMBER}-${STEP_NAME}"
+STEP_DEPENDENCIES=("step-09-functional-tests")
+# shellcheck disable=SC2034
+export STEP_DEPENDENCIES
+
+# ============================================================================
+# Script Setup
+# ============================================================================
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 show_step_help() {
-  cat << 'EOF'
-Phase 4 Validation - Step 07: Regression Testing
+  cat << EOF
+Phase 4 Validation - Step ${STEP_NUMBER}: ${STEP_DESCRIPTION}
 
-Usage: ./step-07-regression-tests.sh [OPTIONS]
+Usage: ./${STEP_ID}.sh [OPTIONS]
 
 Options:
   -v, --verbose                 Enable verbose command logging
@@ -35,20 +55,20 @@ source "$SCRIPT_DIR/lib-common.sh"
 parse_validation_args "$@"
 
 main() {
-  log_step_title "07" "Regression Testing"
+  log_step_title "$STEP_NUMBER" "$STEP_DESCRIPTION"
 
-  if is_step_completed "step-07-regression-tests"; then
-    log_warning "Step 07 already completed at $(get_step_completion_time 'step-07-regression-tests')"
+  if is_step_completed "$STEP_ID"; then
+    log_warning "Step ${STEP_NUMBER} already completed at $(get_step_completion_time "$STEP_ID")"
     return 0
   fi
 
   init_state
-  local step_dir="$VALIDATION_ROOT/07-regression-tests"
+  local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
   create_step_dir "$step_dir"
 
   cd "$PROJECT_ROOT"
 
-  log_info "7.1: Comparing consolidated playbook against backups..."
+  log_info "${STEP_NUMBER}.1: Comparing consolidated playbook against backups..."
 
   if [ -d "backup/playbooks-20251017/" ]; then
     log_info "Found old playbooks backup"
@@ -99,7 +119,7 @@ EOF
   fi
 
   cat > "$step_dir/validation-summary.txt" << EOF
-=== Step 07: Regression Testing ===
+=== Step ${STEP_NUMBER}: ${STEP_DESCRIPTION} ===
 Timestamp: $(date)
 
 ✅ PASSED
@@ -113,8 +133,8 @@ Report: $step_dir/comparison-report.txt
 
 EOF
 
-  mark_step_completed "step-07-regression-tests"
-  log_success "Step 07 PASSED: Regression testing completed"
+  mark_step_completed "$STEP_ID"
+  log_success "Step ${STEP_NUMBER} PASSED: Regression testing completed"
   cat "$step_dir/validation-summary.txt"
 
   return 0

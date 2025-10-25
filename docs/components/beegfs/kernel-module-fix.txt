@@ -1,0 +1,128 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║         BeeGFS (BeeOND) KERNEL MODULE MOUNT FAILURE - QUICK FIX GUIDE         ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+ERROR: mount: /mnt/beegfs: unknown filesystem type 'beegfs'.
+CAUSE: BeeGFS kernel module (beegfs.ko) is NOT loaded
+
+═══════════════════════════════════════════════════════════════════════════════
+
+QUICK START (Run on compute node: hpc-compute01 or hpc-compute02)
+
+1. SSH INTO COMPUTE NODE:
+   ─────────────────────────────────────────────────────────────────────────
+   ssh hpc-compute01
+
+2. INSTALL MISSING DEPENDENCIES (if not already installed):
+   ─────────────────────────────────────────────────────────────────────────
+   sudo apt-get update
+   sudo apt-get install -y linux-headers-$(uname -r) build-essential dkms
+
+3. RUN DIAGNOSTIC:
+   ─────────────────────────────────────────────────────────────────────────
+   # Verify kernel headers
+   dpkg -s "linux-headers-$(uname -r)" | head -3
+
+   # Verify build tools
+   which gcc dkms make
+
+   # Check current DKMS status
+   dkms status beegfs
+
+4. BUILD KERNEL MODULE MANUALLY:
+   ─────────────────────────────────────────────────────────────────────────
+   sudo dkms install beegfs/8.1.0 -k $(uname -r) --verbose 2>&1 | tail -50
+
+5. VERIFY MODULE BUILT:
+   ─────────────────────────────────────────────────────────────────────────
+   find /lib/modules/$(uname -r) -name "beegfs.ko*"
+   # Should find: /lib/modules/X.X.X/updates/dkms/beegfs.ko
+
+6. LOAD MODULE:
+   ─────────────────────────────────────────────────────────────────────────
+   sudo modprobe beegfs
+   lsmod | grep beegfs
+   # Should show: beegfs
+
+7. TEST MOUNT:
+   ─────────────────────────────────────────────────────────────────────────
+   sudo mount -t beegfs beegfs_nodev /mnt/beegfs \
+       -o cfgFile=/etc/beegfs/beegfs-client.conf,_netdev
+
+   mount | grep beegfs
+   # Should show the mount point
+
+8. VERIFY:
+   ─────────────────────────────────────────────────────────────────────────
+   df -h | grep beegfs
+   echo "test" | sudo tee /mnt/beegfs/test-$(hostname).txt
+   ls -la /mnt/beegfs/
+
+═══════════════════════════════════════════════════════════════════════════════
+
+DEBUGGING IF BUILD FAILS:
+
+1. CHECK KERNEL HEADERS:
+   ─────────────────────────────────────────────────────────────────────────
+   KERNEL_VER=$(uname -r)
+   ls -la /usr/src/linux-headers-${KERNEL_VER}
+
+   If NOT found:
+   sudo apt-get install -y "linux-headers-${KERNEL_VER}"
+
+2. CHECK BUILD TOOLS:
+   ─────────────────────────────────────────────────────────────────────────
+   gcc --version
+   make --version
+   dkms --version
+
+3. RUN VERBOSE BUILD:
+   ─────────────────────────────────────────────────────────────────────────
+   sudo dkms install beegfs/8.1.0 -k $(uname -r) --verbose 2>&1 | tee dkms-build.log
+
+   Check for errors in the output
+
+4. CHECK DKMS BUILD LOG:
+   ─────────────────────────────────────────────────────────────────────────
+   cat /var/lib/dkms/beegfs/*/build/make.log | tail -50
+
+5. CHECK KERNEL LOGS:
+   ─────────────────────────────────────────────────────────────────────────
+   dmesg | grep -i beegfs | tail -20
+   dmesg | tail -30
+
+═══════════════════════════════════════════════════════════════════════════════
+
+COMMON ISSUES:
+
+Issue: "linux-headers not installed"
+Fix: sudo apt-get install -y linux-headers-$(uname -r)
+
+Issue: "gcc/build-essential not found"
+Fix: sudo apt-get install -y build-essential
+
+Issue: "dkms command not found"
+Fix: sudo apt-get install -y dkms
+
+Issue: "DKMS build fails with compilation error"
+Check: cat /var/lib/dkms/beegfs/*/build/make.log
+Then: Install missing headers and retry
+
+Issue: "Module loads but mount still fails"
+Check: beegfs-ctl --listnodes --nodetype=mgmt
+Check: /etc/beegfs/beegfs-client.conf
+
+═══════════════════════════════════════════════════════════════════════════════
+
+CAPTURE LOGS FOR ANALYSIS:
+
+mkdir -p ~/beegfs-logs
+dkms status beegfs > ~/beegfs-logs/dkms-status.log 2>&1
+dmesg > ~/beegfs-logs/dmesg.log
+uname -a > ~/beegfs-logs/uname.log
+gcc --version > ~/beegfs-logs/gcc.log
+dpkg -l | grep beegfs > ~/beegfs-logs/packages.log
+
+ls ~/beegfs-logs/
+
+═══════════════════════════════════════════════════════════════════════════════
