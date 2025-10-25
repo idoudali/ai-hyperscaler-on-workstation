@@ -1,9 +1,9 @@
-# Phase 4: Infrastructure Consolidation (Tasks 029-043)
+# Phase 4: Infrastructure Consolidation (Tasks 029-048)
 
-**Status**: 82% Complete (14/17 tasks)
-**Last Updated**: 2025-10-23 (Status Updated with Template Rendering + Task 043 Added)
+**Status**: 64% Complete (14/22 tasks)
+**Last Updated**: 2025-10-25 (Added Phase 4.8: Ansible Role Consolidation Tasks 044-048)
 **Priority**: HIGH
-**Tasks**: 17 (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1)
+**Tasks**: 22 (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1, Role Consolidation: 5)
 
 ## ✅ **Progress Summary**
 
@@ -25,11 +25,17 @@
 | **041** | ✅ **COMPLETE** | 100% | virtio_fs_mounts and beegfs_config added to cluster config schema |
 | **042** | ✅ **COMPLETE** | 100% | Configuration template rendering system implemented |
 | **043** | ✅ **COMPLETE** | 100% | BeeGFS & VirtIO-FS consolidation into runtime playbook |
+| **044** | ❌ **PENDING** | 0% | Create BeeGFS common role for shared functionality |
+| **045** | ❌ **PENDING** | 0% | Create SLURM common role for shared functionality |
+| **046** | ❌ **PENDING** | 0% | Create shared package management role |
+| **047** | ❌ **PENDING** | 0% | Consolidate base package roles (hpc + cloud) |
+| **048** | ❌ **PENDING** | 0% | Create shared utilities role |
 
 **Completed**: Tasks 029-035, 038, 039, 041, 042, 043 (Ansible consolidation + validation framework +
 BeeGFS consolidation + VirtIO-FS integration + storage schema + template rendering achieved!)  
-**Pending**: Tasks 036-037, 040 (HPC test frameworks + Container registry + Storage consolidation)  
-**Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)
+**Pending**: Tasks 036-037, 040, 044-048 (HPC test frameworks + Container registry + Ansible role consolidation)  
+**Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)  
+**New**: Phase 4.8 adds 5 role consolidation tasks to eliminate duplicate code across Ansible roles
 
 ## Overview
 
@@ -3040,6 +3046,603 @@ uv run ai-how validate config/example-multi-gpu-clusters.yaml
 
 ---
 
+## Phase 4.8: Ansible Role Consolidation (Tasks 044-048)
+
+### Task 044: Create BeeGFS Common Role for Shared Functionality
+
+- **ID**: TASK-044
+- **Phase**: 4.8 - Ansible Role Consolidation
+- **Dependencies**: None
+- **Estimated Time**: 4 hours
+- **Difficulty**: Intermediate-Advanced
+- **Status**: ❌ Not Started
+- **Priority**: HIGH
+
+**Description:** Create a shared `beegfs-common` role to consolidate duplicate installation logic, configuration
+patterns, and package management across the four BeeGFS roles (mgmt, meta, storage, client).
+
+**Problem Statement:**
+
+All four BeeGFS roles contain nearly identical code for:
+
+- Package checking and installation (200-400 lines per role)
+- Remote vs controller package copying logic
+- Directory creation and permissions
+- Service management patterns
+- Configuration file templating
+- Error handling
+
+**Current Duplication:**
+
+```yaml
+# ansible/roles/beegfs-{mgmt,meta,storage,client}/tasks/install.yml
+# Each role has 200-400 lines of similar code:
+
+- name: Check if packages exist on remote
+  ansible.builtin.stat:
+    path: "{{ beegfs_packages_path }}/..."
+  # ... (repeated in all 4 roles)
+
+- name: Check if packages exist on controller
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_source_dir }}"
+  # ... (repeated in all 4 roles)
+
+- name: Copy packages from controller
+  ansible.builtin.copy:
+    src: "{{ beegfs_packages_source_dir }}/"
+  # ... (repeated in all 4 roles)
+```
+
+**Deliverables:**
+
+1. **Create `ansible/roles/beegfs-common/` role:**
+   - `tasks/main.yml` - Entry point with conditional imports
+   - `tasks/install-packages.yml` - Parameterized package installation
+   - `tasks/configure-service.yml` - Generic service configuration
+   - `tasks/verify-installation.yml` - Generic verification tasks
+   - `defaults/main.yml` - Common default variables
+   - `handlers/main.yml` - Shared service handlers
+
+2. **Parameterized Installation Task (`tasks/install-packages.yml`):**
+
+```yaml
+---
+# BeeGFS Common Package Installation
+# Parameterized installation logic used by all BeeGFS roles
+#
+# Required variables:
+#   - beegfs_service_type: mgmt|meta|storage|client
+#   - beegfs_required_packages: list of .deb package names
+
+- name: Check if BeeGFS {{ beegfs_service_type }} is already installed
+  ansible.builtin.stat:
+    path: "{{ beegfs_binary_paths[beegfs_service_type] }}"
+  register: beegfs_installed
+
+- name: Check if packages exist on remote (Packer builds)
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "{{ beegfs_required_packages }}"
+  register: remote_packages
+  when: not beegfs_installed.stat.exists
+
+- name: Check if packages exist on Ansible controller (runtime)
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_source_dir }}"
+    patterns: "{{ beegfs_required_packages }}"
+  delegate_to: localhost
+  become: false
+  register: controller_packages
+  when:
+    - not beegfs_installed.stat.exists
+    - remote_packages.matched | default(0) == 0
+
+- name: Copy packages from controller to remote
+  ansible.builtin.copy:
+    src: "{{ beegfs_packages_source_dir }}/"
+    dest: "{{ beegfs_packages_path }}/"
+    mode: '0644'
+  when:
+    - not beegfs_installed.stat.exists
+    - remote_packages.matched | default(0) == 0
+    - controller_packages.matched | default(0) > 0
+
+- name: Install dependencies
+  ansible.builtin.apt:
+    name: "{{ beegfs_dependencies }}"
+    state: present
+    update_cache: true
+  when: not beegfs_installed.stat.exists
+
+- name: Find package files on remote
+  ansible.builtin.find:
+    paths: "{{ beegfs_packages_path }}"
+    patterns: "{{ beegfs_required_packages }}"
+  register: package_files
+  when: not beegfs_installed.stat.exists
+
+- name: Install BeeGFS {{ beegfs_service_type }} packages
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
+  loop: "{{ package_files.files }}"
+  when:
+    - not beegfs_installed.stat.exists
+    - package_files.matched | default(0) > 0
+
+- name: Fail if packages not found
+  ansible.builtin.fail:
+    msg: >-
+      BeeGFS {{ beegfs_service_type }} packages not found.
+      Expected: {{ beegfs_required_packages | join(', ') }}
+      For Packer: Copy to {{ beegfs_packages_path }}
+      For runtime: Build with 'make run-docker COMMAND="cmake --build build --target build-beegfs-packages"'
+  when:
+    - not beegfs_installed.stat.exists
+    - package_files.matched | default(0) == 0
+```
+
+1. **Update each BeeGFS role to use common role:**
+
+```yaml
+# ansible/roles/beegfs-mgmt/tasks/install.yml (simplified)
+---
+- name: Install BeeGFS management packages
+  import_role:
+    name: beegfs-common
+    tasks_from: install-packages
+  vars:
+    beegfs_service_type: "mgmt"
+    beegfs_required_packages:
+      - "beegfs-mgmtd_{{ beegfs_version }}_*.deb"
+      - "beegfs-utils_{{ beegfs_version }}_*.deb"
+    beegfs_binary_paths:
+      mgmt: "/usr/sbin/beegfs-mgmtd"
+    beegfs_dependencies:
+      - libssl3
+      - libattr1
+```
+
+1. **Shared configuration templates in `beegfs-common/templates/`:**
+   - Base systemd service template
+   - Common configuration snippets
+   - Shared environment files
+
+2. **Shared handlers in `beegfs-common/handlers/main.yml`:**
+
+```yaml
+---
+- name: restart beegfs-mgmtd
+  systemd:
+    name: beegfs-mgmtd
+    state: restarted
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: restart beegfs-meta
+  systemd:
+    name: beegfs-meta
+    state: restarted
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+# ... etc for storage and client
+```
+
+**Validation Criteria:**
+
+- [ ] `beegfs-common` role created with modular tasks
+- [ ] All four BeeGFS roles updated to use common role
+- [ ] Packer builds complete successfully with new structure
+- [ ] Runtime deployments work correctly
+- [ ] No duplicate code in BeeGFS roles
+- [ ] Installation time unchanged or improved
+- [ ] All BeeGFS services start correctly
+
+**Benefits:**
+
+- ✅ Eliminate 600-1200 lines of duplicate code
+- ✅ Single source of truth for package installation
+- ✅ Easier maintenance and bug fixes
+- ✅ Consistent error handling across all roles
+- ✅ Reduced testing surface area
+
+**Test Commands:**
+
+```bash
+# Test Packer builds with new structure
+packer build packer/hpc-controller/hpc-controller.pkr.hcl
+packer build packer/hpc-compute/hpc-compute.pkr.hcl
+
+# Test runtime deployment
+ansible-playbook playbooks/playbook-hpc-runtime.yml
+
+# Verify BeeGFS services
+ssh controller "beegfs-ctl --listnodes --nodetype=all"
+ssh controller "beegfs-df"
+```
+
+---
+
+### Task 045: Create SLURM Common Role for Shared Functionality
+
+- **ID**: TASK-045
+- **Phase**: 4.8 - Ansible Role Consolidation
+- **Dependencies**: None
+- **Estimated Time**: 3 hours
+- **Difficulty**: Intermediate
+- **Status**: ❌ Not Started
+- **Priority**: MEDIUM
+
+**Description:** Create a shared `slurm-common` role to consolidate duplicate MUNGE setup, systemd service
+management, and configuration validation across SLURM controller and compute roles.
+
+**Problem Statement:**
+
+Both `slurm-controller` and `slurm-compute` roles contain duplicate code for:
+
+- MUNGE key installation and service management
+- SLURM user/group creation
+- systemd service configuration patterns
+- Configuration file validation
+- Directory creation with proper permissions
+
+**Deliverables:**
+
+1. **Create `ansible/roles/slurm-common/` role:**
+   - `tasks/main.yml` - Entry point
+   - `tasks/setup-munge.yml` - Shared MUNGE configuration
+   - `tasks/create-slurm-user.yml` - User/group creation
+   - `tasks/setup-directories.yml` - Directory structure creation
+   - `tasks/validate-config.yml` - Configuration validation
+   - `defaults/main.yml` - Common SLURM variables
+   - `handlers/main.yml` - Shared handlers
+
+2. **Shared MUNGE Setup (`tasks/setup-munge.yml`):**
+
+```yaml
+---
+# SLURM Common - MUNGE Setup
+# Used by both controller and compute roles
+
+- name: Create MUNGE group
+  ansible.builtin.group:
+    name: munge
+    state: present
+    system: true
+
+- name: Create MUNGE user
+  ansible.builtin.user:
+    name: munge
+    group: munge
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/munge
+    create_home: false
+
+- name: Ensure MUNGE directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "/etc/munge", owner: "munge", group: "munge", mode: "0700"}
+    - {path: "/var/lib/munge", owner: "munge", group: "munge", mode: "0711"}
+    - {path: "/var/log/munge", owner: "munge", group: "munge", mode: "0700"}
+    - {path: "/run/munge", owner: "munge", group: "munge", mode: "0755"}
+
+- name: Install MUNGE key
+  ansible.builtin.copy:
+    src: "{{ munge_key_source }}"
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: '0400'
+  notify: restart munge
+
+- name: Enable and start MUNGE service
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+```
+
+1. **Update SLURM roles to use common role:**
+
+```yaml
+# ansible/roles/slurm-controller/tasks/configure.yml
+---
+- name: Setup MUNGE for SLURM
+  import_role:
+    name: slurm-common
+    tasks_from: setup-munge
+  vars:
+    munge_key_source: "{{ slurm_munge_key_path }}"
+
+- name: Setup SLURM directories
+  import_role:
+    name: slurm-common
+    tasks_from: setup-directories
+  vars:
+    slurm_node_type: controller
+```
+
+**Validation Criteria:**
+
+- [ ] `slurm-common` role created with modular tasks
+- [ ] Both SLURM roles updated to use common role
+- [ ] MUNGE setup identical across controller and compute
+- [ ] No duplicate code in SLURM roles
+- [ ] All SLURM services start correctly
+- [ ] MUNGE authentication works across cluster
+
+**Benefits:**
+
+- ✅ Eliminate 200-300 lines of duplicate code
+- ✅ Consistent MUNGE configuration
+- ✅ Easier troubleshooting
+- ✅ Single source for common patterns
+
+---
+
+### Task 046: Create Shared Package Management Role
+
+- **ID**: TASK-046
+- **Phase**: 4.8 - Ansible Role Consolidation
+- **Dependencies**: TASK-044, TASK-045
+- **Estimated Time**: 2 hours
+- **Difficulty**: Intermediate
+- **Status**: ❌ Not Started
+- **Priority**: MEDIUM
+
+**Description:** Create a generic `package-manager` role with reusable package checking, copying, and
+installation logic that can be used across BeeGFS, SLURM, and other components.
+
+**Problem Statement:**
+
+The package installation pattern is repeated across multiple roles:
+
+1. Check if already installed
+2. Check packages on remote host (Packer mode)
+3. Check packages on Ansible controller (runtime mode)
+4. Copy packages if needed
+5. Install from local packages
+6. Fail with helpful message if not found
+
+**Deliverables:**
+
+1. **Create `ansible/roles/package-manager/` role:**
+   - `tasks/main.yml` - Generic package installation
+   - `tasks/check-installation.yml` - Binary existence check
+   - `tasks/copy-packages.yml` - Copy from controller
+   - `tasks/install-packages.yml` - Install from local path
+
+2. **Generic Package Installation Task:**
+
+```yaml
+---
+# Generic Package Manager
+# Reusable package installation logic
+#
+# Required variables:
+#   - package_name: human-readable name (e.g., "BeeGFS Management")
+#   - package_binary_path: path to check (e.g., /usr/sbin/beegfs-mgmtd)
+#   - package_files: list of .deb filenames
+#   - package_remote_path: /tmp/xxx-packages/
+#   - package_source_dir: build/packages/xxx/
+#   - package_dependencies: list of apt packages
+
+- name: Check if {{ package_name }} is already installed
+  ansible.builtin.stat:
+    path: "{{ package_binary_path }}"
+  register: package_installed
+
+- name: Include package copy tasks
+  include_tasks: copy-packages.yml
+  when: not package_installed.stat.exists
+
+- name: Include package installation tasks
+  include_tasks: install-packages.yml
+  when: not package_installed.stat.exists
+```
+
+1. **Usage in BeeGFS role:**
+
+```yaml
+# ansible/roles/beegfs-mgmt/tasks/install.yml
+---
+- name: Install BeeGFS management packages
+  import_role:
+    name: package-manager
+  vars:
+    package_name: "BeeGFS Management"
+    package_binary_path: "/usr/sbin/beegfs-mgmtd"
+    package_files:
+      - "beegfs-mgmtd_{{ beegfs_version }}_*.deb"
+      - "beegfs-utils_{{ beegfs_version }}_*.deb"
+    package_remote_path: "/tmp/beegfs-packages"
+    package_source_dir: "build/packages/beegfs"
+    package_dependencies:
+      - libssl3
+      - libattr1
+```
+
+**Benefits:**
+
+- ✅ Ultra-DRY package management
+- ✅ Consistent error messages
+- ✅ Reusable across all components
+- ✅ Centralized bug fixes
+
+---
+
+### Task 047: Consolidate Base Package Roles
+
+- **ID**: TASK-047
+- **Phase**: 4.8 - Ansible Role Consolidation
+- **Dependencies**: None
+- **Estimated Time**: 1.5 hours
+- **Difficulty**: Junior-Intermediate
+- **Status**: ❌ Not Started
+- **Priority**: LOW
+
+**Description:** Merge `hpc-base-packages` and `cloud-base-packages` roles into a single `base-packages`
+role with variables to control HPC vs Cloud package selection.
+
+**Problem Statement:**
+
+Two separate roles with 80% identical package lists:
+
+- `hpc-base-packages` - 30 packages
+- `cloud-base-packages` - 25 packages
+- 20 packages are identical between both
+
+**Deliverables:**
+
+1. **Create `ansible/roles/base-packages/` role:**
+   - Merge both roles into one
+   - Add `package_profile` variable: `hpc`, `cloud`, `minimal`
+   - Conditional package installation based on profile
+
+2. **Implementation:**
+
+```yaml
+# ansible/roles/base-packages/defaults/main.yml
+---
+# Base package profiles
+package_profile: "hpc"  # Options: hpc, cloud, minimal
+
+# Common packages (all profiles)
+base_packages_common:
+  - build-essential
+  - git
+  - wget
+  - curl
+  # ... (20 shared packages)
+
+# HPC-specific packages
+base_packages_hpc:
+  - libhwloc-dev
+  - libpmix-dev
+  - libevent-dev
+  # ... (10 HPC packages)
+
+# Cloud-specific packages
+base_packages_cloud:
+  - cloud-init
+  - qemu-guest-agent
+  # ... (5 cloud packages)
+
+# Combined package list
+base_packages: >-
+  {{ base_packages_common +
+     (base_packages_hpc if package_profile == 'hpc' else []) +
+     (base_packages_cloud if package_profile == 'cloud' else []) }}
+```
+
+1. **Update playbooks:**
+
+```yaml
+# playbook-hpc-packer-controller.yml
+roles:
+  - role: base-packages
+    vars:
+      package_profile: "hpc"
+
+# playbook-cloud.yml
+roles:
+  - role: base-packages
+    vars:
+      package_profile: "cloud"
+```
+
+**Benefits:**
+
+- ✅ Single role instead of two
+- ✅ Easier to maintain shared packages
+- ✅ Clear separation of concerns
+- ✅ Flexible package selection
+
+---
+
+### Task 048: Create Shared Utilities Role
+
+- **ID**: TASK-048
+- **Phase**: 4.8 - Ansible Role Consolidation
+- **Dependencies**: None
+- **Estimated Time**: 2 hours
+- **Difficulty**: Intermediate
+- **Status**: ❌ Not Started
+- **Priority**: LOW
+
+**Description:** Create a `shared-utilities` role with common validation tasks, health checks, and
+service management patterns used across multiple roles.
+
+**Problem Statement:**
+
+Many roles repeat the same patterns for:
+
+- Service health checks
+- Configuration validation
+- Directory creation
+- Permission management
+- Log file rotation
+
+**Deliverables:**
+
+1. **Create `ansible/roles/shared-utilities/` role:**
+   - `tasks/validate-service.yml` - Generic service health check
+   - `tasks/check-ports.yml` - Port availability checking
+   - `tasks/setup-logging.yml` - Log directory and rotation
+   - `tasks/verify-connectivity.yml` - Network connectivity tests
+
+2. **Generic Service Health Check:**
+
+```yaml
+---
+# Shared Utilities - Service Health Check
+# Required variables:
+#   - service_name: systemd service name
+#   - service_port: optional port to check
+#   - service_check_command: optional command to run
+
+- name: Check if {{ service_name }} is running
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    state: started
+  register: service_status
+  failed_when: false
+
+- name: Verify {{ service_name }} is active
+  ansible.builtin.command: "systemctl is-active {{ service_name }}"
+  register: service_active
+  changed_when: false
+  failed_when: service_active.rc != 0
+
+- name: Check {{ service_name }} port
+  ansible.builtin.wait_for:
+    port: "{{ service_port }}"
+    timeout: 30
+  when: service_port is defined
+
+- name: Run service health check
+  ansible.builtin.command: "{{ service_check_command }}"
+  register: health_check
+  changed_when: false
+  when: service_check_command is defined
+```
+
+**Benefits:**
+
+- ✅ Consistent validation patterns
+- ✅ Reusable health checks
+- ✅ Standardized troubleshooting
+
+---
+
 ## Current Outcomes (As of 2025-10-23 - Status Updated with Template Rendering)
 
 **✅ Phase 4 Core Consolidation Complete (Tasks 029-034.1):**
@@ -3663,16 +4266,34 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - [ ] Task 036: ❌ **NOT STARTED** - test-hpc-packer-*-framework.sh NOT created
 - [ ] Task 037: ❌ **NOT STARTED** - 15 old frameworks still exist, Makefile not updated
 
-**Success Metrics (Verified 2025-10-20):**
+**Phase 4.8 Role Consolidation (Tasks 044-048): ❌ NOT STARTED (Added 2025-10-25)**
+
+- [ ] Task 044: ❌ **NOT STARTED** - BeeGFS common role NOT created
+- [ ] Task 045: ❌ **NOT STARTED** - SLURM common role NOT created
+- [ ] Task 046: ❌ **NOT STARTED** - Shared package management role NOT created
+- [ ] Task 047: ❌ **NOT STARTED** - Base package roles NOT consolidated
+- [ ] Task 048: ❌ **NOT STARTED** - Shared utilities role NOT created
+
+**Success Metrics (Updated 2025-10-25):**
 
 - ✅ Packer playbooks created: playbook-hpc-packer-{controller,compute}.yml
 - ✅ Runtime playbook created: playbook-hpc-runtime.yml
 - ✅ All 9 obsolete playbooks deleted (verified absent from codebase)
 - ✅ Playbook count: 8 (down from 14, 43% reduction achieved)
-- 🎯 Target: 7 playbooks (50% reduction - requires Task 038)
+- 🎯 Target: 7 playbooks (50% reduction - Task 038 COMPLETE!)
 - ❌ 3 new unified test frameworks NOT created (Tasks 035-036)
 - ❌ 11 obsolete test frameworks still exist (Task 037 not started)
-- ❌ Storage enhancements NOT implemented (Tasks 038-041)
+- ✅ Storage enhancements MOSTLY COMPLETE (Tasks 038-039, 041) - Task 040 pending
+- ❌ Ansible role consolidation NOT started (Tasks 044-048)
+
+**Estimated Code Reduction from Role Consolidation (Tasks 044-048):**
+
+- Task 044 (BeeGFS common): ~600-1200 lines eliminated
+- Task 045 (SLURM common): ~200-300 lines eliminated
+- Task 046 (Package manager): ~400-600 lines eliminated
+- Task 047 (Base packages): ~100-150 lines eliminated
+- Task 048 (Shared utilities): ~150-200 lines eliminated
+- **Total estimated reduction: ~1450-2450 lines of duplicate code**
 
 ### **Risk Assessment**
 
@@ -3682,18 +4303,19 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - ✅ Runtime playbook tested and deployed
 - ✅ All obsolete playbooks successfully removed
 - ✅ Rollback procedures in place
+- ✅ Storage consolidation successful
 
 **Next Steps Strategy:**
 
-- Proceed with Phase 4.5 storage enhancements (Tasks 038-041)
-- Implement test framework consolidation (Tasks 035-037)
-- Final playbook reduction to achieve 50% target
+- **Priority 1**: Phase 4.8 Ansible role consolidation (Tasks 044-048) - Eliminate 1450+ lines of duplicate code
+- **Priority 2**: Phase 4 test framework consolidation (Tasks 035-037) - Streamline testing infrastructure
+- **Priority 3**: Phase 4.5 container registry optimization (Task 040) - BeeGFS integration for distributed access
 
 ---
 
-**Document Version:** 3.1 (Status Verified Against Codebase)
-**Last Review:** 2025-10-20
-**Status:** ✅ **Phase 4 Core COMPLETE (7/13 tasks)** | ❌ **Phase 4.5 & Testing NOT STARTED (0/6 tasks)**
+**Document Version:** 3.2 (Added Phase 4.8: Ansible Role Consolidation)
+**Last Review:** 2025-10-25
+**Status:** ✅ **Phase 4 Core COMPLETE (7/13 tasks)** | ❌ **Phase 4.5-4.8 PARTIALLY STARTED (3/9 tasks)**
 
 **Verification Summary:**
 
@@ -3702,6 +4324,7 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - ✅ SLURM uses pre-built packages (verified in install.yml)
 - ❌ 15 old test frameworks still exist (verified in tests/)
 - ❌ No new test frameworks created (verified NOT in tests/)
-- ❌ BeeGFS Packer not consolidated (playbook-beegfs-packer-install.yml still exists)
-- ❌ VirtIO-FS not in runtime playbook (grep verified)
+- ✅ BeeGFS Packer consolidated into HPC playbooks (Task 038 complete)
+- ✅ VirtIO-FS integrated into runtime playbook (Task 039 complete)
 - ❌ Container registry not on BeeGFS (uses /opt/containers)
+- ❌ Ansible role consolidation NOT started (Tasks 044-048 pending)
