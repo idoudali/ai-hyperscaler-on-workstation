@@ -1636,6 +1636,25 @@ ssh -i build/shared/ssh-keys/id_rsa admin@192.168.100.11 'slurmd -V'
 
 ## Phase 4: Test Framework Consolidation (Tasks 035-037)
 
+> **📋 COMPREHENSIVE TEST PLAN AVAILABLE**  
+> Detailed specifications, consolidation strategy, component matrices, and implementation phases are now
+> documented in the **Consolidated Test Plan**:
+>
+> **Location**: `docs/implementation-plans/task-lists/test-plan/`
+>
+> **Key Documents**:
+>
+> - [`README.md`](../test-plan/README.md) - Overview and navigation
+> - [`00-test-inventory.md`](../test-plan/00-test-inventory.md) - Current test infrastructure baseline
+> - [`01-consolidation-plan.md`](../test-plan/01-consolidation-plan.md) - Detailed consolidation strategy
+> - [`02-component-matrix.md`](../test-plan/02-component-matrix.md) - Test coverage mapping
+> - [`03-framework-specifications.md`](../test-plan/03-framework-specifications.md) - Complete framework specs
+> - [`04-implementation-phases.md`](../test-plan/04-implementation-phases.md) - Implementation roadmap
+> - [`05-validation-checklist.md`](../test-plan/05-validation-checklist.md) - Quality assurance criteria
+>
+> **Purpose**: The test plan provides modular, LLM-friendly documentation that eliminates duplication and serves
+> as the single source of truth for test framework consolidation. This section provides task summaries only.
+
 ### Task 035: Create Unified HPC Runtime Test Framework
 
 - **ID**: TASK-035
