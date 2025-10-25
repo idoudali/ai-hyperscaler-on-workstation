@@ -32,7 +32,7 @@
     - beegfs-client
     - mount
 
-- name: Check if kernel module exists
+- name: Check if kernel module exists after DKMS build
   ansible.builtin.find:
     paths: "/lib/modules/{{ ansible_kernel }}"
     patterns: "beegfs.ko*"
@@ -54,11 +54,46 @@
     - beegfs-client
     - mount
 
+- name: Fail if kernel module not found
+  ansible.builtin.fail:
+    msg: |
+      ❌ CRITICAL: BeeGFS kernel module NOT FOUND
+
+      The beegfs.ko kernel module could not be built. This is typically caused by:
+
+      1. Missing kernel headers:
+         Check: apt list --installed | grep linux-headers-{{ ansible_kernel }}
+         Fix: sudo apt-get install -y linux-headers-{{ ansible_kernel }}
+
+      2. DKMS build failure (check above output):
+         Review DKMS build logs and resolve compilation errors
+
+      3. Kernel version mismatch:
+         Current kernel: {{ ansible_kernel }}
+         Available headers: Check /lib/modules/ directory
+
+      4. Build tools missing:
+         Fix: sudo apt-get install -y build-essential dkms
+
+      Impact: BeeGFS client CANNOT mount the filesystem without the kernel module
+
+      To manually rebuild after fixes:
+        dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}
+  when:
+    - beegfs_client_mount_enabled
+    - (beegfs_module_check.matched | default(0)) == 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
 - name: Load BeeGFS kernel module
   community.general.modprobe:
     name: beegfs
     state: present
-  when: beegfs_module_check.matched | default(0) > 0
+  when:
+    - beegfs_client_mount_enabled
+    - (beegfs_module_check.matched | default(0)) > 0
   register: modprobe_result
   failed_when: false
   tags:
@@ -75,6 +110,54 @@
     - beegfs-client
     - mount
 
+- name: Verify BeeGFS kernel module is actually loaded
+  ansible.builtin.command:
+    cmd: lsmod
+  register: lsmod_output
+  changed_when: false
+  when:
+    - beegfs_client_mount_enabled
+    - (beegfs_module_check.matched | default(0)) > 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Check if beegfs module appears in lsmod
+  ansible.builtin.set_fact:
+    beegfs_module_loaded: "{{ 'beegfs' in lsmod_output.stdout }}"
+  when:
+    - beegfs_client_mount_enabled
+    - lsmod_output is defined
+    - lsmod_output.stdout is defined
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display kernel module load status
+  ansible.builtin.debug:
+    msg: |
+      BeeGFS Kernel Module Status:
+      - Module file exists: {{ (beegfs_module_check.matched | default(0)) > 0 }}
+      - Module loaded in kernel: {{ beegfs_module_loaded | default(false) }}
+      {% if not (beegfs_module_loaded | default(false)) %}
+
+      ⚠️  WARNING: Module not loaded - mount will be skipped
+
+      To debug:
+        1. Check dmesg for errors: dmesg | grep -i beegfs
+        2. Try manual load: sudo modprobe beegfs
+        3. Check module file: find /lib/modules/{{ ansible_kernel }} -name "beegfs.ko*"
+      {% endif %}
+  when:
+    - beegfs_client_mount_enabled
+    - lsmod_output is defined
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
 # Note: BeeGFS 8.1.0+ does not include a separate helperd service
 # Helper functionality is integrated into the main services
 
@@ -86,8 +169,9 @@
     opts: "{{ beegfs_client_mount_options }}"
     state: "{{ 'mounted' if beegfs_client_mount_enabled else 'present' }}"
   when:
-    - modprobe_result is defined
-    - not modprobe_result.failed
+    - beegfs_client_mount_enabled
+    - (beegfs_module_check.matched | default(0)) > 0
+    - beegfs_module_loaded | default(false)
   register: mount_result
   retries: 3
   delay: 10
@@ -99,8 +183,59 @@
 
 - name: Display mount skipped message
   ansible.builtin.debug:
-    msg: "BeeGFS mount skipped - kernel module not loaded. DKMS may need kernel headers or build dependencies."
-  when: (modprobe_result is not defined) or (modprobe_result.failed | default(false))
+    msg: |
+      ⚠️  BeeGFS mount skipped - kernel module not loaded in kernel
+
+      Possible causes:
+      - DKMS build failed (check install.yml output)
+      - Kernel headers mismatch (kernel: {{ ansible_kernel }})
+      - Module dependencies missing
+      - Build tools not available
+
+      The kernel module file may exist but failed to load into the kernel.
+      Check dmesg output for errors: dmesg | tail -50
+  when:
+    - beegfs_client_mount_enabled
+    - not (beegfs_module_loaded | default(false))
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Fail if kernel module not loaded and mount is required
+  ansible.builtin.fail:
+    msg: |
+      ❌ CRITICAL: BeeGFS kernel module is NOT LOADED
+
+      Cannot proceed with mount - kernel module must be loaded first.
+
+      Diagnostics:
+        Current kernel: {{ ansible_kernel }}
+        Module file exists: {{ (beegfs_module_check.matched | default(0)) > 0 }}
+        Module loaded: {{ beegfs_module_loaded | default(false) }}
+
+      Troubleshooting steps:
+
+      1. Check kernel headers match running kernel:
+         dpkg -s linux-headers-{{ ansible_kernel }}
+
+      2. Manually rebuild DKMS module:
+         sudo dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }} --verbose
+
+      3. Check dmesg for module load errors:
+         dmesg | grep -i beegfs | tail -30
+
+      4. Try manual module load:
+         sudo modprobe beegfs
+
+      5. Verify module file exists:
+         find /lib/modules/{{ ansible_kernel }} -name "beegfs.ko*"
+
+      See documentation: docs/components/beegfs-setup-guide.md
+  when:
+    - beegfs_client_mount_enabled
+    - not (beegfs_module_loaded | default(false))
+    - packer_build is not defined or not packer_build | bool
   tags:
     - beegfs
     - beegfs-client

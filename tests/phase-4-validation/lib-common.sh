@@ -401,6 +401,211 @@ print_step_result() {
 }
 
 # ============================================================================
+# Step Management Functions
+# ============================================================================
+
+# Log step start
+log_step_start() {
+  local step_name="$1"
+  local step_description="$2"
+  log_step_title "$step_name" "$step_description"
+}
+
+# Log step success
+log_step_success() {
+  local step_name="$1"
+  local step_description="$2"
+  log_success "Step $step_name PASSED: $step_description"
+}
+
+# Check prerequisites for a step
+check_prerequisites() {
+  local required_step="$1"
+  if ! is_step_completed "$required_step"; then
+    log_error "Prerequisites not met: $required_step must be completed first"
+    return 1
+  fi
+  return 0
+}
+
+# ============================================================================
+# SSH Configuration
+# ============================================================================
+
+# Setup SSH configuration for cluster access
+setup_ssh_config() {
+  SSH_KEY="${PROJECT_ROOT}/build/shared/ssh-keys/id_rsa"
+  SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR -o ConnectTimeout=10"
+
+  # Export for use in other scripts
+  export SSH_KEY
+  export SSH_OPTS
+}
+
+# ============================================================================
+# Cluster Host Configuration
+# ============================================================================
+
+# Setup cluster hostnames
+setup_cluster_hosts() {
+  CONTROLLER_HOST="test-hpc-runtime-controller"
+  COMPUTE_HOSTS=("test-hpc-runtime-compute01" "test-hpc-runtime-compute02")
+
+  # Export for use in other scripts
+  export CONTROLLER_HOST
+  export COMPUTE_HOSTS
+}
+
+# ============================================================================
+# Docker Command Helpers
+# ============================================================================
+
+# Run Docker command with logging
+run_docker_command() {
+  local cmd="$1"
+  local log_file="$2"
+  local description="${3:-Docker command}"
+
+  log_cmd "make run-docker COMMAND='$cmd'"
+  if make run-docker COMMAND="$cmd" > "$log_file" 2>&1; then
+    log_success "$description completed"
+    return 0
+  else
+    log_error "$description failed"
+    return 1
+  fi
+}
+
+# Run Docker command with error extraction
+run_docker_command_with_errors() {
+  local cmd="$1"
+  local log_file="$2"
+  local error_file="$3"
+  local description="${4:-Docker command}"
+
+  log_cmd "make run-docker COMMAND='$cmd'"
+  if make run-docker COMMAND="$cmd" > "$log_file" 2>&1; then
+    log_success "$description completed"
+    return 0
+  else
+    log_error "$description failed"
+    # Extract errors to separate file
+    grep -i "error\|fatal" "$log_file" > "$error_file" 2>/dev/null || true
+    return 1
+  fi
+}
+
+# ============================================================================
+# Step Execution Patterns
+# ============================================================================
+
+# Common step initialization pattern
+init_step() {
+  local step_id="$1"
+  local step_description="$2"
+
+  log_step_title "$STEP_NUMBER" "$step_description"
+
+  # Check if already completed
+  if is_step_completed "$step_id"; then
+    log_warning "Step ${STEP_NUMBER} already completed at $(get_step_completion_time "$step_id")"
+    log_info "Skipping..."
+    return 0
+  fi
+
+  # Check prerequisites
+  if ! prerequisites_completed; then
+    log_error "Prerequisites not completed. Run step-00-prerequisites.sh first"
+    return 1
+  fi
+
+  init_state
+  local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
+  create_step_dir "$step_dir"
+
+  return 2  # Continue execution
+}
+
+# Common step completion pattern
+complete_step() {
+  local step_id="$1"
+  local step_description="$2"
+  local step_dir="$3"
+
+  mark_step_completed "$step_id"
+  log_success "Step ${STEP_NUMBER} PASSED: $step_description"
+
+  # Show validation summary if it exists
+  if [ -f "$step_dir/validation-summary.txt" ]; then
+    cat "$step_dir/validation-summary.txt"
+  fi
+
+  return 0
+}
+
+# ============================================================================
+# Validation Summary Generation
+# ============================================================================
+
+# Create validation summary
+create_validation_summary() {
+  local step_dir="$1"
+  local status="$2"
+  local details="$3"
+  local logs="$4"
+
+  cat > "$step_dir/validation-summary.txt" << EOF
+=== Step ${STEP_NUMBER}: ${step_description} ===
+Timestamp: $(date)
+
+${status}
+
+${details}
+
+Logs:
+${logs}
+
+EOF
+}
+
+# ============================================================================
+# Cluster Management
+# ============================================================================
+
+# Check cluster status
+check_cluster_status() {
+  local step_dir="$1"
+
+  log_info "${STEP_NUMBER}.1: Checking cluster status..."
+  if make cluster-status CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
+    > "$step_dir/cluster-status.log" 2>&1; then
+    log_success "Cluster is running"
+    return 0
+  else
+    log_warning "Cluster may not be running"
+    return 1
+  fi
+}
+
+# Start cluster if needed
+ensure_cluster_running() {
+  local step_dir="$1"
+
+  if ! check_cluster_status "$step_dir"; then
+    log_info "Starting cluster VMs..."
+    if make cluster-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
+      >> "$step_dir/cluster-status.log" 2>&1; then
+      log_success "Cluster started"
+      return 0
+    else
+      log_error "Failed to start cluster"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+# ============================================================================
 # Export variables for use in other scripts
 # ============================================================================
 

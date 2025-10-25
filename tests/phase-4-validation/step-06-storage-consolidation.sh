@@ -63,7 +63,7 @@ main() {
   cd "$PROJECT_ROOT"
 
   # Verify Step 4 completed successfully
-  log_info "5.1: Verifying Step 4 (Runtime Deployment) completed successfully..."
+  log_info "${STEP_NUMBER}.1: Verifying Step 4 (Runtime Deployment) completed successfully..."
   if ! is_step_completed "step-04-runtime-deployment"; then
     log_error "Step 4 (Runtime Deployment) must be completed before running Step 5"
     log_error "Please run: ./step-04-runtime-deployment.sh"
@@ -72,7 +72,7 @@ main() {
   log_success "Step 4 completed - cluster is running and ready for storage validation"
 
   # Verify cluster is still running
-  log_info "5.2: Verifying cluster VMs are still running..."
+  log_info "${STEP_NUMBER}.2: Verifying cluster VMs are still running..."
   if ! make cluster-status CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
     > "$step_dir/cluster-status.log" 2>&1; then
     log_warning "Cluster status check failed - VMs may have stopped"
@@ -92,7 +92,7 @@ main() {
   log_info "Task 041: Validating storage configuration schema..."
 
   # 5.3: Check storage configuration in cluster config
-  log_info "5.3: Checking storage configuration in cluster config..."
+  log_info "${STEP_NUMBER}.3: Checking storage configuration in cluster config..."
   if grep -A 30 "storage:" "config/example-multi-gpu-clusters.yaml" \
     > "$step_dir/storage-config.log" 2>&1; then
     log_success "Storage configuration found in cluster config"
@@ -102,7 +102,7 @@ main() {
   fi
 
   # 5.4: Test VirtIO-FS mount configuration parsing
-  log_info "5.4: Testing VirtIO-FS mount configuration parsing..."
+  log_info "${STEP_NUMBER}.4: Testing VirtIO-FS mount configuration parsing..."
   if grep -A 10 "virtio_fs_mounts:" "config/example-multi-gpu-clusters.yaml" \
     >> "$step_dir/storage-config.log" 2>&1; then
     log_success "VirtIO-FS mount configuration present and valid"
@@ -111,7 +111,7 @@ main() {
   fi
 
   # 5.5: Test BeeGFS configuration schema
-  log_info "5.5: Testing BeeGFS configuration schema..."
+  log_info "${STEP_NUMBER}.5: Testing BeeGFS configuration schema..."
   if grep -A 15 "beegfs:" "config/example-multi-gpu-clusters.yaml" \
     >> "$step_dir/storage-config.log" 2>&1; then
     log_success "BeeGFS configuration schema present in cluster config"
@@ -120,7 +120,7 @@ main() {
   fi
 
   # 5.6: Verify storage variables in existing inventory
-  log_info "5.6: Verifying storage variables in existing inventory..."
+  log_info "${STEP_NUMBER}.6: Verifying storage variables in existing inventory..."
   local inventory_file="ansible/inventories/test/hosts"
   if [ -f "$inventory_file" ]; then
     if grep -q "virtio_fs_mounts\|beegfs_enabled\|beegfs_config" "$inventory_file"; then
@@ -136,7 +136,7 @@ main() {
   fi
 
   # 5.7: Test configuration template rendering with storage variables
-  log_info "5.7: Testing configuration template rendering with storage variables..."
+  log_info "${STEP_NUMBER}.7: Testing configuration template rendering with storage variables..."
   log_cmd "make config-render"
   if ! make config-render >> "$step_dir/storage-config.log" 2>&1; then
     log_error "Configuration template rendering failed"
@@ -162,7 +162,7 @@ main() {
   log_info "Task 043: Testing storage runtime consolidation..."
 
   # 5.8: Verify storage components (BeeGFS) are already deployed from Step 4
-  log_info "5.8: Verifying storage components (BeeGFS) deployed in Step 4..."
+  log_info "${STEP_NUMBER}.8: Verifying storage components (BeeGFS) deployed in Step 4..."
   log_info "Note: Storage components were already deployed in Step 4 (Runtime Deployment)"
   log_info "This step verifies the deployment rather than redeploying"
 
@@ -171,10 +171,10 @@ main() {
   log_success "Storage components verified (deployed in Step 4)"
 
   # 5.9: Verify BeeGFS services on controller
-  log_info "5.9: Verifying BeeGFS services on controller..."
-  local SSH_KEY="${PROJECT_ROOT}/build/shared/ssh-keys/id_rsa"
-  local SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR -o ConnectTimeout=10"
-  local CONTROLLER_HOST="test-hpc-runtime-controller"
+  log_info "${STEP_NUMBER}.9: Verifying BeeGFS services on controller..."
+  # Setup SSH and cluster configuration
+  setup_ssh_config
+  setup_cluster_hosts
 
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage" \
     > "$step_dir/beegfs-status.log" 2>&1; then
@@ -184,7 +184,7 @@ main() {
   fi
 
   # 5.10: Verify BeeGFS client on all nodes
-  log_info "5.10: Verifying BeeGFS client on all nodes..."
+  log_info "${STEP_NUMBER}.10: Verifying BeeGFS client on all nodes..."
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "systemctl status beegfs-client" \
     >> "$step_dir/beegfs-status.log" 2>&1; then
     log_success "BeeGFS client running on controller"
@@ -193,7 +193,7 @@ main() {
   fi
 
   # 5.11: Check BeeGFS filesystem mount
-  log_info "5.11: Checking BeeGFS filesystem mount..."
+  log_info "${STEP_NUMBER}.11: Checking BeeGFS filesystem mount..."
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "mount | grep beegfs" \
     >> "$step_dir/beegfs-status.log" 2>&1; then
     log_success "BeeGFS filesystem mounted"
@@ -204,7 +204,7 @@ main() {
   fi
 
   # 5.11a: Comprehensive BeeGFS mount verification
-  log_info "5.11a: Comprehensive BeeGFS mount verification..."
+  log_info "${STEP_NUMBER}.11a: Comprehensive BeeGFS mount verification..."
   local MOUNT_VERIFICATION_LOG="$step_dir/beegfs-mount-verification.log"
   local MOUNT_ISSUES=0
 
@@ -212,7 +212,7 @@ main() {
   local EXPECTED_MOUNT_POINT="/mnt/beegfs"
 
   # Check all nodes for BeeGFS mounts
-  local ALL_NODES=("$CONTROLLER_HOST" "hpc-compute01" "hpc-compute02")
+  local ALL_NODES=("$CONTROLLER_HOST" "${COMPUTE_HOSTS[@]:-}")
 
   for node in "${ALL_NODES[@]}"; do
     log_info "Checking BeeGFS mount on node: $node"
@@ -305,10 +305,10 @@ main() {
   fi
 
   # 5.12: Test BeeGFS write/read operations across nodes
-  log_info "5.12: Testing BeeGFS write/read operations across nodes..."
+  log_info "${STEP_NUMBER}.12: Testing BeeGFS write/read operations across nodes..."
 
   # 5.12a: Create test files on controller
-  log_info "5.12a: Creating test files on controller..."
+  log_info "${STEP_NUMBER}.12a: Creating test files on controller..."
   local TEST_TIMESTAMP
   TEST_TIMESTAMP=$(date +%s)
 
@@ -341,8 +341,7 @@ main() {
   fi
 
   # 5.12b: Verify compute nodes can read controller-created files
-  log_info "5.12b: Verifying compute nodes can read controller-created files..."
-  local COMPUTE_HOSTS=("hpc-compute01" "hpc-compute02")
+  log_info "${STEP_NUMBER}.12b: Verifying compute nodes can read controller-created files..."
   local COMPUTE_COUNT=0
 
   for compute_host in "${COMPUTE_HOSTS[@]}"; do
@@ -374,7 +373,7 @@ main() {
   done
 
   # 5.12c: Create test files on compute nodes
-  log_info "5.12c: Creating test files on compute nodes..."
+  log_info "${STEP_NUMBER}.12c: Creating test files on compute nodes..."
   for i in "${!COMPUTE_HOSTS[@]}"; do
     local compute_host="${COMPUTE_HOSTS[$i]}"
     local compute_num=$((i + 1))
@@ -390,7 +389,7 @@ main() {
   done
 
   # 5.12d: Verify controller can read compute-created files
-  log_info "5.12d: Verifying controller can read compute-created files..."
+  log_info "${STEP_NUMBER}.12d: Verifying controller can read compute-created files..."
   for i in "${!COMPUTE_HOSTS[@]}"; do
     local compute_num=$((i + 1))
 
@@ -403,7 +402,7 @@ main() {
   done
 
   # 5.12e: Test file permissions and metadata consistency
-  log_info "5.12e: Testing file permissions and metadata consistency..."
+  log_info "${STEP_NUMBER}.12e: Testing file permissions and metadata consistency..."
   log_cmd "Checking file listings across all nodes"
   ssh "$SSH_OPTS" "$CONTROLLER_HOST" "ls -la /mnt/beegfs/" >> "$step_dir/beegfs-status.log" 2>&1 || true
 
@@ -415,7 +414,7 @@ main() {
 
   # 5.12f: Test concurrent access (if multiple compute nodes)
   if [ $COMPUTE_COUNT -gt 1 ]; then
-    log_info "5.12f: Testing concurrent access across compute nodes..."
+    log_info "${STEP_NUMBER}.12f: Testing concurrent access across compute nodes..."
     log_cmd "Testing concurrent file operations"
 
     # Create file on one compute node and read from another
@@ -444,7 +443,7 @@ main() {
   log_info "  - Concurrent access: $([ $COMPUTE_COUNT -gt 1 ] && echo "Tested" || echo "Skipped (insufficient nodes)")"
 
   # 5.13: Verify VirtIO-FS still works
-  log_info "5.13: Verifying VirtIO-FS mounts still work..."
+  log_info "${STEP_NUMBER}.13: Verifying VirtIO-FS mounts still work..."
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "mount | grep virtiofs" >> "$step_dir/beegfs-status.log" 2>&1; then
     log_success "VirtIO-FS mounts still functional"
     ssh "$SSH_OPTS" "$CONTROLLER_HOST" "ls -la /mnt/host-repo" >> "$step_dir/beegfs-status.log" 2>&1 || true

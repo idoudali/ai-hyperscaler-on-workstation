@@ -1,17 +1,37 @@
 #!/bin/bash
 #
-# Phase 4 Validation: Step 4 - Functional Tests
+# Phase 4 Validation: Step 9 - Functional Tests
 #
 
 set -euo pipefail
 
+# ============================================================================
+# Step Configuration
+# ============================================================================
+
+# Step identification
+STEP_NUMBER="09"
+STEP_NAME="functional-tests"
+STEP_DESCRIPTION="Functional Tests"
+STEP_ID="step-${STEP_NUMBER}-${STEP_NAME}"
+
+# Step-specific configuration
+STEP_DIR_NAME="${STEP_NUMBER}-${STEP_NAME}"
+STEP_DEPENDENCIES=("step-05-runtime-deployment")
+# shellcheck disable=SC2034
+export STEP_DEPENDENCIES
+
+# ============================================================================
+# Script Setup
+# ============================================================================
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 show_step_help() {
-  cat << 'EOF'
-Phase 4 Validation - Step 06: Functional Tests
+  cat << EOF
+Phase 4 Validation - Step ${STEP_NUMBER}: ${STEP_DESCRIPTION}
 
-Usage: ./step-06-functional-tests.sh [OPTIONS]
+Usage: ./${STEP_ID}.sh [OPTIONS]
 
 Options:
   -v, --verbose                 Enable verbose command logging
@@ -36,29 +56,28 @@ source "$SCRIPT_DIR/lib-common.sh"
 parse_validation_args "$@"
 
 main() {
-  log_step_title "06" "Functional Cluster Tests"
+  log_step_start "$STEP_NAME" "$STEP_DESCRIPTION"
 
-  if is_step_completed "step-06-functional-tests"; then
-    log_warning "Step 06 already completed at $(get_step_completion_time 'step-06-functional-tests')"
-    return 0
+  # Check prerequisites
+  log_info "Checking prerequisites..."
+  if ! check_prerequisites "step-05-runtime-deployment"; then
+    log_error "Prerequisites not met for $STEP_NAME"
+    return 1
   fi
 
-  init_state
-  local step_dir="$VALIDATION_ROOT/06-functional-tests"
-  create_step_dir "$step_dir"
+  # Continue with step execution
+  local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
+  mkdir -p "$step_dir"
 
-  # SSH configuration for non-interactive access
-  local SSH_KEY="${PROJECT_ROOT}/build/shared/ssh-keys/id_rsa"
-  local SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o LogLevel=ERROR -o ConnectTimeout=10"
-
-  local CONTROLLER_HOST="test-hpc-runtime-controller"
-  local COMPUTE_HOST="test-hpc-runtime-compute01"
+  # Setup SSH and cluster configuration
+  setup_ssh_config
+  setup_cluster_hosts
 
   log_info "Controller: $CONTROLLER_HOST"
-  log_info "Compute: $COMPUTE_HOST"
+  log_info "Compute: ${COMPUTE_HOSTS[0]}"
 
   # 6.1: Check cluster info
-  log_info "6.1: Checking SLURM cluster info..."
+  log_info "${STEP_NUMBER}.1: Checking SLURM cluster info..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'sinfo'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "sinfo" \
     > "$step_dir/cluster-info.log" 2>&1; then
@@ -69,7 +88,7 @@ main() {
   fi
 
   # 6.2: Check node registration
-  log_info "6.2: Checking compute node registration..."
+  log_info "${STEP_NUMBER}.2: Checking compute node registration..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'scontrol show nodes'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "scontrol show nodes" \
     > "$step_dir/node-registration.log" 2>&1; then
@@ -86,7 +105,7 @@ main() {
   fi
 
   # 6.3: Test simple job
-  log_info "6.3: Testing simple job execution..."
+  log_info "${STEP_NUMBER}.3: Testing simple job execution..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'srun -N1 hostname'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "srun -N1 hostname" \
     > "$step_dir/simple-job.log" 2>&1; then
@@ -97,7 +116,7 @@ main() {
   fi
 
   # 6.4: Test container support
-  log_info "6.4: Testing container runtime..."
+  log_info "${STEP_NUMBER}.4: Testing container runtime..."
   log_cmd "ssh $SSH_OPTS $CONTROLLER_HOST 'srun apptainer --version'"
   if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "srun apptainer --version" \
     > "$step_dir/container-test.log" 2>&1; then
@@ -108,7 +127,7 @@ main() {
   fi
 
   cat > "$step_dir/validation-summary.txt" << EOF
-=== Step 06: Functional Tests ===
+=== Step ${STEP_NUMBER}: ${STEP_DESCRIPTION} ===
 Timestamp: $(date)
 
 ✅ PASSED
@@ -127,10 +146,9 @@ Logs:
 
 EOF
 
-  mark_step_completed "step-06-functional-tests"
-  log_success "Step 06 PASSED: Functional tests completed"
-  cat "$step_dir/validation-summary.txt"
-
+  mark_step_completed "$STEP_ID"
+  log_step_success "$STEP_NAME" "$STEP_DESCRIPTION"
+  log_info "Functional tests completed successfully"
   return 0
 }
 

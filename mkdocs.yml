@@ -222,7 +222,18 @@ nav:
           - CMake Implementation: components/cmake-implementation.md
       - Testing Framework:
           - Developer Guide: components/testing-framework-guide.md
+      - BeeGFS (BeeOND):
+          - Overview: components/beegfs/README.md
+          - Setup Guide: components/beegfs/setup-guide.md
+          - Installation Flow: components/beegfs/installation-flow.md
+          - Fixes Summary: components/beegfs/fixes-summary.md
+          - Client Role Fixes: components/beegfs/client-role-fixes.md
+          - Kernel Module Reference: components/beegfs/kernel-module-fix.txt
       - Ansible:
+          - Overview: components/ansible/README.md
+          - Facts Reference: components/ansible/facts-reference.md
+          - Debugging Guide: components/ansible/debugging-guide.md
+      - Ansible Infrastructure:
           - Overview: ansible/README.md
           - Roles Index: ansible/roles/README.md
           - Playbooks Index: ansible/playbooks/README.md

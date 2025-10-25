@@ -21,6 +21,13 @@
     - container-registry
 
 # Only execute the following tasks on live VMs (packer_build=false)
+- name: Include storage dependency validation tasks
+  include_tasks: validate-storage-dependencies.yml
+  when: not (packer_build | default(false) | bool)
+  tags:
+    - container-registry
+    - validation
+
 - name: Include container registry setup tasks
   include_tasks: registry-setup.yml
   when: not (packer_build | default(false) | bool)

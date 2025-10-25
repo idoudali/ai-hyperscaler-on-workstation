@@ -277,6 +277,17 @@ build {
     use_proxy = false
   }
 
+  # Setup container registry infrastructure (local storage for Packer builds)
+  provisioner "shell" {
+    inline = [
+      "echo 'Setting up container registry infrastructure...'",
+      "sudo mkdir -p /opt/containers/{ml-frameworks,custom-images,base-images,.registry}",
+      "sudo chown -R root:slurm /opt/containers",
+      "sudo chmod -R 775 /opt/containers",
+      "echo 'Container registry directories created'"
+    ]
+  }
+
   # Final cleanup for cloning - optimized for speed and size
   provisioner "shell" {
     # Use bash and set options within the script (shebang only supports a single arg)

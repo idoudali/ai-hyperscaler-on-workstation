@@ -41,12 +41,36 @@
         success_msg: "Running in live VM deployment mode (packer_build=false) ✓"
       tags: always
 
+    - name: Check if BeeGFS is mounted
+      stat:
+        path: "{{ container_registry_beegfs_path | default('/mnt/beegfs') }}"
+      register: beegfs_mount_check
+      changed_when: false
+      tags: always
+
+    - name: Set BeeGFS mount status
+      set_fact:
+        beegfs_mounted: "{{ beegfs_mount_check.stat.exists and beegfs_mount_check.stat.isdir }}"
+      tags: always
+
+    - name: Determine container registry storage backend
+      set_fact:
+        container_registry_storage_backend: >-
+          {{ 'BeeGFS' if (container_registry_on_beegfs | default(true) and beegfs_mounted)
+             else 'Local Storage' }}
+        container_registry_actual_path: >-
+          {{ container_registry_beegfs_path if (container_registry_on_beegfs | default(true) and beegfs_mounted)
+             else container_registry_local_path }}
+      tags: always
+
     - name: Display deployment information
       debug:
         msg:
           - "Deploying container registry infrastructure"
           - "Target hosts: {{ ansible_play_hosts | join(', ') }}"
-          - "Registry base path: {{ container_registry_base_path | default('/opt/containers') }}"
+          - "Storage backend: {{ container_registry_storage_backend }}"
+          - "Registry path: {{ container_registry_actual_path }}"
+          - "BeeGFS mounted: {{ beegfs_mounted }}"
           - "Packer build mode: {{ packer_build | default(false) }}"
       tags: always
 
@@ -76,7 +100,7 @@
   post_tasks:
     - name: Verify registry infrastructure deployed
       stat:
-        path: "{{ container_registry_base_path | default('/opt/containers') }}"
+        path: "{{ container_registry_actual_path }}"
       register: registry_deployed
       failed_when: not registry_deployed.stat.exists
       tags:
@@ -86,7 +110,8 @@
       debug:
         msg:
           - "Container registry infrastructure deployed successfully ✓"
-          - "Registry path: {{ container_registry_base_path | default('/opt/containers') }}"
+          - "Storage backend: {{ container_registry_storage_backend }}"
+          - "Registry path: {{ container_registry_actual_path }}"
           - "Owner: {{ container_registry_owner | default('root') }}"
           - "Group: {{ container_registry_group | default('slurm') }}"
           - ""
@@ -94,6 +119,10 @@
           - "1. Deploy container images using: hpc-container-manager deploy <image.sif>"
           - "2. Run tests: tests/test-container-registry-framework.sh --phase infrastructure"
           - "3. Verify: tests/suites/container-registry/run-ansible-infrastructure-tests.sh"
+          - ""
+          - "Storage benefits:"
+          - "{{ '• Automatic distribution across all nodes via BeeGFS' if (container_registry_storage_backend == 'BeeGFS') else '• Manual sync required between nodes' }}"
+          - "{{ '• No sync script needed' if (container_registry_storage_backend == 'BeeGFS') else '• Use registry-sync-to-nodes.sh for distribution' }}"
       tags:
         - always
 
@@ -109,11 +138,11 @@
         path: "{{ item }}"
       register: registry_structure_stat
       loop:
-        - "{{ container_registry_base_path | default('/opt/containers') }}"
-        - "{{ container_registry_base_path | default('/opt/containers') }}/ml-frameworks"
-        - "{{ container_registry_base_path | default('/opt/containers') }}/custom-images"
-        - "{{ container_registry_base_path | default('/opt/containers') }}/base-images"
-        - "{{ container_registry_base_path | default('/opt/containers') }}/.registry"
+        - "{{ container_registry_actual_path }}"
+        - "{{ container_registry_actual_path }}/ml-frameworks"
+        - "{{ container_registry_actual_path }}/custom-images"
+        - "{{ container_registry_actual_path }}/base-images"
+        - "{{ container_registry_actual_path }}/.registry"
       failed_when: not registry_structure_stat.stat.exists
       tags:
         - verify
@@ -134,8 +163,9 @@
           - "═══════════════════════════════════════════════════════════"
           - ""
           - "Registry Status: READY"
-          - "Base Path: {{ container_registry_base_path | default('/opt/containers') }}"
-          - "Sync Script: /usr/local/bin/registry-sync-to-nodes.sh"
+          - "Storage Backend: {{ container_registry_storage_backend }}"
+          - "Base Path: {{ container_registry_actual_path }}"
+          - "Sync Script: {{ '/usr/local/bin/registry-sync-to-nodes.sh' if (container_registry_storage_backend == 'Local Storage') else 'Not needed (BeeGFS auto-distribution)' }}"
           - ""
           - "Subdirectories:"
           - "  • ml-frameworks/  - Production ML frameworks"
@@ -146,8 +176,12 @@
           - "Deploy containers with:"
           - "  hpc-container-manager deploy <image.sif> \\"
           - "    --cluster-config config/example-multi-gpu-clusters.yaml \\"
-          - "    --registry-path /opt/containers/ml-frameworks/ \\"
-          - "    --sync-nodes --verify"
+          - "    --registry-path {{ container_registry_actual_path }}/ml-frameworks/ \\"
+          - "    {{ '--sync-nodes' if (container_registry_storage_backend == 'Local Storage') else '--no-sync' }} --verify"
+          - ""
+          - "Storage Benefits:"
+          - "{{ '  • Automatic distribution across all nodes via BeeGFS' if (container_registry_storage_backend == 'BeeGFS') else '  • Manual sync required between nodes' }}"
+          - "{{ '  • No sync script needed' if (container_registry_storage_backend == 'BeeGFS') else '  • Use registry-sync-to-nodes.sh for distribution' }}"
           - ""
           - "═══════════════════════════════════════════════════════════"
       tags:

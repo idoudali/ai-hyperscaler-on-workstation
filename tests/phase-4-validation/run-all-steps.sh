@@ -89,11 +89,14 @@ Description:
   - Step 00: Prerequisites
   - Step 01: Packer Controller Build
   - Step 02: Packer Compute Build
-  - Step 03: Configuration Rendering
-  - Step 04: Runtime Deployment
-  - Step 05: Storage Consolidation
-  - Step 06: Functional Tests
-  - Step 07: Regression Tests
+  - Step 03: Container Image Build
+  - Step 04: Configuration Rendering
+  - Step 05: Runtime Deployment
+  - Step 06: VirtIO-FS Mount Validation
+  - Step 07: BeeGFS Setup Validation
+  - Step 08: Container Image Push
+  - Step 09: Functional Tests
+  - Step 10: Regression Tests
 
   All outputs are saved to: validation-output/phase-4-validation-TIMESTAMP/
 
@@ -164,42 +167,66 @@ main() {
   fi
   echo ""
 
-  # Step 3: Configuration Rendering
-  log_info "Running Step 03: Configuration Rendering..."
-  if ! bash "$SCRIPT_DIR/step-03-config-rendering.sh"; then
+  # Step 3: Container Image Build
+  log_info "Running Step 03: Container Image Build..."
+  if ! bash "$SCRIPT_DIR/step-03-container-image-build.sh"; then
     log_error "Step 03 FAILED"
     return 1
   fi
   echo ""
 
-  # Step 4: Runtime Deployment
-  log_info "Running Step 04: Runtime Deployment..."
-  if ! bash "$SCRIPT_DIR/step-04-runtime-deployment.sh"; then
+  # Step 4: Configuration Rendering
+  log_info "Running Step 04: Configuration Rendering..."
+  if ! bash "$SCRIPT_DIR/step-04-config-rendering.sh"; then
     log_error "Step 04 FAILED"
     return 1
   fi
   echo ""
 
-  # Step 5: Storage Consolidation
-  log_info "Running Step 05: Storage Consolidation..."
-  if ! bash "$SCRIPT_DIR/step-05-storage-consolidation.sh"; then
+  # Step 5: Runtime Deployment
+  log_info "Running Step 05: Runtime Deployment..."
+  if ! bash "$SCRIPT_DIR/step-05-runtime-deployment.sh"; then
     log_error "Step 05 FAILED"
     return 1
   fi
   echo ""
 
-  # Step 6: Functional Tests
-  log_info "Running Step 06: Functional Tests..."
-  if ! bash "$SCRIPT_DIR/step-06-functional-tests.sh"; then
+  # Step 6: VirtIO-FS Mount Validation
+  log_info "Running Step 06: VirtIO-FS Mount Validation..."
+  if ! bash "$SCRIPT_DIR/step-06-virtio-fs-validation.sh"; then
     log_error "Step 06 FAILED"
     return 1
   fi
   echo ""
 
-  # Step 7: Regression Tests
-  log_info "Running Step 07: Regression Tests..."
-  if ! bash "$SCRIPT_DIR/step-07-regression-tests.sh"; then
+  # Step 7: BeeGFS Setup Validation
+  log_info "Running Step 07: BeeGFS Setup Validation..."
+  if ! bash "$SCRIPT_DIR/step-07-beegfs-validation.sh"; then
     log_error "Step 07 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 8: Container Image Push
+  log_info "Running Step 08: Container Image Push..."
+  if ! bash "$SCRIPT_DIR/step-08-container-image-push.sh"; then
+    log_error "Step 08 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 9: Functional Tests
+  log_info "Running Step 09: Functional Tests..."
+  if ! bash "$SCRIPT_DIR/step-09-functional-tests.sh"; then
+    log_error "Step 09 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 10: Regression Tests
+  log_info "Running Step 10: Regression Tests..."
+  if ! bash "$SCRIPT_DIR/step-10-regression-tests.sh"; then
+    log_error "Step 10 FAILED"
     return 1
   fi
   echo ""
@@ -213,7 +240,7 @@ main() {
 
   # Print summary
   echo "╔════════════════════════════════════════════════════════════╗"
-  echo "║  ✅ ALL VALIDATION STEPS PASSED                           ║"
+  echo "║  ✅ ALL 10 VALIDATION STEPS PASSED                        ║"
   echo "╚════════════════════════════════════════════════════════════╝"
   echo ""
   echo "Completed Steps:"

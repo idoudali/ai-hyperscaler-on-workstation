@@ -1,8 +1,8 @@
-# BeeGFS Installation Flow
+# BeeGFS (BeeOND) Installation Flow
 
 ## Overview
 
-The BeeGFS installation system supports two deployment modes:
+The BeeGFS (BeeOND) installation system supports two deployment modes:
 
 1. **Packer Build Time**: Packages are pre-installed in VM images
 2. **Runtime Deployment**: Packages are installed on-demand via Ansible
@@ -197,3 +197,10 @@ ansible-playbook -i inventory.yml playbook-hpc-runtime.yml
 - **Configuration**: Updates config files, initializes services, starts daemons
 - **Packer**: Does installation only
 - **Runtime**: Does both (installation if needed, always configuration)
+
+---
+
+**See Also:**
+
+- [Setup Guide](setup-guide.md) - Complete deployment guide
+- [Fixes Summary](fixes-summary.md) - Critical fixes implemented

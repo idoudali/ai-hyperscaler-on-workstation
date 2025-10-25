@@ -1,0 +1,113 @@
+---
+# Container Registry Storage Dependency Validation
+# Validates that the required storage backend is properly deployed and accessible
+
+- name: Get storage backend configuration
+  set_fact:
+    storage_config: "{{ container_registry_storage_dependencies[container_registry_storage_backend] }}"
+  tags:
+    - container-registry
+    - validation
+
+- name: Display storage backend information
+  debug:
+    msg:
+      - "Container Registry Storage Backend: {{ container_registry_storage_backend }}"
+      - "Required roles: {{ storage_config.required_roles | default([]) }}"
+      - "Mount point variable: {{ storage_config.mount_point_var }}"
+      - "Expected registry path: {{ container_registry_base_path }}"
+  tags:
+    - container-registry
+    - validation
+
+- name: Check if storage backend is supported
+  fail:
+    msg: "Unsupported storage backend '{{ container_registry_storage_backend }}'. Supported backends: {{ container_registry_storage_dependencies.keys() | list }}"
+  when: container_registry_storage_backend not in container_registry_storage_dependencies
+  tags:
+    - container-registry
+    - validation
+
+- name: Check if required storage service is running
+  systemd:
+    name: "{{ storage_config.service_check_cmd.split()[-1] }}"
+    state: started
+  register: storage_service_status
+  when: storage_config.service_check_cmd != "true"
+  tags:
+    - container-registry
+    - validation
+
+- name: Fail if storage service is not running
+  fail:
+    msg: "Required storage service '{{ storage_config.service_check_cmd.split()[-1] }}' is not running. Please deploy storage backend first."
+  when:
+    - storage_config.service_check_cmd != "true"
+    - not storage_service_status.is_active | default(false)
+  tags:
+    - container-registry
+    - validation
+
+- name: Check if storage mount point exists
+  stat:
+    path: "{{ hostvars[inventory_hostname][storage_config.mount_point_var] | default(container_registry_base_path) }}"
+  register: storage_mount_check
+  tags:
+    - container-registry
+    - validation
+
+- name: Fail if storage mount point does not exist
+  fail:
+    msg: "Storage mount point '{{ hostvars[inventory_hostname][storage_config.mount_point_var] | default(container_registry_base_path) }}' does not exist. Please ensure storage backend is properly mounted."
+  when: not storage_mount_check.stat.exists
+  tags:
+    - container-registry
+    - validation
+
+- name: Check if storage mount point is a directory
+  fail:
+    msg: "Storage mount point '{{ hostvars[inventory_hostname][storage_config.mount_point_var] | default(container_registry_base_path) }}' is not a directory."
+  when: not storage_mount_check.stat.isdir
+  tags:
+    - container-registry
+    - validation
+
+- name: Test storage mount point writability
+  file:
+    path: "{{ container_registry_base_path }}/.registry_write_test_{{ ansible_hostname }}"
+    state: touch
+    mode: '0644'
+  register: storage_write_test
+  failed_when: false
+  tags:
+    - container-registry
+    - validation
+
+- name: Remove storage write test file
+  file:
+    path: "{{ container_registry_base_path }}/.registry_write_test_{{ ansible_hostname }}"
+    state: absent
+  when: storage_write_test.changed
+  tags:
+    - container-registry
+    - validation
+
+- name: Fail if storage mount point is not writable
+  fail:
+    msg: "Storage mount point '{{ container_registry_base_path }}' is not writable. Please check permissions and storage backend configuration."
+  when: storage_write_test.failed
+  tags:
+    - container-registry
+    - validation
+
+- name: Display storage validation success
+  debug:
+    msg:
+      - "✅ Storage backend validation successful"
+      - "Backend: {{ container_registry_storage_backend }}"
+      - "Mount point: {{ container_registry_base_path }}"
+      - "Writable: Yes"
+      - "Service status: {{ 'Running' if (storage_service_status.is_active | default(true)) else 'N/A' }}"
+  tags:
+    - container-registry
+    - validation
