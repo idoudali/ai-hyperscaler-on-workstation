@@ -1,0 +1,23 @@
+---
+# BeeGFS Common Role - Default Variables
+# These are common defaults used across all BeeGFS service roles
+
+# BeeGFS version
+beegfs_version: "8.1.0"
+
+# Package paths
+beegfs_packages_path: "/tmp/beegfs-packages"
+beegfs_packages_source_dir: "{{ (playbook_dir | default(inventory_dir)) }}/../../build/packages/beegfs"
+
+# Service type will be overridden by calling role
+beegfs_service_type: "common"
+
+# Default required packages (will be overridden)
+beegfs_required_packages:
+  - "beegfs-utils_{{ beegfs_version }}_*.deb"
+
+# Default binary check path (will be overridden)
+beegfs_binary_check_path: "/usr/bin/beegfs-check"
+
+# Default verify command (will be overridden)
+beegfs_verify_command: "beegfs-check --version"
