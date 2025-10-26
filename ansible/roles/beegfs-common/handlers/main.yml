@@ -1,0 +1,59 @@
+---
+# BeeGFS Common Role - Shared Handlers
+# Service restart handlers for all BeeGFS services
+
+- name: restart beegfs-mgmtd
+  ansible.builtin.systemd:
+    name: beegfs-mgmtd
+    state: restarted
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: restart beegfs-meta
+  ansible.builtin.systemd:
+    name: beegfs-meta
+    state: restarted
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: restart beegfs-storage
+  ansible.builtin.systemd:
+    name: beegfs-storage
+    state: restarted
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: restart beegfs-client
+  ansible.builtin.systemd:
+    name: beegfs-client
+    state: restarted
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: reload beegfs-mgmtd
+  ansible.builtin.systemd:
+    name: beegfs-mgmtd
+    state: reloaded
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: reload beegfs-meta
+  ansible.builtin.systemd:
+    name: beegfs-meta
+    state: reloaded
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: reload beegfs-storage
+  ansible.builtin.systemd:
+    name: beegfs-storage
+    state: reloaded
+    daemon_reload: true
+  when: not (packer_build | default(false))
+
+- name: reload beegfs-client
+  ansible.builtin.systemd:
+    name: beegfs-client
+    state: reloaded
+    daemon_reload: true
+  when: not (packer_build | default(false))
