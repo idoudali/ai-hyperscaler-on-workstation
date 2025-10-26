@@ -1,762 +1,176 @@
 #!/bin/bash
-#
-# Virtio-FS Test Framework
-# Task 027 - Implement Virtio-FS Host Directory Sharing
-# Test framework for validating virtio-fs configuration in HPC controller
+# Virtio-FS Test Framework - Refactored to use Phase 2 shared utilities
+# Task: TASK-027 - Implement Virtio-FS Host Directory Sharing
 
 set -euo pipefail
 
-# Help message
-show_help() {
-    cat << EOF
-Virtio-FS Test Framework - Task 027 Validation
-
-USAGE:
-    $0 [OPTIONS] [COMMAND]
-
-COMMANDS:
-    e2e, end-to-end   Run complete end-to-end test with cleanup (default behavior)
-    start-cluster     Start the HPC cluster independently
-    stop-cluster      Stop and destroy the HPC cluster
-    deploy-ansible    Deploy virtio-fs configuration via Ansible (assumes cluster is running)
-    run-tests         Run virtio-fs tests on running cluster
-    status            Show cluster status
-    help              Show this help message
-
-OPTIONS:
-    -h, --help        Show this help message
-    -v, --verbose     Enable verbose output
-    --no-cleanup      Skip cleanup after test completion
-    --interactive     Enable interactive cleanup prompts
-
-EXAMPLES:
-    # Run complete end-to-end test with cleanup (default, recommended for CI/CD)
-    $0
-    $0 e2e
-    $0 end-to-end
-
-    # Modular workflow for debugging (keeps cluster running)
-    $0 start-cluster          # Start cluster
-    $0 deploy-ansible         # Deploy virtio-fs configuration
-    $0 run-tests              # Run tests (can repeat)
-    $0 status                 # Check status
-    $0 stop-cluster           # Clean up when done
-
-WORKFLOWS:
-    End-to-End (Default):
-        $0                    # Complete test with cleanup
-        $0 e2e                # Explicit
-
-    Manual/Debugging:
-        1. Start cluster:     $0 start-cluster
-        2. Deploy Ansible:    $0 deploy-ansible
-        3. Run tests:         $0 run-tests
-        4. Stop cluster:      $0 stop-cluster
-
-CONFIGURATION:
-    Test Config: $TEST_CONFIG
-    Log Directory: logs/virtio-fs-test-run-*
-    VM Pattern: $TARGET_VM_PATTERN
-
-EOF
-}
-
-PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-
-# Framework configuration
-FRAMEWORK_NAME="Virtio-FS Test Framework"
-
-# Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TESTS_DIR="$PROJECT_ROOT/tests"
+UTILS_DIR="$TESTS_DIR/test-infra/utils"
 
-# Validate PROJECT_ROOT before setting up environment variables
-if [[ ! -d "$PROJECT_ROOT" ]]; then
-    echo "Error: Invalid PROJECT_ROOT directory: $PROJECT_ROOT"
-    exit 1
-fi
+export PROJECT_ROOT TESTS_DIR SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa" SSH_USER="admin"
 
-# Source shared utilities
-UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
-if [[ ! -f "$UTILS_DIR/test-framework-utils.sh" ]]; then
-    echo "Error: Shared utilities not found at $UTILS_DIR/test-framework-utils.sh"
-    exit 1
-fi
+FRAMEWORK_NAME="Virtio-FS Test Framework"
+FRAMEWORK_DESCRIPTION="Host directory sharing and filesystem passthrough validation"
+# shellcheck disable=SC2034
+FRAMEWORK_TASK="TASK-027"
+FRAMEWORK_TEST_CONFIG="$TESTS_DIR/test-infra/configs/test-virtio-fs.yaml"
+FRAMEWORK_TEST_SCRIPTS_DIR="$TESTS_DIR/suites/virtio-fs"
+FRAMEWORK_TARGET_VM_PATTERN="test-hpc-virtio-fs-controller"
+# shellcheck disable=SC2034
+FRAMEWORK_MASTER_TEST_SCRIPT="run-virtio-fs-tests.sh"
+export FRAMEWORK_NAME FRAMEWORK_DESCRIPTION FRAMEWORK_TEST_CONFIG FRAMEWORK_TEST_SCRIPTS_DIR FRAMEWORK_TARGET_VM_PATTERN
 
-# Set up environment variables for shared utilities AFTER validation
-export PROJECT_ROOT
-export TESTS_DIR="$PROJECT_ROOT/tests"
-export SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa"
-export SSH_USER="admin"
-export CLEANUP_REQUIRED=false
-export INTERACTIVE_CLEANUP=false
-export TEST_NAME="virtio-fs"
+# Source utilities
+# shellcheck disable=SC1090
+for util in log-utils.sh cluster-utils.sh ansible-utils.sh test-framework-utils.sh framework-cli.sh framework-orchestration.sh; do
+    [[ -f "$UTILS_DIR/$util" ]] && source "$UTILS_DIR/$util"
+done
 
-# shellcheck source=./test-infra/utils/test-framework-utils.sh
-source "$UTILS_DIR/test-framework-utils.sh"
-
-# Test configuration
-TEST_CONFIG="$PROJECT_ROOT/tests/test-infra/configs/test-virtio-fs.yaml"
-TEST_SCRIPTS_DIR="$PROJECT_ROOT/tests/suites/virtio-fs"
-TARGET_VM_PATTERN="test-hpc-virtio-fs-controller"
-MASTER_TEST_SCRIPT="run-virtio-fs-tests.sh"
-
-# Global variables for command line options
-INTERACTIVE=false
-COMMAND="e2e"
-
-# Parse command line arguments
-parse_arguments() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            -h|--help)
-                show_help
-                exit 0
-                ;;
-            -v|--verbose)
-                # VERBOSE flag is handled by the calling script
-                shift
-                ;;
-            --no-cleanup)
-                # NO_CLEANUP flag is handled by the calling script
-                shift
-                ;;
-            --interactive)
-                INTERACTIVE=true
-                shift
-                ;;
-            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|status|help)
-                COMMAND="$1"
-                shift
-                ;;
-            *)
-                echo "Error: Unknown option '$1'"
-                echo "Use '$0 --help' for usage information"
-                exit 1
-                ;;
-        esac
-    done
-}
-
-# Initialize logging
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 init_logging "$TIMESTAMP" "logs" "virtio-fs"
 
-# Setup virtual environment for Ansible
-setup_virtual_environment() {
-    log "Setting up virtual environment for Ansible dependencies..."
+# Virtio-FS-specific deployment
+deploy_virtio_fs_ansible() {
+    log "Deploying Virtio-FS configuration via Ansible..."
 
-    # Check if virtual environment exists and has Ansible
-    if [[ -f "$PROJECT_ROOT/.venv/bin/activate" ]]; then
-        log "Virtual environment exists, checking Ansible availability..."
-        if source "$PROJECT_ROOT/.venv/bin/activate" && python3 -c "from ansible.cli.playbook import main" >/dev/null 2>&1; then
-            log_success "Virtual environment with Ansible is ready"
-            return 0
-        else
-            log_warning "Virtual environment exists but Ansible is not properly installed"
-        fi
-    fi
-
-    log "Creating virtual environment with all dependencies..."
-    if (cd "$PROJECT_ROOT" && make venv-create); then
-        log_success "Virtual environment created successfully"
-        return 0
-    else
-        log_error "Failed to create virtual environment"
+    # Get cluster name from config
+    local cluster_name
+    if ! cluster_name=$(parse_cluster_name "$FRAMEWORK_TEST_CONFIG" "${LOG_DIR}" "$FRAMEWORK_TARGET_VM_PATTERN"); then
+        log_error "Failed to get cluster name from configuration"
         return 1
     fi
-}
 
-# Create host directories for virtio-fs mounts
-create_host_directories() {
-    log "Creating host directories for virtio-fs mounts..."
+    log "Cluster name: $cluster_name"
 
-    # Create directories as specified in test configuration
-    local host_dirs=(
-        "/tmp/test-virtio-fs-datasets"
-        "/tmp/test-virtio-fs-containers"
-    )
+    # Generate Ansible inventory
+    local inventory="$PROJECT_ROOT/build/test-inventory-virtio-fs.yml"
+    if ! generate_ansible_inventory "$inventory" "$cluster_name"; then
+        log_error "Failed to generate Ansible inventory"
+        return 1
+    fi
 
-    for dir in "${host_dirs[@]}"; do
-        if [[ ! -d "$dir" ]]; then
-            log "Creating directory: $dir"
-            if mkdir -p "$dir" 2>/dev/null; then
-                log_success "Created directory: $dir"
-            else
-                log_warning "Failed to create directory: $dir (may need sudo)"
-                # Try with sudo
-                if sudo mkdir -p "$dir"; then
-                    log_success "Created directory with sudo: $dir"
-                else
-                    log_error "Failed to create directory even with sudo: $dir"
-                    return 1
-                fi
-            fi
-        else
-            log "Directory already exists: $dir"
-        fi
+    # Wait for SSH connectivity
+    if ! wait_for_inventory_nodes_ssh "$inventory" "all"; then
+        log_error "SSH connectivity check failed"
+        return 1
+    fi
 
-        # Ensure proper permissions
-        if chmod 755 "$dir" 2>/dev/null; then
-            log "Set permissions for: $dir"
-        else
-            sudo chmod 755 "$dir" 2>/dev/null || true
-        fi
-    done
+    local playbook="$PROJECT_ROOT/ansible/playbooks/playbook-virtio-fs-runtime-config.yml"
 
-    log_success "Host directories ready for virtio-fs mounts"
+    if [[ ! -f "$playbook" ]]; then
+        log_error "Virtio-FS playbook not found: $playbook"
+        return 1
+    fi
+
+    log "Running Virtio-FS deployment playbook..."
+    log "Inventory: $inventory"
+    log "Playbook: $playbook"
+
+    # Run Ansible playbook
+    if ! uv run ansible-playbook -i "$inventory" "$playbook" -v; then
+        log_error "Ansible playbook execution failed"
+        return 1
+    fi
+
+    log "Virtio-FS deployment completed successfully"
+
+    # Wait for services to stabilize
+    log "Waiting for Virtio-FS services to stabilize..."
+    sleep 15
+
     return 0
 }
 
-# Start cluster independently
-start_cluster() {
-    log "Starting HPC cluster independently..."
-
-    # Check if cluster is already running
-    if check_cluster_status >/dev/null 2>&1; then
-        log_warning "Cluster appears to be already running"
-        if [[ "$INTERACTIVE" == "true" ]]; then
-            read -p "Continue anyway? (y/N): " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                log "Aborted by user"
-                return 0
-            fi
-        fi
-    fi
-
-    # Create host directories for virtio-fs
-    if ! create_host_directories; then
-        log_error "Failed to create host directories"
-        return 1
-    fi
-
-    # Change to project root before running ai-how
-    cd "$PROJECT_ROOT" || {
-        log_error "Failed to change to project root: $PROJECT_ROOT"
-        return 1
-    }
-
-    # Start cluster using ai-how
-    log "Executing: uv run ai-how hpc start $TEST_CONFIG"
-    if uv run ai-how hpc start "$TEST_CONFIG"; then
-        log_success "Cluster started successfully"
-        log "Cluster configuration: $TEST_CONFIG"
-        log "VM Pattern: $TARGET_VM_PATTERN"
-        return 0
-    else
-        log_error "Failed to start cluster"
-        return 1
-    fi
-}
-
-# Stop cluster independently
-stop_cluster() {
-    log "Stopping HPC cluster..."
-
-    # Check if cluster is running
-    if ! check_cluster_status >/dev/null 2>&1; then
-        log_warning "No running cluster found"
-        return 0
-    fi
-
-    # Change to project root before running ai-how
-    cd "$PROJECT_ROOT" || {
-        log_error "Failed to change to project root: $PROJECT_ROOT"
-        return 1
-    }
-
-    # Stop cluster using ai-how
-    log "Executing: uv run ai-how hpc destroy $TEST_CONFIG --force"
-    if uv run ai-how hpc destroy "$TEST_CONFIG" --force; then
-        log_success "Cluster stopped successfully"
-        return 0
-    else
-        log_error "Failed to stop cluster"
-        return 1
-    fi
-}
-
-# Deploy virtio-fs configuration on running cluster
-deploy_virtio_fs_config() {
-    local test_config="$1"
-
-    [[ -z "$test_config" ]] && {
-        log_error "deploy_virtio_fs_config: test_config parameter required"
-        return 1
-    }
-
-    log "Deploying virtio-fs configuration on running cluster..."
-
-    # Extract cluster name
-    local cluster_name
-    if ! cluster_name=$(parse_cluster_name "$test_config" "$LOG_DIR" "hpc"); then
-        log_warning "Failed to extract cluster name using ai-how API, falling back to filename"
-        cluster_name=$(basename "${test_config%.yaml}")
-    fi
-
-    # Deploy virtio-fs configuration using the provision function
-    if provision_virtio_fs_on_vms "$cluster_name"; then
-        log_success "Virtio-fs configuration deployed successfully"
-        return 0
-    else
-        log_error "Failed to deploy virtio-fs configuration"
-        return 1
-    fi
-}
-
-# Provision virtio-fs configuration on VMs
-provision_virtio_fs_on_vms() {
-    local cluster_name="$1"
-
-    [[ -z "$cluster_name" ]] && {
-        log_error "provision_virtio_fs_on_vms: cluster_name parameter required"
-        return 1
-    }
-
-    log "Provisioning virtio-fs configuration on cluster: $cluster_name"
-
-    # Get all VMs for the cluster
-    local vm_list
-    vm_list=$(virsh list --name --state-running | grep "^${cluster_name}" || true)
-
-    if [[ -z "$vm_list" ]]; then
-        log_error "No running VMs found for cluster: $cluster_name"
-        return 1
-    fi
-
-    # Create temporary Ansible inventory file
-    local temp_inventory
-    temp_inventory=$(mktemp)
-
-    # Build inventory
-    local controllers=()
-
-    while IFS= read -r vm_name; do
-        if [[ -z "$vm_name" ]]; then continue; fi
-
-        local vm_ip
-        vm_ip=$(get_vm_ip "$vm_name")
-
-        if [[ -z "$vm_ip" ]]; then
-            log_warning "Could not get IP for VM: $vm_name"
-            continue
-        fi
-
-        # Add controller VMs (virtio-fs is typically on controllers)
-        if [[ "$vm_name" == *"controller"* ]]; then
-            controllers+=("${vm_name} ansible_host=${vm_ip} ansible_user=admin")
-        fi
-    done <<< "$vm_list"
-
-    # Write inventory file
-    echo "[hpc_controller]" > "$temp_inventory"
-    for controller in "${controllers[@]}"; do
-        echo "$controller" >> "$temp_inventory"
-    done
-
-    # Add common variables
-    cat >> "$temp_inventory" << EOF
-
-[all:vars]
-ansible_ssh_private_key_file=${SSH_KEY_PATH}
-ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-packer_build=false
-EOF
-
-    log "Generated Ansible inventory:"
-    while IFS= read -r line; do log "  $line"; done < "$temp_inventory"
-
-    # Run Ansible playbook from ansible directory
-    local playbook_result=0
-    local original_dir
-    original_dir=$(pwd)
-    local ansible_dir="$PROJECT_ROOT/ansible"
-
-    cd "$ansible_dir" || {
-        log_error "Could not change to ansible directory: $ansible_dir"
-        rm -f "$temp_inventory"
-        return 1
-    }
-
-    # Set environment variables for Ansible
-    export ANSIBLE_CONFIG="$ansible_dir/ansible.cfg"
-    log "Using Ansible config: $ANSIBLE_CONFIG"
-
-    # Run virtio-fs runtime configuration playbook
-    local playbook="playbooks/playbook-virtio-fs-runtime-config.yml"
-
-    if [[ ! -f "$playbook" ]]; then
-        log_error "Virtio-fs runtime playbook not found: $playbook"
-        cd "$original_dir" || log_warning "Could not return to original directory"
-        rm -f "$temp_inventory"
-        return 1
-    fi
-
-    log "Running virtio-fs runtime configuration playbook..."
-    if ! uv run ansible-playbook -i "$temp_inventory" "$playbook" -v; then
-        log_error "Virtio-fs playbook failed"
-        playbook_result=1
-    else
-        log_success "Virtio-fs playbook completed successfully"
-    fi
-
-    # Return to original directory
-    cd "$original_dir" || log_warning "Could not return to original directory"
-
-    # Cleanup
-    rm -f "$temp_inventory"
-
-    if [[ $playbook_result -eq 0 ]]; then
-        log_success "Virtio-fs configuration completed successfully"
-        # Wait a moment for mounts to stabilize
-        log "Waiting for mounts to stabilize..."
-        sleep 5
-        return 0
-    else
-        log_error "Virtio-fs configuration failed"
-        return 1
-    fi
-}
-
-# Deploy Ansible independently
-deploy_ansible() {
-    log "Deploying virtio-fs configuration via Ansible..."
-
-    # Check if cluster is running
-    if ! check_cluster_status >/dev/null 2>&1; then
-        log_error "No running cluster found. Please start cluster first with: $0 start-cluster"
-        return 1
-    fi
-
-    # Setup virtual environment
-    if ! setup_virtual_environment; then
-        log_error "Failed to setup virtual environment"
-        return 1
-    fi
-
-    # Export virtual environment
-    export VIRTUAL_ENV_PATH="$PROJECT_ROOT/.venv"
-    export PATH="$VIRTUAL_ENV_PATH/bin:$PATH"
-    log "Virtual environment activated for Ansible operations"
-
-    # Deploy virtio-fs configuration using local function
-    log "Deploying virtio-fs configuration on running cluster..."
-    if deploy_virtio_fs_config "$TEST_CONFIG"; then
-        log_success "Virtio-fs configuration deployed successfully"
-        return 0
-    else
-        log_error "Failed to deploy virtio-fs configuration"
-        return 1
-    fi
-}
-
-# Run virtio-fs tests on running cluster
+# Virtio-FS-specific test execution
 run_virtio_fs_tests() {
-    local test_config="$1"
-    local test_scripts_dir="$2"
-    local target_vm_pattern="$3"
-    local master_test_script="$4"
+    log "Running Virtio-FS test suite..."
 
-    [[ -z "$test_config" ]] && {
-        log_error "run_virtio_fs_tests: test_config parameter required"
-        return 1
-    }
-    [[ -z "$test_scripts_dir" ]] && {
-        log_error "run_virtio_fs_tests: test_scripts_dir parameter required"
-        return 1
-    }
-    [[ ! -d "$test_scripts_dir" ]] && {
-        log_error "Test scripts directory not found: $test_scripts_dir"
-        return 1
-    }
-
-    log "Running virtio-fs tests on running cluster..."
-
-    # Extract cluster name
-    local cluster_name
-    if ! cluster_name=$(parse_cluster_name "$test_config" "$LOG_DIR" "hpc"); then
-        log_warning "Failed to extract cluster name using ai-how API, falling back to filename"
-        cluster_name=$(basename "${test_config%.yaml}")
-    fi
-
-    # Get VM IPs for the cluster
-    if ! get_vm_ips_for_cluster "$test_config" "hpc" "$target_vm_pattern"; then
-        log_error "Failed to get VM IP addresses for cluster"
+    # Use shared utility to get VM IPs
+    if ! get_vm_ips_for_cluster "$FRAMEWORK_TEST_CONFIG" "$FRAMEWORK_TARGET_VM_PATTERN"; then
+        log_error "Failed to get VM IPs from cluster"
         return 1
     fi
 
-    # Run tests on each VM
-    local overall_success=true
-
-    for i in "${!VM_IPS[@]}"; do
-        local vm_ip="${VM_IPS[$i]}"
-        local vm_name="${VM_NAMES[$i]}"
-
-        log "Testing VM: $vm_name ($vm_ip)"
-
-        # Wait for SSH
-        if ! wait_for_vm_ssh "$vm_ip" "$vm_name"; then
-            log_error "SSH connectivity failed for $vm_name"
-            overall_success=false
-            continue
-        fi
-
-        # Upload test scripts
-        if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir"; then
-            log_error "Failed to upload test scripts to $vm_name"
-            overall_success=false
-            continue
-        fi
-
-        # Run tests
-        if ! execute_script_on_vm "$vm_ip" "$vm_name" "$master_test_script"; then
-            log_warning "Tests failed on $vm_name"
-            overall_success=false
-        fi
-    done
-
-    if [[ "$overall_success" == "true" ]]; then
-        log_success "All virtio-fs tests passed successfully"
-        return 0
-    else
-        log_error "Some virtio-fs tests failed"
+    if [[ ${#VM_IPS[@]} -eq 0 ]]; then
+        log_error "No VMs found in cluster"
         return 1
     fi
+
+    log "Found ${#VM_IPS[@]} VM(s) in cluster"
+
+    # Get controller IP
+    local controller_ip="${VM_IPS[0]}"
+    log "Controller: ${VM_NAMES[0]:-unknown} ($controller_ip)"
+
+    # Run master test script
+    local master_test="$FRAMEWORK_TEST_SCRIPTS_DIR/$FRAMEWORK_MASTER_TEST_SCRIPT"
+
+    if [[ ! -f "$master_test" ]]; then
+        log_error "Master test script not found: $master_test"
+        return 1
+    fi
+
+    # Make executable if needed
+    if [[ ! -x "$master_test" ]]; then
+        chmod +x "$master_test" || {
+            log_error "Failed to make test script executable: $master_test"
+            return 1
+        }
+    fi
+
+    log "Executing Virtio-FS tests..."
+
+    # Build test arguments
+    local test_args=(
+        --controller "$controller_ip"
+    )
+
+    # Add verbose flag if enabled
+    [[ "${FRAMEWORK_VERBOSE:-false}" == "true" ]] && test_args+=(--verbose)
+
+    # Execute test suite
+    if ! "$master_test" "${test_args[@]}"; then
+        log_error "Virtio-FS tests failed"
+        return 1
+    fi
+
+    log_success "Virtio-FS tests completed successfully"
+    return 0
 }
 
-# Run tests independently
-run_tests() {
-    log "Running virtio-fs tests..."
+# Framework-specific tests
+run_framework_specific_tests() {
+    log "Running ${FRAMEWORK_NAME}..."
 
-    # Check if cluster is running
-    if ! check_cluster_status >/dev/null 2>&1; then
-        log_error "No running cluster found. Please start cluster first with: $0 start-cluster"
+    # Deploy Virtio-FS first, then run tests
+    if ! deploy_virtio_fs_ansible; then
+        log_error "Virtio-FS deployment failed"
         return 1
     fi
 
-    # Run tests using local function
-    log "Executing virtio-fs tests on running cluster..."
-    if run_virtio_fs_tests "$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "$MASTER_TEST_SCRIPT"; then
-        log_success "All tests passed successfully"
-        return 0
-    else
-        log_error "Some tests failed"
+    if ! run_virtio_fs_tests; then
+        log_error "Virtio-FS tests failed"
         return 1
     fi
+
+    log_success "Virtio-FS testing completed successfully"
+    return 0
 }
 
-# Check cluster status
-check_cluster_status() {
-    log "Checking cluster status..."
+# Main
+parse_framework_cli "$@"
+COMMAND=$(get_framework_command)
 
-    # Check if VMs are running
-    local vms_running
-    vms_running=$(virsh list --name | grep -c -E "test-hpc-virtio-fs-(controller|compute)" || echo "0")
-
-    if [[ $vms_running -gt 0 ]]; then
-        log "Found $vms_running running VMs:"
-        virsh list --name | grep -E "test-hpc-virtio-fs-(controller|compute)" | while read -r vm; do
-            log "  - $vm"
-        done
-        return 0
-    else
-        log "No virtio-fs cluster VMs found running"
-        return 1
-    fi
-}
-
-# Show cluster status
-show_status() {
-    echo ""
-    echo -e "${BLUE}==========================================${NC}"
-    echo -e "${BLUE}  Cluster Status${NC}"
-    echo -e "${BLUE}==========================================${NC}"
-    echo ""
-
-    if check_cluster_status; then
-        log_success "Cluster is running"
-    else
-        log "Cluster is not running"
-    fi
-
-    echo ""
-    log "Configuration: $TEST_CONFIG"
-    log "VM Pattern: $TARGET_VM_PATTERN"
-    log "Test Scripts: $TEST_SCRIPTS_DIR"
-    echo ""
-}
-
-# Main execution function
-main() {
-    local start_time
-    start_time=$(date +%s)
-
-    # Parse command line arguments
-    parse_arguments "$@"
-
-    echo ""
-    echo -e "${BLUE}==========================================${NC}"
-    echo -e "${BLUE}  $FRAMEWORK_NAME${NC}"
-    echo -e "${BLUE}==========================================${NC}"
-    echo ""
-
-    log "Logging initialized: $LOG_DIR"
-    log "$FRAMEWORK_NAME Starting"
-    log "Working directory: $PROJECT_ROOT"
-    log "Command: $COMMAND"
-    echo ""
-
-    # Handle different commands
-    case "$COMMAND" in
-        "help")
-            show_help
-            exit 0
-            ;;
-        "status")
-            show_status
-            exit 0
-            ;;
-        "e2e"|"end-to-end")
-            # End-to-end test with cleanup
-            log "Starting End-to-End Test (with automatic cleanup)"
-            log "Configuration: $TEST_CONFIG"
-            log "Target VM Pattern: $TARGET_VM_PATTERN"
-            log "Test Scripts Directory: $TEST_SCRIPTS_DIR"
-            log "Log directory: $LOG_DIR"
-            echo ""
-
-            # Setup virtual environment for Ansible
-            if ! setup_virtual_environment; then
-                log_error "Failed to setup virtual environment"
-                exit 1
-            fi
-
-            # Export virtual environment for use in shared utilities
-            export VIRTUAL_ENV_PATH="$PROJECT_ROOT/.venv"
-            export PATH="$VIRTUAL_ENV_PATH/bin:$PATH"
-            log "Virtual environment activated for Ansible operations"
-            echo ""
-
-            # Validate configuration files exist
-            if [[ ! -f "$TEST_CONFIG" ]]; then
-                log_error "Test configuration file not found: $TEST_CONFIG"
-                exit 1
-            fi
-
-            if [[ ! -d "$TEST_SCRIPTS_DIR" ]]; then
-                log_error "Test scripts directory not found: $TEST_SCRIPTS_DIR"
-                exit 1
-            fi
-
-            # Step 1: Start cluster
-            log "=========================================="
-            log "STEP 1: Starting HPC Cluster"
-            log "=========================================="
-            if ! start_cluster; then
-                log_error "Failed to start cluster"
-                exit 1
-            fi
-            echo ""
-
-            # Step 2: Deploy virtio-fs configuration
-            log "=========================================="
-            log "STEP 2: Deploying Virtio-FS Configuration"
-            log "=========================================="
-            if ! deploy_virtio_fs_config "$TEST_CONFIG"; then
-                log_error "Failed to deploy virtio-fs configuration"
-                # Don't exit - try to run tests and cleanup anyway
-            fi
-            echo ""
-
-            # Step 3: Run tests
-            log "=========================================="
-            log "STEP 3: Running Virtio-FS Tests"
-            log "=========================================="
-            local test_result=0
-            if ! run_virtio_fs_tests "$TEST_CONFIG" "$TEST_SCRIPTS_DIR" "$TARGET_VM_PATTERN" "$MASTER_TEST_SCRIPT"; then
-                test_result=1
-            fi
-            echo ""
-
-            # Step 4: Stop cluster (cleanup)
-            log "=========================================="
-            log "STEP 4: Stopping and Cleaning Up Cluster"
-            log "=========================================="
-            if ! stop_cluster; then
-                log_error "Failed to stop cluster cleanly"
-                # Continue to report test results even if cleanup failed
-            fi
-            echo ""
-
-            # Final results
-            local end_time
-            end_time=$(date +%s)
-            local duration=$((end_time - start_time))
-
-            echo ""
-            log "=========================================="
-            if [[ $test_result -eq 0 ]]; then
-                log_success "End-to-End Test: ALL TESTS PASSED"
-                log_success "Virtio-FS Test Framework: ALL TESTS PASSED"
-                log_success "Task 027 validation completed successfully"
-            else
-                log_error "End-to-End Test: SOME TESTS FAILED"
-                log_error "Check individual test logs in $LOG_DIR"
-            fi
-            echo ""
-            echo "=========================================="
-            echo "$FRAMEWORK_NAME completed at: $(date)"
-            echo "Exit code: $test_result"
-            echo "Total duration: ${duration}s"
-            echo "All logs saved to: $LOG_DIR"
-            echo "=========================================="
-
-            exit $test_result
-            ;;
-        "start-cluster")
-            if start_cluster; then
-                log_success "Cluster started successfully"
-                exit 0
-            else
-                log_error "Failed to start cluster"
-                exit 1
-            fi
-            ;;
-        "stop-cluster")
-            if stop_cluster; then
-                log_success "Cluster stopped successfully"
-                exit 0
-            else
-                log_error "Failed to stop cluster"
-                exit 1
-            fi
-            ;;
-        "deploy-ansible")
-            if deploy_ansible; then
-                log_success "Ansible deployment completed successfully"
-                exit 0
-            else
-                log_error "Ansible deployment failed"
-                exit 1
-            fi
-            ;;
-        "run-tests")
-            if run_tests; then
-                log_success "Tests completed successfully"
-                exit 0
-            else
-                log_error "Tests failed"
-                exit 1
-            fi
-            ;;
-        *)
-            log_error "Unknown command: $COMMAND"
-            show_help
-            exit 1
-            ;;
-    esac
-}
-
-# Execute main function
-main "$@"
+case "$COMMAND" in
+    "e2e"|"end-to-end") run_framework_e2e_workflow ;;
+    "start-cluster") framework_start_cluster ;;
+    "stop-cluster") framework_stop_cluster ;;
+    "deploy-ansible") deploy_virtio_fs_ansible ;;
+    "run-tests") run_framework_specific_tests ;;
+    "status") framework_get_cluster_status ;;
+    "list-tests") find "$FRAMEWORK_TEST_SCRIPTS_DIR" -name "*.sh" -type f | head -20 ;;
+    "help"|"--help") show_framework_help ;;
+    *) run_framework_e2e_workflow ;;
+esac

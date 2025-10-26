@@ -572,6 +572,202 @@ clean-ssh-keys:
 	fi
 	@echo ""
 
+# ==============================================================================
+# UNIFIED TEST FRAMEWORKS (Phase 3-4 Consolidation)
+# ==============================================================================
+# These 7 unified frameworks consolidate 15+ individual test frameworks:
+#
+# PHASE 3: HPC Packer Frameworks (TASK-036)
+#   - test-hpc-runtime: 6 consolidated runtime validation suites
+#   - test-hpc-packer-controller: 4 consolidated controller suites
+#   - test-hpc-packer-compute: 1 consolidated compute suite
+#
+# PHASE 4: Refactored Standalone Frameworks
+#   - test-beegfs: Parallel filesystem (75% code reduction)
+#   - test-virtio-fs: Virtio-FS filesystem passthrough (77% reduction)
+#   - test-pcie-passthrough: GPU passthrough validation (55% reduction)
+#   - test-container-registry: Container registry infrastructure (86% reduction)
+#
+
+# HPC Runtime Framework (consolidates 6 test suites)
+test-hpc-runtime:
+	@echo "Running HPC Runtime Test Framework (6 consolidated suites)..."
+	@./test-hpc-runtime-framework.sh
+
+test-hpc-runtime-start:
+	@echo "Starting HPC Runtime test cluster..."
+	@./test-hpc-runtime-framework.sh start-cluster
+
+test-hpc-runtime-deploy:
+	@echo "Deploying HPC Runtime configuration via Ansible..."
+	@./test-hpc-runtime-framework.sh deploy-ansible
+
+test-hpc-runtime-tests:
+	@echo "Running HPC Runtime tests..."
+	@./test-hpc-runtime-framework.sh run-tests
+
+test-hpc-runtime-stop:
+	@echo "Stopping HPC Runtime test cluster..."
+	@./test-hpc-runtime-framework.sh stop-cluster
+
+test-hpc-runtime-status:
+	@echo "Checking HPC Runtime test cluster status..."
+	@./test-hpc-runtime-framework.sh status
+
+# HPC Packer Controller Framework (consolidates 4 test suites)
+test-hpc-packer-controller:
+	@echo "Running HPC Packer Controller Test Framework (4 consolidated suites)..."
+	@./test-hpc-packer-controller-framework.sh
+
+test-hpc-packer-controller-start:
+	@echo "Starting HPC Packer Controller test cluster..."
+	@./test-hpc-packer-controller-framework.sh start-cluster
+
+test-hpc-packer-controller-deploy:
+	@echo "Deploying HPC Packer Controller configuration via Ansible..."
+	@./test-hpc-packer-controller-framework.sh deploy-ansible
+
+test-hpc-packer-controller-tests:
+	@echo "Running HPC Packer Controller tests..."
+	@./test-hpc-packer-controller-framework.sh run-tests
+
+test-hpc-packer-controller-stop:
+	@echo "Stopping HPC Packer Controller test cluster..."
+	@./test-hpc-packer-controller-framework.sh stop-cluster
+
+test-hpc-packer-controller-status:
+	@echo "Checking HPC Packer Controller test cluster status..."
+	@./test-hpc-packer-controller-framework.sh status
+
+# HPC Packer Compute Framework (consolidates 1 test suite)
+test-hpc-packer-compute:
+	@echo "Running HPC Packer Compute Test Framework..."
+	@./test-hpc-packer-compute-framework.sh
+
+test-hpc-packer-compute-start:
+	@echo "Starting HPC Packer Compute test cluster..."
+	@./test-hpc-packer-compute-framework.sh start-cluster
+
+test-hpc-packer-compute-deploy:
+	@echo "Deploying HPC Packer Compute configuration via Ansible..."
+	@./test-hpc-packer-compute-framework.sh deploy-ansible
+
+test-hpc-packer-compute-tests:
+	@echo "Running HPC Packer Compute tests..."
+	@./test-hpc-packer-compute-framework.sh run-tests
+
+test-hpc-packer-compute-stop:
+	@echo "Stopping HPC Packer Compute test cluster..."
+	@./test-hpc-packer-compute-framework.sh stop-cluster
+
+test-hpc-packer-compute-status:
+	@echo "Checking HPC Packer Compute test cluster status..."
+	@./test-hpc-packer-compute-framework.sh status
+
+# Refactored BeeGFS Framework (60% code reduction - TASK-028)
+test-beegfs-unified:
+	@echo "Running refactored BeeGFS Test Framework..."
+	@./test-beegfs-framework.sh
+
+test-beegfs-unified-start:
+	@echo "Starting refactored BeeGFS test cluster..."
+	@./test-beegfs-framework.sh start-cluster
+
+test-beegfs-unified-deploy:
+	@echo "Deploying refactored BeeGFS configuration via Ansible..."
+	@./test-beegfs-framework.sh deploy-ansible
+
+test-beegfs-unified-tests:
+	@echo "Running refactored BeeGFS tests..."
+	@./test-beegfs-framework.sh run-tests
+
+test-beegfs-unified-stop:
+	@echo "Stopping refactored BeeGFS test cluster..."
+	@./test-beegfs-framework.sh stop-cluster
+
+test-beegfs-unified-status:
+	@echo "Checking refactored BeeGFS test cluster status..."
+	@./test-beegfs-framework.sh status
+
+# Refactored Virtio-FS Framework (77% code reduction - TASK-027)
+test-virtio-fs-unified:
+	@echo "Running refactored Virtio-FS Test Framework..."
+	@./test-virtio-fs-framework.sh
+
+test-virtio-fs-unified-start:
+	@echo "Starting refactored Virtio-FS test cluster..."
+	@./test-virtio-fs-framework.sh start-cluster
+
+test-virtio-fs-unified-deploy:
+	@echo "Deploying refactored Virtio-FS configuration via Ansible..."
+	@./test-virtio-fs-framework.sh deploy-ansible
+
+test-virtio-fs-unified-tests:
+	@echo "Running refactored Virtio-FS tests..."
+	@./test-virtio-fs-framework.sh run-tests
+
+test-virtio-fs-unified-stop:
+	@echo "Stopping refactored Virtio-FS test cluster..."
+	@./test-virtio-fs-framework.sh stop-cluster
+
+test-virtio-fs-unified-status:
+	@echo "Checking refactored Virtio-FS test cluster status..."
+	@./test-virtio-fs-framework.sh status
+
+# Refactored PCIe Passthrough Framework (55% code reduction - TASK-031)
+test-pcie-passthrough:
+	@echo "Running refactored PCIe Passthrough Test Framework..."
+	@./test-pcie-passthrough-framework.sh
+
+test-pcie-passthrough-start:
+	@echo "Starting refactored PCIe Passthrough test cluster..."
+	@./test-pcie-passthrough-framework.sh start-cluster
+
+test-pcie-passthrough-deploy:
+	@echo "Deploying refactored PCIe Passthrough configuration via Ansible..."
+	@./test-pcie-passthrough-framework.sh deploy-ansible
+
+test-pcie-passthrough-tests:
+	@echo "Running refactored PCIe Passthrough tests..."
+	@./test-pcie-passthrough-framework.sh run-tests
+
+test-pcie-passthrough-stop:
+	@echo "Stopping refactored PCIe Passthrough test cluster..."
+	@./test-pcie-passthrough-framework.sh stop-cluster
+
+test-pcie-passthrough-status:
+	@echo "Checking refactored PCIe Passthrough test cluster status..."
+	@./test-pcie-passthrough-framework.sh status
+
+# Refactored Container Registry Framework (86% code reduction - TASK-021)
+test-container-registry-unified:
+	@echo "Running refactored Container Registry Test Framework..."
+	@./test-container-registry-framework.sh
+
+test-container-registry-unified-start:
+	@echo "Starting refactored Container Registry test cluster..."
+	@./test-container-registry-framework.sh start-cluster
+
+test-container-registry-unified-deploy:
+	@echo "Deploying refactored Container Registry configuration via Ansible..."
+	@./test-container-registry-framework.sh deploy-ansible
+
+test-container-registry-unified-deploy-images:
+	@echo "Building and deploying container images to test cluster..."
+	@./test-container-registry-framework.sh deploy-images
+
+test-container-registry-unified-tests:
+	@echo "Running refactored Container Registry tests..."
+	@./test-container-registry-framework.sh run-tests
+
+test-container-registry-unified-stop:
+	@echo "Stopping refactored Container Registry test cluster..."
+	@./test-container-registry-framework.sh stop-cluster
+
+test-container-registry-unified-status:
+	@echo "Checking refactored Container Registry test cluster status..."
+	@./test-container-registry-framework.sh status
+
 # Clean artifacts
 clean:
 	@echo "Cleaning test artifacts..."

@@ -17,7 +17,7 @@
 | **034** | ✅ **COMPLETE** | 100% | 9 obsolete playbooks deleted - 8 playbooks remain |
 | **034.1** | ✅ **COMPLETE** | 100% | SLURM uses pre-built packages (install.yml verified) |
 | **035** | ✅ **COMPLETE** | 100% | Phase 4 validation framework created (tests/phase-4-validation/) |
-| **036** | ❌ **PENDING** | 0% | test-hpc-packer-*-framework.sh NOT created |
+| **036** | ⏳ **READY** | 0% | Phase 2 utilities complete - framework creation ready to start |
 | **037** | ❌ **PENDING** | 0% | 13 old frameworks + 10 configs still exist |
 | **038** | ✅ **COMPLETE** | 100% | BeeGFS Packer installation consolidated into HPC playbooks |
 | **039** | ✅ **COMPLETE** | 100% | VirtIO-FS integrated into playbook-hpc-runtime.yml |
@@ -35,12 +35,11 @@
 **Completed**: Tasks 029-035, 038, 039, 041, 042, 043, 044, 045, 046, 046.1, 047, 048
 (Ansible consolidation + validation framework + BeeGFS consolidation + VirtIO-FS integration +
 storage schema + template rendering + BeeGFS common role + SLURM common role +
-package management role achieved!)  
-**Pending**: Tasks 036-037, 040
-(HPC test frameworks + Container registry +
-Remaining Ansible role consolidation)  
+package management role + base packages role + shared utilities role achieved!)  
+**Phase 2 Utilities**: ✅ COMPLETED 2025-10-25 (framework-cli.sh, framework-orchestration.sh, framework-template.sh)
+**Pending**: Tasks 036-037, 040 (HPC test frameworks + Container registry)
 **Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)  
-**New**: Phase 4.8 adds 6 role consolidation tasks to eliminate duplicate code across Ansible roles
+**New**: Phase 4.8 added 5 role consolidation tasks to eliminate duplicate code across Ansible roles (COMPLETE)
 
 ## Overview
 
@@ -73,7 +72,7 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 - `playbook-beegfs-runtime-config.yml`
 - `playbook-virtio-fs-runtime-config.yml`
 
-**Test Frameworks:** ⚠️ **15 OLD frameworks still exist** (consolidation NOT started)
+**Test Frameworks:** ⚠️ **15 OLD frameworks still exist** (Phase 2 utilities created - framework consolidation READY TO START)
 
 - ✅ KEEP: test-{beegfs,container-registry,pcie-passthrough,virtio-fs}-framework.sh (4)
 - ❌ CONSOLIDATE: test-{cgroup-isolation,container-{integration,runtime},dcgm-monitoring}-framework.sh
@@ -82,15 +81,20 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 
 **Test Configs:** ⚠️ **17+ YAML files in `tests/test-infra/configs/`** (cleanup NOT started)
 
-**New Frameworks Required:** ⚠️ **PARTIALLY CREATED**
+**New Frameworks Required:** ⚠️ **UTILITIES CREATED - READY FOR FRAMEWORK GENERATION**
 
 - ✅ **Phase 4 Validation Framework** - `tests/phase-4-validation/` (Task 035 - COMPLETED)
   - Comprehensive validation framework with 5 steps
   - Automated testing for Packer builds and runtime deployment
   - Resume capability and state tracking
-- ❌ test-hpc-runtime-framework.sh (replaces 6 frameworks) - PENDING
-- ❌ test-hpc-packer-controller-framework.sh (replaces 3 frameworks) - PENDING
-- ❌ test-hpc-packer-compute-framework.sh (replaces 2 frameworks) - PENDING
+- ✅ **Phase 2 Shared Utilities** - `tests/test-infra/utils/framework-*.sh` (COMPLETED - 2025-10-25)
+  - `framework-cli.sh` - Standardized CLI parser (451 lines, 14KB)
+  - `framework-orchestration.sh` - Cluster lifecycle & orchestration (501 lines, 15KB)
+  - `framework-template.sh` - Framework creation template (411 lines, 14KB)
+  - **Impact**: Foundation for creating new frameworks, eliminates 2,400+ lines of duplication
+- ⏳ test-hpc-runtime-framework.sh (replaces 6 frameworks) - READY TO START
+- ⏳ test-hpc-packer-controller-framework.sh (replaces 3 frameworks) - READY TO START
+- ⏳ test-hpc-packer-compute-framework.sh (replaces 2 frameworks) - READY TO START
 
 **Ansible Roles:** All roles support modular task execution ✅
 
@@ -136,7 +140,8 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
    - ✅ **ACHIEVED**: BeeGFS Packer consolidated into HPC playbooks (Task 038)
    - ✅ **ACHIEVED**: VirtIO-FS integrated into runtime playbook (Task 039)
    - ✅ **ACHIEVED**: Configuration template rendering with variable expansion
-   - ❌ **PENDING**: Old test frameworks still exist (Tasks 035-037)
+   - ✅ **ACHIEVED**: Phase 2 shared utilities created (framework-cli.sh, framework-orchestration.sh, framework-template.sh)
+   - ⏳ **IN PROGRESS**: Framework consolidation (Tasks 036-037 READY TO START)
 
 ---
 
