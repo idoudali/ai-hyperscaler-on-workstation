@@ -2,16 +2,16 @@
 # Handlers for NVIDIA driver installation tasks
 
 - name: update apt cache
-  apt:
+  ansible.builtin.apt:
     update_cache: true
 
 - name: update initramfs
-  command: update-initramfs -u -k all
+  ansible.builtin.command: update-initramfs -u -k all
   changed_when: true
   notify: reboot required
 
 - name: reboot required
-  debug:
+  ansible.builtin.debug:
     msg: |
       {% if nvidia_packer_build | default(false) %}
       Initramfs updated during Packer build - changes will take effect on image deployment

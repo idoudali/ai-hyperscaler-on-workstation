@@ -1,6 +1,6 @@
 #cloud-config
-# Cloud-init configuration for Cloud Base Image
-# This configures the admin user with SSH access and Kubernetes prerequisites
+# Cloud-init configuration for Cloud GPU Worker Image
+# This configures the admin user with SSH access and GPU-accelerated Kubernetes worker setup
 
 # User configuration
 users:
@@ -10,13 +10,13 @@ users:
     shell: /bin/bash
     lock_passwd: true
     # Uncomment to set a password for the admin user for debugging reasons
-    # plain_text_passwd: cloud-base
+    # plain_text_passwd: cloud-gpu-worker
     ssh_authorized_keys:
       - REPLACE_SSH_KEY
 
 # System configuration
-hostname: cloud-base
-fqdn: cloud-base.local
+hostname: cloud-gpu-worker
+fqdn: cloud-gpu-worker.local
 
 # SSH configuration
 ssh_pwauth: false
@@ -45,13 +45,13 @@ runcmd:
   - systemctl start ssh
 
   # Set hostname properly
-  - hostnamectl set-hostname cloud-base
+  - hostnamectl set-hostname cloud-gpu-worker
 
   # Update /etc/hosts
   - echo "127.0.0.1 localhost" > /etc/hosts
-  - echo "127.0.1.1 cloud-base cloud-base.local" >> /etc/hosts
+  - echo "127.0.1.1 cloud-gpu-worker cloud-gpu-worker.local" >> /etc/hosts
 
-  # Configure basic limits for Kubernetes workloads
+  # Configure basic limits for GPU workloads
   - echo "* soft nofile 65536" >> /etc/security/limits.conf
   - echo "* hard nofile 65536" >> /etc/security/limits.conf
   - echo "* soft nproc 32768" >> /etc/security/limits.conf
@@ -60,6 +60,8 @@ runcmd:
   # Ensure kernel modules are loaded
   - modprobe br_netfilter
   - modprobe overlay
+  - modprobe nvidia || logger -t cloud-init "Failed to load nvidia kernel module"
+  - modprobe nvidia-uvm || logger -t cloud-init "Failed to load nvidia-uvm kernel module"
 
   # Apply sysctl settings
   - sysctl -p /etc/sysctl.d/99-kubernetes.conf || true
@@ -71,13 +73,20 @@ runcmd:
   - systemctl enable containerd || true
   - systemctl start containerd || true
 
+  # Enable NVIDIA persistence mode
+  - nvidia-smi -pm 1 || true
+
   # Enable and start node exporter if present
   - systemctl enable prometheus-node-exporter || true
   - systemctl start prometheus-node-exporter || true
+
+  # Enable and start DCGM exporter if present
+  - systemctl enable dcgm-exporter || true
+  - systemctl start dcgm-exporter || true
 
   # Ensure NetworkManager is running and configured
   - systemctl enable NetworkManager
   - systemctl enable systemd-resolved
 
 # Final message
-final_message: "Cloud base image setup complete. Login with admin user (root access disabled for security). The system is ready for Kubernetes deployment."
+final_message: "Cloud GPU worker image setup complete. Login with admin user (root access disabled for security). The system is ready for GPU-accelerated Kubernetes deployment."

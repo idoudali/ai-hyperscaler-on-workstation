@@ -6,17 +6,17 @@ set -e
 
 SSH_KEYS_DIR="$1"
 CLOUD_INIT_BUILD_DIR="$2"
-IMAGE_TYPE="$3"  # "cloud-base", "hpc-base", "hpc-controller", or "hpc-compute"
+IMAGE_TYPE="$3"  # "cloud-base", "cloud-gpu-worker", "hpc-base", "hpc-controller", or "hpc-compute"
 
 if [ $# -ne 3 ]; then
     echo "Usage: $0 <ssh_keys_dir> <cloud_init_build_dir> <image_type>"
-    echo "  image_type: cloud-base, hpc-base, hpc-controller, or hpc-compute"
+    echo "  image_type: cloud-base, cloud-gpu-worker, hpc-base, hpc-controller, or hpc-compute"
     exit 1
 fi
 
 # Validate image type
-if [ "$IMAGE_TYPE" != "cloud-base" ] && [ "$IMAGE_TYPE" != "hpc-base" ] && [ "$IMAGE_TYPE" != "hpc-controller" ] && [ "$IMAGE_TYPE" != "hpc-compute" ]; then
-    echo "Error: image_type must be 'cloud-base', 'hpc-base', 'hpc-controller', or 'hpc-compute'"
+if [ "$IMAGE_TYPE" != "cloud-base" ] && [ "$IMAGE_TYPE" != "cloud-gpu-worker" ] && [ "$IMAGE_TYPE" != "hpc-base" ] && [ "$IMAGE_TYPE" != "hpc-controller" ] && [ "$IMAGE_TYPE" != "hpc-compute" ]; then
+    echo "Error: image_type must be 'cloud-base', 'cloud-gpu-worker', 'hpc-base', 'hpc-controller', or 'hpc-compute'"
     exit 1
 fi
 

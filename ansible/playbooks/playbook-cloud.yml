@@ -1,24 +1,66 @@
-# Cloud Cluster Deployment Playbook
-# This playbook deploys and configures a complete Kubernetes cluster
+# Cloud Cluster Runtime Deployment Playbook
+# This playbook is DEPRECATED - Use Kubespray for Kubernetes deployment
+#
+# For cloud cluster deployment, use Kubespray (Phase 2):
+#   1. Provision VMs with Packer images (Phase 1):
+#      - playbook-cloud-packer-base.yml (universal base image)
+#      - playbook-cloud-packer-gpu-worker.yml (GPU worker image)
+#
+#   2. Deploy Kubernetes with Kubespray (Phase 2):
+#      - See: docs/implementation-plans/task-lists/cloud-cluster/02-kubernetes-phase.md
+#      - Kubespray handles: Kubernetes, containerd, CNI, add-ons
+#      - GPU Operator handles: NVIDIA Container Toolkit, DCGM, GPU Device Plugin
+#
+# This playbook is kept for reference only.
 
-- name: Deploy Cloud Cluster
-  hosts: cloud_cluster
-  become: true
-  gather_facts: true
-
-  vars:
-    # Kubernetes Configuration
-    kubernetes_version: "1.28.0"
-    # NVIDIA GPU Configuration for cloud workloads
-    nvidia_install_cuda: true
-    # Enable Packer build mode (suppresses reboot warnings)
-    nvidia_packer_build: true
-
-  roles:
-    - cloud-base-packages
-    - nvidia-gpu-drivers
+- name: Cloud Cluster Runtime Configuration (DEPRECATED)
+  hosts: localhost
+  gather_facts: false
 
   tasks:
-    - name: Cloud cluster deployment in progress
-      debug:
-        msg: "Cloud base packages and NVIDIA drivers have been configured"
+    - name: Display deprecation notice
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          WARNING: This playbook is DEPRECATED
+          ================================================================
+
+          For cloud cluster deployment, please use Kubespray:
+
+          Phase 1: Build Packer Images
+          -----------------------------
+          1. Build cloud-base image:
+             make run-docker COMMAND="cmake --build build --target build-cloud-base-image"
+
+          2. Build GPU worker image:
+             make run-docker COMMAND="cmake --build build --target build-cloud-gpu-worker-image"
+
+          Phase 2: Deploy with Kubespray
+          -------------------------------
+          1. Install Kubespray:
+             cmake --build build --target install-kubespray
+
+          2. Generate inventory from cluster.yaml:
+             ai-how cloud generate-inventory config/cloud-cluster.yaml
+
+          3. Deploy Kubernetes cluster:
+             ansible-playbook -i ansible/inventories/cloud-cluster/inventory.ini \
+               build/3rd-party/kubespray/kubespray-src/cluster.yml
+
+          4. Deploy GPU Operator (for GPU workers):
+             ansible-playbook -i ansible/inventories/cloud-cluster/inventory.ini \
+               ansible/playbooks/deploy-cloud-cluster.yml
+
+          Documentation:
+          --------------
+          - Phase 1 Plan: docs/implementation-plans/task-lists/cloud-cluster/01-packer-images-phase.md
+          - Phase 2 Plan: docs/implementation-plans/task-lists/cloud-cluster/02-kubernetes-phase.md
+          - Kubespray Alignment: docs/implementation-plans/task-lists/cloud-cluster/PHASE-1-KUBESPRAY-ALIGNMENT.md
+
+          ================================================================
+
+    - name: Fail with deprecation message
+      ansible.builtin.fail:
+        msg: |
+          This playbook is deprecated. Please use Kubespray for cloud cluster deployment.
+          See the message above for instructions.

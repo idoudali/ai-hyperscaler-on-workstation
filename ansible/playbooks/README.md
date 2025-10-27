@@ -49,13 +49,22 @@ Targeted playbooks for deploying individual infrastructure components.
 
 Playbooks specifically designed for use during Packer image builds to pre-install software.
 
+**HPC Cluster Images:**
+
 | Playbook | Component | Purpose | Use Case |
 |----------|-----------|---------|----------|
 | **playbook-hpc-packer-controller.yml** | HPC Controller (Packer) | Controller image preparation with BeeGFS | Controller image building |
 | **playbook-hpc-packer-compute.yml** | HPC Compute (Packer) | Compute node image preparation with BeeGFS | Compute image building |
 
-**Note:** BeeGFS installation is now integrated into the HPC Packer playbooks. The separate `playbook-beegfs-packer-install.yml`
-has been consolidated for simplicity.
+**Cloud Cluster Images:**
+
+| Playbook | Component | Purpose | Use Case |
+|----------|-----------|---------|----------|
+| **playbook-cloud-packer-base.yml** | Cloud Base (Packer) | Minimal base image (Node Exporter only) | Base image building |
+| **playbook-cloud-packer-gpu-worker.yml** | Cloud GPU Worker (Packer) | Minimal image with NVIDIA drivers only | GPU worker image building |
+
+**Note:** Cloud images are minimal by design. Kubespray installs Kubernetes, containerd, and CNI in Phase 2.
+GPU Operator installs NVIDIA Container Toolkit and DCGM in Phase 2. See `PHASE-1-KUBESPRAY-ALIGNMENT.md`.
 
 ## Quick Start Usage
 
@@ -77,6 +86,10 @@ ansible-playbook -i inventories/hpc/hosts.yml playbook-beegfs-runtime-config.yml
 # Build HPC images with Packer (requires SLURM packages built first)
 packer build packer/hpc-controller/hpc-controller.pkr.hcl
 packer build packer/hpc-compute/hpc-compute.pkr.hcl
+
+# Build Cloud images with Packer
+packer build packer/cloud-base/cloud-base.pkr.hcl
+packer build packer/cloud-gpu-worker/cloud-gpu-worker.pkr.hcl
 
 # Run with verbose output
 ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml -v
@@ -211,12 +224,28 @@ ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml --limit c
 
 ### Pattern 4: Packer Image Building
 
+**HPC Cluster Images:**
+
 ```bash
 # Build HPC controller image with pre-installed packages
 packer build -var 'packer_build=true' packer/hpc-controller/hpc-controller.pkr.hcl
 
 # Build HPC compute image with pre-installed packages
 packer build -var 'packer_build=true' packer/hpc-compute/hpc-compute.pkr.hcl
+```
+
+**Cloud Cluster Images:**
+
+```bash
+# Build universal cloud base image (controller or worker)
+packer build packer/cloud-base/cloud-base.pkr.hcl
+
+# Build GPU worker image (requires cloud-base built first)
+packer build packer/cloud-gpu-worker/cloud-gpu-worker.pkr.hcl
+
+# Or use CMake targets
+make run-docker COMMAND="cmake --build build --target packer-cloud-base"
+make run-docker COMMAND="cmake --build build --target packer-cloud-gpu-worker"
 ```
 
 ## Playbook Variables
@@ -377,6 +406,23 @@ grep "| default(" playbooks/playbook-hpc-runtime.yml
 
 - `packer_build`: true (must be true for Packer builds)
 - Same SLURM variables as runtime playbook
+
+**playbook-cloud-packer-base.yml:**
+
+- `packer_build`: true (automatically set by Packer)
+- `install_monitoring_stack`: true
+- **Removed**: `install_container_runtime` (Kubespray handles this)
+- **Removed**: Kubernetes and containerd installation
+
+**playbook-cloud-packer-gpu-worker.yml:**
+
+- `packer_build`: true (automatically set by Packer)
+- `gpu_enabled`: true
+- `nvidia_install_drivers_only`: true (drivers only, no toolkit/DCGM)
+- `nvidia_install_cuda`: false (CUDA in containers)
+- `nvidia_packer_build`: true (suppress reboot warnings)
+- **Removed**: `install_container_runtime` (Kubespray handles this)
+- **Removed**: Kubernetes, containerd, and NVIDIA Container Toolkit installation
 
 **playbook-beegfs-runtime-config.yml:**
 

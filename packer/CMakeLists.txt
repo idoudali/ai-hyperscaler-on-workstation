@@ -56,12 +56,13 @@ add_custom_target(prepare-debian-checksum
 add_subdirectory(hpc-controller)
 add_subdirectory(hpc-compute)
 add_subdirectory(cloud-base)
+add_subdirectory(cloud-gpu-worker)
 
 # Create aggregate targets that depend on subdirectory targets
 
 # Initialize all Packer plugins
 add_custom_target(init-packer
-    DEPENDS init-hpc-controller-packer init-hpc-compute-packer init-cloud-packer
+    DEPENDS init-hpc-controller-packer init-hpc-compute-packer init-cloud-base-packer init-cloud-gpu-worker-packer
     COMMENT "Initializing all Packer plugins..."
 )
 
@@ -71,9 +72,15 @@ add_custom_target(init-hpc-packer
     COMMENT "Initializing HPC Packer plugins..."
 )
 
+# Initialize Cloud Packer plugins (base and GPU worker)
+add_custom_target(init-cloud-packer
+    DEPENDS init-cloud-base-packer init-cloud-gpu-worker-packer
+    COMMENT "Initializing Cloud Packer plugins..."
+)
+
 # Validate all Packer templates
 add_custom_target(validate-packer
-    DEPENDS validate-hpc-controller-packer validate-hpc-compute-packer validate-cloud-packer
+    DEPENDS validate-hpc-controller-packer validate-hpc-compute-packer validate-cloud-base-packer validate-cloud-gpu-worker-packer
     COMMENT "Validating all Packer templates..."
 )
 
@@ -83,9 +90,15 @@ add_custom_target(validate-hpc-packer
     COMMENT "Validating HPC Packer templates..."
 )
 
+# Validate Cloud Packer templates (base and GPU worker)
+add_custom_target(validate-cloud-packer
+    DEPENDS validate-cloud-base-packer validate-cloud-gpu-worker-packer
+    COMMENT "Validating Cloud Packer templates..."
+)
+
 # Format all Packer templates
 add_custom_target(format-packer
-    DEPENDS format-hpc-controller-packer format-hpc-compute-packer format-cloud-packer
+    DEPENDS format-hpc-controller-packer format-hpc-compute-packer format-cloud-base-packer format-cloud-gpu-worker-packer
     COMMENT "Formatting all Packer templates..."
 )
 
@@ -95,9 +108,15 @@ add_custom_target(format-hpc-packer
     COMMENT "Formatting HPC Packer templates..."
 )
 
+# Format Cloud Packer templates (base and GPU worker)
+add_custom_target(format-cloud-packer
+    DEPENDS format-cloud-base-packer format-cloud-gpu-worker-packer
+    COMMENT "Formatting Cloud Packer templates..."
+)
+
 # Build all base images
 add_custom_target(build-packer-images
-    DEPENDS build-hpc-controller-image build-hpc-compute-image build-cloud-image
+    DEPENDS build-hpc-controller-image build-hpc-compute-image build-cloud-base-image build-cloud-gpu-worker-image
     COMMENT "Building all base images..."
 )
 
@@ -105,4 +124,10 @@ add_custom_target(build-packer-images
 add_custom_target(build-hpc-images
     DEPENDS build-hpc-controller-image build-hpc-compute-image
     COMMENT "Building HPC images..."
+)
+
+# Build Cloud images (base and GPU worker)
+add_custom_target(build-cloud-images
+    DEPENDS build-cloud-base-image build-cloud-gpu-worker-image
+    COMMENT "Building Cloud images..."
 )

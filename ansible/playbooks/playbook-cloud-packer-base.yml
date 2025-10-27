@@ -1,0 +1,94 @@
+# Cloud Base Packer Build Playbook
+# Minimal base image for Kubernetes nodes (controller or worker)
+# Kubespray installs Kubernetes and container runtime in Phase 2
+# Usage: packer build (automatically sets packer_build=true)
+
+- name: Cloud Base Packer Build
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: true
+    install_monitoring_stack: true
+
+  roles:
+    - role: monitoring-stack  # Node exporter for system metrics
+
+  tasks:
+    - name: Verify essential system packages
+      ansible.builtin.command: "dpkg -l | grep -E '(python3|cloud-init)'"
+      register: essential_packages
+      changed_when: false
+      failed_when: false
+
+    - name: Display essential packages
+      ansible.builtin.debug:
+        msg: "Essential packages installed: {{ essential_packages.stdout_lines | length }} packages"
+      when: essential_packages.stdout_lines is defined
+
+    - name: Verify Node Exporter installation
+      ansible.builtin.command: "prometheus-node-exporter --version"
+      register: node_exporter_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display Node Exporter version
+      ansible.builtin.debug:
+        msg: "Node Exporter version: {{ node_exporter_check.stdout.split('\n')[0] }}"
+      when: node_exporter_check.rc == 0
+
+    - name: Verify cloud-init is installed
+      ansible.builtin.command: "cloud-init --version"
+      register: cloud_init_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display cloud-init version
+      ansible.builtin.debug:
+        msg: "Cloud-init version: {{ cloud_init_check.stdout }}"
+      when: cloud_init_check.rc == 0
+
+    - name: Verify Python3 installation
+      ansible.builtin.command: "python3 --version"
+      register: python_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display Python version
+      ansible.builtin.debug:
+        msg: "Python version: {{ python_check.stdout }}"
+      when: python_check.rc == 0
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          Cloud Base Packer Build Complete (Minimal)
+          ============================================
+
+          Installed Components:
+          - Node Exporter: {{ 'Installed' if node_exporter_check.rc == 0 else 'Check logs' }}
+          - Cloud-init: {{ 'Installed' if cloud_init_check.rc == 0 else 'Check logs' }}
+          - Python3: {{ 'Installed' if python_check.rc == 0 else 'Check logs' }}
+          - Essential utilities: curl, wget, vim, htop
+
+          NOT Installed (Kubespray handles in Phase 2):
+          - Kubernetes packages (kubeadm, kubelet, kubectl)
+          - Container runtime (containerd, runc, CNI)
+          - Kubernetes APT repositories
+
+          Image Type: Minimal universal base (controller or worker)
+          Ready for: Kubespray deployment in Phase 2
+
+          Services: Enabled but not started (Packer mode)
+
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Display relevant installed packages
+      ansible.builtin.debug:
+        msg: >-
+          {{ ansible_facts.packages | dict2items |
+          selectattr('key', 'in', ['python3', 'cloud-init', 'curl', 'wget', 'vim', 'htop',
+          'prometheus-node-exporter']) | list }}
