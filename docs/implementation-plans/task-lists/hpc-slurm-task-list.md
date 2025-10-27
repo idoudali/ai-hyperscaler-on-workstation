@@ -1,14 +1,14 @@
 # HPC SLURM Deployment - Master Task Index
 
-**Last Updated**: 2025-10-17
-**Total Tasks**: 45 across 6 phases
-**Status**: Infrastructure Consolidation Phase - Refactoring In Progress
+**Last Updated**: 2025-10-25
+**Total Tasks**: 48 across 6 phases
+**Status**: Infrastructure Consolidation Phase - Role Consolidation In Progress
 
 ## Quick Status
 
-- **Completed**: 27 tasks (60%)
-- **In Progress**: 1 task (TASK-028.1)
-- **Pending**: 17 tasks (38%)
+- **Completed**: 28 tasks (58%)
+- **In Progress**: 2 tasks (TASK-028.1, TASK-044)
+- **Pending**: 18 tasks (38%)
 
 ## Phase Overview
 
@@ -54,17 +54,18 @@
 - TASK-028: BeeGFS Parallel Filesystem ✅
 - TASK-028.1: Fix BeeGFS Kernel Module ⚠️ **IN PROGRESS**
 
-### 📋 Phase 4: Infrastructure Consolidation (Tasks 029-036)
+### 📋 Phase 4: Infrastructure Consolidation (Tasks 029-048)
 
-**Status**: 0% Complete (0/8 tasks)
+**Status**: 68% Complete (15/22 tasks)
 **Priority**: HIGH
 **File**: [`hpc-slurm/pending/phase-4-consolidation.md`](hpc-slurm/pending/phase-4-consolidation.md)
 
-**Objective**: Consolidate 10+ playbooks → 3 playbooks, 15+ frameworks → 3 frameworks
+**Objective**: Consolidate 10+ playbooks → 3 playbooks, 15+ frameworks → 3 frameworks, eliminate duplicate Ansible code
 
-- TASK-029-032: Ansible playbook consolidation
-- TASK-033: Delete obsolete playbooks
-- TASK-034-036: Test framework consolidation
+- TASK-029-034.1: Ansible playbook consolidation ✅ (7 tasks complete)
+- TASK-035-037: Test framework consolidation (3 tasks pending)
+- TASK-038-043: Storage consolidation ✅ (6 tasks complete)
+- TASK-044-048: Ansible role consolidation 🔄 (1/5 tasks complete)
 
 ### 🎯 Phase 6: Final Validation (Tasks 041-044)
 
@@ -87,8 +88,9 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 
 ## Current Focus
 
-**Active Task**: TASK-028.1 - Fix BeeGFS Client Kernel Module
-**Next Phase**: Phase 4 - Infrastructure Consolidation (TASK-029 onwards)
+**Recently Completed**: TASK-044 - BeeGFS Common Role (Role consolidation initiative started)
+**Active Tasks**: TASK-028.1 - Fix BeeGFS Client Kernel Module
+**Next Priority**: TASK-045 - Create SLURM Common Role (continue role consolidation)
 
 ## Execution Principles
 
