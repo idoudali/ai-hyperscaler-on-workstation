@@ -32,6 +32,29 @@ This unified guide includes:
 
 ---
 
+## Component-Specific Workflows
+
+### Ansible Development
+
+When working with Ansible playbooks and roles, always run validation checks:
+
+```bash
+# Syntax check
+ansible-playbook --syntax-check playbooks/<playbook>.yml
+
+# Lint check
+ansible-lint roles/<role-name>/
+
+# Dry-run test
+ansible-playbook --check playbooks/<playbook>.yml
+```
+
+See agent rules in `.cursor/rules/auto/ansible-*.mdc` for complete validation requirements.
+
+**Note**: A `ansible/Makefile` can be added to standardize these commands.
+
+---
+
 ## Why the change?
 
 The project now supports both Cursor IDE and Claude Code CLI with:

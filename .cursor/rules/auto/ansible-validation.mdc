@@ -1,0 +1,210 @@
+---
+globs:
+  - "ansible/**/*.yml"
+  - "ansible/**/*.yaml"
+  - "ansible/**/*.py"
+description: "Validation and testing requirements for Ansible changes."
+---
+
+# Ansible Validation Requirements
+
+## Pre-Commit Validation Checklist
+
+Before committing any Ansible changes, you MUST run and pass ALL of these checks:
+
+### 1. Syntax Validation
+
+```bash
+# Check syntax for the modified playbook
+ansible-playbook --syntax-check playbooks/<playbook>.yml
+
+# Or check all playbooks
+find ansible/playbooks -name "*.yml" -exec ansible-playbook --syntax-check {} \;
+```
+
+**Required**: All playbooks must pass syntax check with exit code 0.
+
+### 2. Ansible Lint
+
+```bash
+# Lint the modified files
+ansible-lint playbooks/<playbook>.yml
+
+# Or lint specific role
+ansible-lint roles/<role-name>/
+
+# Or lint everything (use sparingly)
+ansible-lint ansible/
+```
+
+**Required**: Must pass with no errors. Warnings should be addressed or documented.
+
+### 3. Dry-Run Check (when possible)
+
+```bash
+# Run playbook in check mode (dry-run)
+ansible-playbook --check playbooks/<playbook>.yml
+
+# With specific inventory
+ansible-playbook --check -i inventory/hosts playbooks/<playbook>.yml
+
+# With specific tags for role testing
+ansible-playbook --check --tags <role-name> playbooks/<playbook>.yml
+```
+
+**Required**: Should complete without errors (when inventory is available).
+
+### 4. Requirements Validation
+
+```bash
+# Verify requirements are defined
+ls -la ansible/requirements.yml
+
+# Install/verify collections and roles
+ansible-galaxy collection install -r requirements.yml
+ansible-galaxy role install -r requirements.yml
+```
+
+## Role-Specific Testing
+
+When modifying a specific role, you can test it in isolation:
+
+### Using Tags
+
+```bash
+# Run only specific role tasks
+ansible-playbook --check --tags <role-name> playbooks/<playbook>.yml
+
+# Skip specific role
+ansible-playbook --check --skip-tags <role-name> playbooks/<playbook>.yml
+```
+
+### Testing Role Syntax
+
+```bash
+# Check role syntax via a playbook that includes it
+ansible-playbook --syntax-check playbooks/<playbook-using-role>.yml
+
+# Or lint the role directly
+ansible-lint roles/<role-name>/
+```
+
+## Makefile Integration
+
+If `ansible/Makefile` exists, prefer using standardized targets:
+
+```bash
+cd ansible
+
+# Show all available targets
+make help
+
+# Run all validation checks
+make validate-all
+
+# Lint specific role
+make lint-role ROLE=<role-name>
+
+# Syntax check specific playbook
+make syntax-check-playbook PLAYBOOK=<playbook-name>
+
+# Test role with check mode
+make test-role-check ROLE=<role-name>
+```
+
+## Safety Rules
+
+### Prohibited Without Approval
+
+- `ansible-playbook <playbook>` (without `--check` flag) - live execution requires approval
+- `ansible-playbook * --force` - force flag requires explicit approval
+- Running playbooks against production inventory without review
+
+### Always Allowed
+
+- `ansible-playbook --syntax-check <playbook>`
+- `ansible-lint <path>`
+- `ansible-playbook --check <playbook>` (dry-run mode)
+- `ansible-inventory --list`
+- `ansible-galaxy install/list`
+
+## Workflow After Making Changes
+
+1. **Identify modified files**
+   ```bash
+   git status
+   ```
+
+2. **Run validation commands**
+   ```bash
+   # For each modified playbook
+   ansible-playbook --syntax-check <playbook>
+   ansible-lint <playbook>
+
+   # For each modified role
+   ansible-lint roles/<role-name>/
+   ```
+
+3. **Test with dry-run** (if inventory available)
+   ```bash
+   ansible-playbook --check <playbook>
+   ```
+
+4. **Report results to user**
+   - List all checks performed
+   - Show any warnings or errors
+   - Confirm all checks passed
+
+5. **Present changes for staging**
+   - Do NOT auto-stage files
+   - Provide staging commands for user to run
+   - Wait for user approval before commit
+
+## Common Issues and Fixes
+
+### Syntax Errors
+- Check for YAML indentation (use 2 spaces)
+- Verify Jinja2 template syntax `{{ variable }}`
+- Ensure task names are strings
+
+### Lint Warnings
+- Use fully qualified collection names (FQCN): `ansible.builtin.copy`
+- Add `name:` to all tasks
+- Use `changed_when: false` for check-only tasks
+- Use `become: true` instead of deprecated `sudo`
+
+### Idempotency Issues
+- Use `state: present/absent` for packages
+- Use `template` module instead of `shell` for config files
+- Add `creates:` parameter to shell/command tasks when appropriate
+
+## Integration with Development Container
+
+All Ansible validation commands can be run within the development container:
+
+```bash
+# Enter container shell
+make shell-docker
+
+# Then run validation commands
+cd ansible
+ansible-playbook --syntax-check playbooks/site.yml
+ansible-lint roles/common/
+```
+
+Or use the wrapper:
+
+```bash
+# Run validation in container
+make run-docker COMMAND="cd ansible && ansible-playbook --syntax-check playbooks/site.yml"
+```
+
+## Documentation
+
+After making significant Ansible changes, check if documentation needs updating:
+
+- `ansible/README.md` - Main Ansible documentation
+- `docs/design-docs/` - Design documents for infrastructure
+- Role-specific `README.md` files in `ansible/roles/<role-name>/`
+
+See `@agent/documentation-updates` rule for details.
