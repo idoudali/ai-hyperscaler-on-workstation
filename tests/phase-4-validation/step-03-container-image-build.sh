@@ -187,7 +187,7 @@ main() {
   for container in "${EXPECTED_CONTAINERS[@]}"; do
     if [ -f "build/containers/apptainer/${container}.sif" ]; then
       log_success "✓ Expected container found: ${container}.sif"
-      ((SUCCESS_CRITERIA++))
+      ((SUCCESS_CRITERIA+=1))
     else
       log_error "✗ Expected container missing: ${container}.sif"
       MISSING_CONTAINERS+=("${container}.sif")
@@ -199,7 +199,7 @@ main() {
   # At least 1 container image created successfully (CMake-built)
   if [ "$CONTAINER_COUNT" -ge 1 ]; then
     log_success "✓ At least 1 CMake-built container image created ($CONTAINER_COUNT total)"
-    ((SUCCESS_CRITERIA++))
+    ((SUCCESS_CRITERIA+=1))
   else
     log_error "✗ Need at least 1 CMake-built container image (found $CONTAINER_COUNT)"
   fi
@@ -211,14 +211,14 @@ main() {
   for container in build/containers/apptainer/*.sif; do
     if [ -f "$container" ]; then
       if ! make run-docker COMMAND="apptainer inspect $container" > /dev/null 2>&1; then
-        ((METADATA_ERRORS++))
+        ((METADATA_ERRORS+=1))
       fi
     fi
   done
 
   if [ "$METADATA_ERRORS" -eq 0 ]; then
     log_success "✓ Container metadata is accessible"
-    ((SUCCESS_CRITERIA++))
+    ((SUCCESS_CRITERIA+=1))
   else
     log_error "✗ $METADATA_ERRORS containers failed metadata test"
   fi
@@ -226,7 +226,7 @@ main() {
   # Registry manifest is created
   if [ -f "build/containers/.registry-manifest.txt" ]; then
     log_success "✓ Registry manifest is created"
-    ((SUCCESS_CRITERIA++))
+    ((SUCCESS_CRITERIA+=1))
   else
     log_error "✗ Registry manifest not created"
   fi
@@ -234,7 +234,7 @@ main() {
   # All expected containers are present
   if [ ${#MISSING_CONTAINERS[@]} -eq 0 ]; then
     log_success "✓ All expected CMake-defined containers are present"
-    ((SUCCESS_CRITERIA++))
+    ((SUCCESS_CRITERIA+=1))
   else
     log_error "✗ Missing expected containers: ${MISSING_CONTAINERS[*]}"
   fi
@@ -242,7 +242,7 @@ main() {
   # Containers are ready for Step 6 testing
   if [ "$CONTAINER_COUNT" -ge 1 ] && [ -f "build/containers/.registry-manifest.txt" ]; then
     log_success "✓ Containers are ready for Step 6 (Storage Consolidation) testing"
-    ((SUCCESS_CRITERIA++))
+    ((SUCCESS_CRITERIA+=1))
   else
     log_error "✗ Containers not ready for Step 6 testing"
   fi
