@@ -81,6 +81,8 @@ main() {
   local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
   create_step_dir "$step_dir"
 
+  init_venv
+
   # Save environment info
   cat > "$VALIDATION_ROOT/validation-info.txt" << EOF
 === PHASE 4 VALIDATION SESSION ===

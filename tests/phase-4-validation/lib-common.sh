@@ -182,6 +182,12 @@ init_state() {
   mkdir -p "$STATE_DIR"
 }
 
+# Initialise the venv
+init_venv() {
+  log_info "Initialising the venv"
+  make venv-create
+}
+
 # Mark a step as completed
 mark_step_completed() {
   local step_id="$1"
