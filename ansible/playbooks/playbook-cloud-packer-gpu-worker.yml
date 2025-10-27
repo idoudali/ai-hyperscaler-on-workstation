@@ -1,0 +1,119 @@
+# Cloud GPU Worker Packer Build Playbook
+# GPU worker image with NVIDIA drivers pre-installed
+# NVIDIA Container Toolkit and GPU Operator installed by Kubespray in Phase 2
+# Usage: packer build (automatically sets packer_build=true)
+
+- name: Cloud GPU Worker Packer Build
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    packer_build: true
+    gpu_enabled: true
+    nvidia_install_drivers_only: true      # Only drivers, no toolkit/DCGM
+    nvidia_install_cuda: false              # CUDA in containers
+    nvidia_packer_build: true               # Suppress reboot warnings
+
+  roles:
+    - role: nvidia-gpu-drivers             # NVIDIA drivers only
+      when: gpu_enabled | default(true)
+
+  tasks:
+    - name: Check if nvidia-smi is available
+      ansible.builtin.command: "which nvidia-smi"
+      register: nvidia_smi_check
+      changed_when: false
+      failed_when: false
+      when: gpu_enabled | default(true)
+
+    - name: Display nvidia-smi availability
+      ansible.builtin.debug:
+        msg: "nvidia-smi: {{ 'Available' if nvidia_smi_check.rc == 0 else 'Not found' }}"
+      when: gpu_enabled | default(true)
+
+    - name: Verify NVIDIA driver modules
+      ansible.builtin.command: "lsmod | grep nvidia"
+      register: nvidia_modules_check
+      changed_when: false
+      failed_when: false
+      when: gpu_enabled | default(true)
+
+    - name: Display NVIDIA driver modules
+      ansible.builtin.debug:
+        msg: "NVIDIA driver modules: {{ 'Loaded' if nvidia_modules_check.rc == 0 else 'Not loaded (normal in VM)' }}"
+      when: gpu_enabled | default(true)
+
+    - name: Check Nouveau blacklist
+      ansible.builtin.command: "grep -r 'blacklist nouveau' /etc/modprobe.d/"
+      register: nouveau_blacklist_check
+      changed_when: false
+      failed_when: false
+      when: gpu_enabled | default(true)
+
+    - name: Display Nouveau blacklist status
+      ansible.builtin.debug:
+        msg: "Nouveau blacklist: {{ 'Configured' if nouveau_blacklist_check.rc == 0 else 'Not configured' }}"
+      when: gpu_enabled | default(true)
+
+    - name: Verify kernel headers are installed
+      ansible.builtin.shell: "dpkg -l | grep 'linux-headers'"
+      register: kernel_headers_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display kernel headers status
+      ansible.builtin.debug:
+        msg: "Kernel headers: {{ 'Installed' if kernel_headers_check.rc == 0 else 'Not found' }}"
+
+    - name: Check for NVIDIA driver packages
+      ansible.builtin.shell: "dpkg -l | grep -E 'nvidia-driver|nvidia-kernel'"
+      register: nvidia_packages_check
+      changed_when: false
+      failed_when: false
+      when: gpu_enabled | default(true)
+
+    - name: Display NVIDIA driver packages
+      ansible.builtin.debug:
+        msg: "NVIDIA packages: {{ nvidia_packages_check.stdout_lines | length }} packages installed"
+      when:
+        - gpu_enabled | default(true)
+        - nvidia_packages_check.stdout_lines is defined
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          Cloud GPU Worker Packer Build Complete (Minimal + Drivers)
+          ===========================================================
+
+          Installed Components:
+          - NVIDIA Drivers: {{ 'Installed' if nvidia_smi_check.rc == 0 else 'Check logs' }}
+          - nvidia-smi: {{ 'Available' if nvidia_smi_check.rc == 0 else 'Not available' }}
+          - Nouveau: {{ 'Blacklisted' if nouveau_blacklist_check.rc == 0 else 'Check config' }}
+          - Kernel Headers: {{ 'Installed' if kernel_headers_check.rc == 0 else 'Check logs' }}
+
+          NOT Installed (GPU Operator handles in Phase 2):
+          - NVIDIA Container Toolkit
+          - DCGM/DCGM Exporter
+          - GPU Device Plugin
+          - Container runtime NVIDIA configuration
+
+          NOT Installed (Kubespray handles in Phase 2):
+          - Kubernetes packages (kubeadm, kubelet, kubectl)
+          - Container runtime (containerd, runc, CNI)
+
+          Image Type: GPU worker with drivers only
+          Ready for: Kubespray + GPU Operator deployment in Phase 2
+
+          Note: NVIDIA drivers may not be fully functional until
+                deployed on physical hardware with GPU present.
+
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Display relevant installed packages
+      ansible.builtin.debug:
+        msg: >-
+          {{ ansible_facts.packages | dict2items |
+          selectattr('key', 'regex', 'nvidia-driver|nvidia-kernel|linux-headers') | list }}

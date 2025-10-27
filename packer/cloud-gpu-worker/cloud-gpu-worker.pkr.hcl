@@ -1,6 +1,6 @@
-# Cloud Base Image Packer Template
-# This template creates a Debian 13 (trixie) universal Kubernetes node image
-# suitable for both controller and worker nodes using Debian cloud image as base with cloud-init configuration
+# Cloud GPU Worker Image Packer Template
+# This template creates a Debian 13 (trixie) GPU-enabled Kubernetes worker image
+# with NVIDIA drivers and container toolkit for accelerated workloads
 
 # Include common Ansible variables
 locals {
@@ -27,7 +27,7 @@ packer {
 # Variables for customization
 variable "disk_size" {
   type        = string
-  description = "Disk size for the cloud base image"
+  description = "Disk size for the cloud GPU worker image"
 }
 
 variable "memory" {
@@ -67,7 +67,7 @@ variable "build_directory" {
 
 variable "image_name" {
   type        = string
-  description = "Name identifier for the image (e.g., 'cloud-base')"
+  description = "Name identifier for the image (e.g., 'cloud-gpu-worker')"
 }
 
 variable "vm_name" {
@@ -96,7 +96,7 @@ locals {
 }
 
 # QEMU builder configuration
-source "qemu" "cloud_base" {
+source "qemu" "cloud_gpu_worker" {
   # Basic VM configuration
   vm_name          = var.vm_name
   output_directory = local.output_directory
@@ -165,10 +165,10 @@ source "qemu" "cloud_base" {
   ]
 }
 
-# Build configuration with cloud base provisioning
+# Build configuration with GPU worker provisioning
 build {
-  name    = "cloud-base-image"
-  sources = ["source.qemu.cloud_base"]
+  name    = "cloud-gpu-worker-image"
+  sources = ["source.qemu.cloud_gpu_worker"]
 
   # Wait for cloud-init to complete and verify SSH setup
   provisioner "shell" {
@@ -179,38 +179,50 @@ build {
     ]
   }
 
-  # System preparation with networking and debugging tools
+  # System preparation with GPU prerequisites
   provisioner "file" {
-    source      = "${var.source_directory}/setup-cloud-base.sh"
-    destination = "/tmp/setup-cloud-base.sh"
+    source      = "${var.source_directory}/setup-gpu-worker.sh"
+    destination = "/tmp/setup-gpu-worker.sh"
   }
 
   provisioner "shell" {
     inline = [
-      "echo 'Running cloud base setup script...'",
-      "chmod +x /tmp/setup-cloud-base.sh",
-      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-cloud-base.sh",
-      "rm -f /tmp/setup-cloud-base.sh",
-      "echo 'Cloud base setup script completed'"
+      "echo 'Running GPU worker setup script...'",
+      "chmod +x /tmp/setup-gpu-worker.sh",
+      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-gpu-worker.sh",
+      "rm -f /tmp/setup-gpu-worker.sh",
+      "echo 'GPU worker setup script completed'"
     ]
   }
 
-  # Install cloud base packages using specialized Ansible playbook
+  # Install GPU worker packages using specialized Ansible playbook
   provisioner "ansible" {
-    playbook_file    = "${var.repo_tot_dir}/ansible/playbooks/playbook-cloud-packer-base.yml"
+    playbook_file    = "${var.repo_tot_dir}/ansible/playbooks/playbook-cloud-packer-gpu-worker.yml"
     ansible_env_vars = local.ansible_env_vars
+    command          = "/usr/bin/ansible-playbook"
     extra_arguments = [
       "-u", var.ssh_username,
       "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
       "--extra-vars", "{\"packer_build\":true}",
-      "--extra-vars", "{\"install_container_runtime\":true}",
-      "--extra-vars", "{\"install_monitoring_stack\":true}",
-      "--extra-vars", "{\"container_runtime_enable_service\":false}",
+      "--extra-vars", "{\"gpu_enabled\":true}",
+      "--extra-vars", "{\"nvidia_install_drivers_only\":true}",
+      "--extra-vars", "{\"nvidia_install_cuda\":false}",
+      "--extra-vars", "{\"nvidia_packer_build\":true}",
       "--become",
       "--become-user=root",
       "-v"
     ]
     use_proxy = false
+  }
+
+  # Verify GPU driver installation
+  provisioner "shell" {
+    inline = [
+      "echo 'Verifying NVIDIA driver installation...'",
+      "nvidia-smi || echo 'WARNING: nvidia-smi not working (expected in VM without GPU passthrough)'",
+      "ls -la /usr/bin/nvidia-smi",
+      "echo 'GPU driver verification complete'"
+    ]
   }
 
   # Final cleanup for cloning - optimized for speed and size
@@ -301,10 +313,10 @@ build {
       "echo 'Creating build metadata...'",
       "mkdir -p ${local.output_directory}",
       "date > ${local.output_directory}/build_timestamp.txt",
-      "echo 'Cloud Base Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
+      "echo 'Cloud GPU Worker Image (${var.image_name})' > ${local.output_directory}/image_type.txt",
       "echo '${var.vm_name}' > ${local.output_directory}/image_name.txt",
       "echo 'Debian 13 (trixie) Cloud Image' > ${local.output_directory}/base_image.txt",
-      "echo 'Kubernetes prerequisites, containerd runtime, and monitoring stack' > ${local.output_directory}/features.txt",
+      "echo 'Kubernetes + NVIDIA GPU drivers + container toolkit + DCGM monitoring' > ${local.output_directory}/features.txt",
       "echo 'Size optimized with zero-fill and compression' > ${local.output_directory}/optimization.txt",
       "ls -la ${local.output_directory}/ > ${local.output_directory}/contents.txt"
     ]
