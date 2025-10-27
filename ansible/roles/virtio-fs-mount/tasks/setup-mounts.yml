@@ -1,4 +1,3 @@
----
 # Setup virtio-fs mount points
 
 - name: Check if virtio-fs mounts are already mounted
@@ -20,7 +19,7 @@
   when:
     - virtio_fs_create_mount_dirs | bool
     - item.item.mount_point is defined
-    - item.rc != 0  # Only create if not already mounted
+    - item.rc != 0 # Only create if not already mounted
 
 - name: Mount virtio-fs filesystems
   ansible.builtin.mount:

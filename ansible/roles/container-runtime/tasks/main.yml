@@ -1,4 +1,3 @@
----
 # Container Runtime Role - Main Orchestration
 # This file orchestrates the complete container runtime setup including
 # Apptainer installation, security policies, and configuration

@@ -1,12 +1,11 @@
----
 # SLURM Compute Role - Default Variables
 # This file contains default variables for the SLURM compute role
 # These can be overridden in playbooks or inventory
 
 # SLURM Package Installation Configuration
 slurm_version: "24.11.0"
-slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
-slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
+slurm_packages_path: "/tmp/slurm-packages" # Runtime path on target nodes
+slurm_packages_source_dir: "build/packages/slurm" # Source on Ansible controller
 
 # Required packages for compute
 slurm_compute_required_packages:
@@ -217,7 +216,7 @@ singularity_gpu_device_access: "yes"
 singularity_gpu_isolation: "auto"
 
 # SLURM accounting configuration
-slurm_accounting_storage_type: "accounting_storage/none"  # Set to 'accounting_storage/slurmdbd' to enable accounting database
+slurm_accounting_storage_type: "accounting_storage/none" # Set to 'accounting_storage/slurmdbd' to enable accounting database
 slurm_accounting_storage_host: "localhost"
 slurm_accounting_storage_port: 6819
 slurm_accounting_storage_user: "slurm"
@@ -235,18 +234,18 @@ slurm_job_checkpoint_dir: "/var/checkpoint"
 
 # SLURM Compute Node Package Installation
 slurm_compute_packages:
-  - slurmd                 # SLURM daemon
-  - slurm-client           # Client tools (srun, squeue, etc.)
-  - munge                  # Authentication
-  - libmunge2              # Runtime libraries
-  - libpmix2               # PMIx runtime
+  - slurmd # SLURM daemon
+  - slurm-client # Client tools (srun, squeue, etc.)
+  - munge # Authentication
+  - libmunge2 # Runtime libraries
+  - libpmix2 # PMIx runtime
 
 # Container runtime packages
 # Note: Container runtime may need to be installed from external repositories
 slurm_compute_container_packages:
-  - squashfs-tools         # Required for container image creation
-  - cryptsetup-bin         # Required for encryption support
-  - fuse                   # Required for overlay filesystems
+  - squashfs-tools # Required for container image creation
+  - cryptsetup-bin # Required for encryption support
+  - fuse # Required for overlay filesystems
 
 # Container runtime installation method
 # Options: "package" (from repo), "external" (from external source), "skip" (manual installation)

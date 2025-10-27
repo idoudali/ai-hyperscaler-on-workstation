@@ -1,4 +1,3 @@
----
 # BeeGFS Management Service Role - Handlers
 
 - name: Reload systemd daemon

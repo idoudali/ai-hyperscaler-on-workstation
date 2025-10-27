@@ -1,4 +1,3 @@
----
 # BeeGFS Storage Service Role - Default Variables
 
 # BeeGFS version
@@ -7,7 +6,7 @@ beegfs_version: "8.1.0"
 # Pre-built packages configuration
 # For Packer builds: packages are copied to /tmp/beegfs-packages/ by Packer
 # For runtime deployments: packages are copied from controller to VMs
-beegfs_packages_path: "/tmp/beegfs-packages"  # Path on remote VMs
+beegfs_packages_path: "/tmp/beegfs-packages" # Path on remote VMs
 beegfs_packages_source_dir: "{{ (playbook_dir | default(inventory_dir)) }}/../../build/packages/beegfs"
 
 # Management service configuration
@@ -18,7 +17,7 @@ beegfs_mgmt_port: 8008
 beegfs_storage_port: 8003
 beegfs_storage_directory: "/data/beegfs/beegfs_storage"
 beegfs_storage_log_directory: "/var/log/beegfs"
-beegfs_storage_log_level: 3  # 1=critical, 2=error, 3=warning, 4=info, 5=debug
+beegfs_storage_log_level: 3 # 1=critical, 2=error, 3=warning, 4=info, 5=debug
 
 # Network configuration
 beegfs_storage_interfaces: "{{ ansible_default_ipv4.interface }}"

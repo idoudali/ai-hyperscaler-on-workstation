@@ -1,4 +1,3 @@
----
 # BeeGFS Client - Mount Tasks
 
 - name: Check if DKMS module is registered

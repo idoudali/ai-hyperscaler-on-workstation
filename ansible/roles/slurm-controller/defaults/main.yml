@@ -1,12 +1,11 @@
----
 # SLURM Controller Role - Default Variables
 # This file contains default variables for the SLURM controller role
 # These can be overridden in playbooks or inventory
 
 # SLURM Package Installation Configuration
 slurm_version: "24.11.0"
-slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
-slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
+slurm_packages_path: "/tmp/slurm-packages" # Runtime path on target nodes
+slurm_packages_source_dir: "build/packages/slurm" # Source on Ansible controller
 
 # Required packages for controller
 slurm_controller_required_packages:
@@ -44,7 +43,7 @@ slurm_database_user: "slurm"
 slurm_database_password: "slurm"
 
 # SLURM accounting configuration
-slurm_accounting_storage_type: "accounting_storage/none"  # Set to 'accounting_storage/slurmdbd' to enable accounting database
+slurm_accounting_storage_type: "accounting_storage/none" # Set to 'accounting_storage/slurmdbd' to enable accounting database
 slurm_accounting_storage_host: "localhost"
 slurm_accounting_storage_port: 6819
 slurm_accounting_storage_user: "slurm"
@@ -261,21 +260,21 @@ singularity_gpu_isolation: "auto"
 
 # Container bind paths (additional mounts)
 singularity_bind_paths: []
-  # Example:
-  # - "/data:/data:ro"
-  # - "/scratch:/scratch"
+# Example:
+# - "/data:/data:ro"
+# - "/scratch:/scratch"
 
 # Container environment variables
 singularity_env_vars: []
-  # Example:
-  # - "CUDA_VISIBLE_DEVICES=0,1"
-  # - "OMP_NUM_THREADS=4"
+# Example:
+# - "CUDA_VISIBLE_DEVICES=0,1"
+# - "OMP_NUM_THREADS=4"
 
 # Container registries
 singularity_registries: []
-  # Example:
-  # - "docker://registry.hub.docker.com"
-  # - "shub://singularity-hub.org"
+# Example:
+# - "docker://registry.hub.docker.com"
+# - "shub://singularity-hub.org"
 
 # Plugin stack configuration
 slurm_job_submit_plugins: []
@@ -293,28 +292,28 @@ slurm_job_checkpoint_dir: "/var/checkpoint"
 
 # SLURM Controller Package Installation
 slurm_controller_packages:
-  - slurm-wlm              # Core SLURM workload manager
-  - slurm-wlm-doc          # Documentation
-  - slurmdbd               # Database daemon for accounting
-  - slurm-client           # Client tools
-  - munge                  # Authentication daemon
-  - libmunge2              # MUNGE runtime library
-  - libmunge-dev           # Development libraries
-  - mariadb-server         # Database backend
-  - mariadb-client         # MySQL client command line tools
-  - libmariadb-dev         # Database client libraries
-  - python3-pymysql        # Python MySQL client for Ansible
-  - python3-mysqldb        # Alternative Python MySQL client
-  - libpmix2               # PMIx for MPI integration
-  - libpmix-dev            # PMIx development headers
+  - slurm-wlm # Core SLURM workload manager
+  - slurm-wlm-doc # Documentation
+  - slurmdbd # Database daemon for accounting
+  - slurm-client # Client tools
+  - munge # Authentication daemon
+  - libmunge2 # MUNGE runtime library
+  - libmunge-dev # Development libraries
+  - mariadb-server # Database backend
+  - mariadb-client # MySQL client command line tools
+  - libmariadb-dev # Database client libraries
+  - python3-pymysql # Python MySQL client for Ansible
+  - python3-mysqldb # Alternative Python MySQL client
+  - libpmix2 # PMIx for MPI integration
+  - libpmix-dev # PMIx development headers
 
 # Task 013: Container runtime packages
 # Note: Container runtime may need to be installed from external repositories
 # Common package names: singularity, apptainer, singularity-ce
 slurm_controller_container_packages:
-  - squashfs-tools         # Required for container image creation
-  - cryptsetup-bin         # Required for encryption support
-  - fuse                   # Required for overlay filesystems
+  - squashfs-tools # Required for container image creation
+  - cryptsetup-bin # Required for encryption support
+  - fuse # Required for overlay filesystems
 
 # Container runtime installation method
 # Options: "package" (from repo), "external" (from external source), "skip" (manual installation)

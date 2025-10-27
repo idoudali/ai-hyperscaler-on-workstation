@@ -1,4 +1,3 @@
----
 # BeeGFS Metadata Service - Installation Tasks
 # Installs from pre-built packages only (no source build)
 # Now uses beegfs-common role for shared package installation logic

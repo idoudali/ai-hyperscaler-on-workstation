@@ -1,4 +1,3 @@
----
 # SLURM Configuration Deployment
 # Task 011: Configure SLURM PMIx Integration
 
@@ -120,7 +119,7 @@
   command: /usr/sbin/slurmctld -t -f /etc/slurm/slurm.conf
   register: slurm_config_validation
   changed_when: false
-  failed_when: false  # Don't fail on validation errors for now
+  failed_when: false # Don't fail on validation errors for now
   become: true
   when:
     - not (packer_build | default(false) | bool)

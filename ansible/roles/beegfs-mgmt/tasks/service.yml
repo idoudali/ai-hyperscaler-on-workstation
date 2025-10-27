@@ -1,4 +1,3 @@
----
 # BeeGFS Management Service - Service Management Tasks
 
 - name: Remove stale PID file if exists

@@ -1,4 +1,3 @@
----
 # BeeGFS Storage Service Role - Handlers
 
 - name: Restart BeeGFS storage service

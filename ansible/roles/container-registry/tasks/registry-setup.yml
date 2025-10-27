@@ -1,4 +1,3 @@
----
 # Container Registry Setup Tasks
 # Creates the container registry directory structure and configuration files
 
@@ -62,7 +61,7 @@
     mode: "0644"
     owner: "{{ container_registry_owner }}"
     group: "{{ container_registry_group }}"
-    force: false  # Don't overwrite if already exists
+    force: false # Don't overwrite if already exists
   tags:
     - container-registry
     - registry-setup

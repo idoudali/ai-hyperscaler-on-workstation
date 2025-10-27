@@ -1,4 +1,3 @@
----
 # BeeGFS Management Service - Configuration Tasks
 
 - name: Configure BeeGFS management service
@@ -56,9 +55,7 @@
 - name: Display BeeGFS 8.1.0+ management service initialization note
   ansible.builtin.debug:
     msg: >-
-      BeeGFS 8.1.0+ management service uses automatic database initialization.
-      No manual setup script required. Database will be created on first service start.
-      Storage directory: {{ beegfs_mgmt_storage_directory }}
+      BeeGFS 8.1.0+ management service uses automatic database initialization. No manual setup script required. Database will be created on first service start. Storage directory: {{ beegfs_mgmt_storage_directory }}
   when:
     - not beegfs_mgmt_initialized.stat.exists or beegfs_mgmt_force_init
     - beegfs_mgmt_allow_first_run_init
