@@ -8,6 +8,13 @@
     system: true
   become: true
 
+- name: Check if MUNGE service is running
+  ansible.builtin.systemd:
+    name: munge
+  become: true
+  register: munge_status_check
+  failed_when: false
+
 - name: Stop MUNGE service before user modification
   ansible.builtin.systemd:
     name: munge
@@ -15,7 +22,7 @@
   become: true
   failed_when: false
   changed_when: false
-  register: munge_was_running
+  when: munge_status_check.status.ActiveState == 'active'
 
 - name: Create MUNGE user
   ansible.builtin.user:
@@ -34,7 +41,7 @@
     state: started
     enabled: true
   become: true
-  when: munge_was_running.changed == true
+  when: munge_status_check.status.ActiveState == 'active'
 
 - name: Ensure MUNGE directories exist
   ansible.builtin.file:

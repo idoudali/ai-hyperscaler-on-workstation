@@ -1,0 +1,56 @@
+# Package Manager - Copy Packages
+# Copies packages from Ansible controller to remote host if not found on remote
+
+- name: Find packages on remote host
+  ansible.builtin.find:
+    paths: "{{ package_remote_path }}"
+    patterns: "{{ package_files }}"
+  register: remote_packages_check
+  when: not package_installed.stat.exists | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - copy
+
+- name: Find packages on source directory
+  ansible.builtin.find:
+    paths: "{{ package_source_dir }}"
+    patterns: "{{ package_files }}"
+  register: source_packages_check
+  delegate_to: localhost
+  become: false
+  when:
+    - not package_installed.stat.exists | default(false)
+    - remote_packages_check.matched | default(0) == 0
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - copy
+
+- name: Create packages directory on remote host
+  ansible.builtin.file:
+    path: "{{ package_remote_path }}"
+    state: directory
+    mode: '0755'
+  when:
+    - not package_installed.stat.exists | default(false)
+    - remote_packages_check.matched | default(0) == 0
+    - source_packages_check.matched | default(0) > 0
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - copy
+
+- name: Copy packages from source to remote
+  ansible.builtin.copy:
+    src: "{{ package_source_dir }}/"
+    dest: "{{ package_remote_path }}/"
+    mode: '0644'
+  when:
+    - not package_installed.stat.exists | default(false)
+    - remote_packages_check.matched | default(0) == 0
+    - source_packages_check.matched | default(0) > 0
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - copy

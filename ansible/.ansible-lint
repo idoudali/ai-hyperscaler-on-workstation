@@ -16,6 +16,7 @@ skip_list:
   - fqcn[action-core]       # Allow core ansible modules without FQCN
   - name[casing]           # Allow flexible task naming
   - jinja[spacing]         # Allow flexible jinja spacing
+  - role-name              # Allow hyphens in role names (established pattern)
 
 # Warnings only (don't fail on these)
 warn_list:

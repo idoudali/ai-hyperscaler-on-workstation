@@ -9,76 +9,25 @@
 # 5. Install from local packages
 # 6. Fail with clear message if packages not found
 
-- name: Verify SLURM packages are available
-  ansible.builtin.find:
-    paths: "{{ slurm_packages_path }}"
-    patterns: "slurm-smd_{{ slurm_version }}-1_*.deb"
-  register: available_packages
-  tags:
-    - slurm
-    - slurm-controller
-    - check
-
-- name: Fail if SLURM packages not found
-  ansible.builtin.fail:
-    msg: >-
-      SLURM packages not found at {{ slurm_packages_path }}. Expected: slurm-smd_{{ slurm_version }}-1_*.deb Packages should be copied by the playbook before this role runs.
-  when: available_packages.matched == 0
-  tags:
-    - slurm
-    - slurm-controller
-    - check
-
-- name: Display SLURM package installation
-  ansible.builtin.debug:
-    msg: "Installing SLURM controller from {{ available_packages.matched }} packages at {{ slurm_packages_path }}"
-  tags:
-    - slurm
-    - slurm-controller
-
-- name: Install SLURM controller dependencies
-  ansible.builtin.apt:
-    name: "{{ slurm_controller_dependencies }}"
-    state: present
+# Use package-manager role for SLURM controller package installation
+- name: Install SLURM controller packages via package-manager
+  ansible.builtin.import_role:
+    name: package-manager
+  vars:
+    package_name: "SLURM Controller"
+    package_binary_path: "/usr/sbin/slurmctld"
+    package_files: "{{ slurm_controller_required_packages }}"
+    package_remote_path: "{{ slurm_packages_path }}"
+    package_source_dir: "{{ slurm_packages_source_dir }}"
+    package_dependencies: "{{ slurm_controller_dependencies }}"
+    component_tag: "slurm-controller"
+    verify_command: "/usr/sbin/slurmctld -V"
+    use_dpkg_install: true # Better dependency resolution for SLURM
     update_cache: true
   tags:
     - slurm
     - slurm-controller
     - install
-
-- name: Find SLURM controller package files
-  ansible.builtin.find:
-    paths: "{{ slurm_packages_path }}"
-    patterns: "{{ slurm_controller_required_packages }}"
-  register: slurm_controller_pkgs
-  tags:
-    - slurm
-    - slurm-controller
-    - install
-
-- name: Install SLURM controller packages (all at once for dependency resolution)
-  ansible.builtin.command:
-    cmd: "dpkg -i {{ slurm_controller_pkgs.files | map(attribute='path') | join(' ') }}"
-  register: dpkg_install_result
-  changed_when: dpkg_install_result.rc == 0
-  failed_when: false
-  when: slurm_controller_pkgs.matched | default(0) > 0
-  tags:
-    - slurm
-    - slurm-controller
-    - install
-
-- name: Fix SLURM package dependencies if needed
-  ansible.builtin.command:
-    cmd: "apt-get install -f -y"
-  register: apt_fix_result
-  changed_when: apt_fix_result.stdout is search('upgraded|installed|downgraded|removed')
-  when: slurm_controller_pkgs.matched | default(0) > 0
-  tags:
-    - slurm
-    - slurm-controller
-    - install
-    - skip_ansible_lint # command-instead-of-module: No apt module equivalent for -f flag
 
 - name: Create SLURM system user
   ansible.builtin.user:
