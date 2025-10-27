@@ -9,76 +9,25 @@
 # 5. Install from local packages
 # 6. Fail with clear message if packages not found
 
-- name: Verify SLURM packages are available
-  ansible.builtin.find:
-    paths: "{{ slurm_packages_path }}"
-    patterns: "slurm-smd_{{ slurm_version }}-1_*.deb"
-  register: available_packages
-  tags:
-    - slurm
-    - slurm-compute
-    - check
-
-- name: Fail if SLURM packages not found
-  ansible.builtin.fail:
-    msg: >-
-      SLURM packages not found at {{ slurm_packages_path }}. Expected: slurm-smd_{{ slurm_version }}-1_*.deb Packages should be copied by the playbook before this role runs.
-  when: available_packages.matched == 0
-  tags:
-    - slurm
-    - slurm-compute
-    - check
-
-- name: Display SLURM package installation
-  ansible.builtin.debug:
-    msg: "Installing SLURM compute from {{ available_packages.matched }} packages at {{ slurm_packages_path }}"
-  tags:
-    - slurm
-    - slurm-compute
-
-- name: Install SLURM compute dependencies
-  ansible.builtin.apt:
-    name: "{{ slurm_compute_dependencies }}"
-    state: present
+# Use package-manager role for SLURM compute package installation
+- name: Install SLURM compute packages via package-manager
+  ansible.builtin.import_role:
+    name: package-manager
+  vars:
+    package_name: "SLURM Compute"
+    package_binary_path: "/usr/sbin/slurmd"
+    package_files: "{{ slurm_compute_required_packages }}"
+    package_remote_path: "{{ slurm_packages_path }}"
+    package_source_dir: "{{ slurm_packages_source_dir }}"
+    package_dependencies: "{{ slurm_compute_dependencies }}"
+    component_tag: "slurm-compute"
+    verify_command: "/usr/sbin/slurmd -V"
+    use_dpkg_install: true # Better dependency resolution for SLURM
     update_cache: true
   tags:
     - slurm
     - slurm-compute
     - install
-
-- name: Find SLURM compute package files
-  ansible.builtin.find:
-    paths: "{{ slurm_packages_path }}"
-    patterns: "{{ slurm_compute_required_packages }}"
-  register: slurm_compute_pkgs
-  tags:
-    - slurm
-    - slurm-compute
-    - install
-
-- name: Install SLURM compute packages (all at once for dependency resolution)
-  ansible.builtin.command:
-    cmd: "dpkg -i {{ slurm_compute_pkgs.files | map(attribute='path') | join(' ') }}"
-  register: dpkg_install_result
-  changed_when: dpkg_install_result.rc == 0
-  failed_when: false
-  when: slurm_compute_pkgs.matched | default(0) > 0
-  tags:
-    - slurm
-    - slurm-compute
-    - install
-
-- name: Fix SLURM package dependencies if needed
-  ansible.builtin.command:
-    cmd: "apt-get install -f -y"
-  register: apt_fix_result
-  changed_when: apt_fix_result.stdout is search('upgraded|installed|downgraded|removed')
-  when: slurm_compute_pkgs.matched | default(0) > 0
-  tags:
-    - slurm
-    - slurm-compute
-    - install
-    - skip_ansible_lint # command-instead-of-module: No apt module equivalent for -f flag
 
 - name: Create SLURM system user
   ansible.builtin.user:

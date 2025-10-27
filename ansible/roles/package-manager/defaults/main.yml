@@ -1,0 +1,38 @@
+# Package Manager Common Role - Default Variables
+# Generic package management variables used across all components
+
+# Human-readable package name for error messages and logs
+package_name: "Package"
+
+# Path to check if component is already installed (e.g., /usr/bin/beegfs-mgmtd)
+package_binary_path: "/usr/bin/unknown"
+
+# List of package filename patterns to search for (e.g., ["beegfs-mgmtd_*.deb", "beegfs-utils_*.deb"])
+package_files: []
+
+# Path where packages are located on remote host (Packer builds: /tmp/xxx-packages/)
+package_remote_path: "/tmp/packages"
+
+# Path where packages are located on Ansible controller (Runtime: build/packages/xxx/)
+package_source_dir: "{{ (playbook_dir | default(inventory_dir)) }}/../../build/packages/default"
+
+# List of APT package dependencies (optional)
+package_dependencies: []
+
+# Component tag for Ansible tagging (e.g., "beegfs-mgmt", "slurm-controller")
+component_tag: "package-install"
+
+# Verify command (optional) - command to verify installation
+verify_command: ""
+
+# Install dependencies before installing packages
+install_dependencies: true
+
+# Update apt cache before installing
+update_cache: false
+
+# Use dpkg + apt install -f for better dependency resolution (like SLURM)
+use_dpkg_install: false
+
+# Component-specific tags for organization
+tags_extra: []

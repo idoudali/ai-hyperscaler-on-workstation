@@ -1,0 +1,85 @@
+# Package Manager Common Role - Main Entry Point
+# Generic package installation logic used by all components
+#
+# This role provides a unified way to install packages across BeeGFS, SLURM, and other components.
+# It handles the common pattern of:
+# 1. Checking if already installed
+# 2. Locating packages on remote or controller
+# 3. Copying packages if needed (runtime mode)
+# 4. Installing packages
+# 5. Handling dependencies
+#
+# Required variables (override these when using the role):
+#   - package_name: human-readable name (e.g., "BeeGFS Management")
+#   - package_binary_path: path to check (e.g., /usr/sbin/beegfs-mgmtd)
+#   - package_files: list of .deb filename patterns
+#   - package_remote_path: where to find packages on remote (e.g., /tmp/beegfs-packages)
+#   - package_source_dir: where to find packages on controller (e.g., build/packages/beegfs)
+
+- name: Check component installation status for {{ package_name }}
+  ansible.builtin.include_tasks: check-installation.yml
+
+- name: Find packages on remote host (for checking after copy)
+  ansible.builtin.find:
+    paths: "{{ package_remote_path }}"
+    patterns: "{{ package_files }}"
+  register: package_remote_packages
+  when: not package_installed.stat.exists | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+
+- name: Find packages on source directory
+  ansible.builtin.find:
+    paths: "{{ package_source_dir }}"
+    patterns: "{{ package_files }}"
+  register: package_source_packages
+  delegate_to: localhost
+  become: false
+  when: not package_installed.stat.exists | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+
+- name: Include package copy tasks
+  ansible.builtin.include_tasks: copy-packages.yml
+  when: not package_installed.stat.exists | default(false)
+
+- name: Find all required packages on remote (after potential copy)
+  ansible.builtin.find:
+    paths: "{{ package_remote_path }}"
+    patterns: "{{ package_files }}"
+  register: package_found_packages
+  when: not package_installed.stat.exists | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+
+- name: Include package installation tasks
+  ansible.builtin.include_tasks: install-packages.yml
+  when: not package_installed.stat.exists | default(false)
+
+- name: Verify installation status for {{ package_name }}
+  ansible.builtin.command: "{{ verify_command }}"
+  register: verify_result
+  changed_when: false
+  failed_when: false
+  when:
+    - verify_command | default("") != ""
+    - not package_installed.stat.exists | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - verify
+    - skip_ansible_lint # command-instead-of-module: Specific verification commands
+
+- name: Display verification result
+  ansible.builtin.debug:
+    var: verify_result.stdout_lines
+  when:
+    - verify_result is defined
+    - verify_result.stdout_lines is defined
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - verify

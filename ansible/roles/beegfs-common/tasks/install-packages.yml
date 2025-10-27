@@ -1,5 +1,5 @@
 # BeeGFS Common Package Installation
-# Parameterized installation logic used by all BeeGFS roles
+# Uses the package-manager role for unified package installation
 #
 # Required variables:
 #   - beegfs_service_type: mgmt|meta|storage|client
@@ -10,117 +10,19 @@
 #   - beegfs_packages_path: path where packages should be located on remote host
 #   - beegfs_packages_source_dir: path where packages are located on Ansible controller
 
-- name: "Check if BeeGFS service is already installed for {{ beegfs_service_type }}"
-  ansible.builtin.stat:
-    path: "{{ beegfs_binary_check_path }}"
-  register: beegfs_service_installed
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-
-- name: Find packages on remote host
-  ansible.builtin.find:
-    paths: "{{ beegfs_packages_path }}"
-    patterns: "{{ beegfs_required_packages }}"
-  register: remote_packages_check
-  when: not beegfs_service_installed.stat.exists | default(false)
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-
-- name: Find packages on source directory
-  ansible.builtin.find:
-    paths: "{{ beegfs_packages_source_dir }}"
-    patterns: "{{ beegfs_required_packages }}"
-  register: source_packages_check
-  delegate_to: localhost
-  become: false
-  when:
-    - not beegfs_service_installed.stat.exists | default(false)
-    - remote_packages_check.matched | default(0) == 0
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-
-- name: Create packages directory on remote host
-  ansible.builtin.file:
-    path: "{{ beegfs_packages_path }}"
-    state: directory
-    mode: '0755'
-  when:
-    - not beegfs_service_installed.stat.exists | default(false)
-    - remote_packages_check.matched | default(0) == 0
-    - source_packages_check.matched | default(0) > 0
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-    - copy
-
-- name: Copy packages from source to remote
-  ansible.builtin.copy:
-    src: "{{ beegfs_packages_source_dir }}/"
-    dest: "{{ beegfs_packages_path }}/"
-    mode: '0644'
-  when:
-    - not beegfs_service_installed.stat.exists | default(false)
-    - remote_packages_check.matched | default(0) == 0
-    - source_packages_check.matched | default(0) > 0
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-    - copy
-
-- name: Fail if packages not found
-  ansible.builtin.fail:
-    msg: >-
-      BeeGFS {{ beegfs_service_type }} packages not found at {{ beegfs_packages_path }}. Expected: {{ beegfs_required_packages | join(', ') }} Checked on controller: {{ beegfs_packages_source_dir }} For Packer builds: Packages should be copied by Packer to {{ beegfs_packages_path }} For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
-  when:
-    - not beegfs_service_installed.stat.exists | default(false)
-    - remote_packages_check.matched | default(0) == 0
-    - source_packages_check.matched | default(0) == 0
+- name: Install BeeGFS packages via package-manager for {{ beegfs_service_type }}
+  ansible.builtin.import_role:
+    name: package-manager
+  vars:
+    package_name: "BeeGFS {{ beegfs_service_type }}"
+    package_binary_path: "{{ beegfs_binary_check_path }}"
+    package_files: "{{ beegfs_required_packages }}"
+    package_remote_path: "{{ beegfs_packages_path }}"
+    package_source_dir: "{{ beegfs_packages_source_dir }}"
+    package_dependencies: "{{ beegfs_dependencies | default([]) }}"
+    component_tag: "beegfs-{{ beegfs_service_type }}"
+    verify_command: "{{ beegfs_verify_command | default('') }}"
   tags:
     - beegfs
     - beegfs-{{ beegfs_service_type }}
     - install
-
-- name: Display package installation method
-  ansible.builtin.debug:
-    msg: >-
-      {{ 'BeeGFS ' + beegfs_service_type + ' already installed, skipping' if beegfs_service_installed.stat.exists | default(false)
-         else 'Installing BeeGFS ' + beegfs_service_type + ' packages from ' + beegfs_packages_path }}
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-
-- name: "Find packages for BeeGFS {{ beegfs_service_type }}"
-  ansible.builtin.find:
-    paths: "{{ beegfs_packages_path }}"
-    patterns: "{{ beegfs_required_packages }}"
-  register: beegfs_service_pkgs
-  when: not beegfs_service_installed.stat.exists | default(false)
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-    - install
-
-- name: "Install packages for BeeGFS {{ beegfs_service_type }}"
-  ansible.builtin.apt:
-    deb: "{{ item.path }}"
-    state: present
-  loop: "{{ beegfs_service_pkgs.files }}"
-  when:
-    - not beegfs_service_installed.stat.exists | default(false)
-    - beegfs_service_pkgs.matched | default(0) > 0
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-    - install
-
-- name: Display installation status
-  ansible.builtin.debug:
-    msg: >-
-      BeeGFS {{ beegfs_service_type }} installed successfully (packer_build={{ packer_build | default(false) }})
-  tags:
-    - beegfs
-    - beegfs-{{ beegfs_service_type }}
-    - verify

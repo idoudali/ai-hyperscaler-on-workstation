@@ -1,0 +1,21 @@
+# Package Manager - Check Installation
+# Checks if the component is already installed by verifying binary existence
+
+- name: Check component installation status for {{ package_name }}
+  ansible.builtin.stat:
+    path: "{{ package_binary_path }}"
+  register: package_installed
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - check
+
+- name: Display installation check result
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Component already installed, skipping package installation' if package_installed.stat.exists | default(false)
+         else 'Component not installed, will proceed with package installation' }}
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - check

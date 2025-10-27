@@ -2,7 +2,15 @@
 # This file orchestrates the main tasks for SLURM controller setup
 # including package installation, configuration, MUNGE setup, and service management
 
-# Setup common SLURM directories early
+# Install packages and create SLURM user first
+- name: Include SLURM controller installation tasks
+  include_tasks: install.yml
+  tags:
+    - slurm
+    - slurm-controller
+    - install
+
+# Setup common SLURM directories after user creation
 - name: Setup SLURM directories using common role
   ansible.builtin.import_role:
     name: slurm-common
@@ -13,13 +21,6 @@
     - slurm
     - slurm-controller
     - directories
-
-- name: Include SLURM controller installation tasks
-  include_tasks: install.yml
-  tags:
-    - slurm
-    - slurm-controller
-    - install
 
 - name: Include SLURM controller configuration tasks
   include_tasks: configure.yml

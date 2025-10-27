@@ -1,9 +1,9 @@
 # Active Workstreams - 2-Stream Parallel Execution
 
 **Created**: 2025-10-25
-**Last Updated**: 2025-10-25 15:30
-**Status**: Planning
-**Total Estimated Time**: ~29 hours across 5 days (Stream A: 15.5 hrs, Stream B: 19.5 hrs)
+**Last Updated**: 2025-10-27 20:30
+**Status**: In Progress
+**Total Estimated Time**: ~32 hours across 5 days (Stream A: 18.5 hrs, Stream B: 19.5 hrs)
 
 ## Overview
 
@@ -20,7 +20,8 @@ Ansible role consolidation, shared utilities, and infrastructure improvements.
 |-----|------|-------------|----------|--------|---------|-----------|-----------------|
 | 1 | TASK-044 | Create BeeGFS Common Role | 4 hrs | ✅ Complete | 2025-10-25 | 2025-10-25 | [Phase 4](hpc-slurm/pending/phase-4-consolidation.md#task-044) |
 | 2 | TASK-045 | Create SLURM Common Role | 3 hrs | ✅ Complete | 2025-10-25 | 2025-10-25 | [Phase 4](hpc-slurm/pending/phase-4-consolidation.md#task-045) |
-| 3 | TASK-046 | Create Package Manager Common Role | 2 hrs | Pending | - | - | [Phase 4](hpc-slurm/pending/phase-4-consolidation.md#task-046) |
+| 3 | TASK-046 | Create Package Manager Common Role | 2 hrs | ✅ Complete | 2025-10-27 | 2025-10-27 | [Phase 4](hpc-slurm/pending/phase-4-consolidation.md#task-046) |
+| 4 | TASK-046.1 | Integrate Package Manager into Existing Roles | 3 hrs | ✅ Complete | 2025-10-27 | 2025-10-27 | [Phase 4](hpc-slurm/pending/phase-4-consolidation.md#task-0461) |
 | 4 | TASK-047 | Consolidate Base Package Roles | 1.5 hrs | Pending | - | - | [Phase 4](hpc-slurm/pending/phase-4-consolidation.md#task-047) |
 | 4 | TASK-040 | Container Registry on BeeGFS | 1 hr | Pending | - | - | [Phase 6](hpc-slurm/pending/phase-6-validation.md#task-040) |
 | 5 | TASK-041 | BeeGFS Performance Testing | 2 hrs | Pending | - | - | [Phase 6](hpc-slurm/pending/phase-6-validation.md#task-041) |
@@ -29,8 +30,9 @@ Ansible role consolidation, shared utilities, and infrastructure improvements.
 
 **Key Deliverables**:
 
-- Eliminate 1,200-2,000 lines of duplicate Ansible code
+- Eliminate 2,000-3,200 lines of duplicate Ansible code
 - Create 4 new common roles (BeeGFS, SLURM, Package Manager, Base Packages)
+- Integrate package-manager into BeeGFS and SLURM roles (TASK-046.1)
 - Configure container registry on BeeGFS storage
 - Validate BeeGFS performance and SLURM integration
 
@@ -92,8 +94,8 @@ make test-all
 ## Task Dependencies
 
 ```text
-Stream A: TASK-044 → TASK-045 → TASK-046 → TASK-047 + TASK-040 → TASK-041,042,043
-                                              (parallel)
+Stream A: TASK-044 → TASK-045 → TASK-046 → TASK-046.1 → TASK-047 + TASK-040 → TASK-041,042,043
+                                              (parallel)                           (parallel)
 
 Stream B: Phase 2 → TASK-036 → Phase 3a + TASK-035 → Phase 4 + TASK-037 → Phase 5 + TASK-044
           (extract)  (Packer)  (Runtime Framework)    (Refactor + Cleanup)  (Validation + Docs)
@@ -107,8 +109,9 @@ Cross-Stream: Stream B independent of Stream A (can run fully in parallel)
 
 ### Stream A: Role Consolidation & Infrastructure
 
-- ✅ Ansible code duplication reduced by 1,200-2,000 lines
+- ✅ Ansible code duplication reduced by 2,000-3,200 lines
 - ✅ 4 new common roles created (BeeGFS, SLURM, Package Manager, Base Packages)
+- ✅ package-manager integrated into BeeGFS and SLURM roles (TASK-046.1 complete)
 - ✅ Container registry successfully running on BeeGFS storage
 - ✅ BeeGFS performance validated and optimized
 - ✅ SLURM integration tested with consolidated roles
@@ -127,7 +130,7 @@ Cross-Stream: Stream B independent of Stream A (can run fully in parallel)
 
 ### Combined Impact
 
-- ✅ Total code duplication reduced by 3,200-5,000 lines
+- ✅ Total code duplication reduced by 4,000-6,400 lines
 - ✅ All existing functionality preserved
 - ✅ Deployment process unchanged for end users
 - ✅ Test execution time unchanged or improved
@@ -165,9 +168,9 @@ Cross-Stream: Stream B independent of Stream A (can run fully in parallel)
 
 ---
 
-**Next Action**: Begin Day 1 execution
+**Next Action**: Continue Day 4 execution
 
-- Stream A: TASK-044 (BeeGFS Common Role)
+- Stream A: TASK-047 (Consolidate base package roles) or TASK-040 (Container registry on BeeGFS)
 - Stream B: Phase 2 (Extract Common Test Patterns)
 
-**Document Version**: 2.0
+**Document Version**: 2.2

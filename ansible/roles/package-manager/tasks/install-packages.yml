@@ -1,0 +1,94 @@
+# Package Manager - Install Packages
+# Installs packages from local path on remote host
+
+- name: Fail if packages not found
+  ansible.builtin.fail:
+    msg: >-
+      {{ package_name }} packages not found at {{ package_remote_path }}. Expected: {{ package_files | join(', ') }} Checked on controller: {{ package_source_dir }} For Packer builds: Packages should be copied by Packer to {{ package_remote_path }} For runtime: Build packages first with: cmake --build build --target build-packages
+  when:
+    - not package_installed.stat.exists | default(false)
+    - package_remote_packages.matched | default(0) == 0
+    - package_source_packages.matched | default(0) == 0
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - install
+
+- name: Display package installation method
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Installing ' + package_name + ' packages from ' + package_remote_path }}
+  when: not package_installed.stat.exists | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - install
+
+- name: Install dependencies for {{ package_name }}
+  ansible.builtin.apt:
+    name: "{{ package_dependencies }}"
+    state: present
+    update_cache: "{{ update_cache }}"
+  when:
+    - not package_installed.stat.exists | default(false)
+    - install_dependencies | default(true)
+    - package_dependencies | length > 0
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - install
+    - dependencies
+
+- name: Install packages using apt module
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
+  loop: "{{ package_found_packages.files }}"
+  when:
+    - not package_installed.stat.exists | default(false)
+    - package_found_packages.matched | default(0) > 0
+    - not use_dpkg_install | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - install
+
+- name: Install packages using dpkg + apt-fix (better dependency resolution)
+  ansible.builtin.command:
+    cmd: "dpkg -i {{ package_found_packages.files | map(attribute='path') | join(' ') }}"
+  register: dpkg_install_result
+  changed_when: dpkg_install_result.rc == 0
+  failed_when: false
+  when:
+    - not package_installed.stat.exists | default(false)
+    - package_found_packages.matched | default(0) > 0
+    - use_dpkg_install | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - install
+    - skip_ansible_lint # command-instead-of-module: No apt module equivalent for -f flag
+
+- name: Fix package dependencies if needed
+  ansible.builtin.command:
+    cmd: "apt-get install -f -y"
+  register: apt_fix_result
+  changed_when: apt_fix_result.stdout is search('upgraded|installed|downgraded|removed')
+  when:
+    - not package_installed.stat.exists | default(false)
+    - package_found_packages.matched | default(0) > 0
+    - use_dpkg_install | default(false)
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - install
+    - skip_ansible_lint # command-instead-of-module: No apt module equivalent for -f flag
+
+- name: Display installation status
+  ansible.builtin.debug:
+    msg: >-
+      {{ package_name }} installed successfully (packer_build={{ packer_build | default(false) }})
+  tags:
+    - packages
+    - "{{ component_tag }}"
+    - verify
