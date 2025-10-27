@@ -1,4 +1,3 @@
----
 # Container Registry Cross-Node Synchronization Setup
 # Configures infrastructure for syncing container images across compute nodes
 

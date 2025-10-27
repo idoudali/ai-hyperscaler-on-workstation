@@ -1,4 +1,3 @@
----
 # BeeGFS Common Package Installation
 # Parameterized installation logic used by all BeeGFS roles
 #
@@ -74,11 +73,7 @@
 - name: Fail if packages not found
   ansible.builtin.fail:
     msg: >-
-      BeeGFS {{ beegfs_service_type }} packages not found at {{ beegfs_packages_path }}.
-      Expected: {{ beegfs_required_packages | join(', ') }}
-      Checked on controller: {{ beegfs_packages_source_dir }}
-      For Packer builds: Packages should be copied by Packer to {{ beegfs_packages_path }}
-      For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
+      BeeGFS {{ beegfs_service_type }} packages not found at {{ beegfs_packages_path }}. Expected: {{ beegfs_required_packages | join(', ') }} Checked on controller: {{ beegfs_packages_source_dir }} For Packer builds: Packages should be copied by Packer to {{ beegfs_packages_path }} For runtime: Build packages first with: cmake --build build --target build-beegfs-packages
   when:
     - not beegfs_service_installed.stat.exists | default(false)
     - remote_packages_check.matched | default(0) == 0

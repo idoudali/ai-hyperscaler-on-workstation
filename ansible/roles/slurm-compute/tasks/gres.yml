@@ -1,4 +1,3 @@
----
 # SLURM Compute Role - GRES Configuration Tasks
 # Task 023: GPU Resources (GRES) Configuration
 # This file handles the configuration of GPU resources for SLURM

@@ -1,4 +1,3 @@
----
 # BeeGFS Client - Verification Tasks
 
 - name: Verify BeeGFS mount point exists

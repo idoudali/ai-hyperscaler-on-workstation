@@ -1,4 +1,3 @@
----
 # NVIDIA GPU Drivers Role - Main Tasks
 # This role installs NVIDIA proprietary GPU drivers following Debian wiki guidelines
 # Reference: https://wiki.debian.org/NvidiaGraphicsDrivers
@@ -9,156 +8,156 @@
     verbosity: 1
 
 - block:
-  - name: Enable non-free repository for NVIDIA drivers
-    lineinfile:
-      path: /etc/apt/sources.list
-      regexp: '^deb http://deb.debian.org/debian'
-      line: 'deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
-      state: present
-      backup: yes
-    notify: update apt cache
+    - name: Enable non-free repository for NVIDIA drivers
+      lineinfile:
+        path: /etc/apt/sources.list
+        regexp: '^deb http://deb.debian.org/debian'
+        line: 'deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
+        state: present
+        backup: yes
+      notify: update apt cache
 
-  - name: Ensure non-free-firmware is in sources.list (for Debian 12+)
-    lineinfile:
-      path: /etc/apt/sources.list
-      regexp: '^deb-src http://deb.debian.org/debian'
-      line: 'deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
-      state: present
-      backup: yes
-    when: ansible_distribution_major_version|int >= 12
-    notify: update apt cache
+    - name: Ensure non-free-firmware is in sources.list (for Debian 12+)
+      lineinfile:
+        path: /etc/apt/sources.list
+        regexp: '^deb-src http://deb.debian.org/debian'
+        line: 'deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
+        state: present
+        backup: yes
+      when: ansible_distribution_major_version|int >= 12
+      notify: update apt cache
 
-  - name: Force apt cache update
-    meta: flush_handlers
+    - name: Force apt cache update
+      meta: flush_handlers
 
-  # Kernel Headers Installation Strategy
-  # This approach handles the common issue where kernel header packages don't exactly match
-  # the running kernel version. We try multiple package name variations in order of preference:
-  # 1. Exact kernel version (e.g., linux-headers-6.12.38+deb13)
-  # 2. Kernel version without suffix (e.g., linux-headers-6.12.38)
-  # 3. Generic headers (e.g., linux-headers-generic)
-  # The until/retries logic ensures we try each option until one succeeds.
+    # Kernel Headers Installation Strategy
+    # This approach handles the common issue where kernel header packages don't exactly match
+    # the running kernel version. We try multiple package name variations in order of preference:
+    # 1. Exact kernel version (e.g., linux-headers-6.12.38+deb13)
+    # 2. Kernel version without suffix (e.g., linux-headers-6.12.38)
+    # 3. Generic headers (e.g., linux-headers-generic)
+    # The until/retries logic ensures we try each option until one succeeds.
 
-  - name: Find available kernel header packages
-    package_facts:
-      manager: apt
-    register: package_facts
+    - name: Find available kernel header packages
+      package_facts:
+        manager: apt
+      register: package_facts
 
-  - name: Try to install exact kernel headers
-    apt:
-      name: "linux-headers-{{ ansible_kernel }}"
-      state: present
-    register: kernel_headers_exact
-    failed_when: false
+    - name: Try to install exact kernel headers
+      apt:
+        name: "linux-headers-{{ ansible_kernel }}"
+        state: present
+      register: kernel_headers_exact
+      failed_when: false
 
-  - name: Try to install kernel headers without suffix
-    apt:
-      name: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
-      state: present
-    register: kernel_headers_no_suffix
-    when: kernel_headers_exact is failed
-    failed_when: false
+    - name: Try to install kernel headers without suffix
+      apt:
+        name: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
+        state: present
+      register: kernel_headers_no_suffix
+      when: kernel_headers_exact is failed
+      failed_when: false
 
-  - name: Try to install generic kernel headers
-    apt:
-      name: "linux-headers-generic"
-      state: present
-    register: kernel_headers_generic
-    when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed
-    failed_when: false
+    - name: Try to install generic kernel headers
+      apt:
+        name: "linux-headers-generic"
+        state: present
+      register: kernel_headers_generic
+      when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed
+      failed_when: false
 
-  - name: Set fact for successfully installed kernel header package (exact match)
-    set_fact:
-      successful_kernel_header: "linux-headers-{{ ansible_kernel }}"
-    when: kernel_headers_exact is succeeded
+    - name: Set fact for successfully installed kernel header package (exact match)
+      set_fact:
+        successful_kernel_header: "linux-headers-{{ ansible_kernel }}"
+      when: kernel_headers_exact is succeeded
 
-  - name: Set fact for successfully installed kernel header package (no suffix)
-    set_fact:
-      successful_kernel_header: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
-    when: kernel_headers_no_suffix is succeeded
+    - name: Set fact for successfully installed kernel header package (no suffix)
+      set_fact:
+        successful_kernel_header: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
+      when: kernel_headers_no_suffix is succeeded
 
-  - name: Set fact for successfully installed kernel header package (generic)
-    set_fact:
-      successful_kernel_header: "linux-headers-generic"
-    when: kernel_headers_generic is succeeded
+    - name: Set fact for successfully installed kernel header package (generic)
+      set_fact:
+        successful_kernel_header: "linux-headers-generic"
+      when: kernel_headers_generic is succeeded
 
-  - name: Set fact for kernel header installation failure
-    set_fact:
-      successful_kernel_header: "none"
-    when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed and kernel_headers_generic is failed
+    - name: Set fact for kernel header installation failure
+      set_fact:
+        successful_kernel_header: "none"
+      when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed and kernel_headers_generic is failed
 
-  - name: Verify kernel headers installation
-    debug:
-      msg: "Successfully installed kernel headers: {{ successful_kernel_header }}"
-    when: successful_kernel_header != 'none'
+    - name: Verify kernel headers installation
+      debug:
+        msg: "Successfully installed kernel headers: {{ successful_kernel_header }}"
+      when: successful_kernel_header != 'none'
 
-  - name: Warn about kernel headers installation failure
-    debug:
-      msg: |
-        WARNING: Could not install kernel headers for kernel {{ ansible_kernel }}.
-        This may cause NVIDIA driver compilation issues.
-        Consider installing kernel headers manually or using a different kernel.
-    when: successful_kernel_header == 'none'
+    - name: Warn about kernel headers installation failure
+      debug:
+        msg: |
+          WARNING: Could not install kernel headers for kernel {{ ansible_kernel }}.
+          This may cause NVIDIA driver compilation issues.
+          Consider installing kernel headers manually or using a different kernel.
+      when: successful_kernel_header == 'none'
 
-  - name: Install NVIDIA detection utility
-    apt:
-      name: nvidia-detect
-      state: present
+    - name: Install NVIDIA detection utility
+      apt:
+        name: nvidia-detect
+        state: present
 
-  - name: Detect recommended NVIDIA driver
-    shell: nvidia-detect
-    register: nvidia_detect_output
-    changed_when: false
-    failed_when: false
+    - name: Detect recommended NVIDIA driver
+      shell: nvidia-detect
+      register: nvidia_detect_output
+      changed_when: false
+      failed_when: false
 
-  - name: Install NVIDIA driver package
-    apt:
-      name: nvidia-driver
-      state: present
+    - name: Install NVIDIA driver package
+      apt:
+        name: nvidia-driver
+        state: present
 
-  - name: Install additional NVIDIA utilities
-    apt:
-      name:
-        - nvidia-settings
-        - nvidia-smi
-      state: present
+    - name: Install additional NVIDIA utilities
+      apt:
+        name:
+          - nvidia-settings
+          - nvidia-smi
+        state: present
 
-  - name: Blacklist nouveau driver (conflicts with NVIDIA)
-    copy:
-      content: |
-        # Blacklist nouveau driver to prevent conflicts with NVIDIA
-        blacklist nouveau
-        blacklist lbm-nouveau
-        options nouveau modeset=0
-        alias nouveau off
-        alias lbm-nouveau off
-      dest: /etc/modprobe.d/blacklist-nouveau.conf
-      mode: '0644'
-    notify: update initramfs
+    - name: Blacklist nouveau driver (conflicts with NVIDIA)
+      copy:
+        content: |
+          # Blacklist nouveau driver to prevent conflicts with NVIDIA
+          blacklist nouveau
+          blacklist lbm-nouveau
+          options nouveau modeset=0
+          alias nouveau off
+          alias lbm-nouveau off
+        dest: /etc/modprobe.d/blacklist-nouveau.conf
+        mode: '0644'
+      notify: update initramfs
 
-  - name: Check if reboot is required
-    stat:
-      path: /var/run/reboot-required
-    register: reboot_required_file
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
 
-  - name: Notify about required reboot (runtime deployments)
-    debug:
-      msg: |
-        IMPORTANT: A system reboot is required to complete NVIDIA driver installation.
-        The system will need to be rebooted before the NVIDIA driver will be functional.
-        Run 'sudo reboot' after this playbook completes.
-      verbosity: 1
-    when:
-      - not (nvidia_packer_build | default(false) | bool)
-      - (reboot_required_file.stat.exists or nvidia_force_reboot_warning)
+    - name: Notify about required reboot (runtime deployments)
+      debug:
+        msg: |
+          IMPORTANT: A system reboot is required to complete NVIDIA driver installation.
+          The system will need to be rebooted before the NVIDIA driver will be functional.
+          Run 'sudo reboot' after this playbook completes.
+        verbosity: 1
+      when:
+        - not (nvidia_packer_build | default(false) | bool)
+        - (reboot_required_file.stat.exists or nvidia_force_reboot_warning)
 
-  - name: Notify about Packer build completion
-    debug:
-      msg: |
-        NVIDIA drivers installed successfully during Packer build.
-        Drivers will be available after the image is deployed and rebooted.
-        No reboot required during image creation process.
-      verbosity: 1
-    when: nvidia_packer_build | default(false) | bool
+    - name: Notify about Packer build completion
+      debug:
+        msg: |
+          NVIDIA drivers installed successfully during Packer build.
+          Drivers will be available after the image is deployed and rebooted.
+          No reboot required during image creation process.
+        verbosity: 1
+      when: nvidia_packer_build | default(false) | bool
 
   # Always execute NVIDIA driver installation (no conditional check)

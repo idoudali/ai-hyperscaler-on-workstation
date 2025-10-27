@@ -1,4 +1,3 @@
----
 # SLURM Controller Role - MUNGE Authentication Setup
 # Configures MUNGE authentication system for SLURM cluster
 - name: Create MUNGE directories and set ownership

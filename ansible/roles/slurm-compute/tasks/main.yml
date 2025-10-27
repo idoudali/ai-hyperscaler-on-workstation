@@ -1,4 +1,3 @@
----
 # SLURM Compute Role - Main Tasks
 # Task 022: SLURM Compute Node Installation and Configuration
 # This file orchestrates the installation and configuration of SLURM compute nodes

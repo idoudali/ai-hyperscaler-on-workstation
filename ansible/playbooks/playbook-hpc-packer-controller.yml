@@ -1,4 +1,3 @@
----
 # HPC Controller Packer Build Playbook
 # Optimized for Packer image creation with comprehensive validation
 # Usage: packer build (automatically sets packer_build=true)

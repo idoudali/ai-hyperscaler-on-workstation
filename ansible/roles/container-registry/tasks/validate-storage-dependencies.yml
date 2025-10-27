@@ -1,4 +1,3 @@
----
 # Container Registry Storage Dependency Validation
 # Validates that the required storage backend is properly deployed and accessible
 

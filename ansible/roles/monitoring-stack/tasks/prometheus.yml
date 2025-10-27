@@ -1,4 +1,3 @@
----
 # Prometheus server installation and configuration tasks
 
 - name: Create prometheus system group

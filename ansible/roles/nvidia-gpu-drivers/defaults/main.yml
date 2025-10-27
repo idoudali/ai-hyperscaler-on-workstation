@@ -1,4 +1,3 @@
----
 # NVIDIA GPU Drivers Role - Default Variables
 # These variables can be overridden in playbooks or inventory
 

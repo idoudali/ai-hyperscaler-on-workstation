@@ -1,4 +1,3 @@
----
 # SLURM Compute Package Installation
 # Uses pre-built packages from TASK-028.2 (same pattern as BeeGFS)
 #
@@ -23,9 +22,7 @@
 - name: Fail if SLURM packages not found
   ansible.builtin.fail:
     msg: >-
-      SLURM packages not found at {{ slurm_packages_path }}.
-      Expected: slurm-smd_{{ slurm_version }}-1_*.deb
-      Packages should be copied by the playbook before this role runs.
+      SLURM packages not found at {{ slurm_packages_path }}. Expected: slurm-smd_{{ slurm_version }}-1_*.deb Packages should be copied by the playbook before this role runs.
   when: available_packages.matched == 0
   tags:
     - slurm

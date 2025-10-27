@@ -1,4 +1,3 @@
----
 # SLURM Controller Role - Job Accounting Configuration
 # Task 017: Configure SLURM Job Accounting
 # This file handles MariaDB database setup, slurmdbd configuration, and job accounting

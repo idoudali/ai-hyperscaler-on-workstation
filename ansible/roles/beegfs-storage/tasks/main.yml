@@ -1,4 +1,3 @@
----
 # BeeGFS Storage Service Role - Main Tasks
 
 - name: Include BeeGFS storage service installation tasks

@@ -1,4 +1,3 @@
----
 collections:
   # Core Infrastructure Collections
   - name: kubernetes.core

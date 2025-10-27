@@ -1,4 +1,3 @@
----
 # Node Exporter installation and configuration tasks
 
 - name: Create prometheus system group for node exporter

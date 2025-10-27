@@ -1,4 +1,3 @@
----
 # SLURM Job Scripts Configuration
 # Task 025: Epilog/Prolog Scripts for Failure Detection
 # Deploy and configure SLURM job scripts for failure detection and debugging

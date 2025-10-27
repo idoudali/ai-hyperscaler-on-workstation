@@ -1,4 +1,3 @@
----
 # SLURM Controller Role - Handlers
 # Service restart handlers for SLURM controller components
 # Note: Service restarts are skipped during Packer builds to prevent build failures
@@ -14,7 +13,7 @@
   become: true
   listen: restart slurm services
   when: not (packer_build | default(false) | bool)
-  failed_when: false  # Don't fail deployment if restart fails - services will be started later
+  failed_when: false # Don't fail deployment if restart fails - services will be started later
 
 - name: restart slurmctld
   service:

@@ -1,4 +1,3 @@
----
 # HPC Compute Packer Build Playbook
 # Optimized for Packer image creation with GPU support and validation
 # Usage: packer build (automatically sets packer_build=true)

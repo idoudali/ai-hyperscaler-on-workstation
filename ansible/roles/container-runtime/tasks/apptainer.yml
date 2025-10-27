@@ -1,4 +1,3 @@
----
 # Apptainer Installation Tasks
 # This file handles the installation of Apptainer container runtime
 # following the official installation instructions for pre-built Debian packages

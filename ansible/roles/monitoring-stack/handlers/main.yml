@@ -1,4 +1,3 @@
----
 # Handlers for monitoring-stack role
 
 - name: reload systemd
