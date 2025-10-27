@@ -1,0 +1,39 @@
+---
+alwaysApply: true
+---
+# Ansible Change Validation Reminder
+
+## Rule
+
+When making changes to Ansible files (`ansible/**/*.yml`, `ansible/**/*.yaml`, `ansible/**/*.py`), you MUST:
+
+1. **Check the auto rule** `@auto/ansible-best-practices` for detailed requirements
+2. **Run validation commands** before presenting changes to the user
+3. **Report validation results** to the user
+
+## Quick Validation Commands
+
+After modifying Ansible files, use the Makefile targets:
+
+```bash
+cd ansible
+
+# Run all validation checks
+make validate-all
+
+# Quick check on changed files only
+make quick-check
+
+# Validate specific role
+make validate-role ROLE=<role-name>
+
+# Validate specific playbook
+make validate-playbook PLAYBOOK=<playbook-name>.yml
+```
+
+## Important
+
+- DO NOT skip validation for "minor" changes
+- All Ansible changes must pass syntax check and lint before commit
+- See `@auto/ansible-validation` for complete requirements
+- Always use `ansible/Makefile` targets for consistency

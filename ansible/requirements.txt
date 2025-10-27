@@ -1,6 +1,8 @@
 # Ansible Core and Dependencies
 # Core Ansible installation
 ansible>=8.0.0
+ansible-lint>=8.0.0
+
 
 # Python dependencies for Ansible
 rich>=13.0.0

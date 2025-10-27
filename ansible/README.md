@@ -3,10 +3,58 @@
 This directory contains the Ansible automation framework for the hyperscaler project,
 providing role-based configuration management for HPC clusters and cloud infrastructure.
 
+## Quick Start - Validation and Testing
+
+The `ansible/Makefile` provides standardized targets for validating, testing, and linting Ansible code:
+
+```bash
+cd ansible
+
+# Show all available targets
+make help
+
+# Run all validation checks (syntax + lint + requirements)
+make validate-all
+
+# Quick check on changed files only
+make quick-check
+
+# Validate specific role
+make validate-role ROLE=slurm-controller
+
+# Validate specific playbook
+make validate-playbook PLAYBOOK=playbook-hpc-runtime.yml
+
+# Test playbook in dry-run mode
+make test-playbook-check PLAYBOOK=playbook-hpc-runtime.yml
+
+# List available roles and playbooks
+make list-roles
+make list-playbooks
+```
+
+**Key Targets:**
+
+- `validate-all` - Run all validation checks (syntax, lint, requirements)
+- `quick-check` - Validate only Git-changed files (fast iteration)
+- `lint-role ROLE=<name>` - Lint specific role
+- `lint-playbook PLAYBOOK=<name>` - Lint specific playbook
+- `test-playbook-check PLAYBOOK=<name>` - Dry-run test with check mode
+- `ci-validate` - Full validation for CI/CD pipelines
+- `pre-commit` - Run pre-commit validation checks
+
+**Required Tools:**
+
+- `ansible-playbook` - Ansible CLI (installed via requirements.txt)
+- `ansible-lint` - Ansible linting tool (installed via requirements.txt)
+
+For complete target documentation, run `make help`.
+
 ## Structure
 
 ```text
 ansible/
+├── Makefile                       # Validation, testing, and linting targets
 ├── ansible.cfg                    # Ansible configuration and settings
 ├── requirements.txt               # Python dependencies for Ansible
 ├── collections/
