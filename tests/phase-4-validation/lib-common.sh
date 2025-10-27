@@ -462,6 +462,64 @@ setup_cluster_hosts() {
   export COMPUTE_HOSTS
 }
 
+# Execute command on target host via SSH
+# Usage: run_in_target <host> <command> [log_file] [suppress_stderr]
+# Returns: Exit code of SSH command
+run_in_target() {
+  local host="$1"
+  local command="$2"
+  local log_file="${3:-}"
+  local suppress_stderr="${4:-false}"
+
+  # SSH_OPTS is intentionally unquoted to allow word splitting
+  # shellcheck disable=SC2086,SC2029
+
+  if [[ -n "$log_file" ]]; then
+    if [[ "$suppress_stderr" = "true" ]]; then
+      ssh $SSH_OPTS "$host" "$command" > "$log_file" 2>/dev/null
+    else
+      ssh $SSH_OPTS "$host" "$command" > "$log_file" 2>&1
+    fi
+  else
+    if [[ "$suppress_stderr" = "true" ]]; then
+      ssh $SSH_OPTS "$host" "$command" 2>/dev/null
+    else
+      ssh $SSH_OPTS "$host" "$command"
+    fi
+  fi
+}
+
+# Execute command on target host via SSH and capture output
+# Usage: capture_from_target <host> <command> [suppress_stderr]
+# Returns: Command output via stdout
+capture_from_target() {
+  local host="$1"
+  local command="$2"
+  local suppress_stderr="${3:-false}"
+
+  log_cmd "ssh $SSH_OPTS $host '$command'"
+
+  # SSH_OPTS is intentionally unquoted to allow word splitting
+  # shellcheck disable=SC2086,SC2029
+  if [[ "$suppress_stderr" = "true" ]]; then
+    ssh $SSH_OPTS "$host" "$command" 2>/dev/null
+  else
+    ssh $SSH_OPTS "$host" "$command"
+  fi
+}
+
+# Copy file to target host via SCP
+# Usage: scp_to_target <src_path> <dest_host:dest_path>
+# Returns: Exit code of SCP command
+scp_to_target() {
+  local src_path="$1"
+  local dest="$2"
+
+  # SSH_OPTS is intentionally unquoted to allow word splitting
+  # shellcheck disable=SC2086
+  scp $SSH_OPTS "$src_path" "$dest"
+}
+
 # ============================================================================
 # Docker Command Helpers
 # ============================================================================

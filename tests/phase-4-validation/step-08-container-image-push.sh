@@ -49,7 +49,7 @@ validate_container_image_push() {
 
     # Create base containers directory if it doesn't exist
     log_info "Creating container registry directories..."
-    if ! ssh "$SSH_OPTS" admin@192.168.100.10 "mkdir -p /mnt/beegfs/containers"; then
+    if ! run_in_target "admin@192.168.100.10" "mkdir -p /mnt/beegfs/containers"; then
         log_error "Failed to create /mnt/beegfs/containers directory"
         return 1
     fi
@@ -63,14 +63,13 @@ validate_container_image_push() {
         log_info "Pushing $container_name from $container_category..."
 
         # Create category directory if it doesn't exist
-        # shellcheck disable=SC2029
-        if ! ssh "$SSH_OPTS" admin@192.168.100.10 "mkdir -p /mnt/beegfs/containers/$container_category"; then
+        if ! run_in_target "admin@192.168.100.10" "mkdir -p /mnt/beegfs/containers/$container_category"; then
             log_error "Failed to create /mnt/beegfs/containers/$container_category directory"
             return 1
         fi
 
         # Push to BeeGFS container registry
-        if ! scp "$SSH_OPTS" "$container" "admin@192.168.100.10:/mnt/beegfs/containers/$container_category/"; then
+        if ! scp_to_target "$container" "admin@192.168.100.10:/mnt/beegfs/containers/$container_category/"; then
             log_error "Failed to push $container_name to BeeGFS storage"
             return 1
         fi
@@ -86,7 +85,7 @@ validate_container_registry_validation() {
 
     # 1. Verify container images are accessible on controller
     log_info "Verifying container images are accessible on controller..."
-    if ! ssh "$SSH_OPTS" admin@192.168.100.10 "ls -la /mnt/beegfs/containers/"; then
+    if ! run_in_target "admin@192.168.100.10" "ls -la /mnt/beegfs/containers/"; then
         log_error "Container registry not accessible on controller"
         return 1
     fi
@@ -96,15 +95,15 @@ validate_container_registry_validation() {
     local test_container
     local test_command
     # Try to find python-test container first, fallback to hello-world
-    test_container=$(ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name 'python-test.sif' -type f | head -1")
+    test_container=$(capture_from_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name 'python-test.sif' -type f | head -1")
     if [[ -n "$test_container" ]]; then
         test_command="python3 --version"
     else
-        test_container=$(ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name 'hello-world.sif' -type f | head -1")
+        test_container=$(capture_from_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name 'hello-world.sif' -type f | head -1")
         if [[ -n "$test_container" ]]; then
             test_command="/hello"
         else
-            test_container=$(ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name '*.sif' -type f | head -1")
+            test_container=$(capture_from_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name '*.sif' -type f | head -1")
             test_command="ls /"
         fi
     fi
@@ -114,15 +113,14 @@ validate_container_registry_validation() {
         return 1
     fi
 
-    # shellcheck disable=SC2029
-    if ! ssh "$SSH_OPTS" admin@192.168.100.10 "apptainer exec '$test_container' $test_command"; then
+    if ! run_in_target "admin@192.168.100.10" "apptainer exec '$test_container' $test_command"; then
         log_error "Container image execution test failed on controller"
         return 1
     fi
 
     # 3. Verify container registry structure
     log_info "Verifying container registry structure..."
-    if ! ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name '*.sif' -type f"; then
+    if ! run_in_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name '*.sif' -type f"; then
         log_error "Container registry structure validation failed"
         return 1
     fi
@@ -138,15 +136,15 @@ validate_container_distribution_testing() {
     local test_container
     local test_command
     # Try to find python-test container first, fallback to hello-world
-    test_container=$(ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name 'python-test.sif' -type f | head -1")
+    test_container=$(capture_from_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name 'python-test.sif' -type f | head -1")
     if [[ -n "$test_container" ]]; then
         test_command="python3 --version"
     else
-        test_container=$(ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name 'hello-world.sif' -type f | head -1")
+        test_container=$(capture_from_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name 'hello-world.sif' -type f | head -1")
         if [[ -n "$test_container" ]]; then
             test_command="/hello"
         else
-            test_container=$(ssh "$SSH_OPTS" admin@192.168.100.10 "find /mnt/beegfs/containers -name '*.sif' -type f | head -1")
+            test_container=$(capture_from_target "admin@192.168.100.10" "find /mnt/beegfs/containers -name '*.sif' -type f | head -1")
             test_command="ls /"
         fi
     fi
@@ -161,14 +159,12 @@ validate_container_distribution_testing() {
     for node in 192.168.100.11 192.168.100.12; do
         log_info "Testing container execution on $node..."
         # First check if we can connect to the compute node
-        # shellcheck disable=SC2029
-        if ! ssh "$SSH_OPTS" admin@192.168.100.10 "ssh -o StrictHostKeyChecking=no -o BatchMode=yes admin@$node 'exit'" 2>/dev/null; then
+        if ! run_in_target "admin@192.168.100.10" "ssh -o StrictHostKeyChecking=no -o BatchMode=yes admin@$node 'exit'" "" "true"; then
             log_warning "Cannot SSH to $node from controller - skipping compute node test"
             log_warning "This is expected if cluster is not configured for SSH key distribution"
             continue
         fi
-        # shellcheck disable=SC2029
-        if ! ssh "$SSH_OPTS" admin@192.168.100.10 "ssh -o StrictHostKeyChecking=no admin@$node \"apptainer exec '$test_container' $test_command\""; then
+        if ! run_in_target "admin@192.168.100.10" "ssh -o StrictHostKeyChecking=no admin@$node \"apptainer exec '$test_container' $test_command\""; then
             log_warning "Container execution test failed on $node - continuing with other tests"
         fi
     done
@@ -178,13 +174,11 @@ validate_container_distribution_testing() {
     for node in 192.168.100.11 192.168.100.12; do
         log_info "Verifying container registry on $node..."
         # First check if we can connect to the compute node
-        # shellcheck disable=SC2029
-        if ! ssh "$SSH_OPTS" admin@192.168.100.10 "ssh -o StrictHostKeyChecking=no -o BatchMode=yes admin@$node 'exit'" 2>/dev/null; then
+        if ! run_in_target "admin@192.168.100.10" "ssh -o StrictHostKeyChecking=no -o BatchMode=yes admin@$node 'exit'" "" "true"; then
             log_warning "Cannot SSH to $node from controller - skipping registry verification on compute nodes"
             break
         fi
-        # shellcheck disable=SC2029
-        if ! ssh "$SSH_OPTS" admin@192.168.100.10 "ssh -o StrictHostKeyChecking=no admin@$node \"ls -la /mnt/beegfs/containers/\""; then
+        if ! run_in_target "admin@192.168.100.10" "ssh -o StrictHostKeyChecking=no admin@$node \"ls -la /mnt/beegfs/containers/\""; then
             log_warning "Container registry not accessible on $node - continuing with other tests"
         fi
     done

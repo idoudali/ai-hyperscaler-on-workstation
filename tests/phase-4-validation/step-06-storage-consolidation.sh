@@ -176,8 +176,7 @@ main() {
   setup_ssh_config
   setup_cluster_hosts
 
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage" \
-    > "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "systemctl status beegfs-mgmtd beegfs-meta beegfs-storage" "$step_dir/beegfs-status.log"; then
     log_success "BeeGFS services running on controller"
   else
     log_warning "BeeGFS services may not be running on controller"
@@ -185,8 +184,7 @@ main() {
 
   # 5.10: Verify BeeGFS client on all nodes
   log_info "${STEP_NUMBER}.10: Verifying BeeGFS client on all nodes..."
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "systemctl status beegfs-client" \
-    >> "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "systemctl status beegfs-client" "$step_dir/beegfs-status.log"; then
     log_success "BeeGFS client running on controller"
   else
     log_warning "BeeGFS client may not be running on controller"
@@ -194,11 +192,10 @@ main() {
 
   # 5.11: Check BeeGFS filesystem mount
   log_info "${STEP_NUMBER}.11: Checking BeeGFS filesystem mount..."
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "mount | grep beegfs" \
-    >> "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "mount | grep beegfs" "$step_dir/beegfs-status.log"; then
     log_success "BeeGFS filesystem mounted"
-    ssh "$SSH_OPTS" "$CONTROLLER_HOST" "beegfs-ctl --listnodes --nodetype=all" >> "$step_dir/beegfs-status.log" 2>&1 || true
-    ssh "$SSH_OPTS" "$CONTROLLER_HOST" "beegfs-df" >> "$step_dir/beegfs-status.log" 2>&1 || true
+    run_in_target "$CONTROLLER_HOST" "beegfs-ctl --listnodes --nodetype=all" "$step_dir/beegfs-status.log" "false" || true
+    run_in_target "$CONTROLLER_HOST" "beegfs-df" "$step_dir/beegfs-status.log" "false" || true
   else
     log_warning "BeeGFS filesystem not mounted"
   fi
@@ -219,8 +216,7 @@ main() {
     echo "=== BeeGFS Mount Check: $node ===" >> "$MOUNT_VERIFICATION_LOG"
 
     # Check if mount point exists
-    # shellcheck disable=SC2029
-    if ssh "$SSH_OPTS" "$node" "test -d $EXPECTED_MOUNT_POINT" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+    if run_in_target "$node" "test -d $EXPECTED_MOUNT_POINT" "$MOUNT_VERIFICATION_LOG"; then
       log_success "Mount point $EXPECTED_MOUNT_POINT exists on $node"
     else
       log_error "Mount point $EXPECTED_MOUNT_POINT does not exist on $node"
@@ -228,37 +224,35 @@ main() {
     fi
 
     # Check mount status
-    # shellcheck disable=SC2029
-    if ssh "$SSH_OPTS" "$node" "mount | grep -E 'beegfs.*$EXPECTED_MOUNT_POINT'" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+    if run_in_target "$node" "mount | grep -E 'beegfs.*$EXPECTED_MOUNT_POINT'" "$MOUNT_VERIFICATION_LOG"; then
       log_success "BeeGFS is mounted at $EXPECTED_MOUNT_POINT on $node"
 
       # Get detailed mount information
-      ssh "$SSH_OPTS" "$node" "mount | grep beegfs" >> "$MOUNT_VERIFICATION_LOG" 2>&1 || true
-      ssh "$SSH_OPTS" "$node" "df -h | grep beegfs" >> "$MOUNT_VERIFICATION_LOG" 2>&1 || true
+      run_in_target "$node" "mount | grep beegfs" "$MOUNT_VERIFICATION_LOG" "false" || true
+      run_in_target "$node" "df -h | grep beegfs" "$MOUNT_VERIFICATION_LOG" "false" || true
     else
       log_error "BeeGFS is not mounted at $EXPECTED_MOUNT_POINT on $node"
       MOUNT_ISSUES=$((MOUNT_ISSUES + 1))
     fi
 
     # Check fstab entry
-    # shellcheck disable=SC2029
-    if ssh "$SSH_OPTS" "$node" "grep -E 'beegfs.*$EXPECTED_MOUNT_POINT' /etc/fstab" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+    if run_in_target "$node" "grep -E 'beegfs.*$EXPECTED_MOUNT_POINT' /etc/fstab" "$MOUNT_VERIFICATION_LOG"; then
       log_success "BeeGFS fstab entry exists on $node"
     else
       log_warning "BeeGFS fstab entry not found on $node"
     fi
 
     # Check BeeGFS client service status
-    if ssh "$SSH_OPTS" "$node" "systemctl is-active beegfs-client" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+    if run_in_target "$node" "systemctl is-active beegfs-client" "$MOUNT_VERIFICATION_LOG"; then
       log_success "BeeGFS client service is active on $node"
     else
       log_warning "BeeGFS client service is not active on $node"
     fi
 
     # Check BeeGFS client configuration
-    if ssh "$SSH_OPTS" "$node" "test -f /etc/beegfs/beegfs-client.conf" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+    if run_in_target "$node" "test -f /etc/beegfs/beegfs-client.conf" "$MOUNT_VERIFICATION_LOG"; then
       log_success "BeeGFS client configuration exists on $node"
-      ssh "$SSH_OPTS" "$node" "grep -E 'sysMgmtdHost|connMgmtdPort' /etc/beegfs/beegfs-client.conf" >> "$MOUNT_VERIFICATION_LOG" 2>&1 || true
+      run_in_target "$node" "grep -E 'sysMgmtdHost|connMgmtdPort' /etc/beegfs/beegfs-client.conf" "$MOUNT_VERIFICATION_LOG" "false" || true
     else
       log_warning "BeeGFS client configuration not found on $node"
     fi
@@ -266,12 +260,10 @@ main() {
     # Test write access to mount point
     local test_file
     test_file="$EXPECTED_MOUNT_POINT/mount-test-$(date +%s)-$node.txt"
-    # shellcheck disable=SC2029
-    if ssh "$SSH_OPTS" "$node" "echo 'test from $node' > $test_file" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+    if run_in_target "$node" "echo 'test from $node' > $test_file" "$MOUNT_VERIFICATION_LOG"; then
       log_success "Write test successful on $node"
       # Clean up test file
-      # shellcheck disable=SC2029
-      ssh "$SSH_OPTS" "$node" "rm -f $test_file" >> "$MOUNT_VERIFICATION_LOG" 2>&1 || true
+      run_in_target "$node" "rm -f $test_file" "$MOUNT_VERIFICATION_LOG" "false" || true
     else
       log_error "Write test failed on $node"
       MOUNT_ISSUES=$((MOUNT_ISSUES + 1))
@@ -284,13 +276,13 @@ main() {
   log_info "Checking BeeGFS cluster status..."
   echo "=== BeeGFS Cluster Status ===" >> "$MOUNT_VERIFICATION_LOG"
 
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "beegfs-ctl --listnodes --nodetype=all" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "beegfs-ctl --listnodes --nodetype=all" "$MOUNT_VERIFICATION_LOG"; then
     log_success "BeeGFS cluster nodes listed successfully"
   else
     log_warning "Failed to list BeeGFS cluster nodes"
   fi
 
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "beegfs-df" >> "$MOUNT_VERIFICATION_LOG" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "beegfs-df" "$MOUNT_VERIFICATION_LOG"; then
     log_success "BeeGFS filesystem status retrieved"
   else
     log_warning "Failed to get BeeGFS filesystem status"
@@ -315,8 +307,7 @@ main() {
   # Create test files using printf to avoid shellcheck warnings
   local controller_cmd="printf 'controller-test-%s' '${TEST_TIMESTAMP}' > /mnt/beegfs/controller-test.txt"
   # shellcheck disable=SC2029
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "$controller_cmd" \
-    >> "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "$controller_cmd" "$step_dir/beegfs-status.log"; then
     log_success "Controller test file created"
   else
     log_warning "Failed to create controller test file"
@@ -324,8 +315,7 @@ main() {
 
   local shared_cmd="printf 'shared-data-%s' '${TEST_TIMESTAMP}' > /mnt/beegfs/shared-data.txt"
   # shellcheck disable=SC2029
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "$shared_cmd" \
-    >> "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "$shared_cmd" "$step_dir/beegfs-status.log"; then
     log_success "Shared data file created on controller"
   else
     log_warning "Failed to create shared data file"
@@ -333,8 +323,7 @@ main() {
 
   local nested_cmd="mkdir -p /mnt/beegfs/test-dir && printf 'nested-file-%s' '${TEST_TIMESTAMP}' > /mnt/beegfs/test-dir/nested.txt"
   # shellcheck disable=SC2029
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "$nested_cmd" \
-    >> "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "$nested_cmd" "$step_dir/beegfs-status.log"; then
     log_success "Nested directory and file created on controller"
   else
     log_warning "Failed to create nested directory structure"
@@ -345,24 +334,24 @@ main() {
   local COMPUTE_COUNT=0
 
   for compute_host in "${COMPUTE_HOSTS[@]}"; do
-    if ssh "$SSH_OPTS" "$compute_host" "test -f /mnt/beegfs/controller-test.txt" >> "$step_dir/beegfs-status.log" 2>&1; then
+    if run_in_target "$compute_host" "test -f /mnt/beegfs/controller-test.txt" "$step_dir/beegfs-status.log"; then
       log_success "Compute node $compute_host can access controller-created files"
       COMPUTE_COUNT=$((COMPUTE_COUNT + 1))
 
       # Test reading the files
-      if ssh "$SSH_OPTS" "$compute_host" "cat /mnt/beegfs/controller-test.txt" >> "$step_dir/beegfs-status.log" 2>&1; then
+      if run_in_target "$compute_host" "cat /mnt/beegfs/controller-test.txt" "$step_dir/beegfs-status.log"; then
         log_success "Compute node $compute_host can read controller test file"
       else
         log_warning "Compute node $compute_host cannot read controller test file"
       fi
 
-      if ssh "$SSH_OPTS" "$compute_host" "cat /mnt/beegfs/shared-data.txt" >> "$step_dir/beegfs-status.log" 2>&1; then
+      if run_in_target "$compute_host" "cat /mnt/beegfs/shared-data.txt" "$step_dir/beegfs-status.log"; then
         log_success "Compute node $compute_host can read shared data file"
       else
         log_warning "Compute node $compute_host cannot read shared data file"
       fi
 
-      if ssh "$SSH_OPTS" "$compute_host" "cat /mnt/beegfs/test-dir/nested.txt" >> "$step_dir/beegfs-status.log" 2>&1; then
+      if run_in_target "$compute_host" "cat /mnt/beegfs/test-dir/nested.txt" "$step_dir/beegfs-status.log"; then
         log_success "Compute node $compute_host can read nested file"
       else
         log_warning "Compute node $compute_host cannot read nested file"
@@ -380,8 +369,7 @@ main() {
 
     local compute_cmd="printf 'compute%d-test-%s' '${compute_num}' '${TEST_TIMESTAMP}' > /mnt/beegfs/compute${compute_num}-test.txt"
     # shellcheck disable=SC2029
-    if ssh "$SSH_OPTS" "$compute_host" "$compute_cmd" \
-      >> "$step_dir/beegfs-status.log" 2>&1; then
+    if run_in_target "$compute_host" "$compute_cmd" "$step_dir/beegfs-status.log"; then
       log_success "Test file created on compute node $compute_host"
     else
       log_warning "Failed to create test file on compute node $compute_host"
@@ -394,7 +382,7 @@ main() {
     local compute_num=$((i + 1))
 
     # shellcheck disable=SC2029
-    if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "cat /mnt/beegfs/compute${compute_num}-test.txt" >> "$step_dir/beegfs-status.log" 2>&1; then
+    if run_in_target "$CONTROLLER_HOST" "cat /mnt/beegfs/compute${compute_num}-test.txt" "$step_dir/beegfs-status.log"; then
       log_success "Controller can read file created by compute node $compute_num"
     else
       log_warning "Controller cannot read file created by compute node $compute_num"
@@ -404,11 +392,11 @@ main() {
   # 5.12e: Test file permissions and metadata consistency
   log_info "${STEP_NUMBER}.12e: Testing file permissions and metadata consistency..."
   log_cmd "Checking file listings across all nodes"
-  ssh "$SSH_OPTS" "$CONTROLLER_HOST" "ls -la /mnt/beegfs/" >> "$step_dir/beegfs-status.log" 2>&1 || true
+  run_in_target "$CONTROLLER_HOST" "ls -la /mnt/beegfs/" "$step_dir/beegfs-status.log" "false" || true
 
   for compute_host in "${COMPUTE_HOSTS[@]}"; do
-    if ssh "$SSH_OPTS" "$compute_host" "test -d /mnt/beegfs" >> "$step_dir/beegfs-status.log" 2>&1; then
-      ssh "$SSH_OPTS" "$compute_host" "ls -la /mnt/beegfs/" >> "$step_dir/beegfs-status.log" 2>&1 || true
+    if run_in_target "$compute_host" "test -d /mnt/beegfs" "$step_dir/beegfs-status.log"; then
+      run_in_target "$compute_host" "ls -la /mnt/beegfs/" "$step_dir/beegfs-status.log" "false" || true
     fi
   done
 
@@ -420,12 +408,12 @@ main() {
     # Create file on one compute node and read from another
     local concurrent_cmd="printf 'concurrent-test-%s' '${TEST_TIMESTAMP}' > /mnt/beegfs/concurrent-test.txt"
     # shellcheck disable=SC2029
-    ssh "$SSH_OPTS" "${COMPUTE_HOSTS[0]}" "$concurrent_cmd" &
+    run_in_target "${COMPUTE_HOSTS[0]}" "$concurrent_cmd" "" "false" &
     local concurrent_pid=$!
 
     # Wait a moment then try to read from second compute node
     sleep 2
-    if ssh "$SSH_OPTS" "${COMPUTE_HOSTS[1]}" "cat /mnt/beegfs/concurrent-test.txt" >> "$step_dir/beegfs-status.log" 2>&1; then
+    if run_in_target "${COMPUTE_HOSTS[1]}" "cat /mnt/beegfs/concurrent-test.txt" "$step_dir/beegfs-status.log"; then
       log_success "Concurrent access test successful - compute nodes can share files in real-time"
     else
       log_warning "Concurrent access test failed - potential BeeGFS consistency issue"
@@ -444,9 +432,9 @@ main() {
 
   # 5.13: Verify VirtIO-FS still works
   log_info "${STEP_NUMBER}.13: Verifying VirtIO-FS mounts still work..."
-  if ssh "$SSH_OPTS" "$CONTROLLER_HOST" "mount | grep virtiofs" >> "$step_dir/beegfs-status.log" 2>&1; then
+  if run_in_target "$CONTROLLER_HOST" "mount | grep virtiofs" "$step_dir/beegfs-status.log"; then
     log_success "VirtIO-FS mounts still functional"
-    ssh "$SSH_OPTS" "$CONTROLLER_HOST" "ls -la /mnt/host-repo" >> "$step_dir/beegfs-status.log" 2>&1 || true
+    run_in_target "$CONTROLLER_HOST" "ls -la /mnt/host-repo" "$step_dir/beegfs-status.log" "false" || true
   else
     log_warning "VirtIO-FS mounts not found"
   fi
