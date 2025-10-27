@@ -318,7 +318,7 @@ validation-output/phase-4-validation-YYYYMMDD-HHMMSS/
 After validation is complete, stop the cluster:
 
 ```bash
-make cluster-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc
+make system-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
 ```
 
 ## SSH Configuration

@@ -641,7 +641,7 @@ check_cluster_status() {
   local step_dir="$1"
 
   log_info "${STEP_NUMBER}.1: Checking cluster status..."
-  if make cluster-status CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
+  if make system-status CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
     > "$step_dir/cluster-status.log" 2>&1; then
     log_success "Cluster is running"
     return 0
@@ -657,7 +657,7 @@ ensure_cluster_running() {
 
   if ! check_cluster_status "$step_dir"; then
     log_info "Starting cluster VMs..."
-    if make cluster-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
+    if make system-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
       >> "$step_dir/cluster-status.log" 2>&1; then
       log_success "Cluster started"
       return 0

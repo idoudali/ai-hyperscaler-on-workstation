@@ -87,8 +87,8 @@ main() {
   fi
 
   log_info "${STEP_NUMBER}.2: Generating Ansible inventory..."
-  log_cmd "make cluster-inventory CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc"
-  if ! make cluster-inventory \
+  log_cmd "make hpc-cluster-inventory CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc"
+  if ! make hpc-cluster-inventory \
     CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
     CLUSTER_NAME="hpc" \
     INVENTORY_OUTPUT="ansible/inventories/test/hosts" \
@@ -117,10 +117,9 @@ main() {
   log_success "Configuration valid"
 
   log_info "${STEP_NUMBER}.4: Starting cluster VMs (2-5 minutes)..."
-  log_cmd "make cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc"
-  if ! make cluster-start \
+  log_cmd "make system-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml"
+  if ! make system-start \
     CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
-    CLUSTER_NAME="hpc" \
     > "$step_dir/cluster-start.log" 2>&1; then
     log_error "Cluster VM startup failed"
     tail -20 "$step_dir/cluster-start.log"
@@ -138,8 +137,8 @@ main() {
   fi
 
   log_info "${STEP_NUMBER}.6: Deploying runtime configuration (10-20 minutes)..."
-  log_cmd "make cluster-deploy INVENTORY_OUTPUT=$TEST_INVENTORY"
-  if ! make cluster-deploy \
+  log_cmd "make hpc-cluster-deploy INVENTORY_OUTPUT=$TEST_INVENTORY"
+  if ! make hpc-cluster-deploy \
     INVENTORY_OUTPUT="$TEST_INVENTORY" \
     > "$step_dir/ansible-deploy.log" 2>&1; then
     log_error "Ansible deployment failed"
@@ -162,7 +161,7 @@ main() {
     log_error "  3. Re-run specific tasks for debugging"
     log_error ""
     log_error "To destroy the cluster when done debugging:"
-    log_error "  make cluster-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc"
+    log_error "  make system-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml"
     log_error ""
 
     return 1
@@ -196,7 +195,7 @@ Details:
 Cluster Status: Running (for Steps 5-7)
 
 To stop cluster:
-  make cluster-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc
+  make system-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
 
 EOF
 

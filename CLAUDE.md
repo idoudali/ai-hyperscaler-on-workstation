@@ -53,6 +53,13 @@ See agent rules in `.cursor/rules/auto/ansible-*.mdc` for complete validation re
 
 **Note**: A `ansible/Makefile` can be added to standardize these commands.
 
+### Python Development
+
+When working with Python files in the ai-how module, always run validation checks using nox.
+
+See shared rule in [`.ai/rules/python-lint-reminder.md`](./.ai/rules/python-lint-reminder.md)
+for complete validation requirements and available commands.
+
 ---
 
 ## Why the change?

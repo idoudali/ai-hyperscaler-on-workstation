@@ -3,11 +3,17 @@
 import logging
 import time
 import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING, Any
 
 import libvirt
 
 from ai_how.state.models import VMState
+from ai_how.utils.gpu_utils import GPUAddressParser
 from ai_how.vm_management.libvirt_client import LibvirtClient, LibvirtConnectionError
+
+if TYPE_CHECKING:
+    from ai_how.resource_management.gpu_allocator import GPUResourceAllocator
+    from ai_how.state.cluster_state import ClusterStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +27,22 @@ class VMLifecycleError(Exception):
 class VMLifecycleManager:
     """Manages VM creation, start, stop, destroy operations."""
 
-    def __init__(self, libvirt_client: LibvirtClient | None = None):
+    def __init__(
+        self,
+        libvirt_client: LibvirtClient | None = None,
+        state_manager: "ClusterStateManager | None" = None,
+        gpu_allocator: "GPUResourceAllocator | None" = None,
+    ):
         """Initialize VM lifecycle manager.
 
         Args:
             libvirt_client: libvirt client instance, creates new if None
+            state_manager: State manager for GPU resource tracking
+            gpu_allocator: GPU allocator for resource management
         """
         self.client = libvirt_client or LibvirtClient()
+        self.state_manager = state_manager
+        self.gpu_allocator = gpu_allocator
 
     def create_vm(self, vm_name: str, xml_config: str) -> str:
         """Create VM from XML configuration.
@@ -344,3 +359,143 @@ class VMLifecycleManager:
                     logger.info(f"Removed storage file: {path}")
             except OSError as e:
                 logger.warning(f"Failed to remove storage file {path}: {e}")
+
+    def stop_vm_with_gpu_release(self, vm_name: str, force: bool = False) -> bool:
+        """Stop VM and release its GPU resources.
+
+        Args:
+            vm_name: Name of the VM to stop
+            force: Whether to force stop
+
+        Returns:
+            True if VM stopped successfully
+
+        Raises:
+            VMLifecycleError: If VM stop fails
+        """
+        try:
+            # Get VM info to find GPU assignments
+            vm_info = self._get_vm_info(vm_name)
+
+            # Stop the VM using existing method
+            success = self.stop_vm(vm_name, force=force)
+
+            if success and vm_info and vm_info.gpu_assigned:
+                # Extract PCI address from gpu_assigned string
+                pci_address = self._extract_pci_address(vm_info.gpu_assigned)
+                if pci_address and self.gpu_allocator:
+                    # Release GPU in global state
+                    self.gpu_allocator.release_gpu(pci_address)
+                    logger.info(f"Released GPU {pci_address} from VM {vm_name}")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Failed to stop VM with GPU release: {e}")
+            raise VMLifecycleError(f"Failed to stop VM {vm_name}: {e}") from e
+
+    def start_vm_with_gpu_allocation(self, vm_name: str, wait_for_boot: bool = True) -> bool:
+        """Start VM and allocate its GPU resources.
+
+        Args:
+            vm_name: Name of the VM to start
+            wait_for_boot: Whether to wait for boot completion
+
+        Returns:
+            True if VM started successfully
+
+        Raises:
+            VMLifecycleError: If VM start fails or GPU unavailable
+        """
+        vm_info = None
+        pci_address = None
+        try:
+            # Get VM info to find GPU assignments
+            vm_info = self._get_vm_info(vm_name)
+
+            if vm_info and vm_info.gpu_assigned and self.gpu_allocator:
+                # Extract PCI address
+                pci_address = self._extract_pci_address(vm_info.gpu_assigned)
+                if pci_address:
+                    # Check GPU availability
+                    if not self.gpu_allocator.is_gpu_available(pci_address, vm_name):
+                        current_owner = self.gpu_allocator.get_gpu_owner(pci_address)
+                        raise VMLifecycleError(
+                            f"GPU {pci_address} is currently allocated to {current_owner}. "
+                            f"Stop that VM before starting {vm_name}."
+                        )
+
+                    # Allocate GPU
+                    self.gpu_allocator.allocate_gpu(pci_address, vm_name)
+
+            # Start the VM using existing method
+            success = self.start_vm(vm_name, wait_for_boot=wait_for_boot)
+
+            return success
+
+        except VMLifecycleError:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to start VM with GPU allocation: {e}")
+            # Cleanup: release GPU if start failed
+            if vm_info and vm_info.gpu_assigned and pci_address and self.gpu_allocator:
+                self.gpu_allocator.release_gpu(pci_address)
+            raise VMLifecycleError(f"Failed to start VM {vm_name}: {e}") from e
+
+    def restart_vm(self, vm_name: str, wait_for_boot: bool = True) -> bool:
+        """Restart VM with GPU resource management.
+
+        Args:
+            vm_name: Name of the VM to restart
+            wait_for_boot: Whether to wait for boot completion
+
+        Returns:
+            True if VM restarted successfully
+
+        Raises:
+            VMLifecycleError: If VM restart fails
+        """
+        try:
+            logger.info(f"Restarting VM: {vm_name}")
+
+            # Stop VM with GPU release
+            self.stop_vm_with_gpu_release(vm_name, force=False)
+
+            # Wait a moment for clean shutdown
+            time.sleep(2)
+
+            # Start VM with GPU allocation
+            self.start_vm_with_gpu_allocation(vm_name, wait_for_boot=wait_for_boot)
+
+            logger.info(f"VM {vm_name} restarted successfully")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to restart VM {vm_name}: {e}")
+            raise VMLifecycleError(f"Failed to restart VM {vm_name}: {e}") from e
+
+    def _get_vm_info(self, vm_name: str) -> Any | None:
+        """Get VM info from state manager.
+
+        Args:
+            vm_name: Name of the VM
+
+        Returns:
+            VMInfo if available, None otherwise
+        """
+        if self.state_manager:
+            cluster_state = self.state_manager.get_state()
+            if cluster_state:
+                return cluster_state.get_vm_by_name(vm_name)
+        return None
+
+    def _extract_pci_address(self, gpu_assigned: str) -> str | None:
+        """Extract PCI address from gpu_assigned string.
+
+        Args:
+            gpu_assigned: String like "0000:01:00.0 (10de:2204)" or "NVIDIA RTX A6000"
+
+        Returns:
+            PCI address or None
+        """
+        return GPUAddressParser.extract_pci_address(gpu_assigned)

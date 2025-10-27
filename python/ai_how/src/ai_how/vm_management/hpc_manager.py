@@ -9,8 +9,10 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
+from ai_how.resource_management.gpu_allocator import GPUResourceAllocator
 from ai_how.state.cluster_state import ClusterState, ClusterStateManager, VMInfo, VMState
 from ai_how.state.models import NetworkConfig
+from ai_how.utils.config_parser import ClusterConfigParser
 from ai_how.utils.logging import (
     log_function_entry,
     log_function_exit,
@@ -18,6 +20,7 @@ from ai_how.utils.logging import (
     log_operation_success,
 )
 from ai_how.utils.path_utils import resolve_and_validate_image_path
+from ai_how.utils.vm_config_utils import AutoStartResolver
 from ai_how.vm_management.libvirt_client import LibvirtClient, LibvirtConnectionError
 from ai_how.vm_management.network_manager import NetworkManager, NetworkManagerError
 from ai_how.vm_management.vm_lifecycle import VMLifecycleError, VMLifecycleManager
@@ -113,8 +116,10 @@ class HPCClusterManager:
         log_function_entry(logger, "__init__", state_file=state_file, operation=operation)
 
         self.config = config
-        self.hpc_config = config["clusters"]["hpc"]
-        self.global_config = config.get("global", {})
+        # Use ClusterConfigParser to extract hpc-specific config
+        self.hpc_config, self.global_config = ClusterConfigParser.extract_cluster_config(
+            config, "hpc"
+        )
 
         logger.debug(f"HPC cluster name: {self.hpc_config['name']}")
         logger.debug(f"Base image path: {self.hpc_config['base_image_path']}")
@@ -134,8 +139,13 @@ class HPCClusterManager:
         logger.debug("Initializing libvirt client with XML tracing")
         self.libvirt_client = LibvirtClient(xml_tracer=self.xml_tracer)
 
-        logger.debug("Initializing VM lifecycle manager")
-        self.vm_lifecycle = VMLifecycleManager(self.libvirt_client)
+        logger.debug("Initializing GPU resource allocator")
+        self.gpu_allocator = GPUResourceAllocator(state_file.parent / "global-state.json")
+
+        logger.debug("Initializing VM lifecycle manager with GPU allocator")
+        self.vm_lifecycle = VMLifecycleManager(
+            self.libvirt_client, gpu_allocator=self.gpu_allocator
+        )
 
         logger.debug("Initializing volume manager")
         self.volume_manager = VolumeManager(self.libvirt_client)
@@ -264,7 +274,17 @@ class HPCClusterManager:
             logger.debug("Controller VM found in state, reusing")
 
         if cluster_state.controller:
-            self._start_vm_if_needed(cluster_state.controller)
+            # Check if auto_start is disabled in config using AutoStartResolver
+            controller_config = self.hpc_config.get("controller", {})
+            should_start = AutoStartResolver.check_single_vm_auto_start(controller_config)
+
+            if should_start:
+                self._start_vm_if_needed(cluster_state.controller)
+            else:
+                logger.info(
+                    f"Skipping auto-start for controller: {cluster_state.controller.name} "
+                    "(auto_start: false)"
+                )
 
     def _create_and_start_compute_nodes(self, cluster_state) -> None:
         """Create and start all compute nodes.
@@ -275,12 +295,24 @@ class HPCClusterManager:
         self._create_compute_nodes(cluster_state)
         logger.debug(f"Processing {len(cluster_state.compute_nodes)} compute nodes")
 
+        # Get compute nodes config
+        compute_nodes_config = self.hpc_config.get("compute_nodes", [])
+
         for i, compute_node in enumerate(cluster_state.compute_nodes):
             logger.debug(
                 f"Starting compute node {i + 1}/{len(cluster_state.compute_nodes)}: "
                 f"{compute_node.name}"
             )
-            self._start_vm_if_needed(compute_node)
+
+            # Use AutoStartResolver to check if this compute node should auto-start
+            should_start = AutoStartResolver.should_auto_start_vm(i, compute_nodes_config)
+
+            if should_start:
+                self._start_vm_if_needed(compute_node)
+            else:
+                logger.info(
+                    f"Skipping auto-start for compute node: {compute_node.name} (auto_start: false)"
+                )
 
     def stop_cluster(self) -> bool:
         """Stop the HPC cluster gracefully with XML tracing.
@@ -328,8 +360,12 @@ class HPCClusterManager:
             logger.error(f"Failed to stop HPC cluster: {e}")
             raise HPCManagerError(f"Failed to stop HPC cluster: {e}") from e
 
-    def destroy_cluster(self) -> bool:
+    def destroy_cluster(self, force: bool = True) -> bool:  # noqa: ARG002
         """Destroy the HPC cluster and clean up resources with XML tracing.
+
+        Args:
+            force: Force destruction even if VMs are running (default: True)
+                   Currently unused, reserved for future use.
 
         Returns:
             True if cluster destroyed successfully

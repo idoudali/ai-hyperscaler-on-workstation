@@ -31,6 +31,7 @@ dev = [
   "pytest-cov>=4.0.0",
   "pre-commit>=3.0.0",
   "mypy>=1.0.0",
+  "pyright>=1.1.0",
   "ruff>=0.1.0",
   "black>=23.0.0",
   "types-PyYAML>=6.0.0",
@@ -84,9 +85,15 @@ strict_optional = true
 no_implicit_optional = true
 pretty = true
 show_error_context = true
+namespace_packages = true
 explicit_package_bases = true
 packages = ["ai_how"]
 mypy_path = "stubs"
+exclude = [
+    "^build/",
+    "^.nox/",
+    "^.venv/",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -104,7 +111,29 @@ addopts = [
 [dependency-groups]
 dev = [
     "mypy>=1.17.1",
+    "pyright>=1.1.0",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
     "ruff>=0.12.8",
 ]
+
+[tool.pyright]
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+    ".nox",
+    ".venv",
+    "build",
+    "dist",
+]
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+# Stricter checks to catch issues like missing keyword arguments
+reportCallIssue = "error"
+reportArgumentType = "error"
+reportGeneralTypeIssues = "error"
+# Helpful for catching dynamic attribute access issues
+reportOptionalMemberAccess = "warning"
+reportOptionalSubscript = "warning"

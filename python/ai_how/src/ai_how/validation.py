@@ -5,6 +5,7 @@ from pathlib import Path
 
 import jsonschema
 import yaml
+from jsonschema import exceptions as jsonschema_exceptions
 from rich.console import Console
 
 # Default console instance - can be overridden for testing
@@ -88,13 +89,41 @@ def validate_config(config_path: Path, schema_path: Path, console: Console | Non
 
     try:
         validator = jsonschema.Draft7Validator(schema_data)
-        validator.validate(config_data)
-        console.print("[green]✅ Configuration is valid.[/green]")
-        return True
-    except jsonschema.exceptions.ValidationError as e:
-        console.print(f"[red]❌ Configuration validation failed:[/red]\n{e.message}")
+        errors = list(validator.iter_errors(config_data))
+
+        if not errors:
+            console.print("[green]✅ Configuration is valid.[/green]")
+            return True
+
+        # Report all validation errors
+        console.print(
+            f"[red]❌ Configuration validation failed with {len(errors)} error(s):[/red]\n"
+        )
+
+        for i, error in enumerate(errors, 1):
+            # Build the path to the error location
+            path_str = " → ".join(str(p) for p in error.path) if error.path else "root"
+
+            console.print(f"[yellow]Error {i}:[/yellow] At [cyan]{path_str}[/cyan]")
+            console.print(f"  {error.message}")
+
+            # Show specific details for additional properties errors
+            if error.validator == "additionalProperties" and isinstance(error.instance, dict):
+                allowed_props = error.schema.get("properties", {}).keys()
+                actual_props = set(error.instance.keys())
+                extra_props = actual_props - set(allowed_props)
+                if extra_props:
+                    console.print(
+                        f"  [red]Unexpected field(s):[/red] {', '.join(sorted(extra_props))}"
+                    )
+                    console.print(
+                        f"  [green]Allowed fields:[/green] {', '.join(sorted(allowed_props))}"
+                    )
+
+            console.print()  # Empty line between errors
+
         return False
-    except jsonschema.exceptions.SchemaError as e:
+    except jsonschema_exceptions.SchemaError as e:
         console.print(f"[red]Schema error during validation:[/red]\n{e}")
         return False
 
