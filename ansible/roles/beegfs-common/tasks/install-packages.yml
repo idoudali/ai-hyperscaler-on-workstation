@@ -10,7 +10,7 @@
 #   - beegfs_packages_path: path where packages should be located on remote host
 #   - beegfs_packages_source_dir: path where packages are located on Ansible controller
 
-- name: Check if BeeGFS {{ beegfs_service_type }} is already installed
+- name: "Check if BeeGFS service is already installed for {{ beegfs_service_type }}"
   ansible.builtin.stat:
     path: "{{ beegfs_binary_check_path }}"
   register: beegfs_service_installed
@@ -92,7 +92,7 @@
     - beegfs
     - beegfs-{{ beegfs_service_type }}
 
-- name: Find BeeGFS {{ beegfs_service_type }} packages
+- name: "Find packages for BeeGFS {{ beegfs_service_type }}"
   ansible.builtin.find:
     paths: "{{ beegfs_packages_path }}"
     patterns: "{{ beegfs_required_packages }}"
@@ -103,7 +103,7 @@
     - beegfs-{{ beegfs_service_type }}
     - install
 
-- name: Install BeeGFS {{ beegfs_service_type }} packages
+- name: "Install packages for BeeGFS {{ beegfs_service_type }}"
   ansible.builtin.apt:
     deb: "{{ item.path }}"
     state: present

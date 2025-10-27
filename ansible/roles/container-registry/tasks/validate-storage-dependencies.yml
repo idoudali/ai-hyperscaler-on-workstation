@@ -71,22 +71,14 @@
     - container-registry
     - validation
 
-- name: Test storage mount point writability
+- name: Create storage write test file
   file:
     path: "{{ container_registry_base_path }}/.registry_write_test_{{ ansible_hostname }}"
     state: touch
     mode: '0644'
   register: storage_write_test
   failed_when: false
-  tags:
-    - container-registry
-    - validation
-
-- name: Remove storage write test file
-  file:
-    path: "{{ container_registry_base_path }}/.registry_write_test_{{ ansible_hostname }}"
-    state: absent
-  when: storage_write_test.changed
+  notify: "Remove storage write test file"
   tags:
     - container-registry
     - validation
@@ -95,18 +87,6 @@
   fail:
     msg: "Storage mount point '{{ container_registry_base_path }}' is not writable. Please check permissions and storage backend configuration."
   when: storage_write_test.failed
-  tags:
-    - container-registry
-    - validation
-
-- name: Display storage validation success
-  debug:
-    msg:
-      - "✅ Storage backend validation successful"
-      - "Backend: {{ container_registry_storage_backend }}"
-      - "Mount point: {{ container_registry_base_path }}"
-      - "Writable: Yes"
-      - "Service status: {{ 'Running' if (storage_service_status.is_active | default(true)) else 'N/A' }}"
   tags:
     - container-registry
     - validation

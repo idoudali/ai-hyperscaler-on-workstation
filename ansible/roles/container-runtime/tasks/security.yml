@@ -2,7 +2,7 @@
 # This file handles security configuration for container runtime
 # including security policies and access controls
 
-- name: Create {{ container_runtime_type }} configuration directory
+- name: "Create configuration directory for {{ container_runtime_type }}"
   file:
     path: "{{ container_runtime_config_dir }}"
     state: directory
@@ -11,14 +11,14 @@
     group: root
   tags: [container-runtime, security, config]
 
-- name: Deploy {{ container_runtime_type }} configuration template
+- name: "Deploy configuration template for {{ container_runtime_type }}"
   template:
     src: "{{ container_runtime_type }}.conf.j2"
     dest: "{{ container_runtime_config_file }}"
     mode: '0644'
     owner: root
     group: root
-    backup: yes
+    backup: true
   notify: restart container runtime services
   tags: [container-runtime, security, config]
 
@@ -41,11 +41,11 @@
   tags: [container-runtime, security, sysctl]
 
 - name: Set up user namespace mapping
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.item.name }}"
     value: "{{ item.item.value }}"
     state: present
-    reload: yes
+    reload: true
   loop: "{{ sysctl_param_check.results }}"
   when:
     - container_runtime_enable_user_namespaces | bool

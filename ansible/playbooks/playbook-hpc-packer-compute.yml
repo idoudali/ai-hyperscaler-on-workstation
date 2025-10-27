@@ -49,7 +49,7 @@
       when: container_runtime_version_check.rc == 0
 
     - name: Verify NVIDIA driver installation
-      shell: "nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits"
+      ansible.builtin.command: "nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits"
       register: nvidia_driver_version
       changed_when: false
       failed_when: false

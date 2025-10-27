@@ -2,21 +2,34 @@
 # Installs Grafana and configures it with Prometheus data source
 
 - name: Add Grafana APT repository key
-  shell: |
-    apt-get update && apt-get install -y gnupg
-    curl -fsSL https://packages.grafana.com/gpg.key | gpg --dearmor -o /usr/share/keyrings/grafana.asc
-    chmod 644 /usr/share/keyrings/grafana.asc
-  become: yes
   tags:
     - grafana
     - monitoring
+  block:
+    - name: Ensure gnupg is installed
+      ansible.builtin.apt:
+        name: gnupg
+        state: present
+      become: true
+
+    - name: Download Grafana GPG key
+      ansible.builtin.get_url:
+        url: "https://packages.grafana.com/gpg.key"
+        dest: "/tmp/grafana.gpg"
+        mode: "0644"
+      become: true
+
+    - name: Convert and install Grafana GPG key
+      shell: "gpg --dearmor -o /usr/share/keyrings/grafana.asc < /tmp/grafana.gpg && chmod 644 /usr/share/keyrings/grafana.asc"
+      become: true
+      changed_when: true
 
 - name: Add Grafana APT repository
   apt_repository:
     repo: "deb [signed-by=/usr/share/keyrings/grafana.asc] https://packages.grafana.com/oss/deb stable main"
     state: present
     filename: grafana
-  become: yes
+  become: true
   tags:
     - grafana
     - monitoring
@@ -25,8 +38,8 @@
   apt:
     name: "{{ grafana_packages }}"
     state: present
-    update_cache: yes
-  become: yes
+    update_cache: true
+  become: true
   tags:
     - grafana
     - monitoring
@@ -35,7 +48,7 @@
   group:
     name: "{{ grafana_group }}"
     state: present
-  become: yes
+  become: true
   tags:
     - grafana
     - monitoring
@@ -44,10 +57,10 @@
   user:
     name: "{{ grafana_user }}"
     group: "{{ grafana_group }}"
-    system: yes
+    system: true
     shell: /bin/false
-    create_home: no
-  become: yes
+    create_home: false
+  become: true
   tags:
     - grafana
     - monitoring
@@ -59,7 +72,7 @@
     owner: "{{ grafana_user }}"
     group: "{{ grafana_group }}"
     mode: '0750'
-  become: yes
+  become: true
   loop:
     - "{{ grafana_config_dir }}"
     - "{{ grafana_data_dir }}"
@@ -79,7 +92,7 @@
     owner: "{{ grafana_user }}"
     group: "{{ grafana_group }}"
     mode: '0640'
-  become: yes
+  become: true
   notify:
     - restart grafana
   tags:
@@ -93,7 +106,7 @@
     owner: "{{ grafana_user }}"
     group: "{{ grafana_group }}"
     mode: '0640'
-  become: yes
+  become: true
   notify:
     - restart grafana
   tags:
@@ -107,7 +120,7 @@
     owner: "{{ grafana_user }}"
     group: "{{ grafana_group }}"
     mode: '0640'
-  become: yes
+  become: true
   notify:
     - restart grafana
   tags:
@@ -121,7 +134,7 @@
     owner: "{{ grafana_user }}"
     group: "{{ grafana_group }}"
     mode: '0640'
-  become: yes
+  become: true
   notify:
     - restart grafana
   tags:
@@ -133,7 +146,7 @@
     path: "/etc/systemd/system/grafana-server.service.d"
     state: directory
     mode: '0755'
-  become: yes
+  become: true
   tags:
     - grafana
     - monitoring
@@ -143,7 +156,7 @@
     src: grafana-service-override.conf.j2
     dest: "/etc/systemd/system/grafana-server.service.d/override.conf"
     mode: '0644'
-  become: yes
+  become: true
   notify:
     - reload systemd
     - restart grafana
@@ -156,8 +169,8 @@
     name: grafana-server
     enabled: "{{ grafana_enable_service }}"
     state: "{{ 'started' if grafana_start_service else 'stopped' }}"
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   tags:
     - grafana
     - monitoring
@@ -192,7 +205,7 @@
     method: GET
     user: "{{ grafana_admin_user }}"
     password: "{{ grafana_admin_password }}"
-    force_basic_auth: yes
+    force_basic_auth: true
     status_code: 200
   register: grafana_datasources_check
   when: grafana_start_service

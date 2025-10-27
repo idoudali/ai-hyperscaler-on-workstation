@@ -87,7 +87,7 @@
   changed_when: false
 
 - name: Validate Prometheus configuration with promtool
-  shell: "promtool check config {{ prometheus_config_dir }}/prometheus.yml"
+  ansible.builtin.command: "promtool check config {{ prometheus_config_dir }}/prometheus.yml"
   register: prometheus_config_validation
   failed_when: prometheus_config_validation.rc != 0
   changed_when: false

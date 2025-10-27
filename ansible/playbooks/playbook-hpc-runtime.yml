@@ -1059,7 +1059,8 @@
         - verification
 
     - name: Check if BeeGFS is mounted
-      command: mount | grep -E "beegfs.*{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}"
+      ansible.builtin.command:
+        cmd: "mountpoint -q {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}"
       register: beegfs_mount_check
       changed_when: false
       failed_when: false
@@ -1075,7 +1076,7 @@
           - beegfs_mount_check.rc == 0
         fail_msg: "BeeGFS is not mounted at {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }} on {{ inventory_hostname }} - service may still be initializing"
         success_msg: "BeeGFS is mounted at {{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }} on {{ inventory_hostname }}"
-      ignore_errors: true
+      failed_when: false
       when: beegfs_enabled | default(false) | bool
       tags:
         - beegfs
@@ -1098,7 +1099,7 @@
           - beegfs_client_service.status.ActiveState == "active"
         fail_msg: "BeeGFS client service is not active on {{ inventory_hostname }} - may still be initializing"
         success_msg: "BeeGFS client service is active on {{ inventory_hostname }}"
-      ignore_errors: true
+      failed_when: false
       when: beegfs_enabled | default(false) | bool
       tags:
         - beegfs

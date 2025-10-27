@@ -24,12 +24,12 @@
     msg: "{{ 'Virtiofs module is available' if virtiofs_module_check.rc == 0 else 'Virtiofs module not found - ensure kernel supports it' }}"
 
 - name: Load virtiofs kernel module
-  ansible.builtin.modprobe:
+  community.general.modprobe:
     name: virtiofs
     state: present
   become: true
   when: virtiofs_module_check.rc == 0
-  ignore_errors: true
+  failed_when: false
 
 - name: Include setup-mounts tasks
   ansible.builtin.include_tasks: setup-mounts.yml

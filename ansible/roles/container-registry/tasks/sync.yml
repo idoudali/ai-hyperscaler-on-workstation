@@ -33,7 +33,7 @@
     - ssh
 
 - name: Generate SSH key pair for registry synchronization (controller only)
-  openssh_keypair:
+  community.crypto.openssh_keypair:
     path: /root/.ssh/id_rsa_registry_sync
     type: rsa
     size: 4096
@@ -60,7 +60,7 @@
     - ssh
 
 - name: Authorize registry sync key on all nodes
-  authorized_key:
+  ansible.posix.authorized_key:
     user: root
     key: "{{ registry_sync_pubkey.content | b64decode }}"
     state: present
@@ -118,10 +118,14 @@
     - scripts
 
 - name: Test rsync connectivity to compute nodes
-  shell: |
-    rsync --dry-run -e "ssh -i /root/.ssh/id_rsa_registry_sync -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5" \
-        {{ container_registry_base_path }}/.registry/ \
-        root@{{ item }}:{{ container_registry_base_path }}/.registry/ 2>&1 | head -1
+  ansible.posix.synchronize:
+    src: "{{ container_registry_base_path }}/.registry/"
+    dest: "{{ container_registry_base_path }}/.registry/"
+    mode: push
+    rsync_opts:
+      - "--dry-run"
+      - "-e ssh -i /root/.ssh/id_rsa_registry_sync -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5"
+  delegate_to: "{{ item }}"
   loop: "{{ groups['compute'] | default([]) }}"
   when: "'controller' in group_names"
   register: sync_connectivity_test

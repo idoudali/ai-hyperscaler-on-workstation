@@ -17,6 +17,7 @@
   when: dkms_status.stdout.find('installed') == -1
   register: dkms_build
   failed_when: false
+  changed_when: dkms_build.rc == 0
   tags:
     - beegfs
     - beegfs-client
@@ -253,7 +254,7 @@
 
 - name: Verify BeeGFS mount is accessible (simple check)
   ansible.builtin.command:
-    cmd: mount | grep -E "beegfs.*{{ beegfs_client_mount_point }}"
+    cmd: "mountpoint -q {{ beegfs_client_mount_point }}"
   register: beegfs_mount_check
   changed_when: false
   failed_when: false

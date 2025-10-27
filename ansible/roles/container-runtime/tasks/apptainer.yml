@@ -4,7 +4,7 @@
 
 - name: Update package cache
   apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   tags: [container-runtime, apptainer, packages]
 
@@ -36,12 +36,10 @@
   tags: [container-runtime, apptainer, installation]
 
 - name: Download Apptainer base package
-  shell: |
-    wget -q -O "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}" \
-         "https://github.com/apptainer/apptainer/releases/download/v{{ container_runtime_version }}/apptainer_{{ container_runtime_version }}{{ package_suffix }}" && \
-    echo "Successfully downloaded Apptainer base package"
-  args:
-    creates: "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+  ansible.builtin.get_url:
+    url: "https://github.com/apptainer/apptainer/releases/download/v{{ container_runtime_version }}/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+    dest: "/tmp/apptainer_{{ container_runtime_version }}{{ package_suffix }}"
+    mode: "0644"
   when: container_runtime_check.rc != 0
   tags: [container-runtime, apptainer, installation]
 
@@ -53,12 +51,10 @@
   tags: [container-runtime, apptainer, installation]
 
 - name: Download Apptainer SUID package
-  shell: |
-    wget -q -O "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}" \
-         "https://github.com/apptainer/apptainer/releases/download/v{{ container_runtime_version }}/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}" && \
-    echo "Successfully downloaded Apptainer SUID package"
-  args:
-    creates: "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+  ansible.builtin.get_url:
+    url: "https://github.com/apptainer/apptainer/releases/download/v{{ container_runtime_version }}/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+    dest: "/tmp/apptainer-suid_{{ container_runtime_version }}{{ package_suffix }}"
+    mode: "0644"
   when: container_runtime_check.rc != 0
   tags: [container-runtime, apptainer, installation]
 

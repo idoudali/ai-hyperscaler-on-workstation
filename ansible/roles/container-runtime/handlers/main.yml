@@ -5,11 +5,11 @@
   systemd:
     name: "{{ item }}"
     state: restarted
-    enabled: yes
+    enabled: true
   loop:
     - "{{ container_runtime_type }}"
   when: container_runtime_enable_service | bool
-  ignore_errors: yes
+  failed_when: false
 
 - name: reload container runtime configuration
   command: "{{ container_runtime_binary }} config reload"

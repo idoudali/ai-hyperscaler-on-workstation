@@ -77,7 +77,7 @@
       package:
         name: "{{ container_runtime | default('apptainer') }}"
         state: present
-      ignore_errors: true # Package name may vary
+      failed_when: false
       tags:
         - prerequisites
         - packages
