@@ -93,7 +93,7 @@ validate_virtio_fs_mount_validation() {
 
     # 1. Test inventory generation with VirtIO-FS configuration
     log_info "Testing inventory generation with VirtIO-FS configuration..."
-    if ! make cluster-inventory; then
+    if ! make hpc-cluster-inventory CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc"; then
         log_error "Inventory generation with VirtIO-FS configuration failed"
         return 1
     fi

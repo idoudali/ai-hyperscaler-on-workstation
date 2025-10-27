@@ -273,7 +273,7 @@ step3_runtime_deployment() {
 
   # 3.2: Generate inventory
   log_info "3.2: Generating Ansible inventory from cluster config..."
-  make cluster-inventory \
+  make hpc-cluster-inventory \
     CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
     CLUSTER_NAME="hpc" \
     INVENTORY_OUTPUT="ansible/inventories/test/hosts" \
@@ -298,9 +298,8 @@ step3_runtime_deployment() {
 
   # 3.4: Start cluster VMs
   log_info "3.4: Starting cluster VMs (2-5 minutes)..."
-  make cluster-start \
+  make system-start \
     CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
-    CLUSTER_NAME="hpc" \
     > "$STEP_DIR/cluster-start.log" 2>&1 || {
     log_error "Cluster VM startup failed"
     tail -20 "$STEP_DIR/cluster-start.log"
@@ -322,7 +321,7 @@ step3_runtime_deployment() {
 
   # 3.6: Deploy runtime configuration
   log_info "3.6: Deploying runtime configuration (10-20 minutes)..."
-  make cluster-deploy \
+  make hpc-cluster-deploy \
     INVENTORY_OUTPUT="$TEST_INVENTORY" \
     > "$STEP_DIR/ansible-deploy.log" 2>&1 || {
     log_error "Ansible deployment failed"
@@ -330,7 +329,7 @@ step3_runtime_deployment() {
 
     # Stop cluster on failure
     log_info "Stopping cluster after deployment failure..."
-    make cluster-stop CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" || true
+    make system-stop CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" || true
 
     tail -30 "$STEP_DIR/ansible-deploy.log"
     return 1

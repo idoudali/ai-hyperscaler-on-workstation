@@ -28,7 +28,8 @@ def lint(s: Session) -> None:
         s.run("ruff", "check", "src", "tests")
         s.run("ruff", "format", "--check", "src", "tests")
        # s.run("black", "--check", "src", "tests")
-    s.run("mypy", "src")
+    s.run("mypy", "-m", "ai_how")
+    s.run("pyright", "src")
 
 
 @session(python=["3.11"])
@@ -38,7 +39,8 @@ def lint_fix(s: Session) -> None:
     s.run("ruff", "check", "--fix", "src", "tests")
     s.run("ruff", "format", "src", "tests")
    #  s.run("black", "src", "tests")
-    s.run("mypy", "src")
+    s.run("mypy", "-m", "ai_how")
+    s.run("pyright", "src")
 
 
 @session(python=["3.11"])
@@ -61,6 +63,13 @@ def docs_serve(s: Session) -> None:
     """Serve the documentation locally."""
     s.install(".[docs]")
     s.run("mkdocs", "serve")
+
+
+@session(python=["3.11"])
+def typecheck(s: Session) -> None:
+    """Run type checking with pyright (stricter than mypy)."""
+    s.install(".[dev]")
+    s.run("pyright", "src")
 
 
 @session(python=["3.11"])

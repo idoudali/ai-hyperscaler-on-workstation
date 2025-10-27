@@ -257,7 +257,7 @@ main() {
   echo "  cat '$VALIDATION_ROOT/*/validation-summary.txt'"
   echo ""
   echo "To stop the cluster:"
-  echo "  make cluster-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml CLUSTER_NAME=hpc"
+  echo "  make system-stop CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml"
   echo ""
 
   return 0

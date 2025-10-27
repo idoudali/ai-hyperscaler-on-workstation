@@ -1,0 +1,58 @@
+---
+alwaysApply: true
+---
+# Python Code Validation Reminder
+
+## Rule
+
+When making changes to Python files in the ai-how module (`python/ai_how/**/*.py`), you MUST:
+
+1. **Run linting and formatting checks** using nox
+2. **Fix any issues** automatically or manually
+3. **Report validation results** to the user
+
+## Quick Validation Commands
+
+After modifying Python files in the ai-how module:
+
+```bash
+cd python/ai_how
+
+# Run linting and formatting checks
+uv run nox -s lint-3.11
+
+# Automatically fix linting and formatting issues
+uv run nox -s lint_fix-3.11
+
+# Run the test suite
+uv run nox -s test-3.11
+
+# Format code with ruff and black
+uv run nox -s format-3.11
+
+# Run all checks (lint + test)
+uv run nox -s lint-3.11 test-3.11
+```
+
+## Available Nox Sessions
+
+- `test-3.11` - Run the test suite
+- `lint-3.11` - Run linting and formatting checks
+- `lint_fix-3.11` - Automatically fix linting and formatting issues
+- `format-3.11` - Format code with ruff and black
+
+## Important
+
+- DO NOT skip validation for "minor" changes
+- All Python changes must pass linting checks
+- Use automatic fixes when possible (`lint_fix-3.11`)
+- Always run from the `python/ai_how` directory
+- Run tests to ensure nothing broke (`test-3.11`)
+
+## Workflow
+
+1. Make changes to Python files
+2. Run `uv run nox -s lint_fix-3.11` to auto-fix issues
+3. Run `uv run nox -s lint-3.11` to verify all issues are resolved
+4. Run `uv run nox -s test-3.11` to ensure tests pass
+5. Report results to user

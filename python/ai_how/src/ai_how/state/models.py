@@ -258,6 +258,32 @@ class VMInfo:
 
 
 @dataclass
+class SharedResourceState:
+    """Tracks shared resource allocation between clusters."""
+
+    gpu_allocations: dict[str, str] = field(default_factory=dict)  # pci_address -> owner
+    last_updated: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "gpu_allocations": self.gpu_allocations,
+            "last_updated": self.last_updated.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SharedResourceState":
+        """Create SharedResourceState from dictionary."""
+        last_updated = data.get("last_updated")
+        if isinstance(last_updated, str):
+            last_updated = datetime.fromisoformat(last_updated)
+        return cls(
+            gpu_allocations=data.get("gpu_allocations", {}),
+            last_updated=last_updated or datetime.now(),
+        )
+
+
+@dataclass
 class ClusterState:
     """Complete state information for a cluster."""
 
@@ -486,7 +512,18 @@ class ClusterState:
         all_vms = self.get_all_vms()
         running_vms = [vm for vm in all_vms if vm.state == VMState.RUNNING]
 
+        # Determine overall cluster status
+        if len(all_vms) == 0:
+            cluster_status = "not_initialized"
+        elif len(running_vms) == len(all_vms) and len(all_vms) > 0:
+            cluster_status = "running"
+        elif len(running_vms) > 0:
+            cluster_status = "partial"
+        else:
+            cluster_status = "stopped"
+
         status = {
+            "status": cluster_status,
             "cluster_name": self.cluster_name,
             "cluster_type": self.cluster_type,
             "total_vms": len(all_vms),

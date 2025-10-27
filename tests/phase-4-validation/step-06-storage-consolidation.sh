@@ -73,11 +73,11 @@ main() {
 
   # Verify cluster is still running
   log_info "${STEP_NUMBER}.2: Verifying cluster VMs are still running..."
-  if ! make cluster-status CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
+  if ! make system-status CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
     > "$step_dir/cluster-status.log" 2>&1; then
     log_warning "Cluster status check failed - VMs may have stopped"
     log_info "Attempting to restart cluster..."
-    if ! make cluster-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" CLUSTER_NAME="hpc" \
+    if ! make system-start CLUSTER_CONFIG="config/example-multi-gpu-clusters.yaml" \
       >> "$step_dir/cluster-status.log" 2>&1; then
       log_error "Failed to restart cluster VMs"
       tail -20 "$step_dir/cluster-status.log"
