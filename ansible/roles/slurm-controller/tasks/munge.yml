@@ -7,7 +7,7 @@
     owner: munge
     group: munge
     mode: '0755'
-    recurse: yes
+    recurse: true
   loop:
     - /etc/munge
     - /var/lib/munge
@@ -20,13 +20,15 @@
   register: munge_key_stat
   become: true
 - name: Generate MUNGE key if needed
+  when: not munge_key_stat.stat.exists | bool
   block:
     - name: Stop MUNGE service for key generation
       service:
         name: munge
         state: stopped
       become: true
-      ignore_errors: true
+      failed_when: false
+      changed_when: false
     - name: Remove existing key if regenerating
       file:
         path: "{{ munge_key_path }}"
@@ -36,6 +38,7 @@
     - name: Create MUNGE key
       command: /usr/sbin/create-munge-key -f
       become: true
+      changed_when: true
       notify: restart munge
     - name: Set MUNGE key permissions immediately
       file:
@@ -44,7 +47,6 @@
         group: munge
         mode: '0600'
       become: true
-  when: not munge_key_stat.stat.exists or munge_force_regenerate_key | default(false)
 - name: Ensure MUNGE key has correct permissions
   file:
     path: "{{ munge_key_path }}"
@@ -81,7 +83,7 @@
     delay: 5
     timeout: 30
   when: not (packer_build | default(false) | bool)
-  ignore_errors: true
+  failed_when: false
 - name: Validate MUNGE installation
   command: munge --version
   register: munge_version_check

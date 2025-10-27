@@ -146,6 +146,11 @@
 # DKMS autoinstall should build the module automatically during package installation
 
 - name: Check DKMS module status and build if needed
+  when: beegfs_version is defined
+  tags:
+    - beegfs
+    - beegfs-client
+    - dkms
   block:
     - name: Check if DKMS module was built during installation
       ansible.builtin.command:
@@ -158,7 +163,7 @@
       ansible.builtin.command:
         cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
       register: dkms_manual_build
-      changed_when: true
+      changed_when: dkms_manual_build.rc == 0
       when: dkms_status_check.rc != 0 or 'installed' not in dkms_status_check.stdout
 
     - name: Verify DKMS module is installed for current kernel
@@ -173,12 +178,6 @@
         msg: |
           DKMS Status for kernel {{ ansible_kernel }}:
           {{ dkms_final_status.stdout if dkms_final_status.stdout else '(not installed)' }}
-  when: needs_installation
-  tags:
-    - beegfs
-    - beegfs-client
-    - install
-    - dkms
 
 # ========== FINAL VERIFICATION ==========
 

@@ -72,12 +72,13 @@
   ansible.builtin.command:
     cmd: "apt-get install -f -y"
   register: apt_fix_result
-  changed_when: apt_fix_result.rc == 0
+  changed_when: apt_fix_result.stdout is search('upgraded|installed|downgraded|removed')
   when: slurm_controller_pkgs.matched | default(0) > 0
   tags:
     - slurm
     - slurm-controller
     - install
+    - skip_ansible_lint # command-instead-of-module: No apt module equivalent for -f flag
 
 - name: Create SLURM system user
   ansible.builtin.user:

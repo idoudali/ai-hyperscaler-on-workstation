@@ -17,9 +17,9 @@
           - SLURM will restart with cgroup support
           {% endif %}
 
-    #===========================================================================
+    # ===========================================================================
     # PACKER BUILD MODE - Configuration Preparation
-    #===========================================================================
+    # ===========================================================================
 
     - name: Cgroup build-time preparation
       when: (packer_build | default(false)) | bool
@@ -39,7 +39,7 @@
             owner: root
             group: slurm
             mode: '0644'
-            backup: yes
+            backup: true
 
         - name: Deploy allowed devices configuration (build-time)
           template:
@@ -48,7 +48,7 @@
             owner: root
             group: slurm
             mode: '0644'
-            backup: yes
+            backup: true
 
         - name: Create cgroup release agent directory
           file:
@@ -66,9 +66,9 @@
               - Directories created
               - Service restart will occur at runtime
 
-    #===========================================================================
+    # ===========================================================================
     # RUNTIME MODE - Active Configuration and Validation
-    #===========================================================================
+    # ===========================================================================
 
     - name: Cgroup runtime configuration
       when: not ((packer_build | default(false)) | bool)
@@ -91,7 +91,7 @@
             name:
               - cgroup-tools
             state: present
-            update_cache: yes
+            update_cache: true
             cache_valid_time: 3600
 
         - name: Create cgroup configuration directory (runtime)
@@ -109,7 +109,7 @@
             owner: root
             group: slurm
             mode: '0644'
-            backup: yes
+            backup: true
           notify:
             - restart slurmd
 
@@ -120,7 +120,7 @@
             owner: root
             group: slurm
             mode: '0644'
-            backup: yes
+            backup: true
           notify:
             - restart slurmd
 

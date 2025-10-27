@@ -7,14 +7,15 @@
     msg: "Installing NVIDIA drivers regardless of GPU presence for Packer build"
     verbosity: 1
 
-- block:
+- name: Configure NVIDIA GPU drivers and dependencies
+  block:
     - name: Enable non-free repository for NVIDIA drivers
       lineinfile:
         path: /etc/apt/sources.list
         regexp: '^deb http://deb.debian.org/debian'
         line: 'deb http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
         state: present
-        backup: yes
+        backup: true
       notify: update apt cache
 
     - name: Ensure non-free-firmware is in sources.list (for Debian 12+)
@@ -23,7 +24,7 @@
         regexp: '^deb-src http://deb.debian.org/debian'
         line: 'deb-src http://deb.debian.org/debian {{ ansible_distribution_release }} main contrib non-free non-free-firmware'
         state: present
-        backup: yes
+        backup: true
       when: ansible_distribution_major_version|int >= 12
       notify: update apt cache
 
@@ -105,7 +106,7 @@
         state: present
 
     - name: Detect recommended NVIDIA driver
-      shell: nvidia-detect
+      ansible.builtin.command: "nvidia-detect"
       register: nvidia_detect_output
       changed_when: false
       failed_when: false

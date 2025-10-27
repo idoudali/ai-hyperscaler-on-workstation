@@ -3,6 +3,12 @@
 # This file handles MariaDB database setup, slurmdbd configuration, and job accounting
 
 - name: Set up MariaDB database for SLURM accounting
+  when: (install_database | default(true)) | bool
+  tags:
+    - slurm
+    - slurm-controller
+    - accounting
+    - database
   block:
     - name: Start and enable MariaDB service
       systemd:
@@ -51,14 +57,12 @@
         - database
 
     - name: Create SLURM accounting database
-      mysql_db:
+      community.mysql.mysql_db:
         name: "{{ slurm_database_name | default('slurm_acct_db') }}"
         state: present
         login_host: "{{ slurm_database_host | default('localhost') }}"
         login_port: "{{ slurm_database_port | default(3306) }}"
         login_user: root
-        login_password: ""
-        login_unix_socket: "/var/run/mysqld/mysqld.sock"
       register: create_db_result
       failed_when: false
       tags:
@@ -71,6 +75,7 @@
       shell: |
         mysql -u root -e "CREATE DATABASE IF NOT EXISTS {{ slurm_database_name | default('slurm_acct_db') }};"
       when: create_db_result is failed
+      changed_when: false
       tags:
         - slurm
         - slurm-controller
@@ -78,7 +83,7 @@
         - database
 
     - name: Create SLURM database user
-      mysql_user:
+      community.mysql.mysql_user:
         name: "{{ slurm_database_user | default('slurm') }}"
         password: "{{ slurm_database_password | default('slurm') }}"
         priv: "{{ slurm_database_name | default('slurm_acct_db') }}.*:ALL"
@@ -105,20 +110,20 @@
         mysql -u root -e "GRANT ALL PRIVILEGES ON {{ slurm_database_name | default('slurm_acct_db') }}.* TO '{{ slurm_database_user | default('slurm') }}'@'localhost';"
         mysql -u root -e "FLUSH PRIVILEGES;"
       when: create_user_result is failed
+      changed_when: false
       tags:
         - slurm
         - slurm-controller
         - accounting
         - database
 
+- name: Configure slurmdbd service
   when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller
     - accounting
-    - database
-
-- name: Configure slurmdbd service
+    - slurmdbd
   block:
     - name: Create slurmdbd configuration directory
       file:
@@ -127,11 +132,6 @@
         owner: root
         group: root
         mode: '0755'
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - slurmdbd
 
     - name: Deploy slurmdbd configuration template
       template:
@@ -251,23 +251,17 @@
         - accounting
         - slurmdbd
 
+- name: Initialize SLURM accounting database
   when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller
     - accounting
-    - slurmdbd
-
-- name: Initialize SLURM accounting database
+    - init
   block:
     - name: Wait for slurmdbd to be fully ready
       pause:
         seconds: 10
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - init
 
     - name: Initialize SLURM accounting database
       command: sacctmgr -i create cluster {{ slurm_cluster_name | default('hpc-cluster') }}
@@ -279,11 +273,6 @@
       failed_when: false
       changed_when: init_cluster_result.rc == 0
       when: not (packer_build | default(false) | bool)
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - init
 
     - name: Create default account
       command: sacctmgr -i create account default
@@ -295,11 +284,6 @@
       failed_when: false
       changed_when: init_account_result.rc == 0
       when: not (packer_build | default(false) | bool)
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - init
 
     - name: Create default user
       command: sacctmgr -i create user {{ ansible_user }} account=default
@@ -311,20 +295,14 @@
       failed_when: false
       changed_when: init_user_result.rc == 0
       when: not (packer_build | default(false) | bool)
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - init
 
+- name: Validate SLURM accounting configuration
   when: (install_database | default(true)) | bool
   tags:
     - slurm
     - slurm-controller
     - accounting
-    - init
-
-- name: Validate SLURM accounting configuration
+    - validate
   block:
     - name: Test slurmdbd connection
       command: sacctmgr show cluster
@@ -335,11 +313,6 @@
       register: test_slurmdbd_result
       changed_when: false
       when: not (packer_build | default(false) | bool)
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - validation
 
     - name: Test job accounting
       command: sacct --format=JobID,JobName,Partition,Account,AllocCPUS,State,ExitCode
@@ -350,11 +323,6 @@
       register: test_sacct_result
       changed_when: false
       when: not (packer_build | default(false) | bool)
-      tags:
-        - slurm
-        - slurm-controller
-        - accounting
-        - validation
 
     - name: Display accounting validation results
       debug:
@@ -368,10 +336,3 @@
         - slurm-controller
         - accounting
         - validation
-
-  when: (install_database | default(true)) | bool
-  tags:
-    - slurm
-    - slurm-controller
-    - accounting
-    - validation

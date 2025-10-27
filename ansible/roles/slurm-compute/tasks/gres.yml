@@ -23,7 +23,7 @@
           - pciutils
           - lshw
         state: present
-        update_cache: no
+        update_cache: false
       when: not (packer_build | default(false) | bool)
       tags:
         - slurm-compute
@@ -37,7 +37,7 @@
         mode: '0644'
         owner: root
         group: root
-        backup: yes
+        backup: true
       when: not (packer_build | default(false) | bool)
       notify: restart slurmd
       tags:

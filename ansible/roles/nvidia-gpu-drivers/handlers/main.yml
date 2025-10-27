@@ -3,10 +3,11 @@
 
 - name: update apt cache
   apt:
-    update_cache: yes
+    update_cache: true
 
 - name: update initramfs
   command: update-initramfs -u -k all
+  changed_when: true
   notify: reboot required
 
 - name: reboot required

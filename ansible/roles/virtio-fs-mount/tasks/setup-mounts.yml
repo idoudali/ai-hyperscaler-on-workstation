@@ -1,28 +1,29 @@
 # Setup virtio-fs mount points
 
 - name: Check if virtio-fs mounts are already mounted
-  ansible.builtin.command: "mount | grep -E '{{ item.tag }} on {{ item.mount_point }}'"
+  ansible.builtin.stat:
+    path: "{{ item.mount_point }}"
   register: mount_check
   changed_when: false
   failed_when: false
   loop: "{{ virtio_fs_mounts }}"
   when:
     - item.mount_point is defined
-    - item.tag is defined
 
 - name: Create mount point directories (if not already mounted)
   ansible.builtin.file:
     path: "{{ item.item.mount_point }}"
     state: directory
+    mode: "0755"
   become: true
   loop: "{{ mount_check.results }}"
   when:
     - virtio_fs_create_mount_dirs | bool
     - item.item.mount_point is defined
-    - item.rc != 0 # Only create if not already mounted
+    - not item.stat.exists # Only create if not already mounted
 
 - name: Mount virtio-fs filesystems
-  ansible.builtin.mount:
+  ansible.posix.mount:
     path: "{{ item.mount_point }}"
     src: "{{ item.tag }}"
     fstype: virtiofs
@@ -34,7 +35,7 @@
     - item.mount_point is defined
     - item.tag is defined
   register: mount_result
-  ignore_errors: true
+  failed_when: false
 
 - name: Display mount errors if any
   ansible.builtin.debug:
@@ -51,6 +52,7 @@
     line: "{{ item.tag }} {{ item.mount_point }} virtiofs {{ item.options | default(virtio_fs_default_options) }} 0 0"
     state: present
     create: true
+    mode: "0644"
     backup: true
   become: true
   loop: "{{ virtio_fs_mounts }}"

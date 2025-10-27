@@ -12,7 +12,8 @@
   when:
     - "'controller' in group_names"
     - container_registry_sync_enabled | bool
-  ignore_errors: true
+  failed_when: false
+  changed_when: true
 
 - name: Update registry catalog
   shell: |
@@ -36,7 +37,8 @@
     EOF
   listen: "Update registry catalog"
   when: "'controller' in group_names"
-  ignore_errors: true
+  failed_when: false
+  changed_when: true
 
 - name: Verify registry structure
   stat:
@@ -45,3 +47,9 @@
   register: verify_dir_stat
   listen: "Verify registry structure"
   failed_when: not verify_dir_stat.stat.exists
+
+- name: Remove storage write test file
+  file:
+    path: "{{ container_registry_base_path }}/.registry_write_test_{{ ansible_hostname }}"
+    state: absent
+  listen: "Remove storage write test file"

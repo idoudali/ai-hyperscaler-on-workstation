@@ -44,12 +44,12 @@
     - permissions
 
 - name: Configure SELinux context for container registry (if SELinux is enabled)
-  sefcontext:
+  community.general.sefcontext:
     target: "{{ container_registry_base_path }}(/.*)?"
     setype: container_file_t
     state: present
   when: ansible_selinux.status == "enabled"
-  ignore_errors: true # SELinux may not be available
+  failed_when: false
   tags:
     - container-registry
     - permissions
@@ -58,7 +58,7 @@
 - name: Apply SELinux context to registry directories
   command: restorecon -R {{ container_registry_base_path }}
   when: ansible_selinux.status == "enabled"
-  ignore_errors: true
+  failed_when: false
   changed_when: false
   tags:
     - container-registry
@@ -66,7 +66,7 @@
     - selinux
 
 - name: Set up SLURM user access to registry
-  acl:
+  ansible.posix.acl:
     path: "{{ container_registry_base_path }}"
     entity: "{{ container_registry_group }}"
     etype: group

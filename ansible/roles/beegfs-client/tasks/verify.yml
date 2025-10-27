@@ -22,7 +22,7 @@
     - verify
 
 - name: Check if BeeGFS is mounted
-  ansible.builtin.shell: mount | grep -E "beegfs.*{{ beegfs_client_mount_point }}"
+  ansible.builtin.command: "grep -E 'beegfs' /proc/mounts"
   register: beegfs_mount_status
   changed_when: false
   failed_when: false
@@ -74,7 +74,7 @@
     owner: root
     group: root
     mode: '0644'
-  ignore_errors: true
+  failed_when: false
   tags:
     - beegfs
     - beegfs-client

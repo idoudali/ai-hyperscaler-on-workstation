@@ -99,7 +99,6 @@
     - beegfs_mgmt_service_state == "started"
     - beegfs_mgmt_service_status.status.ActiveState == "active"
   failed_when: false
-  ignore_errors: true
   tags:
     - beegfs
     - beegfs-mgmt
