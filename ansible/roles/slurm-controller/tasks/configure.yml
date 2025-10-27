@@ -1,41 +1,14 @@
 # SLURM Configuration Deployment
 # Task 011: Configure SLURM PMIx Integration
 
-- name: Create SLURM configuration directory
-  file:
-    path: /etc/slurm
-    state: directory
-    mode: '0755'
-    owner: root
-    group: root
-  become: true
-
-- name: Create SLURM log directory
-  file:
-    path: /var/log/slurm
-    state: directory
-    mode: '0755'
-    owner: "{{ slurm_user | default('slurm') }}"
-    group: "{{ slurm_user | default('slurm') }}"
-  become: true
-
-- name: Create SLURM state directory
-  file:
-    path: "{{ slurm_state_save_location | default('/var/lib/slurm') }}"
-    state: directory
-    mode: '0755'
-    owner: "{{ slurm_user | default('slurm') }}"
-    group: "{{ slurm_user | default('slurm') }}"
-  become: true
-
-- name: Create SLURM spool directory
-  file:
-    path: "{{ slurm_spool_dir | default('/var/spool/slurmd') }}"
-    state: directory
-    mode: '0755'
-    owner: "{{ slurm_user | default('slurm') }}"
-    group: "{{ slurm_user | default('slurm') }}"
-  become: true
+# Note: Directory creation is now handled by slurm-common role
+# The following directories are created by slurm-common:
+# - /etc/slurm (configuration directory)
+# - /var/log/slurm (log directory)
+# - /var/lib/slurm (state directory, if configured)
+# - /var/spool/slurmd (spool directory, if configured)
+# - /opt/containers (container images directory, if enabled)
+# - /etc/slurm/cgroup (cgroup directory, if enabled)
 
 - name: Deploy SLURM configuration template
   template:

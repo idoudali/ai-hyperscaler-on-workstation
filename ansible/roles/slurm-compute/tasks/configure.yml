@@ -1,32 +1,13 @@
 # SLURM Compute Node Configuration
 # Task 022: Configure SLURM compute node with container runtime integration
 
-- name: Create SLURM configuration directory
-  file:
-    path: /etc/slurm
-    state: directory
-    mode: '0755'
-    owner: root
-    group: root
-  become: true
-
-- name: Create SLURM log directory
-  file:
-    path: /var/log/slurm
-    state: directory
-    mode: '0755'
-    owner: "{{ slurm_user | default('slurm') }}"
-    group: "{{ slurm_user | default('slurm') }}"
-  become: true
-
-- name: Create SLURM spool directory
-  file:
-    path: "{{ slurm_spool_dir | default('/var/spool/slurmd') }}"
-    state: directory
-    mode: '0755'
-    owner: "{{ slurm_user | default('slurm') }}"
-    group: "{{ slurm_user | default('slurm') }}"
-  become: true
+# Note: Directory creation is now handled by slurm-common role
+# The following directories are created by slurm-common:
+# - /etc/slurm (configuration directory)
+# - /var/log/slurm (log directory)
+# - /var/spool/slurmd (spool directory, if configured)
+# - /opt/containers (container images directory, if enabled)
+# - /etc/slurm/cgroup (cgroup directory, if enabled)
 
 - name: Ensure controller MUNGE key is available
   stat:

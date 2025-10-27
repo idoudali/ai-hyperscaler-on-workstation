@@ -1,0 +1,17 @@
+# SLURM Common Role - Handlers
+# Shared service restart handlers for SLURM common functionality
+# Note: Service restarts are skipped during Packer builds to prevent build failures
+
+- name: restart munge
+  ansible.builtin.systemd:
+    name: munge
+    state: restarted
+    enabled: true
+  become: true
+  when: not (packer_build | default(false) | bool)
+  failed_when: false # Don't fail deployment if restart fails - services will be started later
+
+- name: reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true

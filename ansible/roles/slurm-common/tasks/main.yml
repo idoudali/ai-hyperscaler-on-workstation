@@ -1,0 +1,29 @@
+# SLURM Common Role - Main Entry Point
+# This role provides common functionality for both SLURM controller and compute nodes
+# including MUNGE setup, user/group creation, directory structure, and validation
+
+- name: Create SLURM user and group
+  ansible.builtin.include_tasks: create-slurm-user.yml
+  when: slurm_create_user | default(true)
+
+- name: Setup MUNGE authentication
+  ansible.builtin.include_tasks: setup-munge.yml
+  when: slurm_setup_munge | default(true)
+  tags:
+    - slurm
+    - munge
+    - auth
+
+- name: Setup SLURM directories
+  ansible.builtin.include_tasks: setup-directories.yml
+  when: slurm_setup_directories | default(true)
+  tags:
+    - slurm
+    - directories
+
+- name: Validate SLURM configuration
+  ansible.builtin.include_tasks: validate-config.yml
+  when: slurm_validate_config | default(false)
+  tags:
+    - slurm
+    - validation
