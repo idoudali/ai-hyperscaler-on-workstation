@@ -161,6 +161,8 @@ main() {
         return 1
     fi
 
+    init_venv
+
     # Run validation targets
     for target in "${VALIDATION_TARGETS[@]}"; do
         case "$target" in

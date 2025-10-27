@@ -69,6 +69,8 @@ main() {
   local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
   mkdir -p "$step_dir"
 
+  init_venv
+
   # Setup SSH and cluster configuration
   setup_ssh_config
   setup_cluster_hosts

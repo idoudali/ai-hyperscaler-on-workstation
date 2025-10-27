@@ -76,6 +76,8 @@ main() {
   local step_dir="$VALIDATION_ROOT/$STEP_DIR_NAME"
   create_step_dir "$step_dir"
 
+  init_venv
+
   cd "$PROJECT_ROOT"
 
   # 1.1: Validate Packer template
