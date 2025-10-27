@@ -2,6 +2,17 @@
 # Task 022: SLURM Compute Node Installation and Configuration
 # This file orchestrates the installation and configuration of SLURM compute nodes
 
+# Setup common SLURM directories early
+- name: Setup SLURM directories using common role
+  ansible.builtin.import_role:
+    name: slurm-common
+    tasks_from: setup-directories
+  vars:
+    slurm_setup_directories: true
+  tags:
+    - slurm-compute
+    - directories
+
 - name: Include SLURM compute node package installation
   include_tasks: install.yml
   tags:

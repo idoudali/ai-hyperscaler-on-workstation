@@ -1,0 +1,32 @@
+# SLURM Common - Configuration Validation
+# Used by both controller and compute roles for validating configuration
+
+- name: Check if SLURM configuration file exists
+  ansible.builtin.stat:
+    path: /etc/slurm/slurm.conf
+  register: slurm_config_file
+  when: not (packer_build | default(false) | bool)
+
+- name: Validate SLURM configuration syntax
+  ansible.builtin.command: /usr/sbin/slurmctld -t -f /etc/slurm/slurm.conf
+  register: slurm_config_validation
+  changed_when: false
+  failed_when: false # Don't fail on validation errors for now
+  become: true
+  when:
+    - not (packer_build | default(false) | bool)
+    - slurm_config_file.stat.exists | default(false)
+    - slurm_config_validation_enabled | default(true)
+
+- name: Display SLURM configuration validation result
+  ansible.builtin.debug:
+    msg: |
+      SLURM configuration validation result:
+      - Return code: {{ slurm_config_validation.rc | default('N/A') }}
+      - Status: {{ 'PASSED' if (slurm_config_validation.rc is defined and slurm_config_validation.rc == 0) else 'FAILED' if slurm_config_validation.rc is defined else 'SKIPPED' }}
+      {% if slurm_config_validation.stderr is defined and slurm_config_validation.stderr %}
+      - Error: {{ slurm_config_validation.stderr }}
+      {% endif %}
+  when:
+    - not (packer_build | default(false))
+    - slurm_config_validation is defined

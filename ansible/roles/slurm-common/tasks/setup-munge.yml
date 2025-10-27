@@ -1,0 +1,160 @@
+# SLURM Common - MUNGE Authentication Setup
+# Used by both controller and compute roles
+
+- name: Create MUNGE group
+  ansible.builtin.group:
+    name: "{{ munge_group }}"
+    state: present
+    system: true
+  become: true
+
+- name: Stop MUNGE service before user modification
+  ansible.builtin.systemd:
+    name: munge
+    state: stopped
+  become: true
+  failed_when: false
+  changed_when: false
+  register: munge_was_running
+
+- name: Create MUNGE user
+  ansible.builtin.user:
+    name: "{{ munge_user }}"
+    group: "{{ munge_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: /var/lib/munge
+    create_home: false
+  become: true
+  register: munge_user_result
+
+- name: Start MUNGE service after user creation
+  ansible.builtin.systemd:
+    name: munge
+    state: started
+    enabled: true
+  become: true
+  when: munge_was_running.changed == true
+
+- name: Ensure MUNGE directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ munge_user }}"
+    group: "{{ munge_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "/etc/munge", mode: "0700"}
+    - {path: "/var/lib/munge", mode: "0711"}
+    - {path: "/var/log/munge", mode: "0700"}
+    - {path: "/run/munge", mode: "0755"}
+  become: true
+
+- name: Check if MUNGE key exists
+  ansible.builtin.stat:
+    path: "{{ munge_key_path }}"
+  register: munge_key_stat
+  become: true
+
+- name: Generate MUNGE key if needed
+  when: not munge_key_stat.stat.exists or munge_force_regenerate_key | default(false)
+  block:
+    - name: Stop MUNGE service for key generation
+      ansible.builtin.systemd:
+        name: munge
+        state: stopped
+      become: true
+      failed_when: false
+
+    - name: Remove existing key if regenerating
+      ansible.builtin.file:
+        path: "{{ munge_key_path }}"
+        state: absent
+      become: true
+      when: munge_force_regenerate_key | default(false)
+
+    - name: Create MUNGE key
+      ansible.builtin.command: /usr/sbin/create-munge-key -f
+      become: true
+      changed_when: false
+      notify: restart munge
+
+    - name: Set MUNGE key permissions immediately
+      ansible.builtin.file:
+        path: "{{ munge_key_path }}"
+        owner: "{{ munge_user }}"
+        group: "{{ munge_group }}"
+        mode: '0600'
+      become: true
+
+- name: Ensure MUNGE key has correct permissions
+  ansible.builtin.file:
+    path: "{{ munge_key_path }}"
+    owner: "{{ munge_user }}"
+    group: "{{ munge_group }}"
+    mode: '0600'
+  become: true
+
+- name: Ensure /etc/default directory exists
+  ansible.builtin.file:
+    path: /etc/default
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Configure MUNGE daemon defaults
+  ansible.builtin.template:
+    src: munge.default.j2
+    dest: /etc/default/munge
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  notify: restart munge
+  when: munge_default_template_enabled | default(false)
+
+- name: Start and enable MUNGE service
+  ansible.builtin.systemd:
+    name: munge
+    enabled: true
+    state: started
+  become: true
+  when: not (packer_build | default(false) | bool)
+
+- name: Wait for MUNGE service readiness
+  ansible.builtin.wait_for:
+    port: "{{ munge_port | default(6818) }}"
+    host: "127.0.0.1"
+    delay: 5
+    timeout: 30
+  when: not (packer_build | default(false) | bool)
+  failed_when: false
+
+- name: Validate MUNGE installation
+  ansible.builtin.command: munge --version
+  register: munge_version_check
+  changed_when: false
+  become: true
+
+- name: Test MUNGE authentication
+  ansible.builtin.shell: echo "munge-test" | munge | unmunge
+  register: munge_local_test
+  changed_when: false
+  become: true
+  when: not (packer_build | default(false) | bool)
+
+- name: Store MUNGE key for distribution
+  ansible.builtin.slurp:
+    src: "{{ munge_key_path }}"
+  register: munge_key_content
+  become: true
+  when: munge_store_key_for_distribution | default(false)
+
+- name: Set MUNGE key fact for distribution
+  ansible.builtin.set_fact:
+    slurm_munge_key_content: "{{ munge_key_content.content }}"
+  when: munge_store_key_for_distribution | default(false) and munge_key_content is defined
+
+- name: Log MUNGE setup completion
+  ansible.builtin.debug:
+    msg: "MUNGE authentication configured successfully"

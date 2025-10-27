@@ -1,0 +1,155 @@
+# SLURM Common Role - Default Variables
+# Shared variables used by both SLURM controller and compute roles
+# These variables can be overridden in playbooks or inventory
+
+# MUNGE configuration
+munge_key_path: "/etc/munge/munge.key"
+munge_socket_path: "/var/run/munge/munge.socket.2"
+munge_log_file: "/var/log/munge/munged.log"
+munge_pid_file: "/var/run/munge/munged.pid"
+munge_user: "munge"
+munge_group: "munge"
+munge_log_level: "3"
+munge_credential_ttl: "300"
+munge_port: 6818
+munge_force_regenerate_key: false
+munge_store_key_for_distribution: false
+
+# SLURM user/group configuration
+slurm_user: "slurm"
+slurm_group: "slurm"
+
+# SLURM directories
+slurm_log_dir: "/var/log/slurm"
+slurm_spool_dir: "/var/spool/slurmd"
+slurm_state_save_location: "/var/lib/slurm"
+slurm_config_dir: "/etc/slurm"
+
+# Node configuration
+slurm_controller_name: "controller"
+slurm_controller_addr: "127.0.0.1"
+slurm_controller_port: 6817
+slurm_compute_port: 6818
+
+# PMIx configuration
+pmix_enabled: true
+pmix_ports: "12000-12999"
+
+# SLURM MPI configuration
+slurm_mpi_default: "pmix"
+slurm_mpi_params: "ports=12000-12999"
+slurm_mpi_timeout: 300
+
+# Resource management
+gres_types: "gpu"
+select_type: "select/cons_tres"
+slurm_select_type_params: "CR_Core_Memory"
+
+# Scheduler configuration
+slurm_scheduler_type: "sched/backfill"
+slurm_scheduler_params: "bf_interval=5,bf_max_job_test=1000,bf_window=3600"
+
+# Process tracking configuration
+slurm_proctrack_type: "proctrack/cgroup"
+slurm_task_plugin: "task/cgroup,task/affinity"
+slurm_task_plugin_param: "Sched"
+
+# Cluster configuration
+slurm_cluster_name: "hpc-cluster"
+
+# Authentication and security
+slurm_auth_type: "auth/munge"
+slurm_crypto_type: "crypto/munge"
+
+# Logging configuration
+slurm_log_file: "/var/log/slurm/slurmctld.log"
+slurm_compute_log_file: "/var/log/slurm/slurmd.log"
+slurm_debug_flags: "Backfill,BackfillMap,Priority"
+slurm_log_file_format: "2"
+
+# Timeout configurations
+slurm_message_timeout: 10
+slurm_tcp_timeout: 2
+slurm_tree_width: 50
+slurm_unkillable_step_timeout: 60
+slurm_vsize_factor: 0
+slurm_wait_time: 0
+
+# Node configuration
+slurm_node_sockets: 1
+slurm_node_cores_per_socket: 8
+slurm_node_threads_per_core: 2
+
+# Container integration
+slurm_container_enabled: true
+singularity_runtime_path: "/usr/bin/apptainer"
+singularity_image_path: "/opt/containers"
+singularity_enable_overlay: "true"
+singularity_enable_gpu: "true"
+singularity_enable_nv: "true"
+singularity_mount_home: "true"
+singularity_mount_tmp: "true"
+singularity_mount_sys: "false"
+singularity_mount_proc: "false"
+singularity_mount_dev: "false"
+singularity_allow_suid: "false"
+singularity_contain: "true"
+singularity_writable: "false"
+singularity_userns: "false"
+singularity_network: "none"
+singularity_tmpfs: "true"
+singularity_debug: "false"
+singularity_verbose: "false"
+singularity_cleanup: "true"
+singularity_gpu_device_access: "yes"
+singularity_gpu_isolation: "auto"
+
+# Cgroup configuration
+slurm_cgroup_enabled: true
+slurm_cgroup_constrain_cores: true
+slurm_cgroup_constrain_memory: true
+slurm_cgroup_constrain_devices: true
+slurm_cgroup_constrain_swap: false
+slurm_cgroup_automount: "yes"
+slurm_cgroup_release_agent_dir: "/etc/slurm/cgroup"
+slurm_cgroup_allowed_devices_file: "/etc/slurm/cgroup_allowed_devices_file.conf"
+slurm_cgroup_task_affinity: "yes"
+slurm_cgroup_min_ram_mb: 100
+slurm_cgroup_memory_swappiness: 0
+slurm_cgroup_allow_all_gpus: true
+
+# Job limits
+slurm_max_job_count: 10000
+slurm_max_array_size: 1000000
+slurm_max_step_count: 40000
+slurm_min_job_age: 300
+slurm_max_job_time: "UNLIMITED"
+
+# Partition configuration
+slurm_default_partition: "compute"
+slurm_compute_nodes: "compute-[01-99]"
+slurm_default_partition_default: "YES"
+slurm_partition_max_time: "INFINITE"
+slurm_partition_state: "UP"
+
+# GPU configuration
+slurm_gpu_enabled: false
+slurm_gpu_type: "nvidia"
+slurm_gpu_count: 0
+slurm_gpu_partition: "gpu"
+slurm_gpu_nodes: "compute-[01-99]"
+slurm_gpu_partition_default: "NO"
+slurm_gpu_partition_max_time: "INFINITE"
+slurm_gpu_partition_state: "UP"
+slurm_gpu_allow_groups: "ALL"
+
+# Power management
+slurm_power_management: false
+slurm_power_plugin: "power/none"
+slurm_power_parameters: ""
+
+# Checkpoint configuration
+slurm_job_checkpoint_dir: "/var/checkpoint"
+
+# Build settings
+packer_build: false

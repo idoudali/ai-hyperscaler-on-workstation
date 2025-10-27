@@ -6,8 +6,8 @@
 
 ## Quick Status
 
-- **Completed**: 28 tasks (58%)
-- **In Progress**: 2 tasks (TASK-028.1, TASK-044)
+- **Completed**: 29 tasks (60%)
+- **In Progress**: 1 task (TASK-028.1)
 - **Pending**: 18 tasks (38%)
 
 ## Phase Overview
@@ -56,7 +56,7 @@
 
 ### 📋 Phase 4: Infrastructure Consolidation (Tasks 029-048)
 
-**Status**: 68% Complete (15/22 tasks)
+**Status**: 73% Complete (16/22 tasks)
 **Priority**: HIGH
 **File**: [`hpc-slurm/pending/phase-4-consolidation.md`](hpc-slurm/pending/phase-4-consolidation.md)
 
@@ -65,7 +65,7 @@
 - TASK-029-034.1: Ansible playbook consolidation ✅ (7 tasks complete)
 - TASK-035-037: Test framework consolidation (3 tasks pending)
 - TASK-038-043: Storage consolidation ✅ (6 tasks complete)
-- TASK-044-048: Ansible role consolidation 🔄 (1/5 tasks complete)
+- TASK-044-048: Ansible role consolidation 🔄 (2/5 tasks complete)
 
 ### 🎯 Phase 6: Final Validation (Tasks 041-044)
 
@@ -88,9 +88,9 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 
 ## Current Focus
 
-**Recently Completed**: TASK-044 - BeeGFS Common Role (Role consolidation initiative started)
+**Recently Completed**: TASK-045 - SLURM Common Role (MUNGE, directories, user management consolidated)
 **Active Tasks**: TASK-028.1 - Fix BeeGFS Client Kernel Module
-**Next Priority**: TASK-045 - Create SLURM Common Role (continue role consolidation)
+**Next Priority**: TASK-046 - Create Shared Package Management Role (continue role consolidation)
 
 ## Execution Principles
 

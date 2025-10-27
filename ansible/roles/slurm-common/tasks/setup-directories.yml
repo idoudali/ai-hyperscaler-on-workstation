@@ -1,0 +1,60 @@
+# SLURM Common - Setup Directory Structure
+# Used by both controller and compute roles
+
+- name: Create SLURM configuration directory
+  ansible.builtin.file:
+    path: "{{ slurm_config_dir }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Create SLURM log directory
+  ansible.builtin.file:
+    path: "{{ slurm_log_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_group }}"
+  become: true
+
+- name: Create SLURM state directory
+  ansible.builtin.file:
+    path: "{{ slurm_state_save_location }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_group }}"
+  become: true
+  when: slurm_state_save_location | trim != ""
+
+- name: Create SLURM spool directory
+  ansible.builtin.file:
+    path: "{{ slurm_spool_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_group }}"
+  become: true
+  when: slurm_spool_dir | trim != ""
+
+- name: Create container images directory
+  ansible.builtin.file:
+    path: "{{ singularity_image_path }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  when: slurm_container_enabled | default(true)
+
+- name: Create cgroup configuration directory
+  ansible.builtin.file:
+    path: /etc/slurm/cgroup
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  when: slurm_cgroup_enabled | default(true)
