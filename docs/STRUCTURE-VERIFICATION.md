@@ -84,6 +84,7 @@ ls -1 ansible/README.md packer/README.md python/ai_how/README.md containers/READ
 ## File Count Verification
 
 ### Getting Started (7 files)
+
 - [ ] prerequisites.md
 - [ ] installation.md
 - [ ] quickstart-5min.md
@@ -93,6 +94,7 @@ ls -1 ansible/README.md packer/README.md python/ai_how/README.md containers/READ
 - [ ] quickstart-monitoring.md
 
 ### Tutorials (7 files)
+
 - [ ] 01-first-cluster.md
 - [ ] 02-distributed-training.md
 - [ ] 03-gpu-partitioning.md
@@ -102,6 +104,7 @@ ls -1 ansible/README.md packer/README.md python/ai_how/README.md containers/READ
 - [ ] 07-job-debugging.md
 
 ### Architecture (7 files)
+
 - [ ] overview.md
 - [ ] network.md
 - [ ] storage.md
@@ -111,6 +114,7 @@ ls -1 ansible/README.md packer/README.md python/ai_how/README.md containers/READ
 - [ ] monitoring.md
 
 ### Operations (6 files)
+
 - [ ] deployment.md
 - [ ] maintenance.md
 - [ ] backup-recovery.md
@@ -119,12 +123,14 @@ ls -1 ansible/README.md packer/README.md python/ai_how/README.md containers/READ
 - [ ] performance-tuning.md
 
 ### Troubleshooting (4 files)
+
 - [ ] common-issues.md
 - [ ] debugging-guide.md
 - [ ] faq.md
 - [ ] error-codes.md
 
 ### Workflows (5 files)
+
 - [ ] CLUSTER-DEPLOYMENT-WORKFLOW.md
 - [ ] GPU-GRES-WORKFLOW.md
 - [ ] SLURM-COMPUTE-WORKFLOW.md
