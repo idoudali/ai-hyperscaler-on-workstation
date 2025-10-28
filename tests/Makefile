@@ -6,9 +6,20 @@ help:
 	@echo "HPC SLURM Test Suite"
 	@echo "==================="
 	@echo ""
-	@echo "Available targets:"
+	@echo "Main test targets:"
 	@echo "  test                   - Run core infrastructure tests"
 	@echo "  test-all               - Run comprehensive test suite including builds"
+	@echo "  test-all-phased        - Run complete test suite in recommended order (all 3 phases)"
+	@echo ""
+	@echo "Phased execution (by directory structure):"
+	@echo "  test-foundation        - Phase 1: Foundation tests (foundation/)"
+	@echo "  test-frameworks        - Phase 2: Core frameworks (frameworks/)"
+	@echo "  test-advanced          - Phase 3: Advanced tests (advanced/)"
+	@echo "  test-phase-1           - Alias for test-foundation"
+	@echo "  test-phase-2           - Alias for test-frameworks"
+	@echo "  test-phase-3           - Alias for test-advanced"
+	@echo ""
+	@echo "Individual test targets:"
 	@echo "  test-base-images       - Run base images build tests"
 	@echo "  test-container-runtime - Run container runtime tests"
 	@echo "  test-slurm-controller  - Run SLURM controller installation tests (full workflow)"
@@ -120,6 +131,53 @@ test-all: \
   test-test-configs \
   test-infrastructure \
   test-configuration
+
+# ==============================================================================
+# PHASED EXECUTION TARGETS (Organized by directory structure)
+# ==============================================================================
+# These targets organize tests by logical groups and recommended execution order
+
+# Phase 1: Foundation Tests (tests/foundation/)
+# Fast, essential prerequisite tests that validate base infrastructure
+test-foundation:
+	@echo "=== Phase 1: Foundation Tests ==="
+	@$(MAKE) test-base-images
+	@$(MAKE) test-integration
+	@$(MAKE) test-ansible-roles
+	@$(MAKE) test-config-validation
+	@$(MAKE) test-pcie-validation
+	@$(MAKE) test-test-configs
+	@$(MAKE) test-ai-how
+	@$(MAKE) test-infrastructure
+
+# Phase 2: Framework Tests (tests/frameworks/)
+# Core unified test frameworks for HPC infrastructure
+test-frameworks:
+	@echo "=== Phase 2: Framework Tests ==="
+	@$(MAKE) test-hpc-packer-controller
+	@$(MAKE) test-hpc-packer-compute
+	@$(MAKE) test-hpc-runtime
+	@$(MAKE) test-pcie-passthrough
+
+# Phase 3: Advanced Tests (tests/advanced/)
+# Advanced integration tests for specialized components
+test-advanced:
+	@echo "=== Phase 3: Advanced Tests ==="
+	@$(MAKE) test-container-registry-unified
+	@$(MAKE) test-beegfs-unified
+	@$(MAKE) test-virtio-fs-unified
+
+# Complete test suite in recommended order (all phases)
+test-all-phased:
+	@echo "Running complete test suite in recommended order..."
+	@$(MAKE) test-phase-1
+	@$(MAKE) test-phase-2
+	@$(MAKE) test-phase-3
+
+# Alias for test-all-phased for backward compatibility
+test-phase-1: test-foundation
+test-phase-2: test-frameworks
+test-phase-3: test-advanced
 
 # Run base images test
 test-base-images:
@@ -303,7 +361,7 @@ test-container-registry-deploy:
 	@echo "Building and deploying container images to test cluster..."
 	@TEST_CONFIG="$(PWD)/test-infra/configs/test-container-integration.yaml" \
 	 TARGET_VM_PATTERN="test-container-integration" \
-	 ./test-container-registry-framework.sh deploy-images
+	 ./advanced/test-container-registry-framework.sh deploy-images
 
 # Run container integration tests only (assumes cluster deployed)
 test-container-integration-tests:
@@ -483,14 +541,14 @@ ifndef ROLE
 	@ls -1 ../ansible/roles/ | sed 's/^/  /'
 else
 	@echo "Testing role: $(ROLE)"
-	@./test_ansible_roles.sh --role $(ROLE) --verbose
+	@./foundation/test_ansible_roles.sh --role $(ROLE) --verbose
 endif
 
 # Test container runtime comprehensively
 test-container-comprehensive:
 	@echo "Running comprehensive container runtime validation..."
 	@./frameworks/test-hpc-packer-compute-framework.sh --verbose
-	@./test_ansible_roles.sh --role container-runtime --verbose
+	@./foundation/test_ansible_roles.sh --role container-runtime --verbose
 
 # Pre-commit validation targets
 test-precommit:

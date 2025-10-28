@@ -97,22 +97,22 @@ test_options:
 
 ```bash
 # Complete end-to-end test
-./test-hpc-runtime-framework.sh e2e
+./frameworks/test-hpc-runtime-framework.sh e2e
 
 # Modular workflow
-./test-hpc-runtime-framework.sh start-cluster
-./test-hpc-runtime-framework.sh deploy-ansible
-./test-hpc-runtime-framework.sh run-tests
-./test-hpc-runtime-framework.sh stop-cluster
+./frameworks/test-hpc-runtime-framework.sh start-cluster
+./frameworks/test-hpc-runtime-framework.sh deploy-ansible
+./frameworks/test-hpc-runtime-framework.sh run-tests
+./frameworks/test-hpc-runtime-framework.sh stop-cluster
 
 # Run specific test suite
-./test-hpc-runtime-framework.sh run-test-suite cgroup-isolation
+./frameworks/test-hpc-runtime-framework.sh run-test-suite cgroup-isolation
 
 # List all tests
-./test-hpc-runtime-framework.sh list-tests
+./frameworks/test-hpc-runtime-framework.sh list-tests
 
 # Run specific test
-./test-hpc-runtime-framework.sh run-test check-cgroup-config.sh
+./frameworks/test-hpc-runtime-framework.sh run-test check-cgroup-config.sh
 ```
 
 #### Implementation Details
@@ -200,17 +200,17 @@ test_options:
 
 ```bash
 # Complete end-to-end test
-./test-hpc-packer-controller-framework.sh e2e
+./frameworks/test-hpc-packer-controller-framework.sh e2e
 
 # Modular workflow
-./test-hpc-packer-controller-framework.sh start-cluster
-./test-hpc-packer-controller-framework.sh deploy-ansible
-./test-hpc-packer-controller-framework.sh run-tests
-./test-hpc-packer-controller-framework.sh stop-cluster
+./frameworks/test-hpc-packer-controller-framework.sh start-cluster
+./frameworks/test-hpc-packer-controller-framework.sh deploy-ansible
+./frameworks/test-hpc-packer-controller-framework.sh run-tests
+./frameworks/test-hpc-packer-controller-framework.sh stop-cluster
 
 # Run specific component tests
-./test-hpc-packer-controller-framework.sh run-test-suite slurm-controller
-./test-hpc-packer-controller-framework.sh run-test-suite monitoring-stack
+./frameworks/test-hpc-packer-controller-framework.sh run-test-suite slurm-controller
+./frameworks/test-hpc-packer-controller-framework.sh run-test-suite monitoring-stack
 ```
 
 #### Implementation Details
@@ -281,13 +281,13 @@ test_options:
 
 ```bash
 # Complete end-to-end test
-./test-hpc-packer-compute-framework.sh e2e
+./frameworks/test-hpc-packer-compute-framework.sh e2e
 
 # Modular workflow
-./test-hpc-packer-compute-framework.sh start-cluster
-./test-hpc-packer-compute-framework.sh deploy-ansible
-./test-hpc-packer-compute-framework.sh run-tests
-./test-hpc-packer-compute-framework.sh stop-cluster
+./frameworks/test-hpc-packer-compute-framework.sh start-cluster
+./frameworks/test-hpc-packer-compute-framework.sh deploy-ansible
+./frameworks/test-hpc-packer-compute-framework.sh run-tests
+./frameworks/test-hpc-packer-compute-framework.sh stop-cluster
 ```
 
 #### Implementation Details
@@ -352,11 +352,11 @@ storage:
 #### CLI Interface
 
 ```bash
-./test-beegfs-framework.sh e2e
-./test-beegfs-framework.sh start-cluster
-./test-beegfs-framework.sh deploy-ansible
-./test-beegfs-framework.sh run-tests
-./test-beegfs-framework.sh stop-cluster
+./advanced/test-beegfs-framework.sh e2e
+./advanced/test-beegfs-framework.sh start-cluster
+./advanced/test-beegfs-framework.sh deploy-ansible
+./advanced/test-beegfs-framework.sh run-tests
+./advanced/test-beegfs-framework.sh stop-cluster
 ```
 
 #### Implementation Details
@@ -409,11 +409,11 @@ storage:
 #### CLI Interface
 
 ```bash
-./test-virtio-fs-framework.sh e2e
-./test-virtio-fs-framework.sh start-cluster
-./test-virtio-fs-framework.sh deploy-ansible
-./test-virtio-fs-framework.sh run-tests
-./test-virtio-fs-framework.sh stop-cluster
+./advanced/test-virtio-fs-framework.sh e2e
+./advanced/test-virtio-fs-framework.sh start-cluster
+./advanced/test-virtio-fs-framework.sh deploy-ansible
+./advanced/test-virtio-fs-framework.sh run-tests
+./advanced/test-virtio-fs-framework.sh stop-cluster
 ```
 
 #### Implementation Details
@@ -466,10 +466,10 @@ hardware:
 #### CLI Interface
 
 ```bash
-./test-pcie-passthrough-framework.sh e2e
-./test-pcie-passthrough-framework.sh start-cluster
-./test-pcie-passthrough-framework.sh run-tests
-./test-pcie-passthrough-framework.sh stop-cluster
+./frameworks/test-pcie-passthrough-framework.sh e2e
+./frameworks/test-pcie-passthrough-framework.sh start-cluster
+./frameworks/test-pcie-passthrough-framework.sh run-tests
+./frameworks/test-pcie-passthrough-framework.sh stop-cluster
 ```
 
 #### Implementation Details
@@ -535,12 +535,12 @@ containers:
 #### CLI Interface
 
 ```bash
-./test-container-registry-framework.sh e2e
-./test-container-registry-framework.sh start-cluster
-./test-container-registry-framework.sh deploy-ansible
-./test-container-registry-framework.sh deploy-images
-./test-container-registry-framework.sh run-tests
-./test-container-registry-framework.sh stop-cluster
+./advanced/test-container-registry-framework.sh e2e
+./advanced/test-container-registry-framework.sh start-cluster
+./advanced/test-container-registry-framework.sh deploy-ansible
+./advanced/test-container-registry-framework.sh deploy-images
+./advanced/test-container-registry-framework.sh run-tests
+./advanced/test-container-registry-framework.sh stop-cluster
 ```
 
 #### Implementation Details

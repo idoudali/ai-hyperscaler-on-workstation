@@ -158,9 +158,9 @@ make cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
 make cluster-deploy CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
 
 # Run tests repeatedly against same cluster:
-./tests/test-hpc-runtime-framework.sh --suite cgroup-isolation
-./tests/test-hpc-runtime-framework.sh --suite gpu-gres
-./tests/test-hpc-runtime-framework.sh --suite container-integration
+./tests/frameworks/test-hpc-runtime-framework.sh --suite cgroup-isolation
+./tests/frameworks/test-hpc-runtime-framework.sh --suite gpu-gres
+./tests/frameworks/test-hpc-runtime-framework.sh --suite container-integration
 
 # Cleanup when done:
 make cluster-destroy CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
@@ -280,7 +280,7 @@ make cluster-start CLUSTER_CONFIG=$CONFIG
 make cluster-deploy CLUSTER_CONFIG=$CONFIG
 
 # Step 3: Run test suite
-./tests/test-hpc-runtime-framework.sh --suite cgroup-isolation --config $CONFIG
+./tests/frameworks/test-hpc-runtime-framework.sh --suite cgroup-isolation --config $CONFIG
 
 # Step 4: Cleanup
 make cluster-destroy CLUSTER_CONFIG=$CONFIG
@@ -299,9 +299,9 @@ make cluster-start CLUSTER_CONFIG=$CONFIG
 make cluster-deploy CLUSTER_CONFIG=$CONFIG
 
 # Run multiple tests
-./tests/test-hpc-runtime-framework.sh --suite cgroup-isolation
-./tests/test-hpc-runtime-framework.sh --suite slurm-compute
-./tests/test-hpc-runtime-framework.sh --suite job-scripts
+./tests/frameworks/test-hpc-runtime-framework.sh --suite cgroup-isolation
+./tests/frameworks/test-hpc-runtime-framework.sh --suite slurm-compute
+./tests/frameworks/test-hpc-runtime-framework.sh --suite job-scripts
 
 # Cleanup when done
 make cluster-stop CLUSTER_CONFIG=$CONFIG
@@ -322,7 +322,7 @@ make cluster-deploy CLUSTER_CONFIG=$CONFIG
 # Development iteration loop
 for i in {1..5}; do
   echo "Test iteration $i"
-  ./tests/test-hpc-runtime-framework.sh --suite cgroup-isolation
+  ./tests/frameworks/test-hpc-runtime-framework.sh --suite cgroup-isolation
   
   # Reset cluster state every 3 runs
   if [ $((i % 3)) -eq 0 ]; then
@@ -385,7 +385,7 @@ make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-cgroup-isolation
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-cgroup-isolation.yaml
 
 # Run test
-./tests/test-hpc-runtime-framework.sh --suite cgroup-isolation
+./tests/frameworks/test-hpc-runtime-framework.sh --suite cgroup-isolation
 
 # Cleanup
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-cgroup-isolation.yaml
@@ -449,7 +449,7 @@ make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-gpu-gres.yaml
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-gpu-gres.yaml
 
 # Run test
-./tests/test-hpc-runtime-framework.sh --suite gpu-gres
+./tests/frameworks/test-hpc-runtime-framework.sh --suite gpu-gres
 
 # Cleanup
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-gpu-gres.yaml
@@ -514,7 +514,7 @@ test_options:
 ```bash
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-job-scripts.yaml
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-job-scripts.yaml
-./tests/test-hpc-runtime-framework.sh --suite job-scripts
+./tests/frameworks/test-hpc-runtime-framework.sh --suite job-scripts
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-job-scripts.yaml
 ```
 
@@ -571,7 +571,7 @@ test_options:
 ```bash
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-dcgm-monitoring.yaml
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-dcgm-monitoring.yaml
-./tests/test-hpc-runtime-framework.sh --suite dcgm-monitoring
+./tests/frameworks/test-hpc-runtime-framework.sh --suite dcgm-monitoring
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-dcgm-monitoring.yaml
 ```
 
@@ -634,7 +634,7 @@ test_options:
 ```bash
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-container-integration.yaml
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-container-integration.yaml
-./tests/test-hpc-runtime-framework.sh --suite container-integration
+./tests/frameworks/test-hpc-runtime-framework.sh --suite container-integration
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-container-integration.yaml
 ```
 
@@ -708,7 +708,7 @@ test_options:
 ```bash
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-slurm-compute.yaml
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-slurm-compute.yaml
-./tests/test-hpc-runtime-framework.sh --suite slurm-compute
+./tests/frameworks/test-hpc-runtime-framework.sh --suite slurm-compute
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-slurm-compute.yaml
 ```
 
@@ -796,7 +796,7 @@ make run-docker COMMAND="cmake --build build --target hpc-controller"
 
 # Start and test
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-slurm-controller.yaml
-./tests/test-hpc-packer-controller-framework.sh --suite slurm-controller
+./tests/frameworks/test-hpc-packer-controller-framework.sh --suite slurm-controller
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-slurm-controller.yaml
 ```
 
@@ -858,7 +858,7 @@ make run-docker COMMAND="cmake --build build --target hpc-controller"
 
 # Start and test
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-monitoring-stack.yaml
-./tests/test-hpc-packer-controller-framework.sh --suite monitoring-stack
+./tests/frameworks/test-hpc-packer-controller-framework.sh --suite monitoring-stack
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-monitoring-stack.yaml
 ```
 
@@ -942,7 +942,7 @@ make run-docker COMMAND="cmake --build build --target hpc-compute"
 
 # Start and test
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-container-runtime.yaml
-./tests/test-hpc-packer-compute-framework.sh --suite container-runtime
+./tests/frameworks/test-hpc-packer-compute-framework.sh --suite container-runtime
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-container-runtime.yaml
 ```
 
@@ -1021,7 +1021,7 @@ make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-beegfs.yaml
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-beegfs.yaml
 
 # Run test
-./tests/test-beegfs-framework.sh --suite beegfs
+./tests/advanced/test-beegfs-framework.sh --suite beegfs
 
 # Cleanup
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-beegfs.yaml
@@ -1102,7 +1102,7 @@ test_options:
 
 ```bash
 make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-virtio-fs.yaml
-./tests/test-virtio-fs-framework.sh --suite virtio-fs
+./tests/advanced/test-virtio-fs-framework.sh --suite virtio-fs
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-virtio-fs.yaml
 ```
 
@@ -1188,7 +1188,7 @@ test_options:
 ```bash
 # For real GPU hardware testing
 make cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
-./tests/test-pcie-passthrough-framework.sh --suite gpu-validation
+./tests/frameworks/test-pcie-passthrough-framework.sh --suite gpu-validation
 make cluster-destroy CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
 ```
 
@@ -1270,7 +1270,7 @@ make cluster-start CLUSTER_CONFIG=tests/test-infra/configs/test-container-regist
 make cluster-deploy CLUSTER_CONFIG=tests/test-infra/configs/test-container-registry.yaml
 
 # Run test
-./tests/test-container-registry-framework.sh --suite container-registry
+./tests/advanced/test-container-registry-framework.sh --suite container-registry
 
 # Cleanup
 make cluster-destroy CLUSTER_CONFIG=tests/test-infra/configs/test-container-registry.yaml

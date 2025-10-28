@@ -269,7 +269,7 @@ bash -c "source test-framework-utils.sh && echo 'Utils loaded'"
 
 **Time**: 2.5 hours
 
-**Location**: `tests/test-hpc-runtime-framework.sh`
+**Location**: `tests/frameworks/test-hpc-runtime-framework.sh`
 
 **Replaces**: 6 frameworks (cgroup, gpu-gres, job-scripts, dcgm, container-integration, slurm-compute)
 
@@ -320,15 +320,15 @@ bash -c "source test-framework-utils.sh && echo 'Utils loaded'"
 
    ```bash
    # Test help output
-   ./test-hpc-runtime-framework.sh --help
+   ./frameworks/test-hpc-runtime-framework.sh --help
    
    # Test modular commands
-   ./test-hpc-runtime-framework.sh start-cluster
-   ./test-hpc-runtime-framework.sh list-tests
-   ./test-hpc-runtime-framework.sh stop-cluster
+   ./frameworks/test-hpc-runtime-framework.sh start-cluster
+   ./frameworks/test-hpc-runtime-framework.sh list-tests
+   ./frameworks/test-hpc-runtime-framework.sh stop-cluster
    
    # Test end-to-end
-   ./test-hpc-runtime-framework.sh e2e
+   ./frameworks/test-hpc-runtime-framework.sh e2e
    ```
 
 **Deliverables**:
@@ -344,7 +344,7 @@ bash -c "source test-framework-utils.sh && echo 'Utils loaded'"
 
 **Time**: 2 hours
 
-**Location**: `tests/test-hpc-packer-controller-framework.sh`
+**Location**: `tests/frameworks/test-hpc-packer-controller-framework.sh`
 
 **Replaces**: 4 frameworks (slurm-controller, slurm-accounting, monitoring-stack, grafana)
 
@@ -401,7 +401,7 @@ bash -c "source test-framework-utils.sh && echo 'Utils loaded'"
 
 **Time**: 1.5 hours
 
-**Location**: `tests/test-hpc-packer-compute-framework.sh`
+**Location**: `tests/frameworks/test-hpc-packer-compute-framework.sh`
 
 **Replaces**: 1 framework (container-runtime)
 
@@ -466,9 +466,9 @@ bash -c "source test-framework-utils.sh && echo 'Utils loaded'"
 
 ```bash
 # Test each new framework
-./test-hpc-runtime-framework.sh e2e
-./test-hpc-packer-controller-framework.sh e2e
-./test-hpc-packer-compute-framework.sh e2e
+./frameworks/test-hpc-runtime-framework.sh e2e
+./frameworks/test-hpc-packer-controller-framework.sh e2e
+./frameworks/test-hpc-packer-compute-framework.sh e2e
 
 # Verify all pass
 echo "All unified frameworks tested successfully"
@@ -493,7 +493,7 @@ echo "All unified frameworks tested successfully"
 1. **Backup original** (2 min)
 
    ```bash
-   cp tests/test-beegfs-framework.sh tests/test-beegfs-framework.sh.backup
+   cp tests/advanced/test-beegfs-framework.sh tests/advanced/test-beegfs-framework.sh.backup
    ```
 
 2. **Refactor to use shared utilities** (30 min)
@@ -505,8 +505,8 @@ echo "All unified frameworks tested successfully"
 3. **Test refactored framework** (8 min)
 
    ```bash
-   ./test-beegfs-framework.sh --help
-   ./test-beegfs-framework.sh e2e
+   ./advanced/test-beegfs-framework.sh --help
+   ./advanced/test-beegfs-framework.sh e2e
    ```
 
 **Target Size Reduction**: 15K → ~8K (47% reduction)
@@ -522,7 +522,7 @@ echo "All unified frameworks tested successfully"
 1. **Backup original** (2 min)
 
    ```bash
-   cp tests/test-virtio-fs-framework.sh tests/test-virtio-fs-framework.sh.backup
+   cp tests/advanced/test-virtio-fs-framework.sh tests/advanced/test-virtio-fs-framework.sh.backup
    ```
 
 2. **Refactor to use shared utilities** (30 min)
@@ -533,8 +533,8 @@ echo "All unified frameworks tested successfully"
 3. **Test refactored framework** (8 min)
 
    ```bash
-   ./test-virtio-fs-framework.sh --help
-   ./test-virtio-fs-framework.sh e2e
+   ./advanced/test-virtio-fs-framework.sh --help
+   ./advanced/test-virtio-fs-framework.sh e2e
    ```
 
 **Target Size Reduction**: 24K → ~12K (50% reduction)
@@ -550,7 +550,7 @@ echo "All unified frameworks tested successfully"
 1. **Backup original** (2 min)
 
    ```bash
-   cp tests/test-pcie-passthrough-framework.sh tests/test-pcie-passthrough-framework.sh.backup
+   cp tests/frameworks/test-pcie-passthrough-framework.sh tests/frameworks/test-pcie-passthrough-framework.sh.backup
    ```
 
 2. **Refactor to use shared utilities** (30 min)
@@ -561,8 +561,8 @@ echo "All unified frameworks tested successfully"
 3. **Test refactored framework** (8 min)
 
    ```bash
-   ./test-pcie-passthrough-framework.sh --help
-   ./test-pcie-passthrough-framework.sh e2e
+   ./frameworks/test-pcie-passthrough-framework.sh --help
+   ./frameworks/test-pcie-passthrough-framework.sh e2e
    ```
 
 **Target Size Reduction**: 13K → ~7K (46% reduction)
@@ -578,7 +578,7 @@ echo "All unified frameworks tested successfully"
 1. **Backup original** (2 min)
 
    ```bash
-   cp tests/test-container-registry-framework.sh tests/test-container-registry-framework.sh.backup
+   cp tests/advanced/test-container-registry-framework.sh tests/advanced/test-container-registry-framework.sh.backup
    ```
 
 2. **Refactor to use shared utilities** (20 min)
@@ -589,8 +589,8 @@ echo "All unified frameworks tested successfully"
 3. **Test refactored framework** (8 min)
 
    ```bash
-   ./test-container-registry-framework.sh --help
-   ./test-container-registry-framework.sh e2e
+   ./advanced/test-container-registry-framework.sh --help
+   ./advanced/test-container-registry-framework.sh e2e
    ```
 
 **Target Size Reduction**: 50K → ~35K (30% reduction)
@@ -611,10 +611,10 @@ echo "All unified frameworks tested successfully"
 
 ```bash
 # Test each refactored framework
-./test-beegfs-framework.sh e2e
-./test-virtio-fs-framework.sh e2e
-./test-pcie-passthrough-framework.sh e2e
-./test-container-registry-framework.sh e2e
+./advanced/test-beegfs-framework.sh e2e
+./advanced/test-virtio-fs-framework.sh e2e
+./frameworks/test-pcie-passthrough-framework.sh e2e
+./advanced/test-container-registry-framework.sh e2e
 
 echo "All standalone frameworks refactored and tested"
 ```
@@ -639,13 +639,13 @@ echo "All standalone frameworks refactored and tested"
 
    ```bash
    # Run all 7 frameworks
-   ./test-hpc-runtime-framework.sh e2e
-   ./test-hpc-packer-controller-framework.sh e2e
-   ./test-hpc-packer-compute-framework.sh e2e
-   ./test-beegfs-framework.sh e2e
-   ./test-virtio-fs-framework.sh e2e
-   ./test-pcie-passthrough-framework.sh e2e
-   ./test-container-registry-framework.sh e2e
+   ./frameworks/test-hpc-runtime-framework.sh e2e
+   ./frameworks/test-hpc-packer-controller-framework.sh e2e
+   ./frameworks/test-hpc-packer-compute-framework.sh e2e
+   ./advanced/test-beegfs-framework.sh e2e
+   ./advanced/test-virtio-fs-framework.sh e2e
+   ./frameworks/test-pcie-passthrough-framework.sh e2e
+   ./advanced/test-container-registry-framework.sh e2e
    ```
 
 2. **Compare results with baseline** (10 min)
@@ -657,11 +657,11 @@ echo "All standalone frameworks refactored and tested"
 
    ```bash
    # Test each command for one framework
-   ./test-hpc-runtime-framework.sh --help
-   ./test-hpc-runtime-framework.sh start-cluster
-   ./test-hpc-runtime-framework.sh list-tests
-   ./test-hpc-runtime-framework.sh status
-   ./test-hpc-runtime-framework.sh stop-cluster
+   ./frameworks/test-hpc-runtime-framework.sh --help
+   ./frameworks/test-hpc-runtime-framework.sh start-cluster
+   ./frameworks/test-hpc-runtime-framework.sh list-tests
+   ./frameworks/test-hpc-runtime-framework.sh status
+   ./frameworks/test-hpc-runtime-framework.sh stop-cluster
    ```
 
 ---
@@ -679,13 +679,13 @@ echo "All standalone frameworks refactored and tested"
    ```makefile
    # New unified targets
    test-hpc-runtime:
-       ./test-hpc-runtime-framework.sh e2e
+       ./frameworks/test-hpc-runtime-framework.sh e2e
    
    test-hpc-packer-controller:
-       ./test-hpc-packer-controller-framework.sh e2e
+       ./frameworks/test-hpc-packer-controller-framework.sh e2e
    
    test-hpc-packer-compute:
-       ./test-hpc-packer-compute-framework.sh e2e
+       ./frameworks/test-hpc-packer-compute-framework.sh e2e
    ```
 
 2. **Update convenience targets** (10 min)
@@ -833,9 +833,9 @@ git checkout tests/test-infra/utils/test-framework-utils.sh
 
 ```bash
 # Remove new frameworks
-rm tests/test-hpc-runtime-framework.sh
-rm tests/test-hpc-packer-controller-framework.sh
-rm tests/test-hpc-packer-compute-framework.sh
+rm tests/frameworks/test-hpc-runtime-framework.sh
+rm tests/frameworks/test-hpc-packer-controller-framework.sh
+rm tests/frameworks/test-hpc-packer-compute-framework.sh
 
 # Remove new configs
 rm tests/test-infra/configs/test-hpc-runtime.yaml
@@ -847,10 +847,10 @@ rm tests/test-infra/configs/test-hpc-packer-compute.yaml
 
 ```bash
 # Restore original standalone frameworks
-cp tests/test-beegfs-framework.sh.backup tests/test-beegfs-framework.sh
-cp tests/test-virtio-fs-framework.sh.backup tests/test-virtio-fs-framework.sh
-cp tests/test-pcie-passthrough-framework.sh.backup tests/test-pcie-passthrough-framework.sh
-cp tests/test-container-registry-framework.sh.backup tests/test-container-registry-framework.sh
+cp tests/advanced/test-beegfs-framework.sh.backup tests/advanced/test-beegfs-framework.sh
+cp tests/advanced/test-virtio-fs-framework.sh.backup tests/advanced/test-virtio-fs-framework.sh
+cp tests/frameworks/test-pcie-passthrough-framework.sh.backup tests/frameworks/test-pcie-passthrough-framework.sh
+cp tests/advanced/test-container-registry-framework.sh.backup tests/advanced/test-container-registry-framework.sh
 ```
 
 ### Phase 5 Rollback
