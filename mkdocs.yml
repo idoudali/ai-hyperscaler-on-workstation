@@ -90,6 +90,7 @@ plugins:
         - '**/htmlfiles/**'
         - 'AI-AGENT-GUIDE.md'
         - '**/LICENSE'
+        - 'docs/implementation-plans/**'
       include:
         - '*.md'
         - '*.png'
