@@ -11,6 +11,7 @@ in the HPC SLURM project as of the Phase 4 consolidation effort.
 |----------|-------|--------|
 | Test Framework Scripts | 15 | ⚠️ Needs consolidation |
 | Test Suite Directories | 16 | ✅ Well-organized |
+| Test Suite Scripts | ~80+ | ⚠️ Needs refactoring (code duplication) |
 | Shared Utility Modules | 1 | ⚠️ Needs expansion |
 | End-to-End Validation Steps | 10 | ✅ Complete |
 | Total Test Scripts (in suites) | ~80+ | ✅ Comprehensive |
@@ -229,6 +230,35 @@ needed for test framework scripts. These utilities implement:
 **Key Principle**: New consolidated frameworks should **leverage these existing utilities** rather than duplicating
 functionality. The consolidation effort focuses on **extracting CLI and orchestration patterns** while reusing all
 core infrastructure code.
+
+### Test Suite Refactoring Opportunity
+
+**Status**: 📝 Planned (See [09-test-suite-refactoring-plan.md](09-test-suite-refactoring-plan.md))
+
+The test suite scripts in `tests/suites/` contain significant code duplication that can be eliminated:
+
+**Duplication Patterns Identified**:
+
+- **Logging Functions**: 137+ occurrences across 53 files
+- **Color Definitions**: 232+ occurrences across 63 files
+- **Test Tracking Variables**: 80+ occurrences
+- **Test Execution Functions**: 60+ occurrences
+- **SSH Configuration**: 40+ occurrences
+- **Script Configuration**: 80+ occurrences
+
+**Estimated Impact**:
+
+- **Code Reduction**: 2,000-3,000 lines eliminated (~30-40% reduction)
+- **New Utilities**: 3 shared utility modules for test suites
+- **Maintenance**: Centralized common functionality
+- **Consistency**: Standardized patterns across all test scripts
+
+**Implementation Plan**:
+
+- Phase 1: Create shared utilities (4 hours)
+- Phase 2: Refactor test suites (8 hours)
+- Phase 3: Validation and testing (2 hours)
+- **Total**: 14 hours estimated effort
 
 ### Current Utilities (5 Modules)
 

@@ -491,6 +491,37 @@ Leverage existing utilities:
 4. **Start Implementation**: Begin CLOUD-TEST-1 once CLOUD-0.2 is complete
 5. **Track Progress**: Update this document as tasks are completed
 
+## Related Refactoring Opportunities
+
+### Test Suite Script Refactoring
+
+**Status**: 📝 Planned (See [09-test-suite-refactoring-plan.md](09-test-suite-refactoring-plan.md))
+
+While implementing cloud cluster testing, consider the **test suite refactoring opportunity** to eliminate
+code duplication in existing test scripts:
+
+**Scope**: 80+ test scripts across 16 test suite directories
+**Duplication**: 2,000-3,000 lines of duplicated logging, color definitions, and test execution patterns
+**Impact**: 30-40% code reduction in test suite scripts
+**Timeline**: 14 hours estimated effort
+
+**Benefits for Cloud Testing**:
+
+- Standardized logging patterns for new cloud test suites
+- Consistent test execution patterns across HPC and Cloud tests
+- Reduced maintenance overhead for test infrastructure
+- Better developer experience for cloud test development
+
+**Implementation Strategy**:
+
+- Create shared utilities for test suites (`tests/suites/common/`)
+- Refactor existing test scripts to use shared utilities
+- Apply same patterns to new cloud test suites
+- Preserve all test logic and functionality
+
+This refactoring complements cloud cluster testing by providing a clean, maintainable foundation for
+both existing HPC tests and new cloud tests.
+
 ---
 
 **Document Version**: 1.0  

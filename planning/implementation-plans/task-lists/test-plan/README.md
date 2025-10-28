@@ -60,6 +60,7 @@ This test plan is organized into focused, manageable documents:
 | `06-test-dependencies-matrix.md` | Per-test dependencies and cluster configuration requirements | ~900 lines | ✅ Complete |
 | `07-directory-reorganization.md` | Directory reorganization implementation task | ~600 lines | 📝 Planned |
 | `08-cloud-cluster-testing.md` | Cloud cluster testing requirements and frameworks | ~1200 lines | 📝 New |
+| `09-test-suite-refactoring-plan.md` | Test suite scripts refactoring to eliminate code duplication | ~600 lines | 📝 New |
 | `cloud-testing-tasks.md` | Cloud testing task breakdown and implementation checklist | ~500 lines | 📝 New |
 
 ### Templates
@@ -210,6 +211,10 @@ The `tests/test-infra/utils/` directory contains **5 comprehensive utility modul
 
 - [Cloud Cluster Testing](08-cloud-cluster-testing.md) - Kubernetes, MLOps, and inference testing requirements
 - [Cloud Testing Tasks](cloud-testing-tasks.md) - Task breakdown and implementation checklist for cloud testing
+
+### Test Suite Refactoring (New)
+
+- [Test Suite Refactoring Plan](09-test-suite-refactoring-plan.md) - Eliminate code duplication in test suite scripts
 
 ## Contributing
 
