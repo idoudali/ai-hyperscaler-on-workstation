@@ -70,9 +70,6 @@ The libvirt VM template includes virtio-fs filesystem device configuration:
   <driver type='virtiofs' queue='1024'/>
   <source dir='{{ mount.host_path }}'/>
   <target dir='{{ mount.tag }}'/>
-  {% if mount.readonly | default(false) %}
-  <readonly/>
-  {% endif %}
 </filesystem>
 {% endfor %}
 {% endif %}
@@ -110,7 +107,6 @@ vars:
   virtio_fs_mounts:
     - tag: "datasets"
       mount_point: "/mnt/host-datasets"
-      readonly: false
       owner: "admin"
       group: "admin"
       mode: "0755"
@@ -148,12 +144,10 @@ clusters:
         - tag: "datasets"              # Unique tag for this mount
           host_path: "/data/ml-datasets"  # Host directory to share
           mount_point: "/mnt/host-datasets"  # Guest mount point
-          readonly: false
         
         - tag: "containers"
           host_path: "/var/lib/apptainer"
           mount_point: "/mnt/host-containers"
-          readonly: true
 ```
 
 ### Mount Configuration Fields
@@ -163,11 +157,12 @@ clusters:
 | `tag` | string | Yes | Unique identifier for the mount (used in virtiofs protocol) |
 | `host_path` | string | Yes | Absolute path on the host to share |
 | `mount_point` | string | Yes | Mount point path inside the guest VM |
-| `readonly` | boolean | No | Mount as read-only (default: false) |
 | `owner` | string | No | Owner user for mount point (default: admin) |
 | `group` | string | No | Owner group for mount point (default: admin) |
 | `mode` | string | No | Permissions mode (default: 0755) |
 | `options` | string | No | Mount options (default: rw,relatime) |
+
+**Note:** Read-only mode is not currently supported by virtiofs in libvirt/QEMU.
 
 ### Ansible Variables
 
@@ -257,7 +252,6 @@ virtio_fs_mounts:
   - tag: "imagenet"
     host_path: "/data/datasets/imagenet"
     mount_point: "/mnt/datasets/imagenet"
-    readonly: true  # Prevent accidental modification
 ```
 
 ### 2. Container Image Sharing
@@ -269,7 +263,6 @@ virtio_fs_mounts:
   - tag: "containers"
     host_path: "/var/lib/apptainer/images"
     mount_point: "/opt/apptainer/images"
-    readonly: true
 ```
 
 ### 3. Development Workflow
@@ -281,7 +274,6 @@ virtio_fs_mounts:
   - tag: "workspace"
     host_path: "/home/user/projects"
     mount_point: "/workspace"
-    readonly: false
 ```
 
 ### 4. Build Artifacts
@@ -293,7 +285,6 @@ virtio_fs_mounts:
   - tag: "build"
     host_path: "/build/artifacts"
     mount_point: "/mnt/build"
-    readonly: false
 ```
 
 ### 5. Log Collection
@@ -305,7 +296,6 @@ virtio_fs_mounts:
   - tag: "logs"
     host_path: "/var/log/cluster-logs"
     mount_point: "/var/log/cluster"
-    readonly: false
 ```
 
 ## Performance
@@ -401,7 +391,7 @@ modinfo virtiofs
 
 1. Check host directory permissions
 2. Verify mount ownership in guest
-3. Check readonly flag in configuration
+3. Check mount options in configuration
 
 ### Poor Performance
 

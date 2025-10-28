@@ -55,7 +55,6 @@ clusters:
         - tag: "project-repo"
           host_path: "${TOT}"
           mount_point: "${TOT}"
-          readonly: false
           owner: "admin"
           group: "admin"
           mode: "0755"
@@ -216,7 +215,6 @@ controller:
     - tag: "project-repo"
       host_path: "/home/user/projects"
       mount_point: "/mnt/host-projects"
-      readonly: false
       owner: "admin"
       group: "admin"
       mode: "0755"
@@ -230,11 +228,12 @@ controller:
 | `tag` | String | Yes | Unique identifier for the mount |
 | `host_path` | String (path) | Yes | Path on host system |
 | `mount_point` | String (path) | Yes | Path inside VM |
-| `readonly` | Boolean | No | Read-only mount (default: false) |
 | `owner` | String | No | File ownership (default: "admin") |
 | `group` | String | No | File group (default: "admin") |
 | `mode` | String | No | File permissions (default: "0755") |
 | `options` | String | No | Mount options (default: "rw,relatime") |
+
+**Note:** Read-only mode is not currently supported by virtiofs in libvirt/QEMU.
 
 ### VirtIO-FS Benefits
 
@@ -299,7 +298,6 @@ clusters:
         - tag: "project-repo"
           host_path: "/home/user/Projects/pharos.ai-hyperscaler"
           mount_point: "/mnt/host-repo"
-          readonly: false
           owner: "admin"
           group: "admin"
           mode: "0755"
@@ -307,7 +305,6 @@ clusters:
         - tag: "datasets"
           host_path: "/data/ml-datasets"
           mount_point: "/mnt/datasets"
-          readonly: true
           owner: "admin"
           group: "admin"
           mode: "0755"
@@ -336,7 +333,6 @@ clusters:
         - tag: "config"
           host_path: "/etc/cluster-config"
           mount_point: "/mnt/host-config"
-          readonly: true
           owner: "admin"
           group: "admin"
           mode: "0755"

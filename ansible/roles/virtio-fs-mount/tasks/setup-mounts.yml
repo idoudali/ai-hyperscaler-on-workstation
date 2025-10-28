@@ -77,7 +77,7 @@
     - mount_verify is defined
     - item.stat is defined
 
-- name: Set proper permissions on mounted filesystems (read-write only)
+- name: Set proper permissions on mounted filesystems
   ansible.builtin.file:
     path: "{{ item.mount_point }}"
     state: directory
@@ -89,6 +89,5 @@
   loop: "{{ virtio_fs_mounts }}"
   when:
     - item.mount_point is defined
-    - not (item.readonly | default(false))
     - mount_result is defined
     - mount_result is succeeded or mount_result is skipped

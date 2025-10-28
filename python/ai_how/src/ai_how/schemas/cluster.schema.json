@@ -85,11 +85,6 @@
           "description": "Mount point path inside the guest VM",
           "pattern": "^/.*$"
         },
-        "readonly": {
-          "type": "boolean",
-          "description": "Mount as read-only",
-          "default": false
-        },
         "owner": {
           "type": "string",
           "description": "Owner user for mount point (default: admin)",

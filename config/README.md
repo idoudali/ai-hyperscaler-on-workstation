@@ -335,7 +335,6 @@ controller:
     - tag: "project-data"              # Unique mount identifier
       host_path: "/home/user/projects" # Absolute path on host
       mount_point: "/project"          # Mount point in guest
-      readonly: false                  # Mount as read-write
       owner: "admin"                   # Owner user (default: admin)
       group: "admin"                   # Owner group (default: admin)
       mode: "0755"                     # Permissions (default: 0755)
@@ -349,11 +348,12 @@ All fields are defined in the `virtioFsMount` schema definition:
 - **tag** (required): Unique identifier for the mount (alphanumeric, dashes, underscores)
 - **host_path** (required): Absolute path on the host system to share
 - **mount_point** (required): Mount point path inside the guest VM (must start with `/`)
-- **readonly** (optional): Mount as read-only (default: `false`)
 - **owner** (optional): Owner user for mount point (default: `"admin"`)
 - **group** (optional): Owner group for mount point (default: `"admin"`)
 - **mode** (optional): Permissions mode in octal format (default: `"0755"`)
 - **options** (optional): Mount options string (default: `"rw,relatime"`)
+
+**Note:** Read-only mode is not currently supported by virtiofs in libvirt/QEMU.
 
 ### Multiple Mounts
 
@@ -364,15 +364,12 @@ virtio_fs_mounts:
   - tag: "project-data"
     host_path: "/home/user/projects"
     mount_point: "/project"
-    readonly: false
   - tag: "scratch"
     host_path: "/tmp/scratch"
     mount_point: "/scratch"
-    readonly: false
   - tag: "datasets"
     host_path: "/data/ml-datasets"
     mount_point: "/datasets"
-    readonly: true               # Read-only for safety
     mode: "0755"
 ```
 
@@ -381,8 +378,8 @@ virtio_fs_mounts:
 - Use absolute paths for `host_path`
 - Ensure host directories exist before VM provisioning
 - Use unique `tag` values across all mounts in a VM
-- Set `readonly: true` for shared reference data
 - Consider permissions (`mode`, `owner`, `group`) for multi-user access
+- **Note:** Read-only mode is not currently supported by virtiofs
 
 ## Storage Configuration
 
@@ -497,11 +494,9 @@ clusters:
         - tag: "project-repo"
           host_path: "/home/user/projects"
           mount_point: "/project"
-          readonly: false
         - tag: "datasets"
           host_path: "/data/ml-datasets"
           mount_point: "/datasets"
-          readonly: true
 ```
 
 ### Best Practices
@@ -705,11 +700,9 @@ clusters:
         - tag: "project-data"
           host_path: "/home/user/projects"
           mount_point: "/project"
-          readonly: false
         - tag: "scratch"
           host_path: "/tmp/scratch"
           mount_point: "/scratch"
-          readonly: false
     compute_nodes:
       - cpu_cores: 8
         memory_gb: 16
@@ -719,7 +712,6 @@ clusters:
           - tag: "project-data"
             host_path: "/home/user/projects"
             mount_point: "/project"
-            readonly: false
     slurm_config:
       partitions: ["gpu"]
       default_partition: "gpu"
