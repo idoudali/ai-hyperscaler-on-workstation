@@ -76,6 +76,86 @@ are tested across the infrastructure.
 | **Resource Allocation** | test-hpc-runtime | job-scripts/ | CPUs, memory, GPUs | ✅ 🤖 |
 | **Job Accounting** | test-hpc-packer-controller | slurm-controller/ | Database, queries, reports | ✅ 🤖 |
 
+---
+
+## Cloud Cluster Components (NEW)
+
+### AI-HOW CLI & Topology
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **Topology Visualization** | test-cloud-vm | basic-infrastructure/ | Complete topology tree display | ✅ 🤖 |
+| **Cluster Display** | test-cloud-vm | basic-infrastructure/ | Cluster status and information | ✅ 🤖 |
+| **Network Display** | test-cloud-vm | basic-infrastructure/ | Network CIDR and configuration | ✅ 🤖 |
+| **VM Display** | test-cloud-vm | basic-infrastructure/ | VM IPs, roles, resources | ✅ 🤖 |
+| **GPU Display** | test-cloud-vm | basic-infrastructure/ | GPU assignments and PCI addresses | ✅ 🤖 |
+| **GPU Conflict Highlighting** | test-cloud-vm | basic-infrastructure/ | Red highlighting for conflicts | ✅ 🤖 |
+| **Tree Structure** | test-cloud-vm | basic-infrastructure/ | Hierarchical tree rendering | ✅ 🤖 |
+| **Color Coding** | test-cloud-vm | basic-infrastructure/ | Status-based colors (green/yellow/red) | ✅ 🤖 |
+| **Multi-Cluster Topology** | test-multi-cluster | multi-cluster/ | Both HPC and Cloud in topology | ✅ 🤖 |
+
+### Cloud VM Management
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **Cloud VM Provisioning** | test-cloud-vm | cloud-vm-lifecycle/ | VM creation, resources, network | ✅ 🤖 |
+| **VM Lifecycle (Cluster)** | test-cloud-vm | cloud-vm-lifecycle/ | Start, stop, restart operations | ✅ 🤖 |
+| **VM Lifecycle (Individual)** | test-cloud-vm | cloud-vm-lifecycle/ | Individual VM stop/start/restart | ✅ 🤖 |
+| **State Management** | test-cloud-vm | cloud-vm-lifecycle/ | state.json, global state tracking | ✅ 🤖 |
+| **Auto-Start Flag** | test-cloud-vm | cloud-vm-lifecycle/ | `auto_start: false` VM creation | ✅ 🤖 |
+| **Auto-Start Preservation** | test-cloud-vm | cloud-vm-lifecycle/ | Flag persists across restarts | ✅ 🤖 |
+| **Auto-Start Status Display** | test-cloud-vm | cloud-vm-lifecycle/ | Status shows `auto_start` flag | ✅ 🤖 |
+| **GPU Passthrough (Cloud)** | test-cloud-vm | cloud-vm-lifecycle/ | GPU passthrough for workers | ✅ 🤖 |
+| **Shared GPU Management** | test-cloud-vm | cloud-vm-lifecycle/ | GPU conflict detection, ownership | ✅ 🤖 |
+| **Auto-Start GPU Isolation** | test-cloud-vm | cloud-vm-lifecycle/ | No GPU alloc for `auto_start: false` | ✅ 🤖 |
+| **Multi-Cluster Coexistence** | test-multi-cluster | multi-cluster/ | Both clusters with shared GPU | ✅ 🤖 |
+
+### Kubernetes Cluster
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **Kubespray Deployment** | test-kubernetes | kubernetes-cluster/ | Installation, configuration | ✅ 🤖 |
+| **Cluster Health** | test-kubernetes | kubernetes-cluster/ | API server, nodes, system pods | ✅ 🤖 |
+| **Networking (Calico)** | test-kubernetes | kubernetes-cluster/ | Pod-to-pod, CNI validation | ✅ 🤖 |
+| **DNS Resolution** | test-kubernetes | kubernetes-cluster/ | CoreDNS, service discovery | ✅ 🤖 |
+| **Ingress Controller** | test-kubernetes | kubernetes-cluster/ | NGINX ingress, routing | ✅ 🤖 |
+| **Metrics Server** | test-kubernetes | kubernetes-cluster/ | Resource metrics collection | ✅ 🤖 |
+| **GPU Device Plugin** | test-kubernetes | kubernetes-cluster/ | GPU operator, device plugin | ✅ 🤖 |
+| **GPU Scheduling (K8s)** | test-kubernetes | kubernetes-cluster/ | GPU resource requests, limits | ✅ 🤖 |
+
+### MLOps Stack
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **MinIO Object Storage** | test-mlops-stack | mlops-stack/minio/ | S3 API, buckets, upload/download | ✅ 🤖 |
+| **PostgreSQL Database** | test-mlops-stack | mlops-stack/postgresql/ | Connection, MLflow schema, persistence | ✅ 🤖 |
+| **MLflow Tracking Server** | test-mlops-stack | mlops-stack/mlflow/ | API, experiments, model registry | ✅ 🤖 |
+| **KServe Model Serving** | test-mlops-stack | mlops-stack/kserve/ | CRDs, Knative, inference service | ✅ 🤖 |
+| **MLflow-MinIO Integration** | test-mlops-stack | mlops-stack/mlflow/ | Artifact store connection | ✅ 🤖 |
+| **MLflow-PostgreSQL Integration** | test-mlops-stack | mlops-stack/mlflow/ | Backend store connection | ✅ 🤖 |
+
+### Model Inference
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **InferenceService Deployment** | test-inference | inference-validation/ | Model loading, deployment | ✅ 🤖 |
+| **Inference API** | test-inference | inference-validation/ | Request/response, endpoint | ✅ 🤖 |
+| **GPU Inference** | test-inference | inference-validation/ | GPU utilization, performance | ✅ 🤖 |
+| **Autoscaling** | test-inference | inference-validation/ | Scale up/down, load balancing | ✅ 🤖 |
+| **Performance Metrics** | test-inference | inference-validation/ | Latency, throughput | ✅ 🤖 |
+
+### Multi-Cluster Integration
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **HPC-Cloud Coordination** | test-multi-cluster | multi-cluster/ | Both clusters running | ✅ 🤖 |
+| **Shared GPU Conflicts** | test-multi-cluster | multi-cluster/ | GPU conflict detection | ✅ 🤖 |
+| **Workflow Transition** | test-multi-cluster | multi-cluster/ | HPC training → Cloud inference | ✅ 🤖 |
+| **Model Transfer** | test-multi-cluster | multi-cluster/ | BeeGFS → MinIO transfer | ✅ 🤖 |
+| **Unified Monitoring** | test-multi-cluster | multi-cluster/ | Cross-cluster metrics | ✅ 🤖 |
+
+---
+
 ## Test Suite Detailed Coverage
 
 ### suites/slurm-controller/ (SLURM Controller)
@@ -207,6 +287,136 @@ are tested across the infrastructure.
 | `check-job-templates.sh` | Job script templates | Template syntax | ✅ |
 | `check-resource-requests.sh` | Resource allocation | CPU, memory, GPU | ✅ |
 | `check-job-arrays.sh` | Array job functionality | Task indexing | ✅ |
+
+---
+
+### suites/basic-infrastructure/ (Topology & CLI) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-topology-command-output.sh` | Topology command execution | ai-how topology CLI | ✅ |
+| `check-topology-cluster-display.sh` | Cluster information rendering | Cluster name, status | ✅ |
+| `check-topology-network-display.sh` | Network CIDR display | Network configuration | ✅ |
+| `check-topology-vm-display.sh` | VM details (IP, role, resources) | VM information | ✅ |
+| `check-topology-gpu-display.sh` | GPU PCI and allocation info | GPU display | ✅ |
+| `check-topology-gpu-conflict-highlighting.sh` | Red highlight for GPU conflicts | Conflict visualization | ✅ |
+| `check-topology-tree-structure.sh` | Hierarchical tree format | Tree rendering | ✅ |
+| `check-topology-color-coding.sh` | Status colors (green/yellow/red) | Color-coded output | ✅ |
+| `check-topology-multi-cluster.sh` | Both HPC and Cloud clusters | Multi-cluster display | ✅ |
+| `check-topology-empty-state.sh` | No clusters running scenario | Empty state handling | ✅ |
+| `test-topology-visualization.sh` | Complete topology test suite | End-to-end topology | ✅ |
+
+### suites/cloud-vm-lifecycle/ (Cloud VM Management) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-vm-provisioning.sh` | VM creation with resources | Cloud VMs, network | ✅ |
+| `check-vm-network.sh` | Network connectivity | Bridge network, IPs | ✅ |
+| `check-vm-storage.sh` | Storage volumes | qcow2 images, disks | ✅ |
+| `check-vm-gpu-passthrough.sh` | GPU passthrough | GPU workers | ✅ |
+| `check-vm-lifecycle.sh` | Cluster start/stop/restart | VM lifecycle | ✅ |
+| `check-state-tracking.sh` | State management | state.json, global state | ✅ |
+| `check-auto-start-flag.sh` | `auto_start: false` VM creation | Auto-start control | ✅ |
+| `check-auto-start-preservation.sh` | `auto_start` flag across restarts | State persistence | ✅ |
+| `check-auto-start-status-display.sh` | Status shows `auto_start` flag | CLI status display | ✅ |
+| `check-individual-vm-stop.sh` | Stop single VM, GPU release | Individual VM control | ✅ |
+| `check-individual-vm-start.sh` | Start single VM, GPU allocation | Individual VM control | ✅ |
+| `check-individual-vm-restart.sh` | Restart VM, GPU rebinding | Individual VM control | ✅ |
+| `check-vm-status-command.sh` | VM status display | CLI status command | ✅ |
+| `check-vm-gpu-release.sh` | GPU released on stop | GPU resource management | ✅ |
+| `check-shared-gpu-detection.sh` | Detect shared GPUs | Multi-cluster GPU sharing | ✅ |
+| `check-gpu-conflict-detection.sh` | Prevent simultaneous GPU use | GPU conflict prevention | ✅ |
+| `check-gpu-ownership-tracking.sh` | Global state GPU allocations | GPU ownership tracking | ✅ |
+| `check-gpu-switch-between-vms.sh` | Sequential GPU transfer | GPU resource switching | ✅ |
+| `check-gpu-error-messages.sh` | Clear GPU error messages | Error handling | ✅ |
+| `check-auto-start-no-gpu-allocation.sh` | `auto_start: false` no GPU alloc | Auto-start GPU isolation | ✅ |
+| `check-multi-cluster-coexistence.sh` | Both clusters with shared GPU | Multi-cluster coexistence | ✅ |
+| `check-manual-start-gpu-validation.sh` | GPU check on manual VM start | Manual start validation | ✅ |
+
+### suites/kubernetes-cluster/ (Kubernetes Cluster) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-kubespray-installation.sh` | Kubespray deployment | Ansible playbooks, inventory | ✅ |
+| `check-cluster-health.sh` | Cluster operational status | API server, nodes, pods | ✅ |
+| `check-networking.sh` | Pod-to-pod communication | Calico CNI, routing | ✅ |
+| `check-dns-resolution.sh` | Service discovery | CoreDNS, cluster DNS | ✅ |
+| `check-calico-cni.sh` | Network plugin | Calico pods, configuration | ✅ |
+| `check-ingress-controller.sh` | External access | NGINX ingress | ✅ |
+| `check-metrics-server.sh` | Resource metrics | Metrics server deployment | ✅ |
+| `check-gpu-device-plugin.sh` | GPU operator | NVIDIA device plugin | ✅ |
+| `check-gpu-scheduling.sh` | GPU resource allocation | K8s GPU scheduling | ✅ |
+
+### suites/mlops-stack/minio/ (MinIO Object Storage) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-minio-deployment.sh` | MinIO pods running | StatefulSet, pods | ✅ |
+| `check-minio-storage.sh` | Persistent volumes | PV, PVC, storage class | ✅ |
+| `check-minio-buckets.sh` | Bucket creation | S3 buckets | ✅ |
+| `check-minio-api.sh` | S3 API accessibility | S3 endpoint | ✅ |
+| `check-minio-upload-download.sh` | Object operations | Upload, download, delete | ✅ |
+
+### suites/mlops-stack/postgresql/ (PostgreSQL Database) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-postgresql-deployment.sh` | PostgreSQL pod running | StatefulSet, pod | ✅ |
+| `check-postgresql-connection.sh` | Database connectivity | psql connection | ✅ |
+| `check-mlflow-schema.sh` | MLflow tables exist | Database schema | ✅ |
+| `check-postgresql-persistence.sh` | Data persists on restart | Persistent volumes | ✅ |
+
+### suites/mlops-stack/mlflow/ (MLflow Tracking Server) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-mlflow-deployment.sh` | MLflow pods running | Deployment, replicas | ✅ |
+| `check-mlflow-api.sh` | REST API accessible | HTTP endpoint | ✅ |
+| `check-mlflow-backend-store.sh` | PostgreSQL connection | Backend store config | ✅ |
+| `check-mlflow-artifact-store.sh` | MinIO connection | Artifact store S3 | ✅ |
+| `check-mlflow-experiment.sh` | Create/log experiment | Experiment tracking | ✅ |
+| `check-mlflow-model-registry.sh` | Register model | Model registry | ✅ |
+
+### suites/mlops-stack/kserve/ (KServe Model Serving) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-kserve-installation.sh` | KServe CRDs installed | Custom resource definitions | ✅ |
+| `check-knative-serving.sh` | Knative Serving operational | Knative components | ✅ |
+| `check-cert-manager.sh` | Cert-manager deployed | Certificate management | ✅ |
+| `check-inference-service-crd.sh` | InferenceService CRD | CRD availability | ✅ |
+| `check-mlflow-serving-runtime.sh` | MLflow runtime configured | Serving runtime | ✅ |
+
+### suites/inference-validation/ (Model Inference) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-inference-service-deployment.sh` | InferenceService deploys | KServe deployment | ✅ |
+| `check-model-loading.sh` | Model loads from MLflow | Model loading | ✅ |
+| `check-inference-endpoint.sh` | Inference API accessible | HTTP endpoint | ✅ |
+| `check-inference-request-response.sh` | API request/response cycle | Inference logic | ✅ |
+| `check-gpu-utilization.sh` | GPU used during inference | GPU metrics | ✅ |
+| `check-autoscaling-scale-up.sh` | Scales up under load | HPA, autoscaling | ✅ |
+| `check-autoscaling-scale-down.sh` | Scales down when idle | Scale-down logic | ✅ |
+| `check-multi-replica-load-balancing.sh` | Load balancing works | Service routing | ✅ |
+| `check-inference-latency.sh` | Latency within acceptable range | Performance metrics | ✅ |
+| `check-inference-throughput.sh` | Throughput meets targets | Throughput metrics | ✅ |
+
+### suites/multi-cluster/ (Multi-Cluster Integration) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `test-both-clusters-running.sh` | HPC and Cloud operational | Multi-cluster coordination | ✅ |
+| `test-hpc-only.sh` | HPC running, Cloud stopped | HPC-only workflow | ✅ |
+| `test-cloud-only.sh` | Cloud running, HPC stopped | Cloud-only workflow | ✅ |
+| `test-cold-start.sh` | Both clusters from scratch | Cold start scenario | ✅ |
+| `test-workflow-transition.sh` | HPC training → Cloud inference | End-to-end ML workflow | ✅ |
+| `test-shared-gpu-conflict.sh` | GPU conflict at cluster level | Shared GPU management | ✅ |
+| `test-vm-gpu-transfer.sh` | GPU transfer between VMs | Individual VM GPU switching | ✅ |
+| `test-topology-visualization.sh` | Topology in all scenarios | Topology command validation | ✅ |
+| `test-multi-cluster-auto-start.sh` | Cluster coexistence with `auto_start` | Multi-cluster with shared GPU | ✅ |
+
+---
 
 ## Test Framework to Component Mapping
 
@@ -354,6 +564,153 @@ are tested across the infrastructure.
 
 **Estimated Time**: 15-25 minutes
 
+---
+
+### test-cloud-vm-framework.sh (NEW)
+
+**Purpose**: Cloud VM lifecycle and management validation
+
+**Components Covered**:
+
+- Cloud VM provisioning (control plane, worker, GPU worker)
+- VM network configuration and connectivity
+- VM storage and volumes
+- GPU passthrough for cloud workers
+- Cluster lifecycle operations (start/stop/destroy)
+- Individual VM lifecycle management (CLOUD-0.4)
+- Shared GPU resource management (CLOUD-0.3)
+- State tracking in global state
+- CLI command validation
+
+**Test Suites Used**:
+
+- `suites/cloud-vm-lifecycle/`
+
+**Deployment**: Cloud cluster VM management via ai-how CLI
+
+**Estimated Time**: 20-30 minutes
+
+---
+
+### test-kubernetes-framework.sh (NEW)
+
+**Purpose**: Kubernetes cluster deployment and validation
+
+**Components Covered**:
+
+- Kubespray deployment (CNCF-approved)
+- Kubernetes API server and control plane
+- Worker node registration and health
+- Networking (Calico CNI, pod-to-pod)
+- DNS resolution (CoreDNS)
+- Ingress controller (NGINX)
+- Metrics server
+- GPU device plugin (NVIDIA GPU Operator)
+- GPU scheduling in Kubernetes
+
+**Test Suites Used**:
+
+- `suites/kubernetes-cluster/`
+
+**Deployment**: Kubespray Ansible playbooks
+
+**Estimated Time**: 30-45 minutes
+
+---
+
+### test-mlops-stack-framework.sh (NEW)
+
+**Purpose**: MLOps infrastructure and service validation
+
+**Components Covered**:
+
+- MinIO object storage (S3-compatible)
+- PostgreSQL database (MLflow backend)
+- MLflow tracking server and model registry
+- KServe model serving platform
+- Knative Serving
+- Cert-manager
+- Component integration (MLflow-MinIO, MLflow-PostgreSQL)
+
+**Test Suites Used**:
+
+- `suites/mlops-stack/minio/`
+- `suites/mlops-stack/postgresql/`
+- `suites/mlops-stack/mlflow/`
+- `suites/mlops-stack/kserve/`
+
+**Deployment**: Kubernetes manifests and Helm charts
+
+**Estimated Time**: 35-50 minutes
+
+---
+
+### test-inference-framework.sh (NEW)
+
+**Purpose**: Model inference and serving validation
+
+**Components Covered**:
+
+- InferenceService deployment (KServe)
+- Model loading from MLflow
+- Inference API endpoints
+- GPU utilization during inference
+- Horizontal pod autoscaling (HPA)
+- Multi-replica load balancing
+- Performance metrics (latency, throughput)
+
+**Test Suites Used**:
+
+- `suites/inference-validation/`
+
+**Deployment**: KServe InferenceService CRDs
+
+**Estimated Time**: 25-40 minutes
+
+**Performance Targets**:
+
+- Cold start: <10s
+- Inference latency (P95): <500ms
+- Throughput per GPU: >50 req/s
+- GPU utilization: >70%
+- Scale-up time: <60s
+- Scale-down time: <120s
+
+---
+
+### test-multi-cluster-framework.sh (NEW)
+
+**Purpose**: Multi-cluster coordination and workflow validation
+
+**Components Covered**:
+
+- HPC and Cloud cluster coordination
+- Shared GPU resource management across clusters
+- HPC training to Cloud inference workflow
+- Model transfer (BeeGFS → MinIO)
+- Unified monitoring across clusters
+- Multi-cluster scenario testing
+
+**Test Suites Used**:
+
+- `suites/multi-cluster/`
+
+**Deployment**: Both HPC and Cloud clusters running
+
+**Estimated Time**: 45-60 minutes
+
+**Scenarios Tested**:
+
+- Scenario 1: Both clusters running (full stack)
+- Scenario 2: HPC only (training workflow)
+- Scenario 3: Cloud only (inference workflow)
+- Scenario 4: Cold start (both clusters from scratch)
+- Scenario 5: Workflow transition (HPC → Cloud)
+- Scenario 6: Shared GPU conflicts (CLOUD-0.3)
+- Scenario 7: Individual VM GPU transfer (CLOUD-0.4)
+
+---
+
 ## Coverage Gaps and Improvements
 
 ### Current Coverage Assessment
@@ -397,37 +754,57 @@ are tested across the infrastructure.
 ## Component Dependency Graph
 
 ```text
-┌─────────────────────────────────────────────────┐
-│         Base Infrastructure Layer               │
-│  - Base packages, SSH, networking, system       │
-└──────────────────┬──────────────────────────────┘
-                   │
-      ┌────────────┴─────────────┐
-      │                          │
-      ▼                          ▼
-┌──────────────────┐    ┌──────────────────┐
-│   HPC Controller  │    │   HPC Compute    │
-│  - SLURM Controller│   │ - SLURM Compute  │
-│  - Accounting     │    │ - Container RT   │
-│  - Prometheus     │    │                  │
-│  - Grafana        │    │                  │
-└────────┬──────────┘    └────────┬─────────┘
-         │                        │
-         │    ┌───────────────────┤
-         │    │                   │
-         ▼    ▼                   ▼
-    ┌────────────┐    ┌──────────────────┐
-    │   Storage  │    │  Runtime Config  │
-    │ - BeeGFS   │    │ - Cgroup         │
-    │ - VirtIO-FS│    │ - GPU GRES       │
-    └────────────┘    │ - DCGM           │
-                      │ - Containers     │
-                      └──────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Base Infrastructure Layer                               │
+│             - Base packages, SSH, networking, system                         │
+└────────────────────────┬────────────────────────────────────────────────────┘
+                         │
+       ┌─────────────────┴──────────────────┐
+       │                                    │
+       ▼                                    ▼
+┌─────────────────────┐         ┌─────────────────────┐
+│   HPC SLURM Cluster  │         │   Cloud K8s Cluster  │
+│                     │         │                     │
+│ Controller:         │         │ Control Plane:      │
+│  - SLURM Controller│         │  - Kubernetes       │
+│  - Accounting      │         │  - Kubespray        │
+│  - Prometheus      │         │                     │
+│  - Grafana         │         │ Workers:            │
+│                    │         │  - K8s Workers      │
+│ Compute:           │         │  - GPU Workers      │
+│  - SLURM Compute   │         │                     │
+│  - Container RT    │         │ MLOps Stack:        │
+│                    │         │  - MinIO            │
+│ Storage:           │         │  - PostgreSQL       │
+│  - BeeGFS          │         │  - MLflow           │
+│  - VirtIO-FS       │         │  - KServe           │
+│                    │         │                     │
+│ GPU Config:        │         │ Inference:          │
+│  - Cgroup          │         │  - Model Serving    │
+│  - GPU GRES        │         │  - Autoscaling      │
+│  - DCGM            │         │  - GPU Inference    │
+└─────────┬───────────┘         └──────────┬──────────┘
+          │                                │
+          │      ┌─────────────────────────┤
+          │      │                         │
+          ▼      ▼                         ▼
+     ┌─────────────────┐          ┌──────────────────┐
+     │  Shared GPU     │          │  Model Transfer  │
+     │  Management     │          │  BeeGFS → MinIO  │
+     │  (CLOUD-0.3)    │          │                  │
+     └─────────────────┘          └──────────────────┘
+              │
+              ▼
+     ┌─────────────────┐
+     │ Individual VM   │
+     │ Lifecycle       │
+     │ (CLOUD-0.4)     │
+     └─────────────────┘
 ```
 
 ## Test Execution Recommendation
 
-### Optimal Test Order
+### HPC SLURM Cluster Test Order
 
 1. **Phase 1: Foundation** (30-90 min)
    - Base images
@@ -452,12 +829,124 @@ are tested across the infrastructure.
 6. **Phase 6: End-to-End** (45-70 min)
    - phase-4-validation (all 10 steps)
 
-**Total Time**: ~2.5-5 hours for complete validation
+**HPC Total Time**: ~2.5-5 hours for complete validation
+
+---
+
+### Cloud Cluster Test Order (NEW)
+
+1. **Phase 1: Cloud VM Infrastructure** (20-30 min)
+   - test-cloud-vm-framework
+     - VM provisioning
+     - Cluster lifecycle
+     - Individual VM control
+     - Shared GPU management
+
+2. **Phase 2: Kubernetes Deployment** (30-45 min)
+   - test-kubernetes-framework
+     - Kubespray deployment
+     - Cluster health
+     - Networking and DNS
+     - GPU scheduling
+
+3. **Phase 3: MLOps Stack** (35-50 min)
+   - test-mlops-stack-framework
+     - MinIO object storage
+     - PostgreSQL database
+     - MLflow tracking server
+     - KServe model serving
+
+4. **Phase 4: Model Inference** (25-40 min)
+   - test-inference-framework
+     - InferenceService deployment
+     - Model loading
+     - Inference API
+     - Autoscaling
+     - Performance metrics
+
+5. **Phase 5: Multi-Cluster Integration** (45-60 min)
+   - test-multi-cluster-framework
+     - HPC-Cloud coordination
+     - Shared GPU conflicts
+     - Workflow transition
+     - Model transfer
+
+**Cloud Total Time**: ~2.5-3.5 hours for complete validation
+
+---
+
+### Combined HPC + Cloud Test Execution
+
+**Sequential Execution**: 5-8.5 hours (run HPC tests, then Cloud tests)
+
+**Parallel Execution**: 3-5 hours (if sufficient hardware resources)
+
+**Recommended Approach**: Sequential execution to avoid resource contention
+
+---
+
+### Quick Test Subsets
+
+**HPC Quick Validation** (30-45 min):
+
+- test-hpc-runtime (essential components)
+- phase-4-validation (step 1-3 only)
+
+**Cloud Quick Validation** (45-60 min):
+
+- test-cloud-vm-framework (essential)
+- test-kubernetes-framework (essential)
+
+**Multi-Cluster Smoke Test** (20-30 min):
+
+- test-multi-cluster-framework (Scenario 1 only)
 
 ## Summary
 
-This component matrix provides a comprehensive view of test coverage across the HPC SLURM infrastructure. With
-90%+ automated coverage across all major components, the test infrastructure is robust and well-organized.
+This component matrix provides a comprehensive view of test coverage across both **HPC SLURM** and **Cloud Kubernetes**
+infrastructures. With 90%+ automated coverage across all major components, the test infrastructure is robust and
+well-organized.
+
+### HPC SLURM Coverage
+
+- **7 test frameworks** covering controller, compute, storage, GPU, and container components
+- **16 test suites** with 150+ individual test scripts
+- **Complete workflow validation** from Packer images to production workloads
+
+### Cloud Cluster Coverage (NEW)
+
+- **5 test frameworks** covering VM management, Kubernetes, MLOps, inference, and multi-cluster
+- **10 test suites** with 71+ individual test scripts
+  - basic-infrastructure/ (11 tests for topology visualization)
+  - cloud-vm-lifecycle/ (25 tests including `auto_start` functionality)
+    - Cluster-level: 9 tests
+    - Individual VM: 5 tests
+    - Shared GPU: 11 tests (including 3 new `auto_start` tests)
+  - kubernetes-cluster/ (9 tests)
+  - mlops-stack/ (4 sub-suites: minio, postgresql, mlflow, kserve)
+  - inference-validation/ (10 tests)
+  - multi-cluster/ (9 tests including `auto_start` coexistence)
+- **End-to-end ML workflow** from HPC training to Cloud inference
+- **Shared GPU management** across clusters (CLOUD-0.3)
+- **Auto-start control** for VM creation without GPU allocation (CLOUD-0.1, CLOUD-0.3)
+- **Multi-cluster coexistence** with shared GPUs using `auto_start: false`
+- **Individual VM lifecycle control** (CLOUD-0.4)
+- **Topology visualization** with GPU conflict highlighting (CLOUD-0.2)
+
+### Total Test Infrastructure
+
+- **12 test frameworks** (7 HPC + 5 Cloud)
+- **26 test suites** (16 HPC + 10 Cloud)
+- **220+ test scripts** across all components (150+ HPC + 71+ Cloud)
+- **Complete ML platform** validation (training + inference)
+- **AI-HOW CLI** comprehensive validation (topology, clusters, VMs)
+- **Advanced GPU management** with `auto_start` control and multi-cluster coexistence
 
 The consolidation plan preserves this excellent coverage while reducing framework complexity and code duplication.
 All test suites remain unchanged, ensuring proven test logic is maintained while improving the orchestration layer.
+
+---
+
+**Document Version**: 2.0  
+**Last Updated**: 2025-10-28  
+**Changes**: Added Cloud Cluster Components (CLOUD-0.3, CLOUD-0.4)

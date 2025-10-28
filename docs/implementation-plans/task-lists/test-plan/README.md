@@ -1,16 +1,19 @@
-# HPC SLURM Test Plan
+# HPC SLURM and Cloud Cluster Test Plan
 
 ## Overview
 
-This directory contains a comprehensive, modular test plan for the HPC SLURM infrastructure consolidation project.
-The test plan is structured to be both human-readable and optimized for Large Language Model (LLM) context consumption.
+This directory contains a comprehensive, modular test plan for the HPC SLURM infrastructure and the new Kubernetes-based
+cloud cluster for model inference. The test plan is structured to be both human-readable and optimized for Large
+Language Model (LLM) context consumption.
 
 ## Purpose
 
-- **Consolidate Test Infrastructure**: Reduce code duplication across 15+ test frameworks
+- **Consolidate Test Infrastructure**: Reduce code duplication across 15+ test frameworks (HPC)
+- **Expand Cloud Coverage**: Add 4 new test frameworks for cloud cluster validation
 - **Explicit Test Coverage**: Map all tests to components, frameworks, and validation goals
 - **Standardize Test Execution**: Implement consistent CLI patterns across all frameworks
 - **Enable Modular Testing**: Support running individual tests, test suites, or full end-to-end validation
+- **Multi-Cluster Validation**: Test HPC-to-Cloud ML workflow scenarios
 
 ## Current Implementation Status
 
@@ -55,7 +58,9 @@ This test plan is organized into focused, manageable documents:
 | `04-implementation-phases.md` | Step-by-step implementation plan with tasks | ~600 lines | ✅ Complete |
 | `05-validation-checklist.md` | Validation criteria and acceptance tests | ~400 lines | ✅ Complete |
 | `06-test-dependencies-matrix.md` | Per-test dependencies and cluster configuration requirements | ~900 lines | ✅ Complete |
-| `07-directory-reorganization.md` | Directory reorganization implementation task | ~600 lines | 📝 New |
+| `07-directory-reorganization.md` | Directory reorganization implementation task | ~600 lines | 📝 Planned |
+| `08-cloud-cluster-testing.md` | Cloud cluster testing requirements and frameworks | ~1200 lines | 📝 New |
+| `cloud-testing-tasks.md` | Cloud testing task breakdown and implementation checklist | ~500 lines | 📝 New |
 
 ### Templates
 
@@ -190,6 +195,8 @@ The `tests/test-infra/utils/` directory contains **5 comprehensive utility modul
 
 ## Quick Links
 
+### HPC SLURM Testing (Complete)
+
 - [Test Inventory](00-test-inventory.md) - What tests exist today
 - [Consolidation Plan](01-consolidation-plan.md) - How we'll consolidate
 - [Component Matrix](02-component-matrix.md) - What each test validates
@@ -198,6 +205,11 @@ The `tests/test-infra/utils/` directory contains **5 comprehensive utility modul
 - [Validation Checklist](05-validation-checklist.md) - Quality assurance
 - [Test Dependencies Matrix](06-test-dependencies-matrix.md) - Per-test requirements and cluster configuration
 - [Directory Reorganization](07-directory-reorganization.md) - Directory structure reorganization task
+
+### Cloud Cluster Testing (New)
+
+- [Cloud Cluster Testing](08-cloud-cluster-testing.md) - Kubernetes, MLOps, and inference testing requirements
+- [Cloud Testing Tasks](cloud-testing-tasks.md) - Task breakdown and implementation checklist for cloud testing
 
 ## Contributing
 
