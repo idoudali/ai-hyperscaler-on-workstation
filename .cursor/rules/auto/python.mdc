@@ -1,5 +1,8 @@
 ---
+description: Python coding rules
+globs: ["**/*.py"]
 alwaysApply: false
+
 ---
 # Cursor Rules: Python
 

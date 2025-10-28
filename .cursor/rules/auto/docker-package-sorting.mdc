@@ -1,3 +1,8 @@
+---
+description: Dockerfiles Rules
+globs: ["Dockerfile", "Dockerfile.*", "**/Dockerfile", "**/Dockerfile.*"]
+alwaysApply: false
+---
 # Dockerfile Package Sorting
 
 When adding packages to `apt-get install` commands in a `Dockerfile`, you MUST keep the package list sorted alphabetically. This improves readability and makes it easier to manage dependencies.
