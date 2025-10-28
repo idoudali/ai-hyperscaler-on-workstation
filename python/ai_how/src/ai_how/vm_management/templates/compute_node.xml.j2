@@ -164,5 +164,16 @@
     <rng model='virtio'>
       <backend model='random'>/dev/urandom</backend>
     </rng>
+
+    {% if virtio_fs_mounts is defined and virtio_fs_mounts|length > 0 %}
+    <!-- Virtio-FS Host Directory Sharing -->
+    {% for mount in virtio_fs_mounts %}
+    <filesystem type='mount' accessmode='passthrough'>
+      <driver type='virtiofs' queue='1024'/>
+      <source dir='{{ mount.host_path }}'/>
+      <target dir='{{ mount.tag }}'/>
+    </filesystem>
+    {% endfor %}
+    {% endif %}
   </devices>
 </domain>

@@ -7,13 +7,11 @@ virtio_fs_mounts: []
 # virtio_fs_mounts:
 #   - tag: "datasets"
 #     mount_point: "/mnt/host-datasets"
-#     readonly: false
 #     owner: "admin"
 #     group: "admin"
 #     mode: "0755"
 #   - tag: "containers"
 #     mount_point: "/mnt/host-containers"
-#     readonly: true
 #     owner: "root"
 #     group: "root"
 #     mode: "0755"
