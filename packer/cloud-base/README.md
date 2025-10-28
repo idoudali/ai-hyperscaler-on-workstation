@@ -200,8 +200,8 @@ virt-sparsify --compress ../../output/packer/cloud-base/cloud-base.qcow2 cloud-b
 
 ## Related Documentation
 
-- [Cloud Cluster Implementation Plan](../../docs/implementation-plans/task-lists/cloud-cluster/)
-- [Kubespray Documentation](../../docs/design-docs/cloud-cluster-oumi-inference.md)
+- Note: Cloud Cluster Implementation Plan is available in `../../planning/implementation-plans/task-lists/cloud-cluster/`
+- Note: Kubespray Documentation (see design docs in `../../docs/design-docs/`)
 - [Ansible Playbook Documentation](../../ansible/playbooks/README.md)
 
 ## See Also

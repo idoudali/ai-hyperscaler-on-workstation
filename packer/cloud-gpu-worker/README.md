@@ -400,9 +400,9 @@ This image includes only NVIDIA drivers, not the full GPU stack:
 
 ### General
 
-- **Cloud Cluster Implementation Plan**: [docs/implementation-plans/task-lists/cloud-cluster/](../../docs/implementation-plans/task-lists/cloud-cluster/)
+- **Cloud Cluster Implementation Plan**: Available in `../../planning/implementation-plans/task-lists/cloud-cluster/`
 - **Cloud Base Image**: [../cloud-base/README.md](../cloud-base/README.md)
-- **Kubespray Documentation**: [docs/design-docs/cloud-cluster-oumi-inference.md](../../docs/design-docs/cloud-cluster-oumi-inference.md)
+- **Kubespray Documentation**: See design docs in `../../docs/design-docs/`
 
 ## GPU Reference
 
