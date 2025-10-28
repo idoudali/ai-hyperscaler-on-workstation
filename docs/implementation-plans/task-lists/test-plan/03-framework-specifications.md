@@ -732,6 +732,91 @@ For each new or refactored framework:
 
 ---
 
+## System Management Framework (1 Total)
+
+### test-system-management-framework.sh (NEW)
+
+**Purpose**: Unified system-wide cluster management and coordinated operations
+
+**File Location**: `tests/frameworks/test-system-management-framework.sh`
+
+**Current Status**: To be implemented in CLOUD-0.6
+
+**Configuration**
+
+**File**: `tests/test-infra/configs/test-system-management.yaml`
+
+**Key Settings**:
+
+```yaml
+cluster:
+  name: test-system-management
+  hpc_config: config/hpc-cluster.yaml
+  cloud_config: config/cloud-cluster.yaml
+
+system_options:
+  test_startup_ordering: true
+  test_shutdown_ordering: true
+  test_failure_scenarios: true
+  test_shared_resources: true
+```
+
+**Test Suites**
+
+1. **suites/system-management/** - System-wide operations
+   - System start command
+   - System stop command
+   - System destroy command
+   - System status command
+   - Startup ordering (HPC → Cloud)
+   - Shutdown ordering (Cloud → HPC)
+   - Failure rollback
+   - Config validation
+   - Error handling
+   - Shared resources display
+
+**CLI Interface**
+
+```bash
+# Complete system end-to-end test
+./frameworks/test-system-management-framework.sh e2e
+
+# Modular workflow
+./frameworks/test-system-management-framework.sh start-system
+./frameworks/test-system-management-framework.sh system-status
+./frameworks/test-system-management-framework.sh run-tests
+./frameworks/test-system-management-framework.sh stop-system
+./frameworks/test-system-management-framework.sh destroy-system
+
+# Run specific test suite
+./frameworks/test-system-management-framework.sh run-test-suite system-start-ordering
+
+# List all tests
+./frameworks/test-system-management-framework.sh list-tests
+
+# Run specific test
+./frameworks/test-system-management-framework.sh run-test check-system-start-ordering.sh
+```
+
+**Implementation Details**
+
+**File Size**: ~20K
+
+**Key Functions**:
+
+- `run_system_startup_tests()` - Validate startup ordering and sequence
+- `run_system_shutdown_tests()` - Validate shutdown ordering
+- `run_system_status_tests()` - Validate status display
+- `run_system_destroy_tests()` - Validate destroy operations
+- `run_failure_scenario_tests()` - Validate rollback and error handling
+- `run_all_system_tests()` - Execute all test suites in sequence
+
+**Dependencies**: Both test-hpc-runtime and test-cloud-vm frameworks
+
+**Estimated Duration**: 30-40 minutes
+
+---
+
 ## Summary
 
 These specifications provide a complete blueprint for the 7 consolidated test frameworks. All frameworks share

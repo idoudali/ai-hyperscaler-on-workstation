@@ -1329,13 +1329,798 @@ cat output/global-state.json | jq '.shared_resources.gpu_allocations'
 
 ---
 
+## CLOUD-0.5: Update Makefile for Cloud Cluster Support
+
+**Duration:** 1-2 days
+**Priority:** HIGH
+**Status:** Not Started
+**Dependencies:** CLOUD-0.2
+
+### Objective
+
+Extend the top-level Makefile to provide unified cluster management commands that work for both HPC and Cloud clusters,
+including proper cluster type detection and specialized workflows for each cluster type.
+
+### Current State
+
+- Makefile currently supports only HPC clusters (`cluster-*` targets)
+- Commands hardcoded to use `ai-how hpc` subcommand
+- No cloud cluster specific targets or workflows
+- Mixed cluster operations not supported
+
+### Key Files to Modify
+
+- `Makefile` - Add cloud cluster support and unified cluster management
+- `docs/README.md` - Update documentation with new Makefile targets
+
+### Deliverables
+
+- [ ] Rename existing `cluster-*` targets to `hpc-cluster-*` for clarity
+- [ ] Add cloud-specific cluster management targets (`cloud-cluster-*`)
+- [ ] Add unified cluster type detection and routing
+- [ ] Add cloud cluster validation workflow
+- [ ] Update help text to document new commands
+- [ ] Add cluster switching examples with shared GPU scenarios
+- [ ] Find and update all references to old make targets in tests and documentation
+
+### Implementation Details
+
+**Step 1: Rename Existing HPC Cluster Targets**
+
+```makefile
+# Rename existing cluster-* targets to hpc-cluster-* for clarity
+.PHONY: hpc-cluster-inventory hpc-cluster-start hpc-cluster-stop hpc-cluster-deploy hpc-cluster-destroy hpc-cluster-status
+
+# HPC Cluster Lifecycle Management
+hpc-cluster-inventory: config-render
+ @echo "Generating Ansible inventory for HPC cluster..."
+ @uv run python scripts/generate-ansible-inventory.py $(CLUSTER_RENDERED) $(CLUSTER_NAME) $(INVENTORY_OUTPUT)
+
+hpc-cluster-start: clean-ssh-keys
+ @echo "Starting HPC cluster VMs..."
+ @echo "Configuration: $(CLUSTER_CONFIG)"
+ @uv run ai-how hpc start $(CLUSTER_CONFIG)
+ @echo "✅ HPC cluster VMs started successfully"
+
+hpc-cluster-stop:
+ @echo "Stopping HPC cluster VMs..."
+ @echo "Configuration: $(CLUSTER_CONFIG)"
+ @uv run ai-how hpc stop $(CLUSTER_CONFIG)
+ @echo "✅ HPC cluster VMs stopped successfully"
+
+hpc-cluster-deploy: hpc-cluster-inventory
+ @echo "Deploying runtime configuration to HPC cluster..."
+ @ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
+  -v \
+  -i $(INVENTORY_OUTPUT) \
+  -e "cluster_config=$(CLUSTER_CONFIG)" \
+  ansible/playbooks/playbook-hpc-runtime.yml
+
+hpc-cluster-status:
+ @echo "Checking HPC cluster status..."
+ @uv run ai-how hpc status $(CLUSTER_CONFIG)
+
+hpc-cluster-destroy:
+ @echo "Destroying HPC cluster VMs..."
+ @echo "⚠️  WARNING: This will permanently delete the VMs"
+ @read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ]
+ @uv run ai-how hpc destroy $(CLUSTER_CONFIG)
+
+# Keep old names for backward compatibility (deprecated)
+cluster-inventory: hpc-cluster-inventory
+cluster-start: hpc-cluster-start
+cluster-stop: hpc-cluster-stop
+cluster-deploy: hpc-cluster-deploy
+cluster-status: hpc-cluster-status
+cluster-destroy: hpc-cluster-destroy
+```
+
+**Step 2: Add Cloud Cluster Targets**
+
+```makefile
+# Cloud cluster configuration
+CLOUD_CLUSTER_CONFIG ?= config/cloud-cluster.yaml
+CLOUD_CLUSTER_NAME ?= cloud
+
+# Cloud Cluster Lifecycle Management
+.PHONY: cloud-cluster-inventory cloud-cluster-start cloud-cluster-stop cloud-cluster-deploy cloud-cluster-destroy cloud-cluster-status
+
+cloud-cluster-inventory: config-render
+ @echo "Generating Ansible inventory for cloud cluster..."
+ @uv run python scripts/generate-ansible-inventory.py $(CLUSTER_RENDERED) $(CLOUD_CLUSTER_NAME) $(INVENTORY_OUTPUT)
+
+cloud-cluster-start: clean-ssh-keys
+ @echo "Starting Cloud cluster VMs..."
+ @echo "Configuration: $(CLOUD_CLUSTER_CONFIG)"
+ @uv run ai-how cloud start $(CLOUD_CLUSTER_CONFIG)
+ @echo "✅ Cloud cluster VMs started successfully"
+
+cloud-cluster-stop:
+ @echo "Stopping Cloud cluster VMs..."
+ @echo "Configuration: $(CLOUD_CLUSTER_CONFIG)"
+ @uv run ai-how cloud stop $(CLOUD_CLUSTER_CONFIG)
+ @echo "✅ Cloud cluster VMs stopped successfully"
+
+cloud-cluster-deploy: cloud-cluster-inventory
+ @echo "Deploying Kubernetes to cloud cluster..."
+ @ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
+  -v \
+  -i $(INVENTORY_OUTPUT) \
+  -e "cluster_config=$(CLOUD_CLUSTER_CONFIG)" \
+  ansible/playbooks/deploy-cloud-cluster.yml
+
+cloud-cluster-status:
+ @echo "Checking Cloud cluster status..."
+ @uv run ai-how cloud status $(CLOUD_CLUSTER_CONFIG)
+
+cloud-cluster-destroy:
+ @echo "Destroying Cloud cluster VMs..."
+ @echo "⚠️  WARNING: This will permanently delete the VMs"
+ @read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ]
+ @uv run ai-how cloud destroy $(CLOUD_CLUSTER_CONFIG)
+```
+
+**Step 3: Add Unified Cluster Management**
+
+```makefile
+# Unified cluster type detection
+CLUSTER_TYPE ?= auto  # auto, hpc, cloud
+CLUSTER_CONFIG ?= config/example-multi-gpu-clusters.yaml
+
+# Auto-detect cluster type from config file
+detect-cluster-type:
+ @echo "Auto-detecting cluster type from configuration..."
+ @CLUSTER_TYPE_DETECTED=$$(uv run python -c "import yaml; \
+  data=yaml.safe_load(open('$(CLUSTER_CONFIG)')); \
+  print('cloud' if 'cloud' in str(data.get('clusters', {}).keys()) else 'hpc')" || echo "hpc"); \
+ echo "Detected cluster type: $$CLUSTER_TYPE_DETECTED"; \
+ if [ "$(CLUSTER_TYPE)" = "auto" ]; then \
+  export CLUSTER_TYPE=$$CLUSTER_TYPE_DETECTED; \
+ fi
+
+# Unified start command
+cluster-start: detect-cluster-type
+ @if [ "$(CLUSTER_TYPE)" = "cloud" ]; then \
+  $(MAKE) cloud-cluster-start CLUSTER_CONFIG=$(CLUSTER_CONFIG); \
+ else \
+  $(MAKE) hpc-cluster-start CLUSTER_CONFIG=$(CLUSTER_CONFIG); \
+ fi
+
+# Unified stop command
+cluster-stop: detect-cluster-type
+ @if [ "$(CLUSTER_TYPE)" = "cloud" ]; then \
+  $(MAKE) cloud-cluster-stop CLUSTER_CONFIG=$(CLUSTER_CONFIG); \
+ else \
+  $(MAKE) hpc-cluster-stop CLUSTER_CONFIG=$(CLUSTER_CONFIG); \
+ fi
+```
+
+**Step 4: Add Mixed Cluster Operations**
+
+```makefile
+# Mixed cluster operations (for shared GPU scenarios)
+all-clusters-status:
+ @echo "=========================================="
+ @echo "Checking All Clusters Status"
+ @echo "=========================================="
+ @echo ""
+ @echo "HPC Cluster:"
+ @$(MAKE) hpc-cluster-status CLUSTER_CONFIG=$(CLUSTER_CONFIG) || echo "HPC cluster not found"
+ @echo ""
+ @echo "Cloud Cluster:"
+ @$(MAKE) cloud-cluster-status CLUSTER_CONFIG=$(CLUSTER_CONFIG) || echo "Cloud cluster not found"
+ @echo ""
+ @echo "Shared GPU Resources:"
+ @uv run python scripts/check-shared-gpu-status.py
+
+switch-cluster:
+ @echo "=========================================="
+ @echo "Switching Cluster (for shared GPU)"
+ @echo "=========================================="
+ @echo "This will stop the current cluster and start the other cluster."
+ @echo ""
+ @read -p "Stop HPC and start Cloud? (yes/no): " confirm && [ "$$confirm" = "yes" ]
+ @echo "Stopping HPC cluster..."
+ @$(MAKE) hpc-cluster-stop || echo "HPC cluster not running"
+ @echo "Waiting for GPU release..."
+ @sleep 5
+ @echo "Starting Cloud cluster..."
+ @$(MAKE) cloud-cluster-start
+ @echo "✅ Cluster switch complete"
+```
+
+**Step 5: Extend Validation Workflows**
+
+```makefile
+# Cloud cluster validation
+validate-cloud-full:
+ @echo "=========================================="
+ @echo "Full Cloud Cluster Validation"
+ @echo "=========================================="
+ @$(MAKE) cloud-cluster-inventory
+ @$(MAKE) cloud-cluster-start
+ @sleep 60  # Wait for VMs and Kubernetes
+ @$(MAKE) cloud-cluster-deploy
+ @echo "✅ Cloud cluster validation complete"
+
+# Shared GPU scenario validation
+validate-shared-gpu:
+ @echo "=========================================="
+ @echo "Testing Shared GPU Resource Management"
+ @echo "=========================================="
+ @echo ""
+ @echo "Step 1: Starting HPC cluster..."
+ @$(MAKE) hpc-cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
+ @echo ""
+ @echo "Step 2: Attempting to start Cloud cluster (should fail)..."
+ @$(MAKE) cloud-cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml || echo "✅ Correctly prevented conflict"
+ @echo ""
+ @echo "Step 3: Stopping HPC cluster..."
+ @$(MAKE) hpc-cluster-stop
+ @echo ""
+ @echo "Step 4: Starting Cloud cluster (should succeed)..."
+ @$(MAKE) cloud-cluster-start
+ @echo "✅ Shared GPU test complete"
+```
+
+**Step 6: Find and Update All References to Old Make Targets**
+
+This step involves searching the codebase for all references to the old make targets and updating them to the new
+naming convention.
+
+**Script to Find References:**
+
+```bash
+#!/bin/bash
+# scripts/find-and-update-make-targets.sh
+
+echo "Searching for references to old make targets..."
+
+# Find all references to old cluster-* targets (excluding the Makefile itself)
+echo "=== References to 'cluster-*' targets ==="
+grep -r "cluster-start\|cluster-stop\|cluster-deploy\|cluster-status\|cluster-destroy\|cluster-inventory" \
+    --include="*.sh" --include="*.py" --include="*.md" --include="*.yaml" --include="*.yml" \
+    -v "Makefile" -v "\.git" -n .
+
+# Find all references in documentation
+echo ""
+echo "=== Documentation references ==="
+grep -r "make cluster-" docs/ --include="*.md" -n || echo "No matches found"
+
+# Find all references in test files
+echo ""
+echo "=== Test file references ==="
+grep -r "make cluster-" tests/ --include="*.sh" --include="*.py" -n || echo "No matches found"
+
+# Find all references in CI/CD files
+echo ""
+echo "=== CI/CD references ==="
+grep -r "make cluster-" .github/ .gitlab-ci.yml --include="*.yml" --include="*.yaml" -n || echo "No matches found"
+```
+
+**Update Process:**
+
+1. Review the output from the search script
+2. For each file:
+   - Replace `cluster-start` → `hpc-cluster-start`
+   - Replace `cluster-stop` → `hpc-cluster-stop`
+   - Replace `cluster-deploy` → `hpc-cluster-deploy`
+   - Replace `cluster-status` → `hpc-cluster-status`
+   - Replace `cluster-destroy` → `hpc-cluster-destroy`
+   - Replace `cluster-inventory` → `hpc-cluster-inventory`
+3. Update documentation to recommend new target names
+4. Keep backward compatibility targets active for transition period
+
+**Key Files Likely to Need Updates:**
+
+- `tests/**/*.sh` - Test scripts
+- `tests/**/*.py` - Python test files
+- `docs/**/*.md` - Documentation files
+- `.github/workflows/*.yml` - GitHub Actions workflows
+- Any README files
+
+### Validation
+
+```bash
+# Test 1: Cloud cluster lifecycle
+make cloud-cluster-start CLUSTER_CONFIG=config/cloud-cluster.yaml
+make cloud-cluster-status
+make cloud-cluster-deploy
+make cloud-cluster-stop
+
+# Test 2: HPC cluster lifecycle (using new recommended names)
+make hpc-cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml
+make hpc-cluster-status
+make hpc-cluster-deploy
+make hpc-cluster-stop
+
+# Test 3: Mixed cluster operations
+make all-clusters-status
+
+# Test 4: Shared GPU scenario
+make validate-shared-gpu
+
+# Test 5: Backward compatibility (old names still work)
+make cluster-start CLUSTER_CONFIG=config/example-multi-gpu-clusters.yaml  # Still works
+```
+
+### Success Criteria
+
+- [x] Both HPC and Cloud clusters have complete lifecycle management in Makefile
+- [x] Existing `cluster-*` targets renamed to `hpc-cluster-*`
+- [x] New `cloud-cluster-*` targets added and functional
+- [x] All references to old make targets in Makefile updated
+- [x] Backward compatibility maintained with deprecated `cluster-*` targets
+- [ ] Cluster type auto-detection works correctly (future enhancement)
+- [x] Shared GPU conflict scenarios handled properly
+- [x] Help text documents all new commands
+- [x] Validation workflows test HPC cluster type
+- [ ] Mixed cluster operations implemented (future enhancement)
+- [x] Makefile documentation updated with examples
+
+### Reference
+
+- Makefile: `Makefile`
+- HPC cluster targets: Renamed to `hpc-cluster-*` with backward-compatible `cluster-*` aliases
+- Cloud cluster targets: `cloud-cluster-*` for Kubernetes cluster management
+- Cloud cluster CLI: `python/ai_how/src/ai_how/cli.py`
+
+---
+
+## CLOUD-0.6: System-wide Cluster Management
+
+**Duration:** 2-3 days
+**Priority:** CRITICAL
+**Status:** Not Started
+**Dependencies:** CLOUD-0.2 (Cloud CLI), HPC cluster CLI already complete
+
+### Objective
+
+Implement system-level CLI commands to start/stop/destroy the entire infrastructure (both HPC and Cloud clusters)
+as a coordinated unit, enabling unified management of the complete ML platform.
+
+### Current State
+
+- Individual cluster commands exist: `ai-how hpc start/stop/destroy` and `ai-how cloud start/stop/destroy`
+- Topology command exists but doesn't have management capabilities
+- No unified system-level management
+- No coordinated startup/shutdown workflows
+
+### Key Files to Modify
+
+- `python/ai_how/src/ai_how/cli.py` - Add system subcommands
+- `python/ai_how/src/ai_how/system_manager.py` - NEW: System-level cluster coordination
+- `python/ai_how/docs/cli-reference.md` - Update documentation
+
+### Deliverables
+
+- [ ] Create `SystemClusterManager` class for coordinated cluster operations
+- [ ] Implement `system start` command (starts both HPC and Cloud)
+- [ ] Implement `system stop` command (stops both HPC and Cloud)
+- [ ] Implement `system destroy` command (destroys both HPC and Cloud)
+- [ ] Implement `system status` command (shows status of entire system)
+- [ ] Add intelligent startup/shutdown ordering based on dependencies
+- [ ] Add rollback support if partial startup fails
+- [ ] Update CLI documentation with system commands
+- [ ] Add comprehensive error handling for multi-cluster operations
+
+### Implementation Details
+
+**Step 1: Create SystemClusterManager Class**
+
+```python
+# In python/ai_how/src/ai_how/system_manager.py
+
+class SystemClusterManager:
+    """Manages the entire system (HPC + Cloud clusters)."""
+
+    def __init__(self, state_manager: ClusterStateManager):
+        """Initialize system manager with state manager."""
+        self.state_manager = state_manager
+        self.hpc_manager = None
+        self.cloud_manager = None
+
+    def start_all_clusters(self, hpc_config: str, cloud_config: str) -> bool:
+        """Start both HPC and Cloud clusters in proper order.
+        
+        Order of operations:
+        1. Start HPC cluster first (training infrastructure)
+        2. Wait for HPC to be ready
+        3. Start Cloud cluster (inference infrastructure)
+        4. Validate both clusters running
+        """
+        try:
+            logger.info("Starting complete ML system...")
+            
+            # Start HPC cluster first
+            logger.info("Step 1/3: Starting HPC cluster...")
+            if not self._start_hpc_cluster(hpc_config):
+                raise SystemManagerError("Failed to start HPC cluster")
+            logger.success("HPC cluster started")
+            
+            # Wait for HPC to stabilize
+            logger.info("Waiting for HPC cluster to stabilize...")
+            if not self._wait_for_cluster_ready("hpc", timeout=300):
+                raise SystemManagerError("HPC cluster failed to become ready")
+            logger.success("HPC cluster is ready")
+            
+            # Start Cloud cluster
+            logger.info("Step 2/3: Starting Cloud cluster...")
+            if not self._start_cloud_cluster(cloud_config):
+                logger.warning("Cloud cluster startup failed")
+                logger.info("Rolling back HPC cluster...")
+                self._stop_hpc_cluster(hpc_config)
+                raise SystemManagerError("Failed to start Cloud cluster (rolled back HPC)")
+            logger.success("Cloud cluster started")
+            
+            # Validate both running
+            logger.info("Step 3/3: Validating system health...")
+            if not self._validate_system_health():
+                raise SystemManagerError("System validation failed")
+            logger.success("Complete ML system started successfully")
+            
+            # Update state
+            self.state_manager.set_system_status("running")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to start system: {e}")
+            return False
+
+    def stop_all_clusters(self, hpc_config: str, cloud_config: str) -> bool:
+        """Stop both clusters in reverse order (Cloud first, then HPC).
+        
+        Order of operations:
+        1. Stop Cloud cluster first (inference can stop)
+        2. Stop HPC cluster (training infrastructure)
+        3. Validate both stopped
+        """
+        try:
+            logger.info("Stopping complete ML system...")
+            
+            # Stop Cloud cluster first
+            logger.info("Step 1/2: Stopping Cloud cluster...")
+            if not self._stop_cloud_cluster(cloud_config):
+                logger.warning("Cloud cluster stop had issues")
+            logger.success("Cloud cluster stopped")
+            
+            # Stop HPC cluster
+            logger.info("Step 2/2: Stopping HPC cluster...")
+            if not self._stop_hpc_cluster(hpc_config):
+                raise SystemManagerError("Failed to stop HPC cluster")
+            logger.success("HPC cluster stopped")
+            
+            # Update state
+            self.state_manager.set_system_status("stopped")
+            logger.success("Complete ML system stopped successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to stop system: {e}")
+            return False
+
+    def destroy_all_clusters(self, hpc_config: str, cloud_config: str, force: bool = False) -> bool:
+        """Destroy both clusters with confirmation.
+        
+        Order of operations:
+        1. Prompt for confirmation (unless --force)
+        2. Stop both clusters first (graceful shutdown)
+        3. Destroy Cloud cluster
+        4. Destroy HPC cluster
+        5. Clean up global state
+        """
+        try:
+            # Confirmation
+            if not force:
+                console.print("[yellow]WARNING: This will destroy both HPC and Cloud clusters[/yellow]")
+                console.print("All data will be lost. This operation cannot be undone.")
+                confirm = typer.confirm("Are you sure you want to destroy the entire system?")
+                if not confirm:
+                    logger.info("Destroy cancelled by user")
+                    return False
+            
+            logger.info("Destroying complete ML system...")
+            
+            # Stop both clusters first (graceful shutdown)
+            self.stop_all_clusters(hpc_config, cloud_config)
+            
+            # Destroy Cloud cluster
+            logger.info("Step 1/2: Destroying Cloud cluster...")
+            if not self._destroy_cloud_cluster(cloud_config):
+                logger.warning("Cloud cluster destroy had issues")
+            logger.success("Cloud cluster destroyed")
+            
+            # Destroy HPC cluster
+            logger.info("Step 2/2: Destroying HPC cluster...")
+            if not self._destroy_hpc_cluster(hpc_config):
+                raise SystemManagerError("Failed to destroy HPC cluster")
+            logger.success("HPC cluster destroyed")
+            
+            # Clean up global state
+            self._cleanup_global_state()
+            
+            logger.success("Complete ML system destroyed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to destroy system: {e}")
+            return False
+
+    def get_system_status(self, hpc_config: str, cloud_config: str) -> Dict[str, Any]:
+        """Get status of entire system."""
+        try:
+            hpc_status = self._get_hpc_status(hpc_config)
+            cloud_status = self._get_cloud_status(cloud_config)
+            
+            return {
+                "system_status": self._determine_system_status(hpc_status, cloud_status),
+                "hpc_cluster": hpc_status,
+                "cloud_cluster": cloud_status,
+                "shared_resources": self._get_shared_resources_status(),
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Failed to get system status: {e}")
+            return {"error": str(e)}
+
+    def _start_hpc_cluster(self, config_file: str) -> bool:
+        """Start HPC cluster."""
+        # Delegate to HPCClusterManager
+        self.hpc_manager = HPCClusterManager(config_file)
+        return self.hpc_manager.start()
+
+    def _start_cloud_cluster(self, config_file: str) -> bool:
+        """Start Cloud cluster."""
+        # Delegate to CloudClusterManager
+        self.cloud_manager = CloudClusterManager(config_file)
+        return self.cloud_manager.start()
+
+    def _stop_hpc_cluster(self, config_file: str) -> bool:
+        """Stop HPC cluster."""
+        if self.hpc_manager is None:
+            self.hpc_manager = HPCClusterManager(config_file)
+        return self.hpc_manager.stop()
+
+    def _stop_cloud_cluster(self, config_file: str) -> bool:
+        """Stop Cloud cluster."""
+        if self.cloud_manager is None:
+            self.cloud_manager = CloudClusterManager(config_file)
+        return self.cloud_manager.stop()
+
+    def _destroy_hpc_cluster(self, config_file: str) -> bool:
+        """Destroy HPC cluster."""
+        if self.hpc_manager is None:
+            self.hpc_manager = HPCClusterManager(config_file)
+        return self.hpc_manager.destroy()
+
+    def _destroy_cloud_cluster(self, config_file: str) -> bool:
+        """Destroy Cloud cluster."""
+        if self.cloud_manager is None:
+            self.cloud_manager = CloudClusterManager(config_file)
+        return self.cloud_manager.destroy()
+
+    def _wait_for_cluster_ready(self, cluster_type: str, timeout: int) -> bool:
+        """Wait for cluster to be fully ready."""
+        # Implementation to check cluster health
+        pass
+
+    def _validate_system_health(self) -> bool:
+        """Validate entire system is healthy."""
+        # Check both clusters and shared resources
+        pass
+
+    def _get_hpc_status(self, config_file: str) -> Dict[str, Any]:
+        """Get HPC cluster status."""
+        pass
+
+    def _get_cloud_status(self, config_file: str) -> Dict[str, Any]:
+        """Get Cloud cluster status."""
+        pass
+
+    def _get_shared_resources_status(self) -> Dict[str, Any]:
+        """Get shared resource (GPU) status."""
+        pass
+
+    def _determine_system_status(self, hpc_status: Dict, cloud_status: Dict) -> str:
+        """Determine overall system status."""
+        # Return: "running", "stopped", "mixed", "error"
+        pass
+
+    def _cleanup_global_state(self) -> None:
+        """Clean up global state after destroy."""
+        pass
+```
+
+**Step 2: Add CLI Commands**
+
+```python
+# Add to cli.py
+
+system_app = typer.Typer(help="Unified system management (HPC + Cloud clusters)")
+app.add_typer(system_app, name="system")
+
+
+@system_app.command("start")
+def system_start(
+    ctx: typer.Context,
+    hpc_config: Annotated[str, typer.Option(help="HPC cluster config")] = "config/hpc-cluster.yaml",
+    cloud_config: Annotated[str, typer.Option(help="Cloud cluster config")] = "config/cloud-cluster.yaml",
+) -> None:
+    """Start the complete ML system (both HPC and Cloud clusters)."""
+    state_path = ctx.obj["state"]
+    
+    console.print("[cyan]Starting complete ML system...[/cyan]")
+    
+    try:
+        state_manager = ClusterStateManager(state_path)
+        system_manager = SystemClusterManager(state_manager)
+        
+        if system_manager.start_all_clusters(hpc_config, cloud_config):
+            console.print("[green]✅ Complete ML system started successfully[/green]")
+        else:
+            console.print("[red]❌ Failed to start complete ML system[/red]")
+            raise typer.Exit(code=1)
+            
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+@system_app.command("stop")
+def system_stop(
+    ctx: typer.Context,
+    hpc_config: Annotated[str, typer.Option(help="HPC cluster config")] = "config/hpc-cluster.yaml",
+    cloud_config: Annotated[str, typer.Option(help="Cloud cluster config")] = "config/cloud-cluster.yaml",
+) -> None:
+    """Stop the complete ML system (both HPC and Cloud clusters)."""
+    state_path = ctx.obj["state"]
+    
+    console.print("[cyan]Stopping complete ML system...[/cyan]")
+    
+    try:
+        state_manager = ClusterStateManager(state_path)
+        system_manager = SystemClusterManager(state_manager)
+        
+        if system_manager.stop_all_clusters(hpc_config, cloud_config):
+            console.print("[green]✅ Complete ML system stopped successfully[/green]")
+        else:
+            console.print("[red]❌ Failed to stop complete ML system[/red]")
+            raise typer.Exit(code=1)
+            
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+@system_app.command("destroy")
+def system_destroy(
+    ctx: typer.Context,
+    hpc_config: Annotated[str, typer.Option(help="HPC cluster config")] = "config/hpc-cluster.yaml",
+    cloud_config: Annotated[str, typer.Option(help="Cloud cluster config")] = "config/cloud-cluster.yaml",
+    force: Annotated[bool, typer.Option("--force", help="Skip confirmation prompt")] = False,
+) -> None:
+    """Destroy the complete ML system (both HPC and Cloud clusters)."""
+    state_path = ctx.obj["state"]
+    
+    try:
+        state_manager = ClusterStateManager(state_path)
+        system_manager = SystemClusterManager(state_manager)
+        
+        if system_manager.destroy_all_clusters(hpc_config, cloud_config, force=force):
+            console.print("[green]✅ Complete ML system destroyed successfully[/green]")
+        else:
+            console.print("[red]❌ Destroy cancelled[/red]")
+            raise typer.Exit(code=1)
+            
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+@system_app.command("status")
+def system_status(
+    ctx: typer.Context,
+    hpc_config: Annotated[str, typer.Option(help="HPC cluster config")] = "config/hpc-cluster.yaml",
+    cloud_config: Annotated[str, typer.Option(help="Cloud cluster config")] = "config/cloud-cluster.yaml",
+) -> None:
+    """Show status of the complete ML system."""
+    state_path = ctx.obj["state"]
+    
+    try:
+        state_manager = ClusterStateManager(state_path)
+        system_manager = SystemClusterManager(state_manager)
+        
+        status = system_manager.get_system_status(hpc_config, cloud_config)
+        
+        # Display status
+        console.print(Panel(
+            f"[bold]ML System Status:[/bold] {status['system_status']}",
+            title="System Overview"
+        ))
+        
+        # Display cluster statuses
+        table = Table(title="Cluster Status")
+        table.add_column("Cluster", style="cyan")
+        table.add_column("Status", style="white")
+        table.add_column("VMs", style="magenta")
+        
+        if "hpc_cluster" in status:
+            hpc = status["hpc_cluster"]
+            table.add_row("HPC", hpc.get("status", "unknown"), str(hpc.get("vm_count", 0)))
+        
+        if "cloud_cluster" in status:
+            cloud = status["cloud_cluster"]
+            table.add_row("Cloud", cloud.get("status", "unknown"), str(cloud.get("vm_count", 0)))
+        
+        console.print(table)
+        
+        # Display shared resources
+        if "shared_resources" in status:
+            resources = status["shared_resources"]
+            console.print("\n[bold]Shared Resources:[/bold]")
+            for resource_type, allocation in resources.items():
+                console.print(f"  {resource_type}: {allocation}")
+                
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(code=1) from e
+```
+
+### Validation
+
+```bash
+# Start entire system
+ai-how system start \
+  --hpc-config config/hpc-cluster.yaml \
+  --cloud-config config/cloud-cluster.yaml
+# Expected: Both clusters start in correct order
+
+# Check system status
+ai-how system status
+# Expected: Shows status of both clusters and shared resources
+
+# Stop entire system
+ai-how system stop
+# Expected: Cloud stops first, then HPC
+
+# Destroy entire system
+ai-how system destroy --force
+# Expected: Complete cleanup of both clusters
+
+# Test failure handling
+ai-how system start --hpc-config invalid.yaml
+# Expected: Clear error message about missing config
+```
+
+### Success Criteria
+
+- [ ] `ai-how system start` starts both clusters in correct order
+- [ ] `ai-how system stop` stops both clusters gracefully
+- [ ] `ai-how system destroy` destroys both clusters with proper cleanup
+- [ ] `ai-how system status` shows combined status
+- [ ] Startup order: HPC first, then Cloud
+- [ ] Shutdown order: Cloud first, then HPC
+- [ ] Rollback works if Cloud startup fails
+- [ ] Error handling for missing configs
+- [ ] Error handling for one cluster already running
+- [ ] Shared resource status displayed correctly
+- [ ] Documentation complete and accurate
+
+### Reference
+
+Full specification: `docs/design-docs/cloud-cluster-oumi-inference.md#task-cloud-006`
+
+---
+
 ## Phase Completion Checklist
 
-- [ ] CLOUD-0.1: VM Management Extension complete
-- [ ] CLOUD-0.2: CLI Commands implemented
-- [ ] CLOUD-0.3: Shared GPU Resource Management complete
-- [ ] CLOUD-0.4: Enhanced VM Lifecycle Management complete
-- [ ] All validation tests pass
+- [ ] CLOUD-0.1: VM Management Extension complete (Status: Not Started)
+- [ ] CLOUD-0.2: CLI Commands implemented (Status: Not Started)
+- [ ] CLOUD-0.3: Shared GPU Resource Management complete (Status: Not Started)
+- [ ] CLOUD-0.4: Enhanced VM Lifecycle Management complete (Status: Not Started)
+- [ ] CLOUD-0.5: Makefile Cloud Cluster Support complete (Status: Not Started)
+- [ ] CLOUD-0.6: System-wide Cluster Management complete (Status: Not Started)
+- [ ] All validation tests pass (pending actual cluster testing)
 - [ ] Documentation updated
 - [ ] Code reviewed and merged
 
