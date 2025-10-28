@@ -85,14 +85,7 @@
               Cgroup version check:
               - cgroup v2 available: {{ cgroup_v2_check.rc == 0 }}
               - System will use appropriate cgroup version
-
-        - name: Install cgroup utilities
-          apt:
-            name:
-              - cgroup-tools
-            state: present
-            update_cache: true
-            cache_valid_time: 3600
+              - Note: SLURM manages cgroups directly - no cgroup-tools package needed
 
         - name: Create cgroup configuration directory (runtime)
           file:
