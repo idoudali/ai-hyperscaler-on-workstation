@@ -481,5 +481,4 @@ mount | grep virtiofs
 
 - [BeeGFS Installation Flow](components/beegfs/installation-flow.md) - Detailed BeeGFS setup guide
 - [VirtIO-FS Integration](workflows/VIRTIO-FS-INTEGRATION.md) - VirtIO-FS implementation details
-- [Cluster Configuration Schema](implementation-plans/task-lists/hpc-slurm/pending/phase-4-consolidation.md) -
-  Complete schema reference
+- Note: Cluster configuration schema is available in the planning documents (`../../planning/implementation-plans/task-lists/hpc-slurm/pending/`)
