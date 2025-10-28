@@ -750,3 +750,34 @@ standardized utilities.
 
 The phased implementation approach allows stopping at any stable point, and comprehensive validation ensures
 we don't introduce regressions during consolidation.
+
+## Related Refactoring Opportunities
+
+### Test Suite Script Refactoring
+
+**Status**: 📝 Planned (See [09-test-suite-refactoring-plan.md](09-test-suite-refactoring-plan.md))
+
+While this consolidation plan focuses on test framework scripts, there is a **separate opportunity** to refactor
+the test suite scripts in `tests/suites/` to eliminate code duplication:
+
+**Scope**: 80+ test scripts across 16 test suite directories
+**Duplication**: 2,000-3,000 lines of duplicated logging, color definitions, and test execution patterns
+**Impact**: 30-40% code reduction in test suite scripts
+**Timeline**: 14 hours estimated effort
+
+**Key Benefits**:
+
+- Centralized logging and color definitions
+- Standardized test execution patterns
+- Improved maintainability and consistency
+- Better developer experience
+
+**Implementation Strategy**:
+
+- Create shared utilities for test suites (`tests/suites/common/`)
+- Refactor individual test scripts to use shared utilities
+- Preserve all test logic and functionality
+- Maintain backward compatibility
+
+This refactoring complements the framework consolidation by addressing duplication at the test script level,
+providing comprehensive code deduplication across the entire test infrastructure.
