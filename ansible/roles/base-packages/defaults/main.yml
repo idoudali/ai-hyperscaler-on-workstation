@@ -1,0 +1,29 @@
+# Base Packages Role - Default Variables
+# Consolidated base package installation for HPC and cloud workloads
+
+# Package installation profile
+# Options: hpc, cloud, minimal
+# - hpc: Installs HPC-specific packages (default)
+# - cloud: Installs cloud-specific packages
+# - minimal: Only common packages
+package_profile: "hpc"
+
+# Common packages (installed for all profiles)
+base_packages_common:
+  - tmux
+  - htop
+  - vim
+  - curl
+  - wget
+  - net-tools
+  - iproute2
+  - iputils-ping
+  - dnsutils
+  - netcat-openbsd
+
+# HPC-specific packages (installed when package_profile=hpc)
+base_packages_hpc: []
+
+# Cloud-specific packages (installed when package_profile=cloud)
+# Reserved for future cloud deployment needs
+base_packages_cloud: []

@@ -1,0 +1,49 @@
+# Base Packages Role - Main Tasks
+# Consolidated base package installation for HPC and cloud workloads
+# Supports package profiles for different deployment types
+
+- name: Update package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Set package list based on profile
+  ansible.builtin.set_fact:
+    packages_to_install: "{{ base_packages_common + (base_packages_hpc if package_profile == 'hpc' else []) + (base_packages_cloud if package_profile == 'cloud' else []) }}"
+  tags:
+    - base-packages
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ packages_to_install }}"
+    state: present
+  become: true
+  tags:
+    - base-packages
+
+- name: Packer build detection
+  ansible.builtin.set_fact:
+    is_packer_build: "{{ packer_build | default(false) | bool }}"
+  tags:
+    - base-packages
+
+- name: Display Packer build detection result
+  ansible.builtin.debug:
+    msg: "Packer build detected: {{ is_packer_build }} (from packer_build variable: {{ packer_build | default('not_set') }})"
+  tags:
+    - base-packages
+
+- name: Display Packer build status
+  ansible.builtin.debug:
+    msg: "Running in Packer build mode - network setup handled by setup-hpc-base.sh"
+  when: is_packer_build
+  tags:
+    - base-packages
+
+- name: Display runtime build status
+  ansible.builtin.debug:
+    msg: "Running in normal mode - full network configuration will be applied"
+  when: not is_packer_build
+  tags:
+    - base-packages

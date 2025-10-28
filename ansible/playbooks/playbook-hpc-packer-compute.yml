@@ -20,7 +20,7 @@
     container_runtime_enable_service: false
 
   roles:
-    - role: hpc-base-packages
+    - role: base-packages
     - role: container-runtime
     - role: nvidia-gpu-drivers
       when: gpu_enabled | default(true)
