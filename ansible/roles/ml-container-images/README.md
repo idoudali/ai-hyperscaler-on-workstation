@@ -146,7 +146,7 @@ This role is currently a placeholder with basic variable definitions. Full imple
   become: true
   
   roles:
-    - hpc-base-packages
+    - base-packages
     - nvidia-gpu-drivers
     - container-runtime
     - ml-container-images
@@ -195,7 +195,7 @@ This role is currently a placeholder with basic variable definitions. Full imple
 
 ## Typical ML Workload Stack
 
-1. **Base Infrastructure**: `hpc-base-packages`
+1. **Base Infrastructure**: `base-packages`
 2. **GPU Support**: `nvidia-gpu-drivers`
 3. **Container Runtime**: `container-runtime`
 4. **ML Images**: `ml-container-images`

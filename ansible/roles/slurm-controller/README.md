@@ -313,7 +313,7 @@ tail -f /var/log/slurm/slurmdbd.log
 
 ## Typical Deployment Sequence
 
-1. Deploy `hpc-base-packages` role on controller
+1. Deploy `base-packages` role on controller
 2. Deploy `slurm-controller` role on controller node
 3. Deploy `slurm-compute` role on all compute nodes
 4. Verify cluster with `sinfo` and `snode`

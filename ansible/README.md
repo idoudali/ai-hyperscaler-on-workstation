@@ -70,7 +70,7 @@ ansible/
 │   ├── container-*                # Container runtime and registry roles
 │   ├── monitoring-stack/          # Monitoring infrastructure (Prometheus, Grafana)
 │   ├── ml-container-images/       # Machine learning container management
-│   ├── hpc-base-packages/         # HPC base package installation
+│   ├── base-packages/             # HPC base package installation
 │   ├── cloud-base-packages/       # Cloud base package installation
 │   ├── virtio-fs-mount/           # Virtio-FS shared storage configuration
 │   ├── README.md                  # Roles index and overview
@@ -102,7 +102,7 @@ The Ansible infrastructure includes both implemented and placeholder components:
 ### Implemented Components
 
 - **nvidia-gpu-drivers role**: Fully functional NVIDIA GPU driver installation following [Debian wiki guidelines](https://wiki.debian.org/NvidiaGraphicsDrivers)
-- **hpc-base-packages role**: Basic HPC package installation (tmux, htop, vim, etc.)
+- **base-packages role**: Basic HPC package installation (tmux, htop, vim, etc.)
 - **HPC playbook**: Includes NVIDIA drivers with CUDA support for GPU-accelerated computing
 - **Enhanced inventory generator**: Complete GPU detection and GRES configuration generation from cluster.yaml
 
@@ -169,7 +169,7 @@ cluster configuration after it has been instantiated.
 
 ### Pre-installation (with Packer)
 
-1. **Base packages** using `hpc-base-packages` and `cloud-base-packages` roles
+1. **Base packages** using `base-packages` role (supports hpc and cloud profiles)
 2. **NVIDIA GPU drivers** using `nvidia-gpu-drivers` role for GPU-enabled images
 
 ### Post-deployment Configuration

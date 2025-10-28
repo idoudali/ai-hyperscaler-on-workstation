@@ -18,7 +18,7 @@
     container_runtime_enable_service: false
 
   roles:
-    - role: hpc-base-packages
+    - role: base-packages
     - role: container-runtime
     - role: slurm-controller
     - role: monitoring-stack

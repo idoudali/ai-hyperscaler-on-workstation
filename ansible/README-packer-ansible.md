@@ -26,7 +26,7 @@ cd ansible
 ./run-packer-ansible.sh
 
 # Run specific role on localhost
-./run-packer-ansible.sh localhost hpc-base-packages
+./run-packer-ansible.sh localhost base-packages
 ./run-packer-ansible.sh localhost container-runtime
 ./run-packer-ansible.sh localhost nvidia-gpu-drivers
 
@@ -34,7 +34,7 @@ cd ansible
 ./run-packer-ansible.sh 192.168.1.100
 
 # Run specific role on specific host
-./run-packer-ansible.sh 192.168.1.100 hpc-base-packages
+./run-packer-ansible.sh 192.168.1.100 base-packages
 
 # Use different SSH user
 SSH_USERNAME=ubuntu ./run-packer-ansible.sh localhost
@@ -52,7 +52,7 @@ SSH_PORT=2222 ./run-packer-ansible.sh localhost nvidia-gpu-drivers
 SSH_KEY=/path/to/your/key ./run-packer-ansible.sh localhost
 
 # Use custom SSH key with specific role
-SSH_KEY=/path/to/your/key ./run-packer-ansible.sh localhost hpc-base-packages
+SSH_KEY=/path/to/your/key ./run-packer-ansible.sh localhost base-packages
 ```
 
 ## What This Script Does
@@ -62,7 +62,7 @@ happens during Packer builds. You can run all roles or select a specific role:
 
 ### Available Roles
 
-- **hpc-base-packages**: Installs tmux, htop, vim, curl, wget
+- **base-packages**: Installs tmux, htop, vim, curl, wget
 - **container-runtime**: Installs Apptainer (successor to Singularity)
 - **nvidia-gpu-drivers**: Installs NVIDIA drivers (without CUDA by default)
 - **all**: Runs all roles (default behavior)
@@ -70,7 +70,7 @@ happens during Packer builds. You can run all roles or select a specific role:
 ### Role Selection
 
 - Run all roles: `./run-packer-ansible.sh localhost` or `./run-packer-ansible.sh localhost all`
-- Run specific role: `./run-packer-ansible.sh localhost hpc-base-packages`
+- Run specific role: `./run-packer-ansible.sh localhost base-packages`
 - All roles apply the same configuration as Packer builds
 
 ## Usage Scenarios
@@ -87,7 +87,7 @@ cd ansible
 ./run-packer-ansible.sh localhost
 
 # Test specific role changes before rebuilding Packer image
-./run-packer-ansible.sh localhost hpc-base-packages
+./run-packer-ansible.sh localhost base-packages
 ./run-packer-ansible.sh localhost container-runtime
 ./run-packer-ansible.sh localhost nvidia-gpu-drivers
 
@@ -110,7 +110,7 @@ cd ansible
 ./run-packer-ansible.sh vm-hostname
 
 # Apply specific role to existing VMs
-./run-packer-ansible.sh vm-hostname hpc-base-packages
+./run-packer-ansible.sh vm-hostname base-packages
 ./run-packer-ansible.sh vm-hostname container-runtime
 ./run-packer-ansible.sh vm-hostname nvidia-gpu-drivers
 
@@ -133,7 +133,7 @@ cd ansible
 VERBOSE=true ./run-packer-ansible.sh localhost
 
 # Debug specific role with verbose output
-VERBOSE=true ./run-packer-ansible.sh localhost hpc-base-packages
+VERBOSE=true ./run-packer-ansible.sh localhost base-packages
 VERBOSE=true ./run-packer-ansible.sh localhost container-runtime
 VERBOSE=true ./run-packer-ansible.sh localhost nvidia-gpu-drivers
 
@@ -149,7 +149,7 @@ VERBOSE=true SSH_PORT=2222 SSH_USERNAME=ubuntu ./run-packer-ansible.sh localhost
 The script uses the same configuration as Packer:
 
 - **Playbook**: `playbooks/playbook-hpc-runtime.yml`
-- **Roles**: `hpc-base-packages`, `container-runtime`, `nvidia-gpu-drivers`
+- **Roles**: `base-packages`, `container-runtime`, `nvidia-gpu-drivers`
 - **Variables**: `packer_build=true`, `nvidia_install_cuda=false`
 - **Environment**: Same Ansible environment variables as Packer
 
@@ -192,7 +192,7 @@ cd ansible
 ./run-packer-ansible.sh
 
 # Run specific roles
-./run-packer-ansible.sh localhost hpc-base-packages
+./run-packer-ansible.sh localhost base-packages
 ./run-packer-ansible.sh localhost container-runtime
 ./run-packer-ansible.sh localhost nvidia-gpu-drivers
 
@@ -200,7 +200,7 @@ cd ansible
 SSH_USERNAME=ubuntu ./run-packer-ansible.sh 192.168.1.100
 
 # Run specific role on specific IP with different user
-SSH_USERNAME=ubuntu ./run-packer-ansible.sh 192.168.1.100 hpc-base-packages
+SSH_USERNAME=ubuntu ./run-packer-ansible.sh 192.168.1.100 base-packages
 
 # Use custom SSH port (e.g., for QEMU VM with port forwarding)
 SSH_PORT=2222 ./run-packer-ansible.sh localhost
@@ -218,7 +218,7 @@ SSH_KEY=/path/to/your/key ./run-packer-ansible.sh localhost container-runtime
 SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/your/key ./run-packer-ansible.sh 192.168.1.100
 
 # Combine custom user, port, and key with specific role
-SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/your/key ./run-packer-ansible.sh 192.168.1.100 hpc-base-packages
+SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/your/key ./run-packer-ansible.sh 192.168.1.100 base-packages
 
 # Disable verbose output
 VERBOSE=false ./run-packer-ansible.sh localhost
@@ -281,12 +281,12 @@ ssh debian@localhost sudo -l
 
 ```bash
 # Test individual roles to isolate issues
-./run-packer-ansible.sh localhost hpc-base-packages
+./run-packer-ansible.sh localhost base-packages
 ./run-packer-ansible.sh localhost container-runtime
 ./run-packer-ansible.sh localhost nvidia-gpu-drivers
 
 # Debug specific role with verbose output
-VERBOSE=true ./run-packer-ansible.sh localhost hpc-base-packages
+VERBOSE=true ./run-packer-ansible.sh localhost base-packages
 
 # Check if role exists and is valid
 ./run-packer-ansible.sh localhost invalid-role  # Should show error with available roles
@@ -307,7 +307,7 @@ cd ansible
 SSH_PORT=2222 ./run-packer-ansible.sh localhost
 
 # For QEMU VM with specific role
-SSH_PORT=2222 ./run-packer-ansible.sh localhost hpc-base-packages
+SSH_PORT=2222 ./run-packer-ansible.sh localhost base-packages
 
 # For VM with different user and port
 SSH_USERNAME=ubuntu SSH_PORT=2222 ./run-packer-ansible.sh localhost
@@ -361,5 +361,5 @@ SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/your/key ./run-packer-ansible
   environment variable
 - Role selection allows testing individual components without running the full
   playbook
-- Available roles: `hpc-base-packages`, `container-runtime`, `nvidia-gpu-drivers`, `all`
+- Available roles: `base-packages`, `container-runtime`, `nvidia-gpu-drivers`, `all`
 - Use `all` or omit the role parameter to run all roles (default behavior)

@@ -1,6 +1,6 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-048, 046.1)
 
-**Status**: 70% Complete (16/23 tasks)
+**Status**: 78% Complete (18/23 tasks)
 **Last Updated**: 2025-10-27 (Added TASK-046.1: Package Manager Integration)
 **Priority**: HIGH
 **Tasks**: 23 (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1, Role Consolidation: 6)
@@ -29,14 +29,14 @@
 | **045** | ✅ **COMPLETE** | 100% | SLURM Common Role created (MUNGE, directories, user creation consolidated) |
 | **046** | ✅ **COMPLETE** | 100% | Shared package management role created and functional |
 | **046.1** | ✅ **COMPLETE** | 100% | Integrate package-manager into BeeGFS and SLURM roles |
-| **047** | ❌ **PENDING** | 0% | Consolidate base package roles (hpc + cloud) |
-| **048** | ❌ **PENDING** | 0% | Create shared utilities role |
+| **047** | ✅ **COMPLETE** | 100% | Base package roles consolidated into unified base-packages role |
+| **048** | ✅ **COMPLETE** | 100% | Shared utilities role created with reusable validation tasks |
 
-**Completed**: Tasks 029-035, 038, 039, 041, 042, 043, 044, 045, 046, 046.1
+**Completed**: Tasks 029-035, 038, 039, 041, 042, 043, 044, 045, 046, 046.1, 047, 048
 (Ansible consolidation + validation framework + BeeGFS consolidation + VirtIO-FS integration +
 storage schema + template rendering + BeeGFS common role + SLURM common role +
 package management role achieved!)  
-**Pending**: Tasks 036-037, 040, 047-048
+**Pending**: Tasks 036-037, 040
 (HPC test frameworks + Container registry +
 Remaining Ansible role consolidation)  
 **Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)  
@@ -4442,8 +4442,8 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - [x] Task 045: ✅ **COMPLETE** - SLURM common role created with MUNGE, directories, and user management
 - [x] Task 046: ✅ **COMPLETE** - Shared package management role created with reusable installation logic
 - [x] Task 046.1: ✅ **COMPLETE** - Package-manager integrated into BeeGFS and SLURM roles
-- [ ] Task 047: ❌ **NOT STARTED** - Base package roles NOT consolidated
-- [ ] Task 048: ❌ **NOT STARTED** - Shared utilities role NOT created
+- [x] Task 047: ✅ **COMPLETE** - Base package roles consolidated into unified base-packages role
+- [x] Task 048: ✅ **COMPLETE** - Shared utilities role created with reusable validation tasks
 
 **Success Metrics (Updated 2025-10-25):**
 
@@ -4463,9 +4463,9 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - ✅ Task 045 (SLURM common): ~200-300 lines eliminated - **COMPLETE**
 - ✅ Task 046 (Package manager): ~400-600 lines eliminated - **COMPLETE** (role created)
 - ✅ Task 046.1 (Package integration): ~800-1200 lines eliminated - **COMPLETE** (integrated into BeeGFS and SLURM)
-- Task 047 (Base packages): ~100-150 lines eliminated
-- Task 048 (Shared utilities): ~150-200 lines eliminated
-- **Total estimated reduction: ~1450-2450 lines (current) + 800-1200 lines (future integration)**
+- ✅ Task 047 (Base packages): ~100-150 lines eliminated - **COMPLETE**
+- ✅ Task 048 (Shared utilities): ~150-200 lines eliminated - **COMPLETE**
+- **Total estimated reduction: ~1,750-2,650 lines of duplicate code eliminated!**
 
 ### **Risk Assessment**
 
@@ -4485,9 +4485,12 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 
 ---
 
-**Document Version:** 3.8 (Fixed Task 047-048 Status Discrepancies)
+**Document Version:** 3.9 (Task 048 Complete - All Role Consolidation Tasks Done)
 **Last Review:** 2025-10-27
-**Status:** ✅ **Phase 4 Core COMPLETE (8/13 tasks)** | 🔄 **Phase 4.5-4.8 IN PROGRESS (6/10 tasks)**
+**Status:**
+✅ **Phase 4 Core COMPLETE (8/13 tasks)**
+✅ **Phase 4.5-4.8 COMPLETE (10/10 tasks)**
+❌ **Phase 4 Testing PENDING (0/3 tasks)**
 
 **Verification Summary:**
 
@@ -4503,4 +4506,6 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - ✅ SLURM common role created (Task 045 complete)
 - ✅ Package manager role created (Task 046 complete)
 - ✅ Package manager integrated into BeeGFS and SLURM roles (Task 046.1 complete)
-- ❌ Remaining Ansible role consolidation pending (Tasks 047-048)
+- ✅ Base package roles consolidated (Task 047 complete)
+- ✅ Shared utilities role created (Task 048 complete)
+- ✅ **ALL Phase 4.8 Role Consolidation Tasks Complete!**

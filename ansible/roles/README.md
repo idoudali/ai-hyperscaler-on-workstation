@@ -17,8 +17,9 @@ These roles provide foundational system configuration for both HPC and cloud dep
 
 | Role | Purpose | Use Case |
 |------|---------|----------|
-| **[hpc-base-packages](./hpc-base-packages/README.md)** | Installs HPC-specific packages and dependencies | HPC cluster nodes (controller and compute) |
-| **[cloud-base-packages](./cloud-base-packages/README.md)** | Installs base packages for cloud instances | Cloud infrastructure nodes |
+| **[base-packages](./base-packages/README.md)** | Consolidated base package installation (HPC and cloud) | All deployment types |
+| ~~**[hpc-base-packages](./hpc-base-packages/README.md)**~~ | ~~Installs HPC-specific packages~~ | ~~DEPRECATED - Use base-packages~~ |
+| ~~**[cloud-base-packages](./cloud-base-packages/README.md)**~~ | ~~Installs base packages for cloud instances~~ | ~~DEPRECATED - Use base-packages~~ |
 | **[container-runtime](./container-runtime/README.md)** | Configures container runtime (Docker/Apptainer) | Nodes requiring container support |
 
 ### 2. Storage Roles (BeeGFS)
@@ -124,7 +125,7 @@ Comprehensive monitoring infrastructure with metrics collection and visualizatio
 - hosts: hpc_controllers
   become: true
   roles:
-    - hpc-base-packages
+    - base-packages
     - slurm-controller
     - monitoring-stack
 ```
@@ -135,7 +136,7 @@ Comprehensive monitoring infrastructure with metrics collection and visualizatio
 - hosts: hpc_compute
   become: true
   roles:
-    - hpc-base-packages
+    - base-packages
     - nvidia-gpu-drivers
     - slurm-compute
     - beegfs-client
@@ -198,7 +199,7 @@ The following roles have base documentation and are being enhanced:
 - `slurm-compute/`
 - `monitoring-stack/`
 - `ml-container-images/`
-- `hpc-base-packages/`
+- `base-packages/`
 - `cloud-base-packages/`
 - `container-runtime/`
 - `virtio-fs-mount/`
@@ -245,7 +246,7 @@ ansible-playbook -vvv playbook.yml
 
 For complete cluster deployments, roles should typically execute in this order:
 
-1. **Base Infrastructure**: `hpc-base-packages` or `cloud-base-packages`
+1. **Base Infrastructure**: `base-packages`
 2. **Storage Setup**: `beegfs-mgmt`, `beegfs-meta`, `beegfs-storage`
 3. **Client Configuration**: `beegfs-client`, `virtio-fs-mount`
 4. **GPU Support**: `nvidia-gpu-drivers`

@@ -27,7 +27,7 @@ VERBOSE="${VERBOSE:-true}"
 LOGGING_LEVEL="${LOGGING_LEVEL:--vvv}"
 
 # Available roles
-AVAILABLE_ROLES=("hpc-base-packages" "container-runtime" "nvidia-gpu-drivers" "slurm-controller")
+AVAILABLE_ROLES=("base-packages" "container-runtime" "nvidia-gpu-drivers" "slurm-controller")
 
 # Colors for output
 RED='\033[0;31m'
@@ -194,7 +194,7 @@ Usage: $0 [target_host] [role] [options]
 ARGUMENTS:
   target_host    Target host to run Ansible against (default: localhost)
   role           Role to execute (default: all)
-                 Available roles: all, hpc-base-packages, container-runtime, nvidia-gpu-drivers, slurm-controller
+                 Available roles: all, base-packages, container-runtime, nvidia-gpu-drivers, slurm-controller
 
 OPTIONS:
   SSH_USERNAME   SSH username to use (default: debian)
@@ -205,16 +205,16 @@ OPTIONS:
 EXAMPLES:
   $0                                    # Run all roles on localhost
   $0 localhost                          # Run all roles on localhost explicitly
-  $0 localhost hpc-base-packages        # Run only hpc-base-packages role on localhost
+  $0 localhost base-packages            # Run only base-packages role on localhost
   $0 localhost container-runtime        # Run only container-runtime role on localhost
   $0 localhost nvidia-gpu-drivers       # Run only nvidia-gpu-drivers role on localhost
   $0 localhost slurm-controller         # Run only slurm-controller role on localhost
-  $0 192.168.1.100 hpc-base-packages   # Run specific role on specific IP
+  $0 192.168.1.100 base-packages       # Run specific role on specific IP
   $0 vm-host slurm-controller           # Run specific role on specific hostname
-  SSH_USERNAME=ubuntu $0 localhost hpc-base-packages     # Use different SSH user
+  SSH_USERNAME=ubuntu $0 localhost base-packages         # Use different SSH user
   SSH_PORT=2222 $0 localhost nvidia-gpu-drivers          # Use custom SSH port
   SSH_KEY=/path/to/key $0 localhost container-runtime    # Use custom SSH key
-  SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/key $0 192.168.1.100 hpc-base-packages  # Use custom user, port, and key
+  SSH_USERNAME=ubuntu SSH_PORT=2222 SSH_KEY=/path/to/key $0 192.168.1.100 base-packages  # Use custom user, port, and key
   VERBOSE=false $0 localhost all        # Disable verbose output
 
 DESCRIPTION:
@@ -223,7 +223,7 @@ DESCRIPTION:
   that Packer uses, allowing you to test or apply the same changes to a live VM.
 
   The script can run all roles or a specific role:
-  - hpc-base-packages: Install HPC base packages (tmux, htop, vim, curl, wget)
+  - base-packages: Install HPC base packages (tmux, htop, vim, curl, wget)
   - container-runtime: Install Apptainer container runtime
   - nvidia-gpu-drivers: Install NVIDIA GPU drivers (without CUDA)
   - slurm-controller: Install SLURM controller packages (slurm-wlm, slurmdbd, munge, mariadb, pmix)
