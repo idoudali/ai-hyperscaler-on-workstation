@@ -12,6 +12,7 @@ edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2024-2025 AI-HOW Team
 
 # Configuration
+strict: false
 theme:
   name: material
   language: en
@@ -78,6 +79,7 @@ plugins:
         - 'build/**'
         - 'site/**'
         - 'temp_docs/**'
+        - 'docs/planning/**'
         - '**/__pycache__/**'
         - '**/node_modules/**'
         - '.git/**'
@@ -90,7 +92,6 @@ plugins:
         - '**/htmlfiles/**'
         - 'AI-AGENT-GUIDE.md'
         - '**/LICENSE'
-        - 'docs/implementation-plans/**'
       include:
         - '*.md'
         - '*.png'
