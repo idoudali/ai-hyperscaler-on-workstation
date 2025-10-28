@@ -154,6 +154,21 @@ are tested across the infrastructure.
 | **Model Transfer** | test-multi-cluster | multi-cluster/ | BeeGFS → MinIO transfer | ✅ 🤖 |
 | **Unified Monitoring** | test-multi-cluster | multi-cluster/ | Cross-cluster metrics | ✅ 🤖 |
 
+### System-wide Management (CLOUD-0.6)
+
+| Component | Test Framework | Test Suite | Coverage | Status |
+|-----------|---------------|------------|----------|--------|
+| **System Start Command** | test-system-management | system-management/ | Start both clusters | ✅ 🤖 |
+| **System Stop Command** | test-system-management | system-management/ | Stop both clusters | ✅ 🤖 |
+| **System Destroy Command** | test-system-management | system-management/ | Destroy both clusters | ✅ 🤖 |
+| **System Status Command** | test-system-management | system-management/ | Show combined status | ✅ 🤖 |
+| **Startup Ordering** | test-system-management | system-management/ | HPC first, then Cloud | ✅ 🤖 |
+| **Shutdown Ordering** | test-system-management | system-management/ | Cloud first, then HPC | ✅ 🤖 |
+| **Failure Rollback** | test-system-management | system-management/ | Rollback on partial failure | ✅ 🤖 |
+| **Config Validation** | test-system-management | system-management/ | Validate config files | ✅ 🤖 |
+| **Error Handling** | test-system-management | system-management/ | Clear error messages | ✅ 🤖 |
+| **Shared Resources Display** | test-system-management | system-management/ | GPU allocations shown | ✅ 🤖 |
+
 ---
 
 ## Test Suite Detailed Coverage
@@ -415,6 +430,21 @@ are tested across the infrastructure.
 | `test-vm-gpu-transfer.sh` | GPU transfer between VMs | Individual VM GPU switching | ✅ |
 | `test-topology-visualization.sh` | Topology in all scenarios | Topology command validation | ✅ |
 | `test-multi-cluster-auto-start.sh` | Cluster coexistence with `auto_start` | Multi-cluster with shared GPU | ✅ |
+
+### suites/system-management/ (System-wide Management) - NEW
+
+| Test Script | Validates | Components | Auto |
+|-------------|-----------|------------|------|
+| `check-system-start-ordering.sh` | HPC starts before Cloud | Startup sequence | ✅ |
+| `check-system-stop-ordering.sh` | Cloud stops before HPC | Shutdown sequence | ✅ |
+| `check-system-status-display.sh` | Status shows both clusters | Combined status display | ✅ |
+| `check-system-status-shared-resources.sh` | Status shows GPU allocations | Shared resource display | ✅ |
+| `check-system-destroy-confirmation.sh` | Confirmation prompt works | User confirmation | ✅ |
+| `check-system-destroy-force.sh` | Force flag skips prompt | Force destroy | ✅ |
+| `check-system-rollback-on-failure.sh` | Rollback HPC if Cloud fails | Failure handling | ✅ |
+| `check-system-mixed-state.sh` | Handles one cluster running | Mixed state handling | ✅ |
+| `check-system-config-validation.sh` | Missing/invalid config errors | Config validation | ✅ |
+| `check-system-error-messages.sh` | Clear error messages | Error communication | ✅ |
 
 ---
 
@@ -711,6 +741,44 @@ are tested across the infrastructure.
 
 ---
 
+### test-system-management-framework.sh (NEW)
+
+**Purpose**: System-wide cluster management and unified operations (CLOUD-0.6)
+
+**Components Covered**:
+
+- `ai-how system start` - Start both clusters
+- `ai-how system stop` - Stop both clusters
+- `ai-how system destroy` - Destroy both clusters
+- `ai-how system status` - Show system status
+- Intelligent startup ordering (HPC first, then Cloud)
+- Intelligent shutdown ordering (Cloud first, then HPC)
+- Rollback on partial failure
+- Shared resource coordination
+
+**Test Suites Used**:
+
+- `suites/system-management/` (new)
+
+**Deployment**: System-level cluster coordination
+
+**Estimated Time**: 30-40 minutes
+
+**Scenarios Tested**:
+
+- Scenario 1: System startup (ordered correctly)
+- Scenario 2: System shutdown (correct sequence)
+- Scenario 3: System destroy with confirmation
+- Scenario 4: System destroy with --force flag
+- Scenario 5: System status shows both clusters
+- Scenario 6: Rollback on Cloud startup failure
+- Scenario 7: Mixed state (one cluster running)
+- Scenario 8: Error handling for missing configs
+- Scenario 9: Error handling for invalid configs
+- Scenario 10: Shared resources properly displayed
+
+---
+
 ## Coverage Gaps and Improvements
 
 ### Current Coverage Assessment
@@ -926,6 +994,7 @@ well-organized.
   - mlops-stack/ (4 sub-suites: minio, postgresql, mlflow, kserve)
   - inference-validation/ (10 tests)
   - multi-cluster/ (9 tests including `auto_start` coexistence)
+  - system-management/ (10 tests for system-wide management)
 - **End-to-end ML workflow** from HPC training to Cloud inference
 - **Shared GPU management** across clusters (CLOUD-0.3)
 - **Auto-start control** for VM creation without GPU allocation (CLOUD-0.1, CLOUD-0.3)
@@ -935,18 +1004,25 @@ well-organized.
 
 ### Total Test Infrastructure
 
-- **12 test frameworks** (7 HPC + 5 Cloud)
-- **26 test suites** (16 HPC + 10 Cloud)
-- **220+ test scripts** across all components (150+ HPC + 71+ Cloud)
+- **13 test frameworks** (7 HPC + 5 Cloud + 1 System Management)
+  - 7 HPC frameworks (3 unified + 4 standalone)
+  - 5 Cloud frameworks (cloud-vm, kubernetes, mlops, inference, multi-cluster)
+  - 1 System management framework (unified system start/stop/destroy)
+- **27 test suites** (16 HPC + 10 Cloud + 1 System Management)
+  - 16 HPC test suites covering SLURM, storage, containers, GPU, monitoring
+  - 10 Cloud test suites covering VMs, Kubernetes, MLOps, inference, multi-cluster
+  - 1 System management test suite (10 tests for unified operations)
+- **230+ test scripts** across all components (150+ HPC + 71+ Cloud + 10 System)
 - **Complete ML platform** validation (training + inference)
-- **AI-HOW CLI** comprehensive validation (topology, clusters, VMs)
+- **AI-HOW CLI** comprehensive validation (topology, clusters, VMs, system)
 - **Advanced GPU management** with `auto_start` control and multi-cluster coexistence
+- **System-wide operations** for unified cluster management
 
 The consolidation plan preserves this excellent coverage while reducing framework complexity and code duplication.
 All test suites remain unchanged, ensuring proven test logic is maintained while improving the orchestration layer.
 
 ---
 
-**Document Version**: 2.0  
+**Document Version**: 2.1  
 **Last Updated**: 2025-10-28  
-**Changes**: Added Cloud Cluster Components (CLOUD-0.3, CLOUD-0.4)
+**Changes**: Added Cloud Cluster Components (CLOUD-0.3, CLOUD-0.4), System-wide Management (CLOUD-0.6)
