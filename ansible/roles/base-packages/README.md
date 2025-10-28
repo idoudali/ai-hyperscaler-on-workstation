@@ -1,7 +1,9 @@
-# Base Packages Role
+# Base Packages Role - DEPRECATED
 
-Consolidated base package installation role for HPC and cloud workloads. Replaces separate `hpc-base-packages`
-and `cloud-base-packages` roles.
+⚠️ **DEPRECATION NOTICE**: This role has been reverted to separate `hpc-base-packages` and `cloud-base-packages` roles.
+
+This role was an experimental consolidation of base package installation. Development has been paused and the
+separate role-based approach has been restored for better maintainability.
 
 ## Purpose
 

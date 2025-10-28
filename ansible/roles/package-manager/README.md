@@ -1,6 +1,9 @@
-# Package Manager Common Role
+# Package Manager Common Role - DEPRECATED
 
-Generic package management role for installing pre-built Debian packages across all components (BeeGFS, SLURM, etc.).
+⚠️ **DEPRECATION NOTICE**: This role was part of an experimental consolidation effort that has been reverted.
+
+This role was created as part of the `base-packages` consolidation initiative. Development has been paused and
+component-specific package installation in individual roles is the recommended approach.
 
 ## Purpose
 

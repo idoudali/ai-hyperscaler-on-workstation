@@ -15,44 +15,42 @@ independently or as part of playbooks.
 
 These roles provide foundational system configuration for both HPC and cloud deployments.
 
-| Role | Purpose | Use Case |
-|------|---------|----------|
-| **[base-packages](./base-packages/README.md)** | Consolidated base package installation (HPC and cloud) | All deployment types |
-| ~~**[hpc-base-packages](./hpc-base-packages/README.md)**~~ | ~~Installs HPC-specific packages~~ | ~~DEPRECATED - Use base-packages~~ |
-| ~~**[cloud-base-packages](./cloud-base-packages/README.md)**~~ | ~~Installs base packages for cloud instances~~ | ~~DEPRECATED - Use base-packages~~ |
-| **[container-runtime](./container-runtime/README.md)** | Configures container runtime (Docker/Apptainer) | Nodes requiring container support |
+|| Role | Purpose | Status | Documentation |
+||------|---------|--------|-----------------|
+|| **[hpc-base-packages](./hpc-base-packages/README.md)** | Installs HPC packages | ✅ Complete | Full |
+|| **[cloud-base-packages](./cloud-base-packages/README.md)** | Installs cloud packages | ✅ Complete | Full |
+|| **[container-runtime](./container-runtime/README.md)** | Container runtime | ✅ Complete | Full |
+
+**Deprecated Roles:**
+
+- `base-packages/` - Experimental consolidation, use role-specific roles instead
+- `package-manager/` - Utility role, no longer needed
+- `slurm-common/` - Common code extracted to individual roles
 
 ### 2. Storage Roles (BeeGFS)
 
 BeeGFS distributed storage configuration for high-performance parallel file systems.
 
-| Role | Purpose | Use Case |
-|------|---------|----------|
-| **[beegfs-mgmt](./beegfs-mgmt/README.md)** | BeeGFS management node | Primary storage management |
-| **[beegfs-meta](./beegfs-meta/README.md)** | BeeGFS metadata node | Distributed metadata storage |
-| **[beegfs-storage](./beegfs-storage/README.md)** | BeeGFS storage node | Data storage targets |
-| **[beegfs-client](./beegfs-client/README.md)** | BeeGFS client mounting | Compute nodes accessing shared storage |
+|| Role | Purpose | Status | Documentation |
+||------|---------|--------|-----------------|
+|| **[beegfs-mgmt](./beegfs-mgmt/README.md)** | BeeGFS management | ✅ Complete | Full |
+|| **[beegfs-meta](./beegfs-meta/README.md)** | BeeGFS metadata | ✅ Complete | Full |
+|| **[beegfs-storage](./beegfs-storage/README.md)** | BeeGFS storage | ✅ Complete | Full |
+|| **[beegfs-client](./beegfs-client/README.md)** | BeeGFS client mount | ✅ Complete | Full |
 
-**BeeGFS Documentation:**
-Each BeeGFS role includes its own `README.md` with detailed configuration options and variables.
+See each role's README for detailed configuration options.
 
 ### 3. HPC Scheduler Roles (SLURM)
 
 SLURM cluster scheduler configuration for job orchestration and resource management.
 
-| Role | Purpose | Use Case |
-|------|---------|----------|
-| **[slurm-controller](./slurm-controller/README.md)** | Configures SLURM controller/head node | Job scheduler management |
-| **[slurm-compute](./slurm-compute/README.md)** | Configures SLURM compute nodes | Job execution nodes |
+|| Role | Purpose | Status | Documentation |
+||------|---------|--------|-----------------|
+|| **[slurm-controller](./slurm-controller/README.md)** | SLURM head node | ✅ Complete | Full |
+|| **[slurm-compute](./slurm-compute/README.md)** | SLURM compute nodes | ✅ Complete | Full |
 
-**Key Features:**
-
-- Job scheduling and resource management
-- User account and group configuration
-- Integration with GPU and storage resources
-- Monitoring and accounting setup
-
-**Important Note:** SLURM roles install from pre-built packages in `build/packages/slurm/`. Build packages first with:
+**Important Note:** SLURM roles install from pre-built packages in `build/packages/slurm/`.
+Build packages first with:
 
 ```bash
 make run-docker COMMAND="cmake --build build --target build-slurm-packages"
@@ -62,42 +60,42 @@ make run-docker COMMAND="cmake --build build --target build-slurm-packages"
 
 NVIDIA GPU driver and toolkit installation for GPU-accelerated computing.
 
-| Role | Purpose | Features |
-|------|---------|----------|
-| **[nvidia-gpu-drivers/README.md](./nvidia-gpu-drivers/README.md)** | NVIDIA GPU driver installation | Auto-detection, CUDA support, multiple Debian versions |
+|| Role | Purpose | Status | Documentation |
+||------|---------|--------|-----------------|
+|| **[nvidia-gpu-drivers](./nvidia-gpu-drivers/README.md)** | NVIDIA drivers | ✅ Complete | Full |
 
 Key capabilities:
 
 - Automatic GPU detection with `nvidia-detect`
-- Support for multiple Debian versions (Trixie, Bookworm, Bullseye)
+- Support for Debian Trixie, Bookworm, Bullseye
 - Tesla datacenter GPU support
 - CUDA toolkit installation (optional)
-- Proper nouveau driver blacklisting
+- Nouveau driver blacklisting
 
 ### 5. Container Management Roles
 
 Container registry and image management for distributed deployment.
 
-| Role | Purpose | Use Case |
-|------|---------|----------|
-| **[container-registry](./container-registry/README.md)** | Container registry server setup | Image storage and distribution |
-| **[ml-container-images](./ml-container-images/README.md)** | ML container image management | ML workload container provisioning |
+|| Role | Purpose | Status | Documentation |
+||------|---------|--------|-----------------|
+|| **[container-registry](./container-registry/README.md)** | Registry server | ✅ Complete | Full |
+|| **[ml-container-images](./ml-container-images/README.md)** | ML images | ✅ Complete | Full |
 
 ### 6. Storage Mounting Roles
 
 Specialized storage configuration for shared file systems.
 
-| Role | Purpose | Use Case |
-|------|---------|----------|
-| **[virtio-fs-mount](./virtio-fs-mount/README.md)** | Virtio-FS configuration | VM-based workload shared storage |
+|| Role | Purpose | Status | Documentation |
+||------|---------|--------|-----------------|
+|| **[virtio-fs-mount](./virtio-fs-mount/README.md)** | Virtio-FS mount | ✅ Complete | Full |
 
 ### 7. Monitoring Roles
 
 Comprehensive monitoring infrastructure with metrics collection and visualization.
 
-| Role | Purpose | Components |
-|------|---------|------------|
-| **[monitoring-stack](./monitoring-stack/README.md)** | Complete monitoring infrastructure | Prometheus, Grafana, node-exporter, DCGM |
+||| Role | Purpose | Status | Documentation |
+|||------|---------|--------|-----------------|
+||| **[monitoring-stack](./monitoring-stack/README.md)** | Monitoring | ✅ Complete | Full |
 
 **Monitoring Stack Components:**
 
@@ -105,6 +103,31 @@ Comprehensive monitoring infrastructure with metrics collection and visualizatio
 - **Grafana**: Metrics visualization and dashboards
 - **node-exporter**: Host system metrics
 - **DCGM** (NVIDIA DCGM): GPU metrics and health monitoring
+
+## Documentation Status
+
+### ✅ Fully Documented Roles
+
+All 14 roles have complete documentation with:
+
+- Overview and purpose
+- Configuration variables
+- Usage examples
+- Dependencies
+- Tags for selective execution
+- Example playbooks
+- Troubleshooting guides
+- See Also section with cross-references
+
+### 📋 Deprecated/Experimental Roles
+
+These roles are no longer recommended:
+
+- `base-packages/` - Use `hpc-base-packages` or `cloud-base-packages` instead
+- `package-manager/` - Functionality integrated into other roles
+- `slurm-common/` - Code extracted to slurm-controller and slurm-compute
+
+Migration guide in `base-packages/README.md`.
 
 ## Role Usage Patterns
 
@@ -125,7 +148,7 @@ Comprehensive monitoring infrastructure with metrics collection and visualizatio
 - hosts: hpc_controllers
   become: true
   roles:
-    - base-packages
+    - hpc-base-packages
     - slurm-controller
     - monitoring-stack
 ```
@@ -136,7 +159,7 @@ Comprehensive monitoring infrastructure with metrics collection and visualizatio
 - hosts: hpc_compute
   become: true
   roles:
-    - base-packages
+    - hpc-base-packages
     - nvidia-gpu-drivers
     - slurm-compute
     - beegfs-client
@@ -150,25 +173,17 @@ Each role follows the standard Ansible role structure:
 
 ```text
 role-name/
-├── defaults/           # Default variables (role defaults)
-├── tasks/              # Main role tasks (main.yml + optional subtasks)
+├── defaults/           # Default variables
+├── tasks/              # Main role tasks
 ├── templates/          # Jinja2 template files
-├── handlers/           # Event handlers (service restarts, etc.)
-├── README.md           # Role-specific documentation
-└── meta/               # Role metadata and dependencies (if any)
+├── handlers/           # Event handlers
+├── README.md           # Role documentation
+└── meta/               # Role metadata (if needed)
 ```
-
-### Optional Directories
-
-Roles may include additional directories as needed:
-
-- `vars/`: Static variables (less commonly used than defaults)
-- `files/`: Static files to copy to target systems
-- `meta/main.yml`: Role dependencies and metadata
 
 ## Role Documentation Standards
 
-Each role should include comprehensive `README.md` with:
+Each role includes comprehensive `README.md` with:
 
 - **Status**: Implementation status (Complete, In Progress, TODO)
 - **Overview**: Role purpose and capabilities
@@ -176,39 +191,38 @@ Each role should include comprehensive `README.md` with:
 - **Variables**: All configurable variables with defaults
 - **Usage**: Basic and advanced usage examples
 - **Dependencies**: Other roles or system requirements
-- **Tags**: Available Ansible tags for selective execution
+- **Tags**: Available Ansible tags
 - **Example Playbook**: Complete working example
 - **Troubleshooting**: Common issues and solutions
+- **See Also**: Cross-references to related roles
 
-## Finding Role Documentation
+## Typical Deployment Order
 
-### Complete Role Listing
+For complete cluster deployments, deploy roles in this order:
 
-- **[container-registry/README.md](./container-registry/README.md)** - Container registry setup
-- **[nvidia-gpu-drivers/README.md](./nvidia-gpu-drivers/README.md)** - GPU driver installation
+1. **Base Infrastructure**: `hpc-base-packages` or `cloud-base-packages`
+2. **Storage Setup**: `beegfs-mgmt`, `beegfs-meta`, `beegfs-storage`
+3. **Client Configuration**: `beegfs-client`, `virtio-fs-mount`
+4. **GPU Support**: `nvidia-gpu-drivers`
+5. **Scheduler**: `slurm-controller`, `slurm-compute`
+6. **Container Infrastructure**: `container-registry`, `container-runtime`
+7. **Monitoring**: `monitoring-stack`
+8. **Applications**: `ml-container-images`
 
-### Documentation in Development
+## Best Practices
 
-The following roles have base documentation and are being enhanced:
+1. **Always specify become**: Most roles require `become: true`
+2. **Check role documentation**: Each role's README has important details
+3. **Test in development**: Run roles in development before production
+4. **Use inventory groups**: Organize hosts by function
+5. **Monitor role execution**: Use verbose output to verify execution
+6. **Understand variables**: Each role has configurable defaults
 
-- `beegfs-mgmt/`
-- `beegfs-meta/`
-- `beegfs-storage/`
-- `beegfs-client/`
-- `slurm-controller/`
-- `slurm-compute/`
-- `monitoring-stack/`
-- `ml-container-images/`
-- `base-packages/`
-- `cloud-base-packages/`
-- `container-runtime/`
-- `virtio-fs-mount/`
-
-## Common Variables Used Across Roles
+## Common Variables
 
 ### Packer Build Mode
 
-When building images with Packer, certain roles accept a `*_packer_build` variable:
+When building images with Packer, roles accept `*_packer_build` variable:
 
 ```yaml
 nvidia_packer_build: true  # Suppresses reboot warnings during image build
@@ -219,70 +233,22 @@ nvidia_packer_build: true  # Suppresses reboot warnings during image build
 Roles supporting CUDA toolkit:
 
 ```yaml
-nvidia_install_cuda: true  # Install CUDA toolkit alongside drivers
+nvidia_install_cuda: true  # Install CUDA alongside drivers
 ```
 
-### Debugging and Logging
+### Debugging
 
-Most roles support Ansible's standard verbosity levels:
+Use standard Ansible verbosity levels:
 
 ```bash
-# Standard run
-ansible-playbook playbook.yml
-
-# Verbose output
-ansible-playbook -v playbook.yml
-
-# Extra verbose (variable values shown)
-ansible-playbook -vv playbook.yml
-
-# Debug level (all details)
-ansible-playbook -vvv playbook.yml
+ansible-playbook playbook.yml       # Standard
+ansible-playbook -v playbook.yml    # Verbose
+ansible-playbook -vv playbook.yml   # More verbose
+ansible-playbook -vvv playbook.yml  # Debug level
 ```
-
-## Role Dependencies and Integration
-
-### Typical Deployment Order
-
-For complete cluster deployments, roles should typically execute in this order:
-
-1. **Base Infrastructure**: `base-packages`
-2. **Storage Setup**: `beegfs-mgmt`, `beegfs-meta`, `beegfs-storage`
-3. **Client Configuration**: `beegfs-client`, `virtio-fs-mount`
-4. **GPU Support**: `nvidia-gpu-drivers`
-5. **Scheduler**: `slurm-controller`, `slurm-compute`
-6. **Container Infrastructure**: `container-registry`, `container-runtime`
-7. **Monitoring**: `monitoring-stack`
-8. **Applications**: `ml-container-images`
-
-### Usage Examples
-
-See [playbooks/README.md](../playbooks/README.md) for complete playbook examples that orchestrate these roles.
-
-## Best Practices for Using Roles
-
-1. **Always specify become**: Most roles require `become: true` for system-level changes
-2. **Check role documentation**: Each role's README contains important configuration details
-3. **Test in development**: Run roles in development before production deployment
-4. **Use inventory groups**: Organize hosts by function (controllers, compute, storage, etc.)
-5. **Monitor role execution**: Use verbose output to verify role execution
-6. **Understand variables**: Each role has configurable defaults documented in its README
-
-## Adding New Roles
-
-When adding a new role, follow this checklist:
-
-- [ ] Create role directory and subdirectories
-- [ ] Implement `tasks/main.yml`
-- [ ] Add `defaults/main.yml` for default variables
-- [ ] Create comprehensive `README.md` following the template above
-- [ ] Test role execution with sample playbook
-- [ ] Update this index with new role information
-- [ ] Ensure Ansible linting passes (`ansible-lint`)
-- [ ] Document any special requirements or dependencies
 
 ## See Also
 
 - **[../README.md](../README.md)** - Main Ansible directory overview
 - **[../playbooks/README.md](../playbooks/README.md)** - Playbook usage and examples
-- **Individual role READMEs** - Detailed role-specific documentation
+- Individual role READMEs - Detailed role-specific documentation
