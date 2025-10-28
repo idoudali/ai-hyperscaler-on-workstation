@@ -33,6 +33,13 @@ The test plan is structured to be both human-readable and optimized for Large La
 - **~2000-3000 lines of duplicated code eliminated**
 - **Consistent CLI patterns across all frameworks**
 
+**Phase 6**: 📝 PLANNED - Directory reorganization (see [07-directory-reorganization.md](07-directory-reorganization.md))
+
+- Reorganize tests/ into logical subdirectories (foundation, frameworks, advanced, utilities, legacy)
+- Update Makefile paths (no symlinks)
+- Improve discoverability and maintainability
+- Estimated time: 2-3 hours
+
 ## Structure
 
 This test plan is organized into focused, manageable documents:
@@ -48,6 +55,7 @@ This test plan is organized into focused, manageable documents:
 | `04-implementation-phases.md` | Step-by-step implementation plan with tasks | ~600 lines | ✅ Complete |
 | `05-validation-checklist.md` | Validation criteria and acceptance tests | ~400 lines | ✅ Complete |
 | `06-test-dependencies-matrix.md` | Per-test dependencies and cluster configuration requirements | ~900 lines | ✅ Complete |
+| `07-directory-reorganization.md` | Directory reorganization implementation task | ~600 lines | 📝 New |
 
 ### Templates
 
@@ -189,6 +197,7 @@ The `tests/test-infra/utils/` directory contains **5 comprehensive utility modul
 - [Implementation Phases](04-implementation-phases.md) - Step-by-step execution
 - [Validation Checklist](05-validation-checklist.md) - Quality assurance
 - [Test Dependencies Matrix](06-test-dependencies-matrix.md) - Per-test requirements and cluster configuration
+- [Directory Reorganization](07-directory-reorganization.md) - Directory structure reorganization task
 
 ## Contributing
 
