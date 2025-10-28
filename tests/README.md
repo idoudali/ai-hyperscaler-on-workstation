@@ -20,6 +20,74 @@ make test-quick
 
 # Run tests with verbose output
 make test-verbose
+
+# Run phased test execution (recommended for complete validation)
+make test-all-phased
+```
+
+## Directory Structure
+
+The test directory is organized into logical categories by purpose and execution phase:
+
+### Core Directories
+
+- **`foundation/`** - Phase 1: Prerequisite and foundation tests
+  - Base image validation
+  - Integration test runners
+  - Ansible role validation
+  - Configuration validation
+  - Fast, essential tests that must pass first
+
+- **`frameworks/`** - Phase 2-3: Core unified test frameworks
+  - HPC Packer controller framework
+  - HPC Packer compute framework
+  - HPC runtime framework (Ansible validation)
+  - PCIe passthrough framework
+  - Comprehensive infrastructure validation
+
+- **`advanced/`** - Phase 4: Advanced integration tests
+  - Container registry and distribution
+  - BeeGFS parallel filesystem
+  - VirtIO-FS filesystem sharing
+  - Complex multi-node tests
+
+- **`utilities/`** - Helper scripts and validation tools
+  - SSH key management
+  - Container deployment
+  - Environment setup
+  - Component-specific validation
+
+- **`legacy/`** - Deprecated tests (kept for reference)
+  - Superseded by newer unified frameworks
+  - May be removed in future releases
+
+### Unchanged Directories
+
+- **`suites/`** - Test suite implementations (individual validation scripts)
+- **`test-infra/`** - Test infrastructure (configs, utilities, VM management)
+- **`phase-4-validation/`** - Comprehensive validation framework (10-step validation)
+
+## Recommended Test Execution Order
+
+1. **Foundation** (`make test-foundation`)
+   - Validates base images, Ansible roles, configurations
+   - Fast execution (~30-90 minutes)
+   - Must pass before proceeding
+
+2. **Frameworks** (`make test-frameworks`)
+   - Validates controller, compute, and runtime configurations
+   - Medium execution (~60-120 minutes)
+   - Core infrastructure validation
+
+3. **Advanced** (`make test-advanced`)
+   - Validates storage, registry, and specialized components
+   - Longer execution (~90-150 minutes)
+   - Optional for basic deployments
+
+Run all phases in order:
+
+```bash
+make test-all-phased
 ```
 
 ## Test Framework CLI Pattern

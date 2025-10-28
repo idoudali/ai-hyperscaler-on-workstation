@@ -123,7 +123,7 @@ list-tests, run-test, status, help)
 
 #### File and Structure
 
-- [ ] File created at `tests/test-hpc-runtime-framework.sh`
+- [ ] File created at `tests/frameworks/test-hpc-runtime-framework.sh`
 - [ ] File is executable
 - [ ] Size approximately 40K lines
 - [ ] Uses framework template structure
@@ -173,7 +173,7 @@ list-tests, run-test, status, help)
 
 #### File and Structure
 
-- [ ] File created at `tests/test-hpc-packer-controller-framework.sh`
+- [ ] File created at `tests/frameworks/test-hpc-packer-controller-framework.sh`
 - [ ] File is executable
 - [ ] Size approximately 35K lines
 - [ ] Proper structure and organization
@@ -202,7 +202,7 @@ list-tests, run-test, status, help)
 
 #### File and Structure
 
-- [ ] File created at `tests/test-hpc-packer-compute-framework.sh`
+- [ ] File created at `tests/frameworks/test-hpc-packer-compute-framework.sh`
 - [ ] File is executable
 - [ ] Size approximately 15K lines
 
