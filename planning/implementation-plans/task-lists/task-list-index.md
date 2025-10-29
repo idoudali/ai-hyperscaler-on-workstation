@@ -1,9 +1,9 @@
 # Task List Index - AI-HOW Project
 
 **Last Updated:** 2025-10-30  
-**Total Task Lists:** 5 active lists  
-**Overall Progress:** 76% complete (94/124, excluding 2 deprecated). Includes completed streams.  
-**Active Work Progress:** 54% complete (37/68, excluding 2 deprecated). Excludes completed streams.
+**Total Task Lists:** 6 active lists  
+**Overall Progress:** 63% complete (95/150, excluding 2 deprecated). Includes completed streams.  
+**Active Work Progress:** 42% complete (37/88, excluding 2 deprecated). Excludes completed streams.
 
 ## Overview
 
@@ -113,15 +113,16 @@ project, categorized by completion status and organized for efficient project ma
 
 | Task List | Total Tasks | Completed | In Progress | Pending | Completion % | Status |
 |-----------|-------------|-----------|-------------|---------|--------------|--------|
-| **HPC SLURM Deployment** | 48 | 31 | 0 | 17 | 64% | 🟡 Active |
+| **HPC SLURM Deployment** | 48 | 31 | 0 | 17 | 65% | 🟡 Active |
+| **Cloud Cluster Implementation** | 18 | 1 | 0 | 17 | 5.6% | 🟡 Active |
 | **Documentation Structure** | 31 | 31 | 0 | 0 | 100% | ✅ Complete |
 | **Test Consolidation** | 15 | 15 | 0 | 0 | 100% | ✅ Complete |
 | **MLOps Validation** | 10 | 0 | 0 | 10 | 0% | 🔵 Not Started |
 | **Remove Pharos References** | 10 (2 deprecated) | 8 | 0 | 2 | 80% | 🟢 Low Priority |
 | **Active Workstreams** | 10 | 10 | 0 | 0 | 100% | ✅ Complete |
-| **TOTAL** | **124** (2 deprecated) | **94** | **0** | **29** | **76%** | 🟡 In Progress |
+| **TOTAL** | **150** (2 deprecated) | **95** | **0** | **54** | **63%** | 🟡 In Progress |
 
-**Adjusted Total (excluding completed streams):** 68 tasks (2 deprecated), 37 complete (54%)
+**Adjusted Total (excluding completed streams):** 88 tasks (2 deprecated), 37 complete (42%)
 
 ---
 
@@ -129,7 +130,28 @@ project, categorized by completion status and organized for efficient project ma
 
 This section tracks **only active (incomplete) tasks** across all task lists.
 
-### 🔴 High Priority - Active Tasks (17 tasks)
+### 🔴 High Priority - Active Tasks (34 tasks)
+
+#### Cloud Cluster Implementation (17 tasks remaining)
+
+**Current Focus:** Phase 2 - Kubernetes Deployment  
+**Recently Completed:** CLOUD-2.1 (Kubespray Integration) - Oct 29, 2025
+
+| Task ID | Description | Priority | Duration | Dependencies | Status |
+|---------|-------------|----------|----------|--------------|--------|
+| CLOUD-2.2 | Deploy NVIDIA GPU Operator | HIGH | 2-3 days | CLOUD-2.1 ✅ | Pending |
+| CLOUD-3.1 | Deploy MinIO Object Storage | HIGH | 2 days | CLOUD-2.2 | Pending |
+| CLOUD-3.2 | Deploy PostgreSQL Database | HIGH | 1 day | CLOUD-2.2 | Pending |
+| CLOUD-3.3 | Deploy MLflow Tracking Server | HIGH | 2 days | CLOUD-3.1, 3.2 | Pending |
+| CLOUD-3.4 | Deploy KServe Model Serving | HIGH | 3 days | CLOUD-3.3 | Pending |
+
+**Estimated Time to Complete:** ~10 weeks (17 tasks remaining)
+
+**Reference:** [`cloud-cluster/README.md`](./cloud-cluster/README.md)
+
+**Key Achievement:** Kubespray integration enables automated, production-ready Kubernetes deployment for model inference
+
+---
 
 #### HPC SLURM Deployment (17 tasks remaining)
 
@@ -295,7 +317,7 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 
 ### Infrastructure Deployment
 
-**HPC SLURM Deployment** - Primary infrastructure task list  
+**HPC SLURM Deployment** - HPC cluster infrastructure  
 
 - **Status:** 64% complete (31/48 tasks) - ✅ TASK-028.1 complete
 - **Location:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
@@ -310,6 +332,28 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 - ✅ Phase 3: Infrastructure Enhancements (3/3 complete) - **TASK-028.1 COMPLETE**
 - 🟡 Phase 4: Infrastructure Consolidation (18/22 complete) - 3 tasks remaining
 - 🔵 Phase 6: Final Validation (0/4 complete) - Ready to start
+
+---
+
+**Cloud Cluster Implementation** - Kubernetes-based inference cluster  
+
+- **Status:** 5.6% complete (1/18 tasks)
+- **Location:** [`cloud-cluster/README.md`](./cloud-cluster/README.md)
+- **Phases:** 8 phases (0-7), currently in Phase 2
+- **Focus:** Kubernetes deployment, GPU operator, MLOps stack (MinIO, MLflow, KServe)
+
+**Key Phases:**
+
+- 🔵 Phase 0: Foundation (0/2 complete) - VM management, CLI
+- 🔵 Phase 1: Packer Images (0/2 complete) - Cloud base images
+- 🟡 Phase 2: Kubernetes (1/2 complete) - Kubespray integration ✅, GPU operator pending
+- 🔵 Phase 3: MLOps Stack (0/4 complete) - MinIO, PostgreSQL, MLflow, KServe
+- 🔵 Phase 4: Monitoring (0/2 complete) - Prometheus, Grafana
+- 🔵 Phase 5: Oumi Integration (0/2 complete) - Configuration, documentation
+- 🔵 Phase 6: Integration (0/3 complete) - Model transfer, unified monitoring
+- 🔵 Phase 7: Testing (0/1 complete) - Test framework
+
+**Recent Milestone:** Kubespray integration complete (Oct 29, 2025)
 
 ---
 
@@ -375,15 +419,18 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 1. ~~**TASK-028.1**~~ - ✅ **COMPLETE** - BeeGFS kernel module fixed
 2. **HPC Phase 4** - Complete role consolidation (TASK-046, 047.1, 048 - 4.5 hours)
 3. **MLOPS-1.1** - Start single GPU training validation (1 day)
+4. **CLOUD-2.2** - Deploy NVIDIA GPU Operator (can run in parallel, 2-3 days)
 
 ### Short Term (Next 2 Weeks)
 
 1. **HPC Phase 4 Tasks** - Complete role consolidation (TASK-046 through TASK-048)
 2. **HPC Phase 6 Tasks** - Final validation (TASK-040 through TASK-044)
+3. **Cloud Phase 3 Tasks** - MLOps stack deployment (CLOUD-3.1 through CLOUD-3.4)
 
 ### Medium Term (3-4 Weeks)
 
-1. **MLOps Validation** - Begin after HPC cluster stable
+1. **Cloud Phase 4-7** - Complete monitoring, Oumi integration, testing
+2. **MLOps Validation** - Begin after both HPC and Cloud clusters stable
    - Start with Category 1 (basic training)
    - Progress through Categories 2-5 sequentially
 
@@ -442,17 +489,18 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 
 | Metric | Value |
 |--------|-------|
-| Total tasks defined | 124 (2 deprecated) |
-| Tasks completed | 94 (76%) |
+| Total tasks defined | 150 (2 deprecated) |
+| Tasks completed | 95 (63%) |
 | Tasks in progress | 0 (0%) |
-| Tasks pending | 29 (23%) |
-| Estimated remaining time | ~23.5 hours + 15 days |
+| Tasks pending | 54 (36%) |
+| Estimated remaining time | ~37.5 hours + 10 weeks + 18 days |
 
 ### Infrastructure Status
 
 | Component | Status | Tasks Remaining |
 |-----------|--------|-----------------|
-| HPC SLURM Cluster | 🟡 92% - Phase 3 Complete | 17 tasks |
+| HPC SLURM Cluster | 🟡 65% - Phase 3 Complete | 17 tasks |
+| Cloud Cluster | 🟡 5.6% | 17 tasks |
 | Test Infrastructure | ✅ Complete | 0 tasks |
 | Documentation Structure | ✅ Complete | 0 tasks |
 | MLOps Validation | 🟢 Ready to Start | 10 tasks |
@@ -466,6 +514,7 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 
 - **Master Index:** [`README.md`](./README.md)
 - **HPC SLURM:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
+- **Cloud Cluster:** [`cloud-cluster/README.md`](./cloud-cluster/README.md)
 - **MLOps Validation:** [`individual-tasks/mlops-validation/README.md`](./individual-tasks/mlops-validation/README.md)
 - **Remove Pharos:** [`remove-pharos-references-task-list.md`](./remove-pharos-references-task-list.md)
 

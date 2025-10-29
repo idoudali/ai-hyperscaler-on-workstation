@@ -1,8 +1,8 @@
 # Active Workstreams - Unified Task Tracking
 
 **Last Updated:** 2025-10-30  
-**Active Tasks:** 31 tasks across 2 workstreams  
-**Estimated Completion:** 37.5 hours + 18 days
+**Active Tasks:** 49 tasks across 4 workstreams  
+**Estimated Completion:** 37.5 hours + 18 days + 10 weeks
 
 ## Overview
 
@@ -227,7 +227,70 @@ grep -r "test-hpc-" Makefile
 
 ---
 
-## Workstream 3: MLOps Validation
+## Workstream 3: Cloud Cluster Implementation
+
+**Status:** 5.6% Complete (1/18 tasks)  
+**Current Phase:** Phase 2 (Kubernetes Deployment)  
+**Remaining:** 17 tasks  
+**Estimated Time:** ~10 weeks  
+**Reference:** [`cloud-cluster/README.md`](./cloud-cluster/README.md)
+
+### Recently Completed ✅
+
+**CLOUD-2.1: Integrate and Configure Kubespray** (Oct 29, 2025)
+
+- ✅ Installed Kubespray v2.29.0 via CMake integration
+- ✅ Created Kubespray inventory generation script
+- ✅ Implemented `kubespray-integration` Ansible role
+- ✅ Created deployment playbook with post-deployment validation
+- ✅ Configured Kubespray variables (containerd, Calico, CoreDNS, metrics server, ingress)
+- ✅ Updated CloudClusterManager with Kubernetes deployment methods
+- ✅ Updated Makefile target for cloud cluster deployment
+- ⏳ Pending: Actual cluster deployment testing
+
+**What This Enables:**
+
+- Automated Kubernetes cluster deployment with production-ready configuration
+- Foundation for MLOps stack deployment (MinIO, MLflow, KServe)
+- GPU operator deployment on worker nodes
+- Complete infrastructure for model inference workflow
+
+### Next Task: CLOUD-2.2 Deploy NVIDIA GPU Operator
+
+**Duration:** 2-3 days  
+**Priority:** HIGH  
+**Dependencies:** CLOUD-2.1 ✅
+
+**Objectives:**
+
+- Deploy NVIDIA GPU Operator via Helm
+- Enable GPU scheduling with device plugin
+- Configure DCGM for GPU monitoring
+- Validate GPU availability on worker nodes
+
+**Deliverables:**
+
+- `ansible/roles/nvidia-gpu-operator/` role
+- Helm-based installation with time-slicing support
+- Integration with `deploy-cloud-cluster.yml` playbook
+- GPU scheduling validation tests
+
+### Upcoming Tasks (Phase 2 → Phase 3)
+
+After CLOUD-2.2 completion:
+
+| Task ID | Description | Duration | Priority |
+|---------|-------------|----------|----------|
+| CLOUD-3.1 | Deploy MinIO Object Storage | 2 days | HIGH |
+| CLOUD-3.2 | Deploy PostgreSQL Database | 1 day | HIGH |
+| CLOUD-3.3 | Deploy MLflow Tracking Server | 2 days | HIGH |
+| CLOUD-3.4 | Deploy KServe Model Serving | 3 days | HIGH |
+
+**Phase 3 Focus:** MLOps stack deployment for model management and serving
+
+---
+
+## Workstream 4: MLOps Validation (Future)
 
 **Status:** 0% Complete (0/10 tasks) - ✅ **READY TO START**  
 **Estimated Time:** 18 days (~3-4 weeks)  
@@ -235,10 +298,10 @@ grep -r "test-hpc-" Makefile
 
 **Prerequisites:**
 
-- ✅ **TASK-028.1 complete (BeeGFS working)** - COMPLETED
+- ✅ TASK-028.1 complete (BeeGFS working) - COMPLETED
 - ✅ HPC cluster operational
 - ⏳ Phase 6 validation complete (optional - can overlap)
-- ⏳ Cloud cluster deployed (only for Category 4 & 5)
+- ⏳ Cloud cluster deployed (Workstream 3 - only for Category 4 & 5)
 
 **Reference:** [`individual-tasks/mlops-validation/README.md`](./individual-tasks/mlops-validation/README.md)
 

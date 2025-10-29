@@ -1,6 +1,7 @@
 """Cloud cluster management using libvirt."""
 
 import logging
+import subprocess
 import uuid
 from pathlib import Path
 from typing import Any
@@ -12,7 +13,7 @@ from ai_how.state.cluster_state import ClusterState, ClusterStateManager, VMStat
 from ai_how.state.models import NetworkConfig, VMInfo
 from ai_how.utils.config_parser import ClusterConfigParser
 from ai_how.utils.gpu_utils import GPUAddressParser
-from ai_how.utils.logging import log_function_entry, log_function_exit
+from ai_how.utils.logging import log_function_entry, log_function_exit, run_subprocess_with_logging
 from ai_how.utils.vm_config_utils import AutoStartResolver
 from ai_how.vm_management.hpc_manager import HPCClusterManager, HPCManagerError
 from ai_how.vm_management.libvirt_client import LibvirtClient
@@ -91,6 +92,43 @@ class CloudClusterManager(HPCClusterManager):
         self.volume_manager = VolumeManager(self.libvirt_client)
         self.network_manager = NetworkManager(self.libvirt_client)
         self.state_manager = ClusterStateManager(state_file)
+
+    @staticmethod
+    def _get_project_root(config_file: Path) -> Path:
+        """Find the project root by searching for marker files.
+
+        This method searches upward from the config file location for project markers
+        like .git directory or pyproject.toml to reliably identify the project root.
+
+        Args:
+            config_file: Path to a configuration file within the project
+
+        Returns:
+            Path to the project root directory
+
+        Raises:
+            CloudManagerError: If project root cannot be determined
+        """
+        markers = [".git", "pyproject.toml", "CMakeLists.txt"]
+        current = config_file.resolve().parent
+
+        # Search up to 10 levels to find a marker
+        for _ in range(10):
+            for marker in markers:
+                if (current / marker).exists():
+                    return current
+            if current.parent == current:
+                # Reached filesystem root
+                break
+            current = current.parent
+
+        # Fallback: if no marker found, use the traditional .parent.parent.parent
+        # This maintains backward compatibility but logs a warning
+        logger.warning(
+            f"Could not find project root markers near {config_file}. "
+            f"Using fallback path traversal."
+        )
+        return config_file.resolve().parent.parent.parent
 
     def start_cluster(self) -> bool:
         """Start the complete Cloud cluster.
@@ -724,3 +762,243 @@ class CloudClusterManager(HPCClusterManager):
         except Exception as e:
             logger.error(f"Unexpected error discovering cluster VMs: {e}")
             return []
+
+    def generate_kubespray_inventory(
+        self, config_file: Path, output_path: Path | None = None
+    ) -> Path:
+        """Generate Kubespray inventory for the cloud cluster.
+
+        Args:
+            config_file: Path to cluster configuration file
+            output_path: Optional path for inventory output (defaults to standard location)
+
+        Returns:
+            Path to generated inventory file
+
+        Raises:
+            CloudManagerError: If inventory generation fails
+        """
+        log_function_entry(logger, "generate_kubespray_inventory", config_file=config_file)
+
+        try:
+            # Determine project root and inventory output path
+            project_root = self._get_project_root(config_file)
+            if output_path is None:
+                inventory_dir = project_root / "ansible" / "inventories" / "cloud-cluster"
+                inventory_dir.mkdir(parents=True, exist_ok=True)
+                output_path = inventory_dir / "inventory.ini"
+
+            logger.info(f"Generating Kubespray inventory: {output_path}")
+
+            # Get cluster name
+            cluster_name = self.cloud_config.get("name", "cloud")
+
+            # Generate inventory using Python script
+            script_path = project_root / "scripts" / "generate-kubespray-inventory.py"
+            if not script_path.exists():
+                raise CloudManagerError(f"Inventory generation script not found: {script_path}")
+
+            cmd = [
+                "python3",
+                str(script_path),
+                str(config_file),
+                cluster_name,
+                str(output_path),
+            ]
+
+            result = run_subprocess_with_logging(
+                cmd,
+                logger,
+                cwd=project_root,
+                check=True,
+                operation_description="Generate Kubespray inventory",
+            )
+
+            logger.debug(f"Kubespray inventory result: {result}")
+
+            if not output_path.exists():
+                raise CloudManagerError(f"Inventory file was not created: {output_path}")
+
+            logger.info(f"✅ Kubespray inventory generated: {output_path}")
+            log_function_exit(logger, "generate_kubespray_inventory", output_path)
+            return output_path
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Inventory generation failed: {e}")
+            raise CloudManagerError(f"Failed to generate Kubespray inventory: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error generating inventory: {e}")
+            raise CloudManagerError(f"Failed to generate Kubespray inventory: {e}") from e
+
+    def deploy_kubernetes(
+        self,
+        config_file: Path,
+        inventory_path: Path | None = None,
+        wait_for_ssh: bool = True,
+        ssh_timeout: int = 300,
+    ) -> bool:
+        """Deploy Kubernetes cluster using Kubespray.
+
+        Args:
+            config_file: Path to cluster configuration file
+            inventory_path: Optional path to inventory file (generated if not provided)
+            wait_for_ssh: Whether to wait for VMs to be SSH-accessible before deploying
+            ssh_timeout: Timeout in seconds for SSH readiness
+
+        Returns:
+            True if deployment succeeded
+
+        Raises:
+            CloudManagerError: If deployment fails
+        """
+        log_function_entry(
+            logger,
+            "deploy_kubernetes",
+            config_file=config_file,
+            inventory_path=inventory_path,
+        )
+
+        try:
+            # Generate inventory if not provided
+            if inventory_path is None:
+                logger.info("Generating Kubespray inventory...")
+                inventory_path = self.generate_kubespray_inventory(config_file)
+
+            # Wait for VMs to be SSH-accessible if requested
+            if wait_for_ssh:
+                logger.info("Waiting for VMs to be SSH-accessible...")
+                self._wait_for_vms_ssh_ready(ssh_timeout)
+
+            # Verify Kubespray is installed
+            project_root = self._get_project_root(config_file)
+            kubespray_dir = project_root / "build" / "3rd-party" / "kubespray" / "kubespray-src"
+            cluster_yml = kubespray_dir / "cluster.yml"
+
+            if not cluster_yml.exists():
+                raise CloudManagerError(
+                    f"Kubespray not installed. Expected: {cluster_yml}\n"
+                    f"Install with: cmake --build build --target install-kubespray"
+                )
+
+            # Run Ansible playbook to deploy Kubernetes
+            logger.info("Deploying Kubernetes cluster with Kubespray...")
+
+            playbook_path = project_root / "ansible" / "playbooks" / "deploy-cloud-cluster.yml"
+
+            if not playbook_path.exists():
+                raise CloudManagerError(f"Deployment playbook not found: {playbook_path}")
+
+            # Change to ansible directory for Ansible execution
+            ansible_dir = project_root / "ansible"
+
+            cmd = [
+                "ansible-playbook",
+                "-i",
+                str(inventory_path.relative_to(ansible_dir)),
+                str(playbook_path.relative_to(ansible_dir)),
+            ]
+
+            result = run_subprocess_with_logging(
+                cmd,
+                logger,
+                cwd=ansible_dir,
+                check=True,
+                timeout=3600,  # 1 hour timeout for Kubernetes deployment
+                operation_description="Deploy Kubernetes cluster with Kubespray",
+            )
+
+            if not result.success:
+                raise CloudManagerError(
+                    f"Kubernetes deployment failed with exit code {result.returncode}"
+                )
+
+            logger.info("✅ Kubernetes cluster deployed successfully")
+            log_function_exit(logger, "deploy_kubernetes", True)
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Kubernetes deployment failed: {e}")
+            raise CloudManagerError(f"Failed to deploy Kubernetes cluster: {e}") from e
+        except Exception as e:
+            logger.error(f"Unexpected error during Kubernetes deployment: {e}")
+            raise CloudManagerError(f"Failed to deploy Kubernetes cluster: {e}") from e
+
+    def _wait_for_vms_ssh_ready(self, timeout: int = 300) -> None:
+        """Wait for all cluster VMs to be SSH-accessible.
+
+        Args:
+            timeout: Maximum time to wait in seconds
+
+        Raises:
+            CloudManagerError: If timeout is reached
+        """
+        import time
+
+        logger.info(f"Waiting for VMs to be SSH-accessible (timeout: {timeout}s)...")
+
+        cluster_state = self.state_manager.get_state()
+        if not cluster_state:
+            raise CloudManagerError("Cannot wait for SSH: cluster state not found")
+
+        all_vms = cluster_state.get_all_vms()
+        if not all_vms:
+            logger.warning("No VMs found in cluster state")
+            return
+
+        start_time = time.time()
+        check_interval = 10  # Check every 10 seconds
+
+        # Get SSH key and username from environment or defaults
+        ssh_key_path = Path.home() / ".ssh" / "id_rsa"
+        if not ssh_key_path.exists():
+            # Use state manager's state file to find project root
+            project_root = self._get_project_root(self.state_manager.state_file)
+            ssh_key_path = project_root / "build" / "shared" / "ssh-keys" / "id_rsa"
+
+        ssh_username = "admin"  # Default from Packer build
+
+        while time.time() - start_time < timeout:
+            ready_count = 0
+            for vm in all_vms:
+                if not vm.ip_address:
+                    continue
+
+                # Test SSH connectivity
+                try:
+                    cmd = [
+                        "ssh",
+                        "-i",
+                        str(ssh_key_path),
+                        "-o",
+                        "StrictHostKeyChecking=no",
+                        "-o",
+                        "ConnectTimeout=5",
+                        "-o",
+                        "UserKnownHostsFile=/dev/null",
+                        f"{ssh_username}@{vm.ip_address}",
+                        "echo 'SSH ready'",
+                    ]
+
+                    result = subprocess.run(cmd, capture_output=True, timeout=5, check=False)
+
+                    if result.returncode == 0:
+                        ready_count += 1
+                        logger.debug(f"VM {vm.name} ({vm.ip_address}) is SSH-ready")
+                    else:
+                        logger.debug(f"VM {vm.name} ({vm.ip_address}) not yet ready")
+
+                except (subprocess.TimeoutExpired, FileNotFoundError):
+                    logger.debug(f"SSH test failed for {vm.name}")
+
+            if ready_count == len([v for v in all_vms if v.ip_address]):
+                logger.info(f"✅ All {ready_count} VMs are SSH-accessible")
+                return
+
+            elapsed = int(time.time() - start_time)
+            logger.debug(
+                f"SSH readiness: {ready_count}/{len([v for v in all_vms if v.ip_address])} "
+                f"VMs ready (elapsed: {elapsed}s/{timeout}s)"
+            )
+            time.sleep(check_interval)
+
+        raise CloudManagerError(f"Timeout waiting for VMs to be SSH-accessible ({timeout}s)")

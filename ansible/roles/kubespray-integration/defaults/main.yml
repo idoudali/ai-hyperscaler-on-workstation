@@ -1,0 +1,13 @@
+# Default variables for kubespray-integration role
+
+# Path to Kubespray source directory (relative to project root)
+kubespray_source_dir: "../../build/3rd-party/kubespray/kubespray-src"
+
+# Path to Kubespray inventory file
+kubespray_inventory_file: "../../ansible/inventories/cloud-cluster/inventory.ini"
+
+# Kubernetes version (can be overridden via group_vars)
+kube_version: v1.28.0
+
+# Network plugin (can be overridden via group_vars)
+kube_network_plugin: calico

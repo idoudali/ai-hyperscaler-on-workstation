@@ -32,6 +32,12 @@ operations.
 # Step 02: Packer Compute Build (15-30 min)
 ./step-02-packer-compute.sh
 
+# Step 02.1: Packer Cloud Base Build (15-30 min)
+./step-02.1-packer-cloud-base.sh
+
+# Step 02.2: Packer Cloud GPU Worker Build (15-30 min)
+./step-02.2-packer-cloud-gpu-worker.sh
+
 # Step 03: Container Image Build (5-10 min)
 ./step-03-container-image-build.sh
 
@@ -40,6 +46,9 @@ operations.
 
 # Step 05: Runtime Deployment (10-20 min)
 ./step-05-runtime-deployment.sh
+
+# Step 05.1: Cloud Cluster Deployment (15-30 min)
+./step-05.1-cloud-cluster-deployment.sh
 
 # Step 06: VirtIO-FS Mount Validation (10-15 min)
 ./step-06-virtio-fs-validation.sh
@@ -141,6 +150,34 @@ Builds the HPC compute VM image:
 
 Output: `build/packer/hpc-compute/hpc-compute/*.qcow2`
 
+### Step 02.1: Packer Cloud Base Build (15-30 minutes)
+
+Builds the cloud base VM image for Kubernetes deployments:
+
+- Validates Packer template syntax
+- Builds cloud base image via CMake/Docker
+- Verifies image artifacts (*.qcow2)
+- Analyzes Ansible execution results
+- Confirms no task failures
+
+Output: `build/packer/cloud-base/cloud-base/*.qcow2`
+
+**Prerequisites:** Step 02 (Packer Compute Build) must be completed
+
+### Step 02.2: Packer Cloud GPU Worker Build (15-30 minutes)
+
+Builds the cloud GPU worker VM image for GPU-enabled Kubernetes nodes:
+
+- Validates Packer template syntax
+- Builds cloud GPU worker image via CMake/Docker
+- Verifies image artifacts (*.qcow2)
+- Analyzes Ansible execution results
+- Confirms GPU driver installation
+
+Output: `build/packer/cloud-gpu-worker/cloud-gpu-worker/*.qcow2`
+
+**Prerequisites:** Step 02.1 (Packer Cloud Base Build) must be completed
+
 ### Step 03: Container Image Build (5-10 minutes)
 
 Builds container SIF images for deployment testing:
@@ -171,7 +208,7 @@ Validates configuration template rendering and VirtIO-FS mount functionality:
 
 ### Step 05: Runtime Deployment (10-20 minutes)
 
-Deploys and validates runtime configuration:
+Deploys and validates HPC runtime configuration:
 
 - Checks playbook syntax
 - Generates Ansible inventory
@@ -181,7 +218,24 @@ Deploys and validates runtime configuration:
 - Deploys runtime configuration
 - Analyzes deployment results
 
-**Note:** Cluster remains running for Steps 6-8
+**Note:** HPC cluster remains running for Steps 6-8
+
+### Step 05.1: Cloud Cluster Deployment (15-30 minutes)
+
+Deploys and validates Cloud Kubernetes cluster:
+
+- Ensures Kubespray is available (CMake target: install-kubespray)
+- Checks playbook syntax
+- Generates Ansible inventory for cloud cluster
+- Validates cluster configuration
+- Verifies cloud cluster VMs exist (no start)
+- Tests SSH connectivity
+- Deploys Kubernetes using Kubespray
+- Analyzes deployment results
+
+**Prerequisites:** Step 05 (HPC Runtime Deployment) must be completed
+
+**Note:** Cloud cluster remains running for subsequent steps
 
 ### Step 06: VirtIO-FS Mount Validation (10-15 minutes)
 

@@ -371,7 +371,7 @@ cloud-cluster-inventory: config-render
 	@echo "Cluster: $(CLOUD_CLUSTER_NAME)"
 	@echo "Output: $(INVENTORY_OUTPUT)"
 	@mkdir -p $(dir $(INVENTORY_OUTPUT))
-	@uv run python scripts/generate-ansible-inventory.py $(CLUSTER_RENDERED) $(CLOUD_CLUSTER_NAME) $(INVENTORY_OUTPUT)
+	@uv run python scripts/generate-kubespray-inventory.py $(CLUSTER_RENDERED) $(CLOUD_CLUSTER_NAME) $(INVENTORY_OUTPUT)
 	@echo "✅ Cloud cluster inventory generated"
 
 # Start Cloud cluster VMs
@@ -396,12 +396,14 @@ cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "Inventory: $(INVENTORY_OUTPUT)"
 	@echo "Cluster Config: $(CLUSTER_CONFIG)"
 	@echo ""
-	@echo "⚠️  NOTE: Cloud cluster Ansible playbook not yet implemented"
-	@echo "   Expected playbook: ansible/playbooks/deploy-cloud-cluster.yml"
+	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
+		-v \
+		-i $(INVENTORY_OUTPUT) \
+		-e "cluster_config=$(CLUSTER_CONFIG)" \
+		-e "inventory_file=$(INVENTORY_OUTPUT)" \
+		ansible/playbooks/deploy-cloud-cluster.yml
 	@echo ""
-	@echo "Next Steps:"
-	@echo "  - Implement ansible/playbooks/deploy-cloud-cluster.yml"
-	@echo "  - Configure Kubernetes using Kubespray or similar"
+	@echo "✅ Kubernetes cluster deployment completed"
 
 # Destroy Cloud cluster VMs
 cloud-cluster-destroy:
