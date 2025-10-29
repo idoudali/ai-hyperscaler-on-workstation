@@ -1,6 +1,36 @@
 # HPC Compute Image CMake Configuration
+# =====================================
+#
+# This CMakeLists.txt configures the build for the HPC Compute VM image.
+# The HPC Compute nodes serve as worker nodes in the HPC cluster, running SLURM
+# compute daemons, BeeGFS storage/object servers, and workload execution services.
+#
+# Build Process:
+# - Downloads Debian cloud image
+# - Generates cloud-init configuration
+# - Prepares Packer variables and dependencies
+# - Builds QEMU-based VM image using Packer
+#
+# Usage:
+#   cmake --build build --target build-hpc-compute-image
+#   cmake --build build --target build-force-hpc-compute-image  # Force rebuild
+#
+# Available Targets:
+#   - build-hpc-compute-image: Build the HPC compute image
+#   - build-force-hpc-compute-image: Force rebuild the image
+#   - init-hpc-compute-packer: Initialize Packer plugins
+#   - validate-hpc-compute-packer: Validate Packer template
+#   - format-hpc-compute-packer: Format Packer template
+#   - clean-hpc-compute-image: Remove generated image files
+#
+# Dependencies:
+#   - BeeGFS packages (build-beegfs-packages)
+#   - SLURM packages (build-slurm-packages)
+#   - Shared SSH keys (generate-shared-ssh-keys)
+
 cmake_minimum_required(VERSION 3.18)
 
+# --- Image Configuration ---
 # Define Packer variables
 set(IMAGE_NAME "hpc-compute")
 set(VM_NAME "hpc-compute.qcow2")
@@ -11,7 +41,7 @@ set(CPUS "2")
 # SSH username to be used by Packer communicator and Ansible (must match cloud-init user)
 set(SSH_USERNAME "admin" CACHE STRING "SSH username for image provisioning")
 
-
+# --- Directory Setup ---
 # Set output directory for the image
 set(HPC_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/hpc-compute")
 
@@ -25,7 +55,7 @@ file(MAKE_DIRECTORY ${CLOUD_INIT_BUILD_DIR})
 # Common scripts directory
 set(COMMON_SCRIPTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../common/scripts")
 
-
+# --- Packer Variables Generation ---
 # Read the checksum from file to pass to Packer
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl
@@ -39,6 +69,7 @@ add_custom_target(generate-packer-vars-hpc-compute
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl
 )
 
+# --- Packer Configuration ---
 # Packer variable arguments
 set(PACKER_VARS
     -var "source_directory=${CMAKE_CURRENT_SOURCE_DIR}"
@@ -57,9 +88,9 @@ set(PACKER_VARS
     -var "slurm_packages_dir=${SLURM_PACKAGES_SOURCE_DIR}"
 )
 
-
-
+# --- Cloud-Init Configuration ---
 # Prepare cloud-init configuration for hpc-compute
+
 add_custom_command(
     OUTPUT ${CLOUD_INIT_BUILD_DIR}/user-data ${CLOUD_INIT_BUILD_DIR}/meta-data
     COMMAND ${COMMON_SCRIPTS_DIR}/prepare-cloud-init.sh ${SSH_KEYS_DIR} ${CLOUD_INIT_BUILD_DIR} hpc-compute
@@ -74,26 +105,40 @@ add_custom_command(
 
 # Target to prepare cloud-init files
 add_custom_target(prepare-cloud-init-hpc-compute
-    DEPENDS ${CLOUD_INIT_BUILD_DIR}/user-data ${CLOUD_INIT_BUILD_DIR}/meta-data
-        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-compute.sh
+    DEPENDS ${CLOUD_INIT_BUILD_DIR}/user-data #
+     ${CLOUD_INIT_BUILD_DIR}/meta-data #
+     ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-compute.sh
 )
 
+# --- Packer Operations ---
 # Initialize Packer plugins
-add_custom_target(init-hpc-compute-packer
-    COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer init --force hpc-compute.pkr.hcl
+set(INIT_PACKER_TOKEN ${CMAKE_CURRENT_BINARY_DIR}/hpc-compute-init-packer.token)
+
+add_custom_command(
+    OUTPUT ${INIT_PACKER_TOKEN}
+    COMMAND flock ${PACKER_INIT_LOCK_FILE} -c "packer init --force hpc-compute.pkr.hcl"
+    COMMAND date > ${INIT_PACKER_TOKEN}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS generate-shared-ssh-keys generate-packer-vars-hpc-compute
     COMMENT "Initializing HPC Compute Packer plugins..."
 )
 
-# Validate Packer template
+add_custom_target(init-hpc-compute-packer
+    DEPENDS ${INIT_PACKER_TOKEN}
+)
+
+# Validate Packer template (using temporary output directory to avoid conflicts)
 add_custom_target(validate-hpc-compute-packer
-    COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl ${PACKER_VARS} hpc-compute.pkr.hcl
+    COMMAND flock ${PACKER_INIT_LOCK_FILE} -c "packer init --force hpc-compute.pkr.hcl"
+    COMMAND packer validate
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl
+            ${PACKER_VARS}
+            -var "build_directory=${CMAKE_CURRENT_BINARY_DIR}/validate-tmp"
+            hpc-compute.pkr.hcl
+    COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/validate-tmp
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS init-hpc-compute-packer generate-packer-vars-hpc-compute prepare-cloud-init-hpc-compute build-beegfs-packages build-slurm-packages
-    COMMENT "Validating HPC Compute Packer template..."
+    DEPENDS generate-packer-vars-hpc-compute prepare-cloud-init-hpc-compute build-beegfs-packages build-slurm-packages
+    COMMENT "Initializing plugins and validating HPC Compute Packer template..."
 )
 
 # Format Packer template
@@ -105,10 +150,11 @@ add_custom_target(format-hpc-compute-packer
     COMMENT "Formatting HPC Compute Packer template..."
 )
 
-# Packer build arguments (simplified)
-set(PACKER_BUILD_ARGS -force)
+# --- Image Build Targets ---
+# Packer build arguments (conditional - only force if explicitly requested)
+set(PACKER_BUILD_ARGS "")
 
-# Build HPC compute image
+# Build HPC compute image (only if output doesn't exist)
 add_custom_command(
     OUTPUT ${HPC_OUTPUT_DIR}/${VM_NAME}
     COMMAND rm -rf ${HPC_OUTPUT_DIR}
@@ -134,4 +180,34 @@ add_custom_command(
 # Target to build the image
 add_custom_target(build-hpc-compute-image
     DEPENDS ${HPC_OUTPUT_DIR}/${VM_NAME}
+)
+
+# Force rebuild target (always rebuilds)
+add_custom_target(build-force-hpc-compute-image
+    COMMAND rm -rf ${HPC_OUTPUT_DIR}
+    COMMAND packer validate
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl
+            ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-compute.pkr.hcl
+    COMMAND packer build -force
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-compute.pkrvars.hcl
+            ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-compute.pkr.hcl
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Force rebuilding HPC compute image..."
+    DEPENDS prepare-cloud-init-hpc-compute
+        ${CMAKE_CURRENT_SOURCE_DIR}/hpc-compute.pkr.hcl
+        init-hpc-compute-packer
+        generate-packer-vars-hpc-compute
+        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-compute.sh
+        build-beegfs-packages
+        build-slurm-packages
+    USES_TERMINAL
+    VERBATIM
+)
+
+# --- Cleanup Targets ---
+# Clean target (removes generated image)
+add_custom_target(clean-hpc-compute-image
+    COMMAND rm -rf ${HPC_OUTPUT_DIR}
+    COMMENT "Cleaning HPC compute image..."
+    VERBATIM
 )

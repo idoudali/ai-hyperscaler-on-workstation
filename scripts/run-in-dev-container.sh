@@ -136,6 +136,7 @@ if [[ $# -eq 0 ]]; then
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
         -v "$PROJECT_ROOT":$PROJECT_ROOT \
         -v "$HOME/.cache":"$HOME/.cache" \
+        -v "$HOME/.config":"$HOME/.config" \
         -e HOME="$HOME" \
         -e USER="$USER" \
         -e USER_ID="$USER_ID" \
@@ -156,6 +157,7 @@ else
         -v /etc/sudoers.d:/etc/sudoers.d:ro \
         -v "$PROJECT_ROOT":$PROJECT_ROOT \
         -v "$HOME/.cache":"$HOME/.cache" \
+        -v "$HOME/.config":"$HOME/.config" \
         -e HOME="$HOME" \
         -e USER="$USER" \
         -e USER_ID="$USER_ID" \

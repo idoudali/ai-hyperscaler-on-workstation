@@ -91,6 +91,13 @@ main() {
     return 1
   fi
 
+  # Detect up-to-date build (no work done)
+  local build_up_to_date=0
+  if grep -q "ninja: no work to do\." "$step_dir/packer-build.log"; then
+    build_up_to_date=1
+    log_warning "No build executed: image already built; Ansible did not run"
+  fi
+
   log_info "${STEP_NUMBER}.3: Verifying image artifacts..."
   if ! ls "$PROJECT_ROOT/build/packer/hpc-compute/hpc-compute/"*.qcow2 &>/dev/null; then
     log_error "No image artifacts found"
@@ -101,11 +108,15 @@ main() {
   log_success "Image artifacts found: $IMAGE_SIZE"
 
   log_info "${STEP_NUMBER}.4: Analyzing Ansible execution..."
-  if ! grep -q "PLAY RECAP" "$step_dir/packer-build.log"; then
-    log_error "Ansible playbook did not complete"
-    return 1
+  if [[ $build_up_to_date -eq 1 ]]; then
+    log_info "Skipping Ansible analysis: build up to date (image already built)"
+  else
+    if ! grep -q "PLAY RECAP" "$step_dir/packer-build.log"; then
+      log_error "Ansible playbook did not complete"
+      return 1
+    fi
+    log_success "Ansible playbook executed"
   fi
-  log_success "Ansible playbook executed"
 
   cat > "$step_dir/validation-summary.txt" << EOF
 === Step ${STEP_NUMBER}: ${STEP_DESCRIPTION} ===
@@ -115,9 +126,9 @@ Timestamp: $(date)
 
 Details:
 - Packer template: Valid
-- Image build: Successful
+- Image build: Successful$( [[ $build_up_to_date -eq 1 ]] && echo " (already up to date)" )
 - Image size: $IMAGE_SIZE
-- Ansible execution: Completed
+- Ansible execution: $( [[ $build_up_to_date -eq 1 ]] && echo "Not executed (image already built)" || echo "Completed" )
 
 Image location:
   $PROJECT_ROOT/build/packer/hpc-compute/hpc-compute/

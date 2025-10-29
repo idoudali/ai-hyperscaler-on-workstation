@@ -113,6 +113,13 @@ main() {
 
   # Note: Only building CMake-defined targets, no additional test containers
 
+  # Detect up-to-date build (no work done)
+  local build_up_to_date=0
+  if is_build_up_to_date "$step_dir/container-build.log"; then
+    build_up_to_date=1
+    log_warning "No container build executed: targets already up to date"
+  fi
+
   # 3.3: Validate Container Images
   log_info "${STEP_NUMBER}.3: Validating container images..."
 
@@ -258,7 +265,7 @@ Timestamp: $(date)
 
 Details:
 - Development environment: Built
-- CMake-built containers: $CONTAINER_COUNT created
+- CMake-built containers: $CONTAINER_COUNT created$( summary_up_to_date_suffix "$build_up_to_date" )
 - Expected containers: ${EXPECTED_CONTAINERS[*]}
 - Missing containers: ${MISSING_CONTAINERS[*]}
 - Metadata errors: $METADATA_ERRORS
