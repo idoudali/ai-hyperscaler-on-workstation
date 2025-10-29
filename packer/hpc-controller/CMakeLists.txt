@@ -1,6 +1,37 @@
 # HPC Controller Image CMake Configuration
+# =======================================
+#
+# This CMakeLists.txt configures the build for the HPC Controller VM image.
+# The HPC Controller serves as the head node for the HPC cluster, running SLURM
+# controller services, BeeGFS metadata and management servers, and orchestration
+# tools.
+#
+# Build Process:
+# - Downloads Debian cloud image
+# - Generates cloud-init configuration
+# - Prepares Packer variables and dependencies
+# - Builds QEMU-based VM image using Packer
+#
+# Usage:
+#   cmake --build build --target build-hpc-controller-image
+#   cmake --build build --target build-force-hpc-controller-image  # Force rebuild
+#
+# Available Targets:
+#   - build-hpc-controller-image: Build the HPC controller image
+#   - build-force-hpc-controller-image: Force rebuild the image
+#   - init-hpc-controller-packer: Initialize Packer plugins
+#   - validate-hpc-controller-packer: Validate Packer template
+#   - format-hpc-controller-packer: Format Packer template
+#   - clean-hpc-controller-image: Remove generated image files
+#
+# Dependencies:
+#   - BeeGFS packages (build-beegfs-packages)
+#   - SLURM packages (build-slurm-packages)
+#   - Shared SSH keys (generate-shared-ssh-keys)
+
 cmake_minimum_required(VERSION 3.18)
 
+# --- Image Configuration ---
 # Define Packer variables
 set(IMAGE_NAME "hpc-controller")
 set(VM_NAME "hpc-controller.qcow2")
@@ -11,7 +42,7 @@ set(CPUS "2")
 # SSH username to be used by Packer communicator and Ansible (must match cloud-init user)
 set(SSH_USERNAME "admin" CACHE STRING "SSH username for image provisioning")
 
-
+# --- Directory Setup ---
 # Set output directory for the image
 set(HPC_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/hpc-controller")
 
@@ -25,7 +56,7 @@ file(MAKE_DIRECTORY ${CLOUD_INIT_BUILD_DIR})
 # Common scripts directory
 set(COMMON_SCRIPTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../common/scripts")
 
-
+# --- Packer Variables Generation ---
 # Read the checksum from file to pass to Packer
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hpc-controller.pkrvars.hcl
@@ -39,6 +70,7 @@ add_custom_target(generate-packer-vars-hpc-controller
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/hpc-controller.pkrvars.hcl
 )
 
+# --- Packer Configuration ---
 # Packer variable arguments
 set(PACKER_VARS
     -var "source_directory=${CMAKE_CURRENT_SOURCE_DIR}"
@@ -57,9 +89,9 @@ set(PACKER_VARS
     -var "slurm_packages_dir=${SLURM_PACKAGES_SOURCE_DIR}"
 )
 
-
-
+# --- Cloud-Init Configuration ---
 # Prepare cloud-init configuration for hpc-controller
+
 add_custom_command(
     OUTPUT ${CLOUD_INIT_BUILD_DIR}/user-data ${CLOUD_INIT_BUILD_DIR}/meta-data
     COMMAND ${COMMON_SCRIPTS_DIR}/prepare-cloud-init.sh ${SSH_KEYS_DIR} ${CLOUD_INIT_BUILD_DIR} hpc-controller
@@ -74,26 +106,40 @@ add_custom_command(
 
 # Target to prepare cloud-init files
 add_custom_target(prepare-cloud-init-hpc-controller
-    DEPENDS ${CLOUD_INIT_BUILD_DIR}/user-data ${CLOUD_INIT_BUILD_DIR}/meta-data
-        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-controller.sh
+    DEPENDS ${CLOUD_INIT_BUILD_DIR}/user-data #
+     ${CLOUD_INIT_BUILD_DIR}/meta-data #
+     ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-controller.sh
 )
 
+# --- Packer Operations ---
 # Initialize Packer plugins
-add_custom_target(init-hpc-controller-packer
-    COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer init --force hpc-controller.pkr.hcl
+set(INIT_PACKER_TOKEN ${CMAKE_CURRENT_BINARY_DIR}/hpc-controller-init-packer.token)
+
+add_custom_command(
+    OUTPUT ${INIT_PACKER_TOKEN}
+    COMMAND flock ${PACKER_INIT_LOCK_FILE} -c "packer init --force hpc-controller.pkr.hcl"
+    COMMAND date > ${INIT_PACKER_TOKEN}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS generate-shared-ssh-keys generate-packer-vars-hpc-controller
     COMMENT "Initializing HPC Controller Packer plugins..."
 )
 
-# Validate Packer template
+add_custom_target(init-hpc-controller-packer
+    DEPENDS ${INIT_PACKER_TOKEN}
+)
+
+# Validate Packer template (using temporary output directory to avoid conflicts)
 add_custom_target(validate-hpc-controller-packer
-    COMMAND rm -rf ${HPC_OUTPUT_DIR}
-    COMMAND packer validate -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-controller.pkrvars.hcl ${PACKER_VARS} hpc-controller.pkr.hcl
+    COMMAND flock ${PACKER_INIT_LOCK_FILE} -c "packer init --force hpc-controller.pkr.hcl"
+    COMMAND packer validate
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-controller.pkrvars.hcl
+            ${PACKER_VARS}
+            -var "build_directory=${CMAKE_CURRENT_BINARY_DIR}/validate-tmp"
+            hpc-controller.pkr.hcl
+    COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/validate-tmp
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS init-hpc-controller-packer generate-packer-vars-hpc-controller prepare-cloud-init-hpc-controller build-beegfs-packages build-slurm-packages
-    COMMENT "Validating HPC Controller Packer template..."
+    DEPENDS generate-packer-vars-hpc-controller prepare-cloud-init-hpc-controller build-beegfs-packages build-slurm-packages
+    COMMENT "Initializing plugins and validating HPC Controller Packer template..."
 )
 
 # Format Packer template
@@ -105,10 +151,11 @@ add_custom_target(format-hpc-controller-packer
     COMMENT "Formatting HPC Controller Packer template..."
 )
 
-# Packer build arguments (simplified)
-set(PACKER_BUILD_ARGS -force)
+# --- Image Build Targets ---
+# Packer build arguments (conditional - only force if explicitly requested)
+set(PACKER_BUILD_ARGS "")
 
-# Build HPC controller image
+# Build HPC controller image (only if output doesn't exist)
 add_custom_command(
     OUTPUT ${HPC_OUTPUT_DIR}/${VM_NAME}
     COMMAND rm -rf ${HPC_OUTPUT_DIR}
@@ -134,4 +181,34 @@ add_custom_command(
 # Target to build the image
 add_custom_target(build-hpc-controller-image
     DEPENDS ${HPC_OUTPUT_DIR}/${VM_NAME}
+)
+
+# Force rebuild target (always rebuilds)
+add_custom_target(build-force-hpc-controller-image
+    COMMAND rm -rf ${HPC_OUTPUT_DIR}
+    COMMAND packer validate
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-controller.pkrvars.hcl
+            ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-controller.pkr.hcl
+    COMMAND packer build -force
+            -var-file=${CMAKE_CURRENT_BINARY_DIR}/hpc-controller.pkrvars.hcl
+            ${PACKER_VARS} ${CMAKE_CURRENT_SOURCE_DIR}/hpc-controller.pkr.hcl
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Force rebuilding HPC controller image..."
+    DEPENDS prepare-cloud-init-hpc-controller
+        ${CMAKE_CURRENT_SOURCE_DIR}/hpc-controller.pkr.hcl
+        init-hpc-controller-packer
+        generate-packer-vars-hpc-controller
+        ${CMAKE_CURRENT_SOURCE_DIR}/setup-hpc-controller.sh
+        build-beegfs-packages
+        build-slurm-packages
+    USES_TERMINAL
+    VERBATIM
+)
+
+# --- Cleanup Targets ---
+# Clean target (removes generated image)
+add_custom_target(clean-hpc-controller-image
+    COMMAND rm -rf ${HPC_OUTPUT_DIR}
+    COMMENT "Cleaning HPC controller image..."
+    VERBATIM
 )

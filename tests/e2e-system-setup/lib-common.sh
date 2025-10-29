@@ -285,6 +285,57 @@ run_logged_command() {
   fi
 }
 
+# ----------------------------------------------------------------------------
+# Packer/Build helpers
+# ----------------------------------------------------------------------------
+
+# Return 0 if the build log indicates no work was performed (up to date)
+is_build_up_to_date() {
+  local log_file="$1"
+  if grep -q "ninja: no work to do\." "$log_file"; then
+    return 0
+  fi
+  return 1
+}
+
+# Check that an Ansible play ended successfully (i.e., at least reached PLAY RECAP)
+# Returns 0 if recap exists; otherwise logs an error and returns 1
+require_ansible_completed() {
+  local log_file="$1"
+  if ! grep -q "PLAY RECAP" "$log_file"; then
+    log_error "Ansible playbook did not complete"
+    return 1
+  fi
+  return 0
+}
+
+# Returns 0 when grep shows failed=0 and unreachable=0, non-zero otherwise
+ansible_has_no_failures() {
+  local log_file="$1"
+  if grep "failed=0" "$log_file" | grep -q "unreachable=0"; then
+    return 0
+  fi
+  return 1
+}
+
+# Echoes human-readable suffix for summary line when build is up-to-date
+summary_up_to_date_suffix() {
+  local is_up_to_date="$1"  # 0 or 1
+  if [[ "$is_up_to_date" -eq 1 ]]; then
+    echo " (already up to date)"
+  fi
+}
+
+# Echoes human-readable Ansible execution summary based on up-to-date flag
+summary_ansible_execution() {
+  local is_up_to_date="$1"  # 0 or 1
+  if [[ "$is_up_to_date" -eq 1 ]]; then
+    echo "Not executed (image already built)"
+  else
+    echo "Completed"
+  fi
+}
+
 # Check if tool exists in Docker container
 check_tool_in_container() {
   local tool="$1"

@@ -52,6 +52,9 @@ add_custom_target(prepare-debian-checksum
     DEPENDS ${DEBIAN_CLOUD_IMAGE_CHECKSUM_FILE}
 )
 
+# Packer init lock file
+set(PACKER_INIT_LOCK_FILE ${CMAKE_CURRENT_BINARY_DIR}/packer_init.lock)
+
 # Add subdirectories for each image type
 add_subdirectory(hpc-controller)
 add_subdirectory(hpc-compute)
@@ -66,34 +69,10 @@ add_custom_target(init-packer
     COMMENT "Initializing all Packer plugins..."
 )
 
-# Initialize HPC Packer plugins (both controller and compute)
-add_custom_target(init-hpc-packer
-    DEPENDS init-hpc-controller-packer init-hpc-compute-packer
-    COMMENT "Initializing HPC Packer plugins..."
-)
-
-# Initialize Cloud Packer plugins (base and GPU worker)
-add_custom_target(init-cloud-packer
-    DEPENDS init-cloud-base-packer init-cloud-gpu-worker-packer
-    COMMENT "Initializing Cloud Packer plugins..."
-)
-
 # Validate all Packer templates
 add_custom_target(validate-packer
     DEPENDS validate-hpc-controller-packer validate-hpc-compute-packer validate-cloud-base-packer validate-cloud-gpu-worker-packer
     COMMENT "Validating all Packer templates..."
-)
-
-# Validate HPC Packer templates (both controller and compute)
-add_custom_target(validate-hpc-packer
-    DEPENDS validate-hpc-controller-packer validate-hpc-compute-packer
-    COMMENT "Validating HPC Packer templates..."
-)
-
-# Validate Cloud Packer templates (base and GPU worker)
-add_custom_target(validate-cloud-packer
-    DEPENDS validate-cloud-base-packer validate-cloud-gpu-worker-packer
-    COMMENT "Validating Cloud Packer templates..."
 )
 
 # Format all Packer templates
@@ -102,32 +81,32 @@ add_custom_target(format-packer
     COMMENT "Formatting all Packer templates..."
 )
 
-# Format HPC Packer templates (both controller and compute)
-add_custom_target(format-hpc-packer
-    DEPENDS format-hpc-controller-packer format-hpc-compute-packer
-    COMMENT "Formatting HPC Packer templates..."
-)
-
-# Format Cloud Packer templates (base and GPU worker)
-add_custom_target(format-cloud-packer
-    DEPENDS format-cloud-base-packer format-cloud-gpu-worker-packer
-    COMMENT "Formatting Cloud Packer templates..."
-)
-
 # Build all base images
 add_custom_target(build-packer-images
     DEPENDS build-hpc-controller-image build-hpc-compute-image build-cloud-base-image build-cloud-gpu-worker-image
     COMMENT "Building all base images..."
 )
 
-# Build HPC images (both controller and compute)
-add_custom_target(build-hpc-images
-    DEPENDS build-hpc-controller-image build-hpc-compute-image
-    COMMENT "Building HPC images..."
+# Force rebuild all images (always rebuilds)
+add_custom_target(build-force-packer-images
+    DEPENDS build-force-hpc-controller-image build-force-hpc-compute-image build-force-cloud-base-image build-force-cloud-gpu-worker-image
+    COMMENT "Force rebuilding all base images..."
 )
 
-# Build Cloud images (base and GPU worker)
-add_custom_target(build-cloud-images
-    DEPENDS build-cloud-base-image build-cloud-gpu-worker-image
-    COMMENT "Building Cloud images..."
+# Clean all images
+add_custom_target(clean-packer-images
+    DEPENDS clean-hpc-controller-image clean-hpc-compute-image clean-cloud-base-image clean-cloud-gpu-worker-image
+    COMMENT "Cleaning all base images..."
+)
+
+# Clean HPC images (both controller and compute)
+add_custom_target(clean-hpc-images
+    DEPENDS clean-hpc-controller-image clean-hpc-compute-image
+    COMMENT "Cleaning HPC images..."
+)
+
+# Clean Cloud images (base and GPU worker)
+add_custom_target(clean-cloud-images
+    DEPENDS clean-cloud-base-image clean-cloud-gpu-worker-image
+    COMMENT "Cleaning Cloud images..."
 )

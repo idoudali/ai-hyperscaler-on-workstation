@@ -90,10 +90,25 @@ main() {
 
   # 1.2: Build controller image (15-30 minutes)
   log_info "${STEP_NUMBER}.2: Building controller Packer image (15-30 minutes)..."
+  # Note: If the image is already built and up to date, the underlying Ninja build
+  # system will report "ninja: no work to do." and no Packer/Ansible provisioning
+  # will run. To force a rebuild (and re-run Ansible), use the CMake target:
+  #   cmake --build build --target build-force-hpc-controller-image
+  # To clean/remove existing Packer images before rebuilding, use one of:
+  #   cmake --build build --target clean-hpc-controller-image     # controller only
+  #   cmake --build build --target clean-hpc-images               # controller + compute
+  #   cmake --build build --target clean-packer-images            # all images
   if ! run_docker_command_with_errors "cmake --build build --target build-hpc-controller-image" \
     "$step_dir/packer-build.log" "$step_dir/packer-build-error.log" "Packer build"; then
     tail -30 "$step_dir/packer-build.log"
     return 1
+  fi
+
+  # Detect up-to-date build (no work done)
+  local build_up_to_date=0
+  if grep -q "ninja: no work to do\." "$step_dir/packer-build.log"; then
+    build_up_to_date=1
+    log_warning "No build executed: image already built; Ansible did not run"
   fi
 
   # 1.3: Verify image artifacts
@@ -108,16 +123,23 @@ main() {
 
   # 1.4: Analyze Ansible execution
   log_info "${STEP_NUMBER}.4: Analyzing Ansible execution..."
-  if ! grep -q "PLAY RECAP" "$step_dir/packer-build.log"; then
-    log_error "Ansible playbook did not complete"
-    return 1
-  fi
-  log_success "Ansible playbook executed"
-
-  if grep "failed=0" "$step_dir/packer-build.log" | grep -q "unreachable=0"; then
-    log_success "No Ansible task failures"
+  local task_failures_line="N/A"
+  if [[ $build_up_to_date -eq 1 ]]; then
+    log_info "Skipping Ansible analysis: build up to date (image already built)"
   else
-    log_warning "Some Ansible tasks may have issues - check logs"
+    if ! grep -q "PLAY RECAP" "$step_dir/packer-build.log"; then
+      log_error "Ansible playbook did not complete"
+      return 1
+    fi
+    log_success "Ansible playbook executed"
+
+    if grep "failed=0" "$step_dir/packer-build.log" | grep -q "unreachable=0"; then
+      log_success "No Ansible task failures"
+      task_failures_line="None"
+    else
+      log_warning "Some Ansible tasks may have issues - check logs"
+      task_failures_line="Check logs"
+    fi
   fi
 
   # Create summary
@@ -129,10 +151,10 @@ Timestamp: $(date)
 
 Details:
 - Packer template: Valid
-- Image build: Successful
+- Image build: Successful$( [[ $build_up_to_date -eq 1 ]] && echo " (already up to date)" )
 - Image size: $IMAGE_SIZE
-- Ansible execution: Completed
-- Task failures: None
+- Ansible execution: $( [[ $build_up_to_date -eq 1 ]] && echo "Not executed (image already built)" || echo "Completed" )
+- Task failures: ${task_failures_line}
 
 Image location:
   $PROJECT_ROOT/build/packer/hpc-controller/hpc-controller/
