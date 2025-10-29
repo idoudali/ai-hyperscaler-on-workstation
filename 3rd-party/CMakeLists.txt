@@ -4,3 +4,6 @@ cmake_minimum_required(VERSION 3.18)
 # BeeGFS Parallel Filesystem
 add_subdirectory(beegfs)
 add_subdirectory(slurm)
+
+# Kubespray Kubernetes Deployment Tool
+add_subdirectory(kubespray)

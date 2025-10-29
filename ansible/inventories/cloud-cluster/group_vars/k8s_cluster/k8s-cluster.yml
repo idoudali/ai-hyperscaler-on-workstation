@@ -1,0 +1,18 @@
+# Kubernetes Cluster Configuration
+# Additional Kubernetes-specific settings
+
+## Cluster Name
+cluster_name: cloud-cluster
+
+## Container Registry (if using local registry)
+# registry_host: ""
+# registry_port: ""
+
+## Additional Feature Gates (if needed)
+# Additional feature gates beyond defaults
+
+## Kubelet Configuration
+# Additional kubelet arguments if needed
+
+## Kube-proxy Configuration
+kube_proxy_mode: iptables

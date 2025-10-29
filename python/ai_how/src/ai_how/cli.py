@@ -19,6 +19,7 @@ from ai_how.resource_management.gpu_allocator import GPUResourceAllocator
 from ai_how.state.cluster_state import ClusterStateManager, VMState
 from ai_how.system_manager import SystemClusterManager, SystemManagerError
 from ai_how.utils.logging import configure_logging
+from ai_how.utils.virsh_utils import get_domain_ip
 from ai_how.validation import validate_config
 from ai_how.vm_management.cloud_manager import CloudClusterManager, CloudManagerError
 from ai_how.vm_management.hpc_manager import HPCClusterManager, HPCManagerError
@@ -1356,7 +1357,7 @@ def _display_cluster_status(status: dict, cluster_type: str = "HPC") -> None:
         vm_table.add_column("State", style="white")
         vm_table.add_column("CPU", style="white")
         vm_table.add_column("Memory (GB)", style="white")
-        vm_table.add_column("IP Address", style="white")
+        vm_table.add_column("IP (desired/live)", style="white")
         vm_table.add_column("GPU", style="white")
 
         for vm in status["vms"]:
@@ -1365,13 +1366,19 @@ def _display_cluster_status(status: dict, cluster_type: str = "HPC") -> None:
             # Format GPU information
             gpu_info = vm.get("gpu_assigned")
             gpu_display = f"[green]{gpu_info}[/green]" if gpu_info else "[dim]None[/dim]"
+            desired_ip = vm.get("ip_address", "N/A")
+            live_ip = get_domain_ip(vm.get("name", ""))
+            if live_ip and desired_ip and live_ip != desired_ip:
+                ip_display = f"{desired_ip} / [red]{live_ip}[/red]"
+            else:
+                ip_display = f"{desired_ip} / {live_ip or 'N/A'}"
 
             vm_table.add_row(
                 vm["name"],
                 f"[{state_color}]{vm['state']}[/{state_color}]",
                 str(vm.get("cpu_cores", "N/A")),
                 str(vm.get("memory_gb", "N/A")),
-                vm.get("ip_address", "N/A"),
+                ip_display,
                 gpu_display,
             )
 

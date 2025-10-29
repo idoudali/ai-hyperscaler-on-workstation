@@ -89,9 +89,12 @@ Description:
   - Step 00: Prerequisites
   - Step 01: Packer Controller Build
   - Step 02: Packer Compute Build
+  - Step 02.1: Packer Cloud Base Build
+  - Step 02.2: Packer Cloud GPU Worker Build
   - Step 03: Container Image Build
   - Step 04: Configuration Rendering
   - Step 05: Runtime Deployment
+  - Step 05.1: Cloud Cluster Deployment
   - Step 06: VirtIO-FS Mount Validation
   - Step 07: BeeGFS Setup Validation
   - Step 08: Container Image Push
@@ -167,6 +170,22 @@ main() {
   fi
   echo ""
 
+  # Step 2.1: Packer Cloud Base
+  log_info "Running Step 02.1: Packer Cloud Base Build..."
+  if ! bash "$SCRIPT_DIR/step-02.1-packer-cloud-base.sh"; then
+    log_error "Step 02.1 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 2.2: Packer Cloud GPU Worker
+  log_info "Running Step 02.2: Packer Cloud GPU Worker Build..."
+  if ! bash "$SCRIPT_DIR/step-02.2-packer-cloud-gpu-worker.sh"; then
+    log_error "Step 02.2 FAILED"
+    return 1
+  fi
+  echo ""
+
   # Step 3: Container Image Build
   log_info "Running Step 03: Container Image Build..."
   if ! bash "$SCRIPT_DIR/step-03-container-image-build.sh"; then
@@ -187,6 +206,14 @@ main() {
   log_info "Running Step 05: Runtime Deployment..."
   if ! bash "$SCRIPT_DIR/step-05-runtime-deployment.sh"; then
     log_error "Step 05 FAILED"
+    return 1
+  fi
+  echo ""
+
+  # Step 5.1: Cloud Cluster Deployment
+  log_info "Running Step 05.1: Cloud Cluster Deployment..."
+  if ! bash "$SCRIPT_DIR/step-05.1-cloud-cluster-deployment.sh"; then
+    log_error "Step 05.1 FAILED"
     return 1
   fi
   echo ""
@@ -240,7 +267,7 @@ main() {
 
   # Print summary
   echo "╔════════════════════════════════════════════════════════════╗"
-  echo "║  ✅ ALL 10 VALIDATION STEPS PASSED                        ║"
+  echo "║  ✅ ALL 13 VALIDATION STEPS PASSED                        ║"
   echo "╚════════════════════════════════════════════════════════════╝"
   echo ""
   echo "Completed Steps:"

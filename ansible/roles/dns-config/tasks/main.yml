@@ -1,0 +1,89 @@
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Detect if systemd-resolved is active
+  ansible.builtin.set_fact:
+    _dns_resolved_active: >-
+      {{ (ansible_facts.services['systemd-resolved.service'] is defined) and
+          (ansible_facts.services['systemd-resolved.service'].state == 'running') }}
+
+- name: Stat /etc/resolv.conf
+  ansible.builtin.stat:
+    path: /etc/resolv.conf
+    follow: false
+  register: resolv_conf_stat
+
+- name: Read current /etc/resolv.conf when present
+  ansible.builtin.slurp:
+    path: /etc/resolv.conf
+  register: resolv_conf_content
+  when: resolv_conf_stat.stat.exists
+
+- name: Extract current nameservers
+  ansible.builtin.set_fact:
+    _current_nameservers: >-
+      {{ (resolv_conf_content['content'] | b64decode).splitlines() | select('match', '^nameserver\\s+') | list }}
+  when: resolv_conf_stat.stat.exists
+
+- name: Decide whether to use systemd-resolved
+  ansible.builtin.set_fact:
+    _use_resolved: >-
+      {{ (dns_use_systemd_resolved | bool) or
+         (dns_use_systemd_resolved == 'auto' and _dns_resolved_active) }}
+
+- name: Ensure systemd-resolved configured with upstream DNS
+  when: _use_resolved
+  block:
+    - name: Ensure /etc/systemd/resolved.conf has DNS entries
+      community.general.ini_file:
+        dest: /etc/systemd/resolved.conf
+        section: Resolve
+        option: DNS
+        value: "{{ dns_nameservers | join(' ') }}"
+        no_extra_spaces: true
+        create: true
+        mode: '0644'
+
+    - name: Ensure /etc/systemd/resolved.conf has FallbackDNS
+      community.general.ini_file:
+        dest: /etc/systemd/resolved.conf
+        section: Resolve
+        option: FallbackDNS
+        value: "1.0.0.1 9.9.9.9"
+        no_extra_spaces: true
+        create: true
+        mode: '0644'
+
+    - name: Ensure DNSStubListener is enabled
+      community.general.ini_file:
+        dest: /etc/systemd/resolved.conf
+        section: Resolve
+        option: DNSStubListener
+        value: "yes"
+        no_extra_spaces: true
+        create: true
+        mode: '0644'
+
+    - name: Restart systemd-resolved
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
+        enabled: true
+
+    - name: Ensure /etc/resolv.conf points to stub resolver
+      ansible.builtin.file:
+        path: /etc/resolv.conf
+        state: link
+        src: /run/systemd/resolve/stub-resolv.conf
+
+- name: Ensure /etc/resolv.conf has nameservers when not using systemd-resolved
+  when: not _use_resolved
+  block:
+    - name: Create static /etc/resolv.conf if empty or missing nameserver entries
+      ansible.builtin.template:
+        src: resolv.conf.j2
+        dest: /etc/resolv.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: not resolv_conf_stat.stat.exists or (_current_nameservers | default([]) | length == 0)
