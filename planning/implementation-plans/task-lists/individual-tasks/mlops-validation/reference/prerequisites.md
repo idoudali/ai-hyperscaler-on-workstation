@@ -117,7 +117,7 @@ This document outlines all prerequisites required to execute the MLOps validatio
 
 **Python Environment:**
 
-- Python 3.11 or later
+- Python 3.10 or later
 - `pip` or `uv` package manager
 
 **Python Packages:**
@@ -256,7 +256,7 @@ ssh -i ~/.ssh/ai_how_cluster_key admin@192.168.100.10
 
 **SSH Config:**
 
-```
+```ini
 # ~/.ssh/config
 Host hpc-cluster
     HostName 192.168.100.10

@@ -223,8 +223,14 @@ ssh hpc-cluster "curl -I https://huggingface.co"
 # 2. Set HuggingFace cache on BeeGFS
 export HF_HOME=/mnt/beegfs/huggingface
 
-# 3. Pre-download models
-python -c "from transformers import AutoModel; AutoModel.from_pretrained('HuggingFaceTB/SmolLM-135M', cache_dir='/mnt/beegfs/huggingface')"
+# 3. Pre-download models (with basic error handling)
+python <<'PY' || { echo "Model download failed" >&2; exit 1; }
+from transformers import AutoModel
+AutoModel.from_pretrained(
+    'HuggingFaceTB/SmolLM-135M',
+    cache_dir='/mnt/beegfs/huggingface'
+)
+PY
 
 # 4. Use local mirror if available
 export HF_ENDPOINT=http://local-mirror.example.com

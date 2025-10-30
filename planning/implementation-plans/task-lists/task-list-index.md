@@ -2,11 +2,13 @@
 
 **Last Updated:** 2025-10-30  
 **Total Task Lists:** 5 active lists  
-**Overall Progress:** 66% complete (83/126 tasks)
+**Overall Progress:** 67% complete (85/126). Includes completed streams.  
+**Active Work Progress:** 41% complete (29/70). Excludes completed streams.
 
 ## Overview
 
-This document provides a unified index of all task lists in the AI-HOW (AI Hyperscaler on Workstation) project, categorized by completion status and organized for efficient project management.
+This document provides a unified index of all task lists in the AI-HOW (AI Hyperscaler on Workstation)
+project, categorized by completion status and organized for efficient project management.
 
 ## Quick Navigation
 
@@ -261,12 +263,12 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 ### Short Term (Next 2 Weeks)
 
-3. **HPC Phase 4 Tasks** - Complete role consolidation (TASK-046 through TASK-048)
-4. **HPC Phase 6 Tasks** - Final validation (TASK-040 through TASK-044)
+1. **HPC Phase 4 Tasks** - Complete role consolidation (TASK-046 through TASK-048)
+2. **HPC Phase 6 Tasks** - Final validation (TASK-040 through TASK-044)
 
 ### Medium Term (3-4 Weeks)
 
-5. **MLOps Validation** - Begin after HPC cluster stable
+1. **MLOps Validation** - Begin after HPC cluster stable
    - Start with Category 1 (basic training)
    - Progress through Categories 2-5 sequentially
 

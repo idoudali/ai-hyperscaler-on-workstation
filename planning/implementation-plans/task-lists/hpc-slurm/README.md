@@ -108,6 +108,7 @@ hpc-slurm/
 - Status: ✅ **95% COMPLETE** (22/23 tasks complete)
 - Content: Ansible playbook and test framework consolidation
 - **Remaining**: Task 040 (Container Registry on BeeGFS) - 0% complete
+  _Note: Completion of Task 040 is required before Phase 4 can be considered complete and before Phase 6 can begin._
 - **Achievement**: 64% playbook reduction (14 → 5 playbooks), role consolidation complete
 
 **Phase 6: Validation** (Tasks 041-044)
