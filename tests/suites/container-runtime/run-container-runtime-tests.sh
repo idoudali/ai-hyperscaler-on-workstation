@@ -13,14 +13,16 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 # Script configuration
 SCRIPT_NAME="run-container-runtime-tests.sh"
 TEST_SUITE_NAME="Container Runtime Test Suite (Task 008)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Get script directory and test suite directory
-SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-TEST_SUITE_DIR="$(cd "$SCRIPT_DIR" && pwd)"
+# Source shared utilities
+source "$SCRIPT_DIR/../common/suite-config.sh"
+source "$SCRIPT_DIR/../common/suite-logging.sh"
+source "$SCRIPT_DIR/../common/suite-utils.sh"
 
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
+# Initialize suite
+init_suite_logging "$TEST_SUITE_NAME"
+setup_suite_environment "$SCRIPT_NAME"
 
 # Streamlined test scripts per Task 008 and Task 009 specification
 # Reduced redundancy while maintaining comprehensive coverage
@@ -32,33 +34,12 @@ TEST_SCRIPTS=(
                                              #               security policies, and container security tests
 )
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
 # Test tracking
 TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 PARTIAL_TESTS=0
 FAILED_SCRIPTS=()
-
-# Logging functions with LOG_DIR compliance
-log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $*" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_success() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] ✓${NC} $*" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_warning() {
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] ⚠${NC} $*" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_error() {
-    echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ✗${NC} $*" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
 
 # Function to run individual test script and track results
 run_test_script() {
@@ -67,28 +48,28 @@ run_test_script() {
 
     echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
     echo "=================================================="  | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    log "Running: $test_name"
-    log "Script: $test_script"
+    log_suite_info "Running: $test_name"
+    log_suite_info "Script: $test_script"
     echo "=================================================="  | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
 
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
     # Check if test script exists
-    if [[ ! -f "$TEST_SUITE_DIR/$test_script" ]]; then
-        log_error "Test script not found: $TEST_SUITE_DIR/$test_script"
+    if [[ ! -f "$SCRIPT_DIR/$test_script" ]]; then
+        log_suite_error "Test script not found: $SCRIPT_DIR/$test_script"
         FAILED_TESTS=$((FAILED_TESTS + 1))
         FAILED_SCRIPTS+=("$test_script")
         return 1
     fi
 
     # Make script executable
-    chmod +x "$TEST_SUITE_DIR/$test_script"
+    chmod +x "$SCRIPT_DIR/$test_script"
 
     # Export LOG_DIR for the test script
     export LOG_DIR
 
     # Run the test script and capture output
-    if cd "$TEST_SUITE_DIR" && "./$test_script" 2>&1; then
+    if cd "$SCRIPT_DIR" && "./$test_script" 2>&1; then
         local exit_code=${PIPESTATUS[0]}
     else
         local exit_code=$?
@@ -96,16 +77,16 @@ run_test_script() {
 
     case $exit_code in
         0)
-            log_success "✅ $test_name: PASSED"
+            log_suite_success "✅ $test_name: PASSED"
             PASSED_TESTS=$((PASSED_TESTS + 1))
             ;;
         1)
-            log_error "❌ $test_name: FAILED"
+            log_suite_error "❌ $test_name: FAILED"
             FAILED_TESTS=$((FAILED_TESTS + 1))
             FAILED_SCRIPTS+=("$test_script")
             ;;
         *)
-            log_warning "⚠ $test_name: PARTIAL/UNKNOWN (exit code: $exit_code)"
+            log_suite_warning "⚠ $test_name: PARTIAL/UNKNOWN (exit code: $exit_code)"
             PARTIAL_TESTS=$((PARTIAL_TESTS + 1))
             ;;
     esac

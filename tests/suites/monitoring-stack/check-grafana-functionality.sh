@@ -3,15 +3,14 @@
 # Tests Grafana API, data source connectivity, and dashboard functionality
 # Part of the Task 016 Grafana implementation
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Source common utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$(dirname "$SCRIPT_DIR")/../../test-infra/utils/test-framework-utils.sh"
-
-# Test suite configuration
-TEST_SUITE_NAME="Grafana Functionality Validation"
-export TEST_LOG_PREFIX="grafana-func"
+# Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="check-grafana-functionality.sh"
+# shellcheck disable=SC2034
+TEST_NAME="Grafana Functionality Validation"
 
 # Grafana configuration (should match Ansible defaults)
 GRAFANA_PORT="${GRAFANA_PORT:-3000}"

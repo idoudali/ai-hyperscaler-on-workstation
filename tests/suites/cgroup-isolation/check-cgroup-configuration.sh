@@ -5,29 +5,14 @@
 #
 # This script validates cgroup configuration files and settings
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Get script directory and source utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source test framework utilities if available
-if [ -f "$(dirname "$SCRIPT_DIR")/test-infra/utils/test-framework-utils.sh" ]; then
-    source "$(dirname "$SCRIPT_DIR")/test-infra/utils/test-framework-utils.sh"
-else
-    echo "WARNING: Test framework utilities not found, using basic logging"
-    log_info() { echo "[INFO] $*"; }
-    log_success() { echo "[SUCCESS] $*"; }
-    log_error() { echo "[ERROR] $*"; }
-    log_warning() { echo "[WARNING] $*"; }
-fi
-
-# Test counters
-TESTS_RUN=0
-TESTS_PASSED=0
-TESTS_FAILED=0
-
-# Test result tracking
-declare -a TEST_RESULTS
+# Script configuration
+# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+SCRIPT_NAME="check-cgroup-configuration.sh"
+# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+TEST_NAME="Cgroup Configuration Validation"
 declare -a FAILED_TESTS=()  # Initialize as empty array
 
 #=============================================================================
@@ -266,7 +251,7 @@ main() {
     fi
 
     # Return exit code based on test results
-    if [ $TESTS_FAILED -eq 0 ]; then
+    if [ "$TESTS_FAILED" -eq 0 ]; then
         log_success "All cgroup configuration tests passed!"
         return 0
     else

@@ -5,29 +5,14 @@
 # Tests SLURM configuration, service functionality, and basic operations
 #
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-
 # Script configuration
+# shellcheck disable=SC2034
 SCRIPT_NAME="check-slurm-functionality.sh"
+# shellcheck disable=SC2034
 TEST_NAME="SLURM Controller Functionality Validation"
-
-
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
 FAILED_TESTS=()
 
 # SLURM configuration paths
@@ -270,7 +255,7 @@ main() {
     fi
 
     # Success criteria: All tests should pass (only testing functionality that should be available)
-    if [ $TESTS_PASSED -eq $TESTS_RUN ]; then
+    if [ "$TESTS_PASSED" -eq $TESTS_RUN ]; then
         log_info "SLURM controller functionality validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else
