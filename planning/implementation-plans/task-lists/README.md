@@ -4,19 +4,20 @@ This directory contains detailed task lists for implementing various components 
 
 ## 🎯 Quick Navigation
 
-- **[Task List Index](./task-list-index.md)** - Unified index of all task lists with completion status
+- **[Task List Index](./task-list-index.md)** - 🚀 **START HERE** - Complete index with priorities and action plan
 - **[Active Workstreams](./active-workstreams-current.md)** - Current active tasks only (no completed tasks)
 - **[Archive](./archive/)** - Historical records and completed task lists
 
 ## Overview
 
-**Total Progress:** 67% complete (85/126 tasks)  
-**Active Tasks:** 31 tasks across 3 workstreams  
-**Estimated Remaining:** ~37.5 hours + 18 days
+**Total Progress:** 76% complete (94/124 tasks, 2 deprecated)  
+**Active Tasks:** 29 tasks across 2 workstreams  
+**Estimated Remaining:** ~23.5 hours + 15 days
+**Critical Update:** ✅ TASK-028.1 complete - MLOps validation unblocked!
 
 ## Directory Structure
 
-```
+```text
 task-lists/
 ├── README.md                          # This file
 ├── task-list-index.md                 # 🆕 Unified index with completion tracking
@@ -69,7 +70,7 @@ task-lists/
 
 | Task List | Progress | Active | Location |
 |-----------|----------|--------|----------|
-| **HPC SLURM Deployment** | 60% (29/48) | TASK-028.1 | `hpc-slurm-task-list.md` |
+| **HPC SLURM Deployment** | 64% (31/48) | TASK-028.1 complete | `hpc-slurm-task-list.md` |
 
 **Focus Areas:**
 
@@ -84,7 +85,7 @@ task-lists/
 | Task List | Tasks | Prerequisites | Location |
 |-----------|-------|---------------|----------|
 | **MLOps Validation** | 10 | HPC + Cloud operational | `individual-tasks/mlops-validation/` |
-| **Remove Pharos References** | 12 | None | `remove-pharos-references-task-list.md` |
+| **Remove Pharos References** | 10 (2 deprecated) | None | `remove-pharos-references-task-list.md` |
 
 **MLOps Validation:**
 
@@ -94,12 +95,12 @@ task-lists/
 - **Format**: Atomic markdown files (184-385 lines each)
 - **Entry Point**: `individual-tasks/mlops-validation/README.md`
 
-**Remove Pharos References:**
+**Remove Pharos References:** ✅ 80% Complete (Production Ready)
 
-- 12 tasks across 4 phases
-- Rebranding and code cleanup
-- Estimated: 8 hours (~1 day)
-- Low risk, can start immediately
+- **Status**: 8 of 10 tasks complete (2 deprecated)
+- **Production Code**: ✅ 100% complete (all config, code, and main docs updated)
+- **Remaining**: 🟢 Low priority - Internal planning docs only (~1 hour)
+- **Impact**: None on production - rebranding complete for all user-facing components
 
 ## Task List Format
 
@@ -172,7 +173,8 @@ defined in `docs/design-docs/project-plan.md`.
 
 ### Archived Task Lists
 
-- **Documentation Structure:** [`archive/documentation-structure-task-list.md`](./archive/documentation-structure-task-list.md) - Completed
+- **Documentation Structure:** [`archive/documentation-structure-task-list.md`](./archive/documentation-structure-task-list.md)
+  Completed
 - **Historical Workstreams:** [`archive/active-workstreams.md`](./archive/active-workstreams.md) - Completed Stream A & B
 
 ### Project Documentation
@@ -189,15 +191,16 @@ defined in `docs/design-docs/project-plan.md`.
 
 ### Overall Progress
 
-- **Total Tasks:** 126 across 5 task lists
-- **Completed:** 85 tasks (67%)
-- **In Progress:** 1 task (TASK-028.1)
-- **Pending:** 40 tasks (33%)
+- **Total Tasks:** 124 across 5 task lists (2 deprecated)
+- **Completed:** 94 tasks (76%)
+- **In Progress:** 0 tasks
+- **Pending:** 29 tasks (23%)
 
 ### This Week's Focus
 
-1. ⚠️ Fix BeeGFS kernel module (TASK-028.1) - BLOCKING
-2. Remove Pharos references (12 tasks, 8 hours) - Can run in parallel
+1. ✅ ~~Fix BeeGFS kernel module (TASK-028.1)~~ - **COMPLETE**
+2. **HPC Phase 4** - Complete role consolidation (3 tasks, 4.5 hours)
+3. **MLOPS-1.1** - Start single GPU training validation (1 day)
 
 ### Next Sprint (Week of 2025-11-04)
 

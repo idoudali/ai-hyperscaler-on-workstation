@@ -3418,18 +3418,19 @@ Both `slurm-controller` and `slurm-compute` roles contain duplicate code for:
 
 ---
 
-### Task 046: Create Shared Package Management Role
+### Task 046: Create Shared Package Management Role (Debian/Ubuntu scope)
 
 - **ID**: TASK-046
 - **Phase**: 4.8 - Ansible Role Consolidation
 - **Dependencies**: TASK-044, TASK-045
 - **Estimated Time**: 2 hours
 - **Difficulty**: Intermediate
-- **Status**: ✅ Complete (Implemented 2025-10-27)
-- **Priority**: MEDIUM
+- **Status**: 🔄 Update Required (scope reduced; enhancements pending)
+- **Priority**: LOW
 
-**Description:** Create a generic `package-manager` role with reusable package checking, copying, and
-installation logic that can be used across BeeGFS, SLURM, and other components.
+**Description:** Create a generic `package-manager` role (Debian/Ubuntu only) with reusable package checking,
+copying, and installation logic that can be used across BeeGFS, SLURM, and other components. Non-Debian
+families are explicitly out of scope for now.
 
 **Problem Statement:**
 
@@ -3734,6 +3735,31 @@ roles:
     vars:
       package_profile: "cloud"
 ```
+
+---
+
+### Task 047.1: Cleanup Legacy Base Package Roles
+
+- **ID**: TASK-047.1
+- **Phase**: 4.8 - Ansible Role Consolidation
+- **Dependencies**: TASK-047 (base-packages merged and adopted)
+- **Estimated Time**: 0.5 hours
+- **Difficulty**: Easy
+- **Status**: ❌ PENDING
+- **Priority**: LOW
+
+**Description:** Remove or archive superseded roles now replaced by `base-packages`.
+
+**Targets:**
+
+- `ansible/roles/hpc-base-packages`
+- `ansible/roles/cloud-base-packages`
+
+**Acceptance Criteria:**
+
+- [ ] No playbooks/roles reference legacy roles
+- [ ] Legacy roles archived to `ansible/roles/archive/` or deleted with clear rationale
+- [ ] Documentation references updated if present
 
 **Benefits:**
 

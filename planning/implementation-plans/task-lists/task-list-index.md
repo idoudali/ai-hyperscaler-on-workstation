@@ -2,8 +2,8 @@
 
 **Last Updated:** 2025-10-30  
 **Total Task Lists:** 5 active lists  
-**Overall Progress:** 67% complete (85/126). Includes completed streams.  
-**Active Work Progress:** 41% complete (29/70). Excludes completed streams.
+**Overall Progress:** 76% complete (94/124, excluding 2 deprecated). Includes completed streams.  
+**Active Work Progress:** 54% complete (37/68, excluding 2 deprecated). Excludes completed streams.
 
 ## Overview
 
@@ -12,10 +12,100 @@ project, categorized by completion status and organized for efficient project ma
 
 ## Quick Navigation
 
+- [🎯 What to Work On Next](#-what-to-work-on-next) - **START HERE**
 - [Completion Status Overview](#completion-status-overview)
 - [Active Workstreams](#active-workstreams-summary)
 - [Task Lists by Status](#task-lists-by-status)
 - [Task Lists by Category](#task-lists-by-category)
+- [Recommended Execution Order](#recommended-execution-order)
+
+---
+
+## 🎯 What to Work On Next
+
+### Current Status: TASK-028.1 Complete - Ready for MLOps
+
+**Critical Update:** TASK-028.1 (BeeGFS Kernel Module) is now **✅ COMPLETE**. All blockers removed!
+
+### 🚀 Start Here: Week 1 Priorities
+
+**Day 1-2: HPC Phase 4**
+
+1. **TASK-046** - Shared Package Management Role (2 hrs)
+2. **TASK-047.1** - Cleanup Legacy Base Package Roles (0.5 hrs)
+3. **TASK-048** - Create Shared Utilities Role (2 hrs)
+
+**Day 3-5: Start MLOps Validation**
+4. **MLOPS-1.1** - Single GPU MNIST Training (1 day)
+5. **MLOPS-1.2** - Single GPU LLM Fine-tuning (2 days)
+
+**Why This Order:**
+
+- Complete remaining HPC infrastructure tasks
+- Validate infrastructure with quick MLOps tests
+- Build confidence with fast-running models
+- Clear path to distributed training
+
+### 📊 Priority Overview
+
+| Priority | Workstream | Tasks | Time | Status |
+|----------|-----------|-------|------|--------|
+| **P1** | HPC Phase 4 | 3 | 4.5 hrs | Ready Now |
+| **P2** | MLOps Cat 1 | 2 | 3 days | Ready Now |
+| **P3** | MLOps Cat 2 | 2 | 4 days | After Cat 1 |
+| **P4** | HPC Phase 6 | 4 | 9 hrs | Can overlap with MLOps |
+| **P5** | MLOps Cat 3 | 2 | 3 days | After Cat 2 |
+| **P6** | MLOps Cat 5 | 2 | 5 days | After Cat 3 |
+
+### Week-by-Week Execution Plan
+
+**Week 1: HPC Completion + MLOps Start**
+
+- Complete HPC Phase 4 role consolidation (4.5 hours)
+- Start MLOps Category 1: Basic Training (3 days)
+- **Outcome:** HPC infrastructure complete, single GPU training validated
+
+**Week 2: Distributed Training**
+
+- MLOps Category 2: Multi-GPU training (4 days)
+- HPC Phase 6: Final validation (9 hours) - can overlap
+- **Outcome:** Multi-GPU training validated, NCCL working
+
+**Week 3: Oumi Framework**
+
+- MLOps Category 3: Oumi Integration (3 days)
+- **Outcome:** Oumi framework validated on HPC cluster
+
+**Week 4: End-to-End Pipeline**
+
+- MLOps Category 5: E2E workflow (5 days)
+- **Outcome:** Complete MLOps pipeline working
+
+**Total:** ~3-4 weeks to complete all remaining HPC + MLOps work
+
+### Success Metrics by Week
+
+**Week 1:**
+
+- ✅ TASK-028.1 complete (DONE)
+- [ ] HPC Phase 4 complete (3 tasks)
+- [ ] Single GPU training working (MLOPS-1.1)
+- [ ] Oumi framework validated (MLOPS-1.2)
+
+**Week 2:**
+
+- [ ] Multi-GPU training working (MLOPS-2.1, 2.2)
+- [ ] HPC Phase 6 validation complete
+
+**Week 3:**
+
+- [ ] Oumi custom cluster configured (MLOPS-3.1, 3.2)
+- [ ] HPC infrastructure 100% complete
+
+**Week 4:**
+
+- [ ] End-to-end MLOps pipeline (MLOPS-5.1, 5.2)
+- [ ] Ready for production ML workloads
 
 ---
 
@@ -23,15 +113,15 @@ project, categorized by completion status and organized for efficient project ma
 
 | Task List | Total Tasks | Completed | In Progress | Pending | Completion % | Status |
 |-----------|-------------|-----------|-------------|---------|--------------|--------|
-| **HPC SLURM Deployment** | 48 | 29 | 1 | 18 | 60% | 🟡 Active |
+| **HPC SLURM Deployment** | 48 | 31 | 0 | 17 | 64% | 🟡 Active |
 | **Documentation Structure** | 31 | 31 | 0 | 0 | 100% | ✅ Complete |
 | **Test Consolidation** | 15 | 15 | 0 | 0 | 100% | ✅ Complete |
 | **MLOps Validation** | 10 | 0 | 0 | 10 | 0% | 🔵 Not Started |
-| **Remove Pharos References** | 12 | 0 | 0 | 12 | 0% | 🔵 Planning |
+| **Remove Pharos References** | 10 (2 deprecated) | 8 | 0 | 2 | 80% | 🟢 Low Priority |
 | **Active Workstreams** | 10 | 10 | 0 | 0 | 100% | ✅ Complete |
-| **TOTAL** | **126** | **85** | **1** | **40** | **67%** | 🟡 In Progress |
+| **TOTAL** | **124** (2 deprecated) | **94** | **0** | **29** | **76%** | 🟡 In Progress |
 
-**Adjusted Total (excluding completed streams):** 70 tasks, 29 complete (41%)
+**Adjusted Total (excluding completed streams):** 68 tasks (2 deprecated), 37 complete (54%)
 
 ---
 
@@ -39,16 +129,17 @@ project, categorized by completion status and organized for efficient project ma
 
 This section tracks **only active (incomplete) tasks** across all task lists.
 
-### 🔴 High Priority - Active Tasks (19 tasks)
+### 🔴 High Priority - Active Tasks (17 tasks)
 
-#### HPC SLURM Deployment (19 tasks remaining)
+#### HPC SLURM Deployment (17 tasks remaining)
 
-**Current Focus:** Infrastructure enhancements and validation
+**Current Focus:** Complete Phase 4 consolidation, then Phase 6 validation
+
+**Recent Completion:** ✅ TASK-028.1 - BeeGFS Kernel Module Fix (UNBLOCKED all MLOps work)
 
 | Task ID | Description | Priority | Duration | Dependencies | Status |
 |---------|-------------|----------|----------|--------------|--------|
-| TASK-028.1 | Fix BeeGFS Kernel Module | CRITICAL | 4 hrs | TASK-028 | ⚠️ IN PROGRESS |
-| TASK-035 | HPC Runtime Framework Integration | HIGH | 2 hrs | Phase 3a | Pending |
+| TASK-035 | HPC Runtime Framework Integration | HIGH | 2 hrs | TASK-028.1 ✅ | Pending |
 | TASK-036 | HPC Packer Test Frameworks | HIGH | 5 hrs | TASK-035 | Pending |
 | TASK-037 | Update Makefile & Delete Obsolete Tests | HIGH | 2 hrs | TASK-036 | Pending |
 | TASK-040 | Container Registry on BeeGFS | HIGH | 1 hr | TASK-048 | Pending |
@@ -56,14 +147,18 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 | TASK-042 | SLURM Integration Testing | HIGH | 2 hrs | TASK-041 | Pending |
 | TASK-043 | Container Workflow Validation | HIGH | 2 hrs | TASK-042 | Pending |
 | TASK-044 | Full-Stack Integration Testing | HIGH | 3 hrs | TASK-043 | Pending |
-| TASK-046 | Shared Package Management Role | MEDIUM | 2 hrs | TASK-045 | Pending |
-| TASK-046.1 | Integrate Package Manager into Roles | MEDIUM | 3 hrs | TASK-046 | Pending |
-| TASK-047 | Consolidate Base Package Roles | MEDIUM | 1.5 hrs | TASK-046.1 | Pending |
+| TASK-046 | Shared Package Management Role (Debian/Ubuntu scope) | LOW | 2 hrs | TASK-045 | Pending |
+| TASK-047.1 | Cleanup Legacy Base Package Roles | LOW | 0.5 hrs | TASK-047 | Pending |
 | TASK-048 | Create Shared Utilities Role | MEDIUM | 2 hrs | TASK-047 | Pending |
 
-**Estimated Time to Complete:** 31.5 hours
+**Estimated Time to Complete:** 23.5 hours (TASK-028.1 complete)
 
 **Reference:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
+
+**Next Actions:**
+
+1. Complete Phase 4: TASK-046, 047.1, 048 (4.5 hours)
+2. Execute Phase 6 validation: TASK-040-044 (10 hours)
 
 ---
 
@@ -71,8 +166,8 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 #### MLOps Validation Tasks (10 tasks)
 
-**Status:** Planning phase, infrastructure prerequisites needed  
-**Dependencies:** HPC cluster operational (TASK-028.1 complete), Cloud cluster deployed
+**Status:** ✅ **READY TO START** - TASK-028.1 complete, HPC cluster operational  
+**Dependencies:** ✅ TASK-028.1 complete, ⏳ Cloud cluster (only for Category 4)
 
 **Task Categories:**
 
@@ -96,16 +191,32 @@ This section tracks **only active (incomplete) tasks** across all task lists.
    - MLOPS-5.1: Complete MLOps Pipeline
    - MLOPS-5.2: Pipeline Automation
 
-**Estimated Time to Complete:** 18 days (~3-4 weeks)
+**Estimated Time to Complete:** 15 working days (3 weeks, excluding Category 4; add 3 working days for
+Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline for all remaining work.
 
 **Reference:** [`individual-tasks/mlops-validation/README.md`](./individual-tasks/mlops-validation/README.md)
 
+**Recommended Start:** After completing HPC Phase 4 (4.5 hours), start with MLOPS-1.1
+
+**Quick Wins:**
+
+- MLOPS-1.1: Single GPU MNIST (validates infrastructure in ~3 min training time)
+- MLOPS-1.2: Oumi framework validation (SmolLM-135M, ~30 min training)
+
 ---
 
-#### Remove Pharos References (12 tasks)
+#### Remove Pharos References (10 tasks, 2 deprecated)
 
-**Status:** Planning phase, ready for implementation  
-**Dependencies:** None (can start anytime)
+**Status:** ✅ 80% Complete - Production ready, remaining work is low priority  
+**Dependencies:** None  
+**Completion:** 8 of 10 tasks complete (2 deprecated)
+
+**Production Status:**
+
+- ✅ All configuration files updated
+- ✅ All source code updated
+- ✅ All user-facing documentation updated
+- 🟢 Remaining: Internal planning docs only (low priority, ~1 hour)
 
 **Task Phases:**
 
@@ -158,17 +269,16 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 | Task List | Progress | Active Tasks | Next Priority |
 |-----------|----------|--------------|---------------|
-| HPC SLURM Deployment | 60% (29/48) | TASK-028.1 | Phase 4 & 6 completion |
+| HPC SLURM Deployment | 64% (31/48) | Phase 4 & 6 | Complete consolidation & validation |
 
-**Current Blockers:**
-
-- BeeGFS kernel module build issues (TASK-028.1)
+**Current Blockers:** None - ✅ TASK-028.1 complete
 
 **Next Milestones:**
 
-- Complete Phase 3 storage fixes
-- Complete Phase 4 role consolidation (6 tasks remaining)
-- Execute Phase 6 validation (4 tasks)
+- ✅ Phase 3 storage fixes complete (TASK-028.1 done)
+- Complete Phase 4 role consolidation (3 tasks remaining: 046, 047.1, 048)
+- Execute Phase 6 validation (4 tasks: 040-044)
+- Start MLOps validation (Category 1)
 
 ---
 
@@ -176,8 +286,8 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 | Task List | Tasks | Prerequisites | Can Start |
 |-----------|-------|---------------|-----------|
-| MLOps Validation | 10 | HPC + Cloud clusters operational | After TASK-028.1 |
-| Remove Pharos References | 12 | None | Immediately |
+| ~~MLOps Validation~~ | ~~10~~ | ~~TASK-028.1~~ | ✅ **Ready to Start Now** |
+| ~~Remove Pharos References~~ | ~~10~~ | ~~None~~ | ✅ 80% Complete (low priority remaining) |
 
 ---
 
@@ -187,7 +297,7 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 **HPC SLURM Deployment** - Primary infrastructure task list  
 
-- **Status:** 60% complete (29/48 tasks)
+- **Status:** 64% complete (31/48 tasks) - ✅ TASK-028.1 complete
 - **Location:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
 - **Phases:** 6 phases (0-6), currently in Phases 3, 4, and 6
 - **Focus:** SLURM cluster, BeeGFS storage, GPU scheduling, container integration
@@ -197,9 +307,9 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 - ✅ Phase 0: Test Infrastructure Setup (6/6 complete)
 - ✅ Phase 1: Core Infrastructure (12/12 complete)
 - ✅ Phase 2: Containers & Compute (8/8 complete)
-- 🟡 Phase 3: Infrastructure Enhancements (2/3 complete - TASK-028.1 in progress)
-- 🟡 Phase 4: Infrastructure Consolidation (16/22 complete)
-- 🔵 Phase 6: Final Validation (0/4 complete)
+- ✅ Phase 3: Infrastructure Enhancements (3/3 complete) - **TASK-028.1 COMPLETE**
+- 🟡 Phase 4: Infrastructure Consolidation (18/22 complete) - 3 tasks remaining
+- 🔵 Phase 6: Final Validation (0/4 complete) - Ready to start
 
 ---
 
@@ -214,10 +324,12 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 **Prerequisites:**
 
-- HPC cluster fully operational
-- Cloud cluster deployed
-- SLURM + BeeGFS + GPU scheduling working
-- KServe deployed on cloud cluster
+- ✅ HPC cluster operational (TASK-028.1 complete)
+- ✅ SLURM + BeeGFS + GPU scheduling working
+- ⏳ Cloud cluster deployed (only for Category 4)
+- ⏳ KServe deployed on cloud cluster (only for Category 4)
+
+**Can Start Now:** Categories 1, 2, 3, and 5 (skip Category 4 until cloud ready)
 
 ---
 
@@ -225,9 +337,11 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 **Remove Pharos References** - Rebranding and cleanup  
 
-- **Status:** 0% complete (0/12 tasks)
+- **Status:** ✅ 80% complete (8 of 10 tasks, 2 deprecated)
+- **Production:** ✅ 100% complete (all config, code, main docs updated)
+- **Remaining:** 🟢 Low priority - Internal planning docs only (~1 hour)
 - **Location:** [`remove-pharos-references-task-list.md`](./remove-pharos-references-task-list.md)
-- **Phases:** 4 phases (configuration → validation)
+- **Impact:** None on production systems
 - **Focus:** Remove pharos branding, update project names, documentation cleanup
 
 **Impact:** Low risk, primarily cosmetic changes
@@ -258,8 +372,9 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 ### Immediate (This Week)
 
-1. **TASK-028.1** - Fix BeeGFS kernel module (CRITICAL, blocking)
-2. **Remove Pharos References** - Low risk, 8 hours, independent work
+1. ~~**TASK-028.1**~~ - ✅ **COMPLETE** - BeeGFS kernel module fixed
+2. **HPC Phase 4** - Complete role consolidation (TASK-046, 047.1, 048 - 4.5 hours)
+3. **MLOPS-1.1** - Start single GPU training validation (1 day)
 
 ### Short Term (Next 2 Weeks)
 
@@ -282,23 +397,28 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 - ✅ Complete Stream A role consolidation (6 tasks)
 - ✅ Complete Stream B test consolidation (15 tasks)
-- 🟡 Fix BeeGFS kernel module (TASK-028.1) - In Progress
+- ✅ Fix BeeGFS kernel module (TASK-028.1) - **COMPLETE**
 
 **Week of 2025-11-04:**
 
-- Complete Phase 4 role consolidation (3 remaining tasks)
-- Execute Phase 6 validation (4 tasks)
-- Begin Remove Pharos References (12 tasks, 8 hours)
+- Complete HPC Phase 4 role consolidation (3 tasks: 046, 047.1, 048)
+- Start MLOps Category 1: Basic Training (MLOPS-1.1, 1.2)
+- ~~Begin Remove Pharos References~~ - ✅ Production complete
 
 **Week of 2025-11-11:**
 
-- Begin MLOps validation
-- Complete Categories 1-2 (basic and distributed training)
+- Complete MLOps Category 2: Distributed Training (MLOPS-2.1, 2.2)
+- Execute HPC Phase 6 validation (4 tasks: 040-044)
 
 **Week of 2025-11-18:**
 
-- Complete MLOps Categories 3-5
-- Full E2E validation
+- Complete MLOps Category 3: Oumi Integration (MLOPS-3.1, 3.2)
+- Start Category 5: End-to-End Workflow
+
+**Week of 2025-11-25:**
+
+- Complete MLOps Category 5: E2E Pipeline (MLOPS-5.1, 5.2)
+- System ready for production ML workloads
 
 ---
 
@@ -322,21 +442,21 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 | Metric | Value |
 |--------|-------|
-| Total tasks defined | 126 |
-| Tasks completed | 85 (67%) |
-| Tasks in progress | 1 (1%) |
-| Tasks pending | 40 (32%) |
-| Estimated remaining time | ~37.5 hours + 18 days |
+| Total tasks defined | 124 (2 deprecated) |
+| Tasks completed | 94 (76%) |
+| Tasks in progress | 0 (0%) |
+| Tasks pending | 29 (23%) |
+| Estimated remaining time | ~23.5 hours + 15 days |
 
 ### Infrastructure Status
 
 | Component | Status | Tasks Remaining |
 |-----------|--------|-----------------|
-| HPC SLURM Cluster | 🟡 90% | 19 tasks |
+| HPC SLURM Cluster | 🟡 92% - Phase 3 Complete | 17 tasks |
 | Test Infrastructure | ✅ Complete | 0 tasks |
 | Documentation Structure | ✅ Complete | 0 tasks |
-| MLOps Validation | 🔵 Not Started | 10 tasks |
-| Code Quality | 🔵 Not Started | 12 tasks |
+| MLOps Validation | 🟢 Ready to Start | 10 tasks |
+| Code Quality | 🟢 Low Priority | 2 tasks |
 
 ---
 
@@ -368,4 +488,5 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 - Archive completed task lists to `completed/` directory
 - Keep active workstreams summary current
 
-**Last Review:** 2025-10-30
+**Last Review:** 2025-10-30  
+**Last Major Update:** 2025-10-30 - TASK-028.1 marked complete, MLOps unblocked
