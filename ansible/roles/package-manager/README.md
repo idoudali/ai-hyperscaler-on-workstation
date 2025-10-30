@@ -1,9 +1,7 @@
-# Package Manager Common Role - DEPRECATED
+# Package Manager Common Role (Debian/Ubuntu)
 
-⚠️ **DEPRECATION NOTICE**: This role was part of an experimental consolidation effort that has been reverted.
-
-This role was created as part of the `base-packages` consolidation initiative. Development has been paused and
-component-specific package installation in individual roles is the recommended approach.
+Scope: Debian/Ubuntu only. This role provides a unified, parameterized way to install locally-built `.deb` packages
+for components like BeeGFS and SLURM across packer and runtime flows.
 
 ## Purpose
 
@@ -113,3 +111,13 @@ tasks/
 ├── copy-packages.yml      # Copy from controller to remote
 └── install-packages.yml   # Install packages with dependencies
 ```
+
+## Missing Functionality / Next Steps (Debian/Ubuntu)
+
+- Add `become: true` to privileged steps (apt, dpkg, apt-get -f)
+- Version-aware install (skip when binary/package version already matches)
+- Selective copy (only matched artifacts), optional cleanup of stale files in `package_remote_path`
+- Optional checksum verification for copied artifacts
+- Idempotent apt cache handling via handler; configurable retries/backoff
+- Guarded dpkg recovery (`dpkg --configure -a`) before `apt-get -f -y` when needed
+- Standardized inputs for callers (e.g., `packages_common`/`packages_runtime`)
