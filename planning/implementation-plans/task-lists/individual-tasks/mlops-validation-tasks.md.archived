@@ -1,0 +1,1488 @@
+# MLOps Validation Task List
+
+**Status:** Planning - Not Started
+**Created:** 2025-10-27
+**Priority:** HIGH - System validation and workflow testing
+**Total Tasks:** 10 tasks across 5 categories
+**Estimated Duration:** 3-4 weeks
+
+## Overview
+
+This task list defines MLOps validation tasks to test and validate the complete AI-HOW infrastructure:
+- **HPC Cluster**: Training workloads (SLURM, BeeGFS, GPU scheduling)
+- **Cloud Cluster**: Inference workloads (Kubernetes, KServe, MLflow)
+- **Oumi Framework**: End-to-end ML workflow integration
+- **MLOps Stack**: Model tracking, registry, and serving
+
+These tasks use **small, fast-running models** (SmolLM-135M, GPT-2, simple CNNs) to validate infrastructure
+without requiring hours of training time.
+
+---
+
+## Task Categories
+
+### Category 1: Basic Training Validation (HPC Cluster)
+
+Validate GPU training capabilities using simple models that complete in minutes.
+
+### Category 2: Distributed Training Validation (HPC Cluster)
+
+Validate multi-GPU training with SLURM GRES scheduling and GPU communication.
+
+### Category 3: Oumi Framework Integration
+
+Validate Oumi framework on custom HPC cluster and cloud deployment.
+
+### Category 4: Inference Deployment (Cloud Cluster)
+
+Validate model serving, inference APIs, and autoscaling on Kubernetes.
+
+### Category 5: End-to-End MLOps Workflow
+
+Validate complete workflow: train on HPC → register in MLflow → deploy on cloud → serve inference.
+
+---
+
+## Category 1: Basic Training Validation
+
+### MLOPS-1.1: Single GPU MNIST Training
+
+**Duration:** 1 day
+**Priority:** CRITICAL
+**Dependencies:** HPC cluster operational
+**Validation Target:** Single GPU training, BeeGFS storage, SLURM job submission
+
+#### Objective
+
+Train a simple CNN on MNIST dataset using a single GPU to validate basic training infrastructure.
+
+#### Implementation
+
+**Training Script** (`scripts/mlops/mnist_single_gpu.py`):
+
+```python
+#!/usr/bin/env python3
+"""
+MLOPS-1.1: Single GPU MNIST Training
+Validates: Single GPU, SLURM submission, BeeGFS storage, Apptainer containers
+"""
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import time
+import json
+import os
+
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.fc1 = nn.Linear(9216, 128)
+        self.fc2 = nn.Linear(128, 10)
+
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = torch.max_pool2d(x, 2)
+        x = torch.flatten(x, 1)
+        x = torch.relu(self.fc1(x))
+        return self.fc2(x)
+
+def train():
+    # Configuration
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    batch_size = 128
+    epochs = 5
+
+    print(f"Using device: {device}")
+    print(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+
+    # Data loading from BeeGFS
+    data_dir = os.environ.get("DATA_DIR", "/mnt/beegfs/datasets/mnist")
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+
+    train_dataset = datasets.MNIST(data_dir, train=True, download=True, transform=transform)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+    # Model setup
+    model = SimpleCNN().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+
+    # Training loop
+    start_time = time.time()
+    metrics = {"epochs": [], "loss": [], "accuracy": []}
+
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0
+        correct = 0
+        total = 0
+
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+            pred = output.argmax(dim=1)
+            correct += pred.eq(target).sum().item()
+            total += target.size(0)
+
+        avg_loss = total_loss / len(train_loader)
+        accuracy = 100. * correct / total
+
+        metrics["epochs"].append(epoch + 1)
+        metrics["loss"].append(avg_loss)
+        metrics["accuracy"].append(accuracy)
+
+        print(f"Epoch {epoch+1}/{epochs}: Loss={avg_loss:.4f}, Accuracy={accuracy:.2f}%")
+
+    training_time = time.time() - start_time
+    print(f"\nTraining completed in {training_time:.2f} seconds")
+
+    # Save model to BeeGFS
+    output_dir = os.environ.get("OUTPUT_DIR", "/mnt/beegfs/models/mnist")
+    os.makedirs(output_dir, exist_ok=True)
+    model_path = os.path.join(output_dir, "mnist_cnn_single_gpu.pt")
+    torch.save(model.state_dict(), model_path)
+    print(f"Model saved to: {model_path}")
+
+    # Save metrics
+    metrics_path = os.path.join(output_dir, "metrics.json")
+    metrics["training_time_seconds"] = training_time
+    with open(metrics_path, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    print(f"Metrics saved to: {metrics_path}")
+
+if __name__ == "__main__":
+    train()
+```
+
+**SLURM Job Script** (`scripts/mlops/mnist_single_gpu.sbatch`):
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=mnist-single-gpu
+#SBATCH --output=/mnt/beegfs/jobs/mnist-single-gpu-%j.out
+#SBATCH --error=/mnt/beegfs/jobs/mnist-single-gpu-%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:1
+#SBATCH --time=00:10:00
+#SBATCH --mem=8G
+
+echo "MLOPS-1.1: Single GPU MNIST Training"
+echo "======================================"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Node: $SLURM_NODELIST"
+echo "GPUs: $SLURM_GPUS_ON_NODE"
+echo ""
+
+# Environment setup
+export DATA_DIR=/mnt/beegfs/datasets/mnist
+export OUTPUT_DIR=/mnt/beegfs/models/mnist/job-$SLURM_JOB_ID
+
+# Run training in Apptainer container
+apptainer exec --nv \
+  /mnt/beegfs/containers/pytorch_24.07-py3.sif \
+  python3 /mnt/beegfs/scripts/mnist_single_gpu.py
+
+echo ""
+echo "Training completed successfully!"
+```
+
+#### Validation Steps
+
+```bash
+# 1. Deploy training script to BeeGFS
+ssh admin@192.168.100.10  # HPC controller
+sudo mkdir -p /mnt/beegfs/scripts
+sudo cp scripts/mlops/mnist_single_gpu.py /mnt/beegfs/scripts/
+
+# 2. Submit SLURM job
+sbatch scripts/mlops/mnist_single_gpu.sbatch
+
+# 3. Monitor job
+squeue -u admin
+watch -n 5 'squeue -u admin'
+
+# 4. Check job output
+tail -f /mnt/beegfs/jobs/mnist-single-gpu-*.out
+
+# 5. Validate results
+ls -lh /mnt/beegfs/models/mnist/job-*/
+cat /mnt/beegfs/models/mnist/job-*/metrics.json
+```
+
+#### Success Criteria
+
+- [ ] Job submits successfully to SLURM
+- [ ] GPU is allocated via GRES
+- [ ] Training completes in <3 minutes
+- [ ] Model achieves >95% accuracy
+- [ ] Model file saved to BeeGFS
+- [ ] Metrics JSON contains expected fields
+- [ ] No CUDA errors or warnings
+
+---
+
+### MLOPS-1.2: Single GPU Language Model Fine-tuning (Oumi)
+
+**Duration:** 2 days
+**Priority:** HIGH
+**Dependencies:** MLOPS-1.1, Oumi installed
+**Validation Target:** Oumi framework, small LLM fine-tuning, HuggingFace integration
+
+#### Objective
+
+Fine-tune SmolLM-135M model using Oumi framework to validate LLM training pipeline.
+
+#### Implementation
+
+**Oumi Config** (`configs/mlops/smollm_sft_single_gpu.yaml`):
+
+```yaml
+# MLOPS-1.2: SmolLM-135M Fine-tuning on Single GPU
+model:
+  model_name: "HuggingFaceTB/SmolLM-135M"
+  trust_remote_code: true
+
+dataset:
+  dataset_name: "HuggingFaceH4/no_robots"
+  dataset_split: "train[:1000]"  # Small subset for quick training
+
+training:
+  output_dir: "/mnt/beegfs/models/smollm-135m-sft"
+  num_train_epochs: 1
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2e-5
+  warmup_steps: 10
+  save_steps: 100
+  logging_steps: 10
+  bf16: true
+
+  # Resource limits
+  max_seq_length: 512
+
+compute:
+  devices: 1
+
+resources:
+  cpus_per_task: 4
+  mem: "16G"
+  time: "00:20:00"
+```
+
+**SLURM Job Script** (`scripts/mlops/smollm_sft_single_gpu.sbatch`):
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=smollm-sft-single-gpu
+#SBATCH --output=/mnt/beegfs/jobs/smollm-sft-%j.out
+#SBATCH --error=/mnt/beegfs/jobs/smollm-sft-%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:1
+#SBATCH --time=00:30:00
+#SBATCH --mem=16G
+
+echo "MLOPS-1.2: SmolLM-135M Single GPU Fine-tuning"
+echo "=============================================="
+echo "Job ID: $SLURM_JOB_ID"
+echo "Node: $SLURM_NODELIST"
+echo ""
+
+# Setup environment
+export HF_HOME=/mnt/beegfs/huggingface
+export TRANSFORMERS_CACHE=/mnt/beegfs/huggingface/transformers
+export HF_DATASETS_CACHE=/mnt/beegfs/huggingface/datasets
+
+# Run Oumi training
+apptainer exec --nv \
+  /mnt/beegfs/containers/oumi_latest.sif \
+  oumi train -c /mnt/beegfs/configs/smollm_sft_single_gpu.yaml
+
+echo ""
+echo "Fine-tuning completed!"
+```
+
+#### Success Criteria
+
+- [ ] Oumi trains SmolLM-135M successfully
+- [ ] Training completes in <20 minutes
+- [ ] Model checkpoints saved to BeeGFS
+- [ ] Training logs show decreasing loss
+- [ ] No OOM errors
+- [ ] Model can be loaded for inference
+
+---
+
+## Category 2: Distributed Training Validation
+
+### MLOPS-2.1: Multi-GPU Data Parallel Training
+
+**Duration:** 2 days
+**Priority:** HIGH
+**Dependencies:** MLOPS-1.1
+**Validation Target:** Multi-GPU training, SLURM GRES allocation, GPU communication
+
+#### Objective
+
+Train CIFAR-10 classifier using 2 GPUs with PyTorch DistributedDataParallel to validate multi-GPU infrastructure.
+
+#### Implementation
+
+**Training Script** (`scripts/mlops/cifar10_multi_gpu.py`):
+
+```python
+#!/usr/bin/env python3
+"""
+MLOPS-2.1: Multi-GPU CIFAR-10 Training
+Validates: Multi-GPU DDP, SLURM GRES, inter-GPU communication
+"""
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader, DistributedSampler
+from torchvision import datasets, transforms, models
+import os
+import time
+import json
+
+def setup_distributed():
+    """Initialize distributed training"""
+    dist.init_process_group(backend='nccl')
+    local_rank = int(os.environ['LOCAL_RANK'])
+    torch.cuda.set_device(local_rank)
+    return local_rank
+
+def cleanup_distributed():
+    dist.destroy_process_group()
+
+def train():
+    # Setup
+    local_rank = setup_distributed()
+    world_size = dist.get_world_size()
+    is_main_process = dist.get_rank() == 0
+
+    if is_main_process:
+        print(f"Training on {world_size} GPUs")
+        print(f"GPU: {torch.cuda.get_device_name(local_rank)}")
+
+    # Data loading
+    data_dir = "/mnt/beegfs/datasets/cifar10"
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+
+    train_dataset = datasets.CIFAR10(data_dir, train=True, download=True, transform=transform)
+    sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=dist.get_rank())
+    train_loader = DataLoader(train_dataset, batch_size=128, sampler=sampler, num_workers=2)
+
+    # Model setup
+    model = models.resnet18(num_classes=10).cuda(local_rank)
+    model = DDP(model, device_ids=[local_rank])
+
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    criterion = nn.CrossEntropyLoss()
+
+    # Training loop
+    start_time = time.time()
+    epochs = 3
+
+    for epoch in range(epochs):
+        model.train()
+        sampler.set_epoch(epoch)
+        total_loss = 0
+        correct = 0
+        total = 0
+
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.cuda(local_rank), target.cuda(local_rank)
+            optimizer.zero_grad()
+            output = model(data)
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+            pred = output.argmax(dim=1)
+            correct += pred.eq(target).sum().item()
+            total += target.size(0)
+
+        if is_main_process:
+            avg_loss = total_loss / len(train_loader)
+            accuracy = 100. * correct / total
+            print(f"Epoch {epoch+1}/{epochs}: Loss={avg_loss:.4f}, Accuracy={accuracy:.2f}%")
+
+    training_time = time.time() - start_time
+
+    # Save model (main process only)
+    if is_main_process:
+        output_dir = "/mnt/beegfs/models/cifar10"
+        os.makedirs(output_dir, exist_ok=True)
+        torch.save(model.module.state_dict(), f"{output_dir}/resnet18_multi_gpu.pt")
+
+        metrics = {
+            "epochs": epochs,
+            "world_size": world_size,
+            "training_time_seconds": training_time,
+            "final_loss": avg_loss,
+            "final_accuracy": accuracy
+        }
+        with open(f"{output_dir}/metrics.json", 'w') as f:
+            json.dump(metrics, f, indent=2)
+
+        print(f"\nTraining completed in {training_time:.2f} seconds")
+
+    cleanup_distributed()
+
+if __name__ == "__main__":
+    train()
+```
+
+**SLURM Job Script** (`scripts/mlops/cifar10_multi_gpu.sbatch`):
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=cifar10-multi-gpu
+#SBATCH --output=/mnt/beegfs/jobs/cifar10-multi-gpu-%j.out
+#SBATCH --error=/mnt/beegfs/jobs/cifar10-multi-gpu-%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:2
+#SBATCH --time=00:20:00
+#SBATCH --mem=32G
+
+echo "MLOPS-2.1: Multi-GPU CIFAR-10 Training"
+echo "======================================="
+echo "Job ID: $SLURM_JOB_ID"
+echo "Nodes: $SLURM_NNODES"
+echo "GPUs per node: 2"
+echo ""
+
+# Setup distributed training
+export MASTER_ADDR=$(hostname)
+export MASTER_PORT=29500
+export WORLD_SIZE=2
+
+# Run training with torchrun
+apptainer exec --nv \
+  /mnt/beegfs/containers/pytorch_24.07-py3.sif \
+  torchrun \
+    --nproc_per_node=2 \
+    --nnodes=1 \
+    --node_rank=0 \
+    --master_addr=$MASTER_ADDR \
+    --master_port=$MASTER_PORT \
+    /mnt/beegfs/scripts/cifar10_multi_gpu.py
+
+echo ""
+echo "Multi-GPU training completed!"
+```
+
+#### Success Criteria
+
+- [ ] Both GPUs allocated via SLURM GRES
+- [ ] DDP initializes successfully
+- [ ] Training completes in <15 minutes
+- [ ] GPU utilization >70% on both GPUs
+- [ ] Model achieves >60% accuracy
+- [ ] No inter-GPU communication errors
+- [ ] Speedup ~1.7-1.9x vs single GPU
+
+---
+
+### MLOPS-2.2: Multi-GPU LLM Training (Oumi)
+
+**Duration:** 2 days
+**Priority:** HIGH
+**Dependencies:** MLOPS-1.2
+**Validation Target:** Oumi multi-GPU training, FSDP/DeepSpeed
+
+#### Objective
+
+Fine-tune SmolLM-135M using 2 GPUs with Oumi's multi-GPU support.
+
+#### Implementation
+
+**Oumi Config** (`configs/mlops/smollm_multi_gpu.yaml`):
+
+```yaml
+# MLOPS-2.2: SmolLM Multi-GPU Training
+model:
+  model_name: "HuggingFaceTB/SmolLM-135M"
+
+dataset:
+  dataset_name: "HuggingFaceH4/no_robots"
+  dataset_split: "train[:5000]"  # Larger subset for multi-GPU
+
+training:
+  output_dir: "/mnt/beegfs/models/smollm-multi-gpu"
+  num_train_epochs: 2
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 2e-5
+  bf16: true
+
+  # Multi-GPU settings
+  ddp_find_unused_parameters: false
+  gradient_checkpointing: true
+
+compute:
+  devices: 2
+  strategy: "ddp"  # or "fsdp" for larger models
+```
+
+**SLURM Script** (`scripts/mlops/smollm_multi_gpu.sbatch`):
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=smollm-multi-gpu
+#SBATCH --output=/mnt/beegfs/jobs/smollm-multi-gpu-%j.out
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:2
+#SBATCH --time=00:40:00
+#SBATCH --mem=32G
+
+echo "MLOPS-2.2: SmolLM Multi-GPU Training"
+echo "====================================="
+
+export HF_HOME=/mnt/beegfs/huggingface
+
+apptainer exec --nv \
+  /mnt/beegfs/containers/oumi_latest.sif \
+  oumi train -c /mnt/beegfs/configs/smollm_multi_gpu.yaml
+
+echo "Multi-GPU training completed!"
+```
+
+#### Success Criteria
+
+- [ ] Oumi successfully uses 2 GPUs
+- [ ] Training faster than single GPU
+- [ ] Both GPUs show high utilization
+- [ ] Model quality preserved (vs single GPU)
+- [ ] No OOM errors with gradient checkpointing
+
+---
+
+## Category 3: Oumi Framework Integration
+
+### MLOPS-3.1: Oumi Custom Cluster Configuration
+
+**Duration:** 2 days
+**Priority:** CRITICAL
+**Dependencies:** HPC cluster operational
+**Validation Target:** Oumi integration with custom SLURM cluster
+
+#### Objective
+
+Configure Oumi to launch training jobs on custom AI-HOW HPC cluster.
+
+#### Implementation
+
+**Oumi Cluster Config** (`configs/mlops/ai_how_cluster.yaml`):
+
+```yaml
+# MLOPS-3.1: Oumi Configuration for AI-HOW Custom Cluster
+cluster:
+  name: "ai-how-hpc"
+  type: "slurm"
+
+  connection:
+    host: "192.168.100.10"
+    user: "admin"
+    ssh_key_path: "~/.ssh/ai_how_cluster_key"
+
+  resources:
+    partitions:
+      - name: "gpu"
+        max_nodes: 2
+        gpus_per_node: 2
+        gpu_type: "nvidia"
+
+  storage:
+    shared_fs: "/mnt/beegfs"
+    model_cache: "/mnt/beegfs/models"
+    dataset_cache: "/mnt/beegfs/datasets"
+
+  containers:
+    runtime: "apptainer"
+    image_dir: "/mnt/beegfs/containers"
+    default_image: "oumi_latest.sif"
+
+  environment:
+    HF_HOME: "/mnt/beegfs/huggingface"
+    TRANSFORMERS_CACHE: "/mnt/beegfs/huggingface/transformers"
+    HF_DATASETS_CACHE: "/mnt/beegfs/huggingface/datasets"
+```
+
+**Test Job** (`configs/mlops/oumi_cluster_test.yaml`):
+
+```yaml
+# Test job for custom cluster
+name: "oumi-cluster-test"
+
+model:
+  model_name: "gpt2"  # Smallest model for quick test
+
+dataset:
+  dataset_name: "wikitext"
+  dataset_split: "train[:100]"
+
+training:
+  output_dir: "/mnt/beegfs/models/oumi-cluster-test"
+  num_train_epochs: 1
+  per_device_train_batch_size: 2
+  max_steps: 10  # Very short test
+
+compute:
+  cluster: "ai-how-hpc"
+  devices: 1
+
+resources:
+  cpus_per_task: 2
+  mem: "8G"
+  time: "00:10:00"
+```
+
+#### Validation Steps
+
+```bash
+# 1. Install Oumi on local machine
+pip install oumi[gpu]
+
+# 2. Configure cluster connection
+oumi cluster add ai-how-hpc --config configs/mlops/ai_how_cluster.yaml
+
+# 3. Test cluster connection
+oumi cluster test ai-how-hpc
+
+# 4. Launch test job
+oumi launch -c configs/mlops/oumi_cluster_test.yaml
+
+# 5. Monitor job
+oumi status
+
+# 6. Check results
+ssh admin@192.168.100.10 "ls -lh /mnt/beegfs/models/oumi-cluster-test/"
+```
+
+#### Success Criteria
+
+- [ ] Oumi connects to HPC cluster via SSH
+- [ ] Job submission works through Oumi CLI
+- [ ] SLURM job created and runs successfully
+- [ ] Oumi monitors job status remotely
+- [ ] Model artifacts saved to BeeGFS
+- [ ] Oumi downloads results successfully
+
+---
+
+### MLOPS-3.2: Oumi Evaluation and Benchmarking
+
+**Duration:** 1 day
+**Priority:** MEDIUM
+**Dependencies:** MLOPS-1.2 or MLOPS-2.2
+**Validation Target:** Oumi evaluation framework, model quality metrics
+
+#### Objective
+
+Evaluate fine-tuned models using Oumi's evaluation framework.
+
+#### Implementation
+
+**Evaluation Config** (`configs/mlops/smollm_eval.yaml`):
+
+```yaml
+# MLOPS-3.2: Model Evaluation
+model:
+  model_path: "/mnt/beegfs/models/smollm-135m-sft"
+
+evaluation:
+  tasks:
+    - name: "perplexity"
+      dataset: "wikitext"
+      dataset_split: "test[:1000]"
+
+    - name: "text_generation"
+      prompts:
+        - "Write a short story about"
+        - "Explain quantum computing in simple terms"
+        - "Create a haiku about nature"
+      max_new_tokens: 100
+
+  metrics:
+    - "perplexity"
+    - "bleu"
+    - "rouge"
+
+  output_dir: "/mnt/beegfs/evaluations/smollm-135m"
+```
+
+**SLURM Script** (`scripts/mlops/smollm_eval.sbatch`):
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=smollm-eval
+#SBATCH --output=/mnt/beegfs/jobs/smollm-eval-%j.out
+#SBATCH --gres=gpu:1
+#SBATCH --time=00:15:00
+
+apptainer exec --nv \
+  /mnt/beegfs/containers/oumi_latest.sif \
+  oumi evaluate -c /mnt/beegfs/configs/smollm_eval.yaml
+```
+
+#### Success Criteria
+
+- [ ] Evaluation completes successfully
+- [ ] Perplexity calculated
+- [ ] Text generation produces coherent output
+- [ ] Metrics saved to evaluation directory
+- [ ] Results comparable to baseline
+
+---
+
+## Category 4: Inference Deployment
+
+### MLOPS-4.1: Simple Model Inference (CPU)
+
+**Duration:** 1 day
+**Priority:** HIGH
+**Dependencies:** MLOPS-1.1, Cloud cluster operational
+**Validation Target:** Basic inference deployment, KServe, model serving
+
+#### Objective
+
+Deploy MNIST model for CPU inference using KServe on cloud cluster.
+
+#### Implementation
+
+**InferenceService Manifest** (`manifests/mlops/mnist-inference.yaml`):
+
+```yaml
+# MLOPS-4.1: MNIST CPU Inference
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: mnist-classifier
+  namespace: default
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 3
+    pytorch:
+      storageUri: "s3://models/mnist/mnist_cnn_single_gpu.pt"
+      resources:
+        requests:
+          cpu: "1"
+          memory: "2Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+```
+
+**Test Script** (`scripts/mlops/test_mnist_inference.py`):
+
+```python
+#!/usr/bin/env python3
+"""Test MNIST inference endpoint"""
+import requests
+import numpy as np
+import json
+
+def test_inference():
+    # Get inference endpoint
+    inference_url = "http://mnist-classifier.default.svc.cluster.local/v1/models/mnist-classifier:predict"
+
+    # Create test input (random 28x28 image)
+    test_input = np.random.rand(1, 1, 28, 28).tolist()
+
+    # Send inference request
+    payload = {"instances": test_input}
+    response = requests.post(inference_url, json=payload)
+
+    if response.status_code == 200:
+        result = response.json()
+        predictions = result["predictions"][0]
+        predicted_class = np.argmax(predictions)
+        print(f"✅ Inference successful!")
+        print(f"Predicted class: {predicted_class}")
+        print(f"Confidence: {predictions[predicted_class]:.4f}")
+        return True
+    else:
+        print(f"❌ Inference failed: {response.status_code}")
+        print(response.text)
+        return False
+
+if __name__ == "__main__":
+    test_inference()
+```
+
+#### Validation Steps
+
+```bash
+# 1. Copy model to MinIO
+mc cp /mnt/beegfs/models/mnist/mnist_cnn_single_gpu.pt \
+     minio/models/mnist/
+
+# 2. Deploy InferenceService
+kubectl apply -f manifests/mlops/mnist-inference.yaml
+
+# 3. Wait for InferenceService ready
+kubectl wait --for=condition=Ready inferenceservice/mnist-classifier --timeout=300s
+
+# 4. Test inference
+kubectl run test-inference --image=python:3.11 --rm -it -- \
+  python3 scripts/mlops/test_mnist_inference.py
+
+# 5. Check autoscaling
+kubectl get hpa
+kubectl get pods -l serving.kserve.io/inferenceservice=mnist-classifier
+```
+
+#### Success Criteria
+
+- [ ] InferenceService deploys successfully
+- [ ] Inference endpoint accessible
+- [ ] Inference returns valid predictions
+- [ ] Response time <100ms
+- [ ] Autoscaling works (scales 1→2→3)
+- [ ] CPU utilization monitored in Grafana
+
+---
+
+### MLOPS-4.2: GPU Model Inference
+
+**Duration:** 2 days
+**Priority:** HIGH
+**Dependencies:** MLOPS-4.1, GPU operator deployed
+**Validation Target:** GPU inference, model optimization, throughput
+
+#### Objective
+
+Deploy SmolLM model for GPU-accelerated inference with KServe.
+
+#### Implementation
+
+**InferenceService Manifest** (`manifests/mlops/smollm-inference.yaml`):
+
+```yaml
+# MLOPS-4.2: SmolLM GPU Inference
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: smollm-text-generation
+  namespace: default
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 2
+    containers:
+    - name: kserve-container
+      image: ghcr.io/huggingface/text-generation-inference:latest
+      env:
+      - name: MODEL_ID
+        value: "/mnt/model"
+      - name: NUM_SHARD
+        value: "1"
+      - name: MAX_BATCH_SIZE
+        value: "4"
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+          memory: 16Gi
+        requests:
+          nvidia.com/gpu: 1
+          memory: 8Gi
+    storage:
+      uri: "s3://models/smollm-135m-sft"
+    nodeSelector:
+      workload-type: inference
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+```
+
+**Load Test Script** (`scripts/mlops/load_test_smollm.py`):
+
+```python
+#!/usr/bin/env python3
+"""Load test SmolLM inference"""
+import requests
+import time
+import concurrent.futures
+import numpy as np
+
+def send_request(prompt):
+    url = "http://smollm-text-generation.default.svc.cluster.local/v1/completions"
+    payload = {
+        "prompt": prompt,
+        "max_tokens": 50,
+        "temperature": 0.7
+    }
+    start = time.time()
+    response = requests.post(url, json=payload)
+    latency = time.time() - start
+    return response.status_code == 200, latency
+
+def load_test(num_requests=100, concurrent=10):
+    prompts = [
+        "Write a haiku about",
+        "Explain in one sentence:",
+        "Create a short story about",
+        "What is the meaning of",
+    ]
+
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=concurrent) as executor:
+        futures = []
+        for i in range(num_requests):
+            prompt = prompts[i % len(prompts)]
+            futures.append(executor.submit(send_request, prompt))
+
+        for future in concurrent.futures.as_completed(futures):
+            success, latency = future.result()
+            results.append((success, latency))
+
+    # Calculate metrics
+    successes = sum(1 for s, _ in results if s)
+    latencies = [l for s, l in results if s]
+
+    print(f"\nLoad Test Results:")
+    print(f"Total Requests: {num_requests}")
+    print(f"Successful: {successes}")
+    print(f"Failed: {num_requests - successes}")
+    print(f"Success Rate: {100 * successes / num_requests:.1f}%")
+    print(f"Average Latency: {np.mean(latencies):.3f}s")
+    print(f"P50 Latency: {np.percentile(latencies, 50):.3f}s")
+    print(f"P95 Latency: {np.percentile(latencies, 95):.3f}s")
+    print(f"P99 Latency: {np.percentile(latencies, 99):.3f}s")
+    print(f"Throughput: {successes / sum(latencies):.1f} req/s")
+
+if __name__ == "__main__":
+    load_test()
+```
+
+#### Success Criteria
+
+- [ ] InferenceService with GPU deployed
+- [ ] GPU allocated to inference pod
+- [ ] Inference produces coherent text
+- [ ] P95 latency <500ms
+- [ ] Throughput >10 req/s
+- [ ] Autoscaling triggered by load
+- [ ] GPU utilization >60%
+
+---
+
+## Category 5: End-to-End MLOps Workflow
+
+### MLOPS-5.1: Complete Training-to-Inference Pipeline
+
+**Duration:** 3 days
+**Priority:** CRITICAL
+**Dependencies:** All previous tasks
+**Validation Target:** Complete MLOps workflow, HPC→Cloud integration
+
+#### Objective
+
+Implement and validate complete ML workflow: train on HPC → register in MLflow → deploy on cloud → serve inference.
+
+#### Workflow Steps
+
+**Step 1: Train Model on HPC**
+
+```yaml
+# Training config with MLflow tracking
+training:
+  output_dir: "/mnt/beegfs/models/smollm-production"
+  mlflow_tracking_uri: "http://mlflow.mlops.svc.cluster.local:5000"
+  mlflow_experiment_name: "smollm-production"
+  num_train_epochs: 3
+```
+
+**Step 2: Register Model in MLflow**
+
+```python
+# scripts/mlops/register_model_mlflow.py
+import mlflow
+import os
+
+def register_model():
+    mlflow.set_tracking_uri("http://192.168.200.11:5000")  # Cloud cluster MLflow
+
+    # Register model
+    model_uri = "/mnt/beegfs/models/smollm-production/final_model"
+    model_name = "smollm-production"
+
+    result = mlflow.register_model(
+        model_uri=f"file://{model_uri}",
+        name=model_name
+    )
+
+    # Transition to production
+    client = mlflow.MlflowClient()
+    client.transition_model_version_stage(
+        name=model_name,
+        version=result.version,
+        stage="Production"
+    )
+
+    print(f"✅ Model registered: {model_name} v{result.version}")
+    print(f"Stage: Production")
+    return result.version
+
+if __name__ == "__main__":
+    version = register_model()
+```
+
+**Step 3: Sync Model to Cloud Storage**
+
+```bash
+# scripts/mlops/sync_model_to_cloud.sh
+#!/bin/bash
+MODEL_DIR=/mnt/beegfs/models/smollm-production
+MINIO_BUCKET=s3://models/smollm-production
+
+echo "Syncing model to cloud storage..."
+mc cp --recursive $MODEL_DIR minio/$MINIO_BUCKET
+
+echo "✅ Model synced to MinIO"
+```
+
+**Step 4: Deploy to KServe**
+
+```yaml
+# manifests/mlops/smollm-production-inference.yaml
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: smollm-production
+  namespace: production
+  annotations:
+    mlflow.model.name: "smollm-production"
+    mlflow.model.version: "1"
+spec:
+  predictor:
+    minReplicas: 2
+    maxReplicas: 5
+    model:
+      modelFormat:
+        name: mlflow
+      storageUri: "s3://models/smollm-production"
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+          memory: 16Gi
+```
+
+**Step 5: End-to-End Test**
+
+```python
+# scripts/mlops/e2e_test.py
+import requests
+import time
+
+def test_e2e_workflow():
+    """Test complete workflow from training to inference"""
+
+    # 1. Verify model in MLflow
+    mlflow_url = "http://mlflow.mlops.svc.cluster.local:5000/api/2.0/mlflow/registered-models/get"
+    response = requests.get(mlflow_url, params={"name": "smollm-production"})
+    assert response.status_code == 200
+    print("✅ Model found in MLflow registry")
+
+    # 2. Verify model in MinIO
+    # (handled by mc cli)
+
+    # 3. Test inference
+    inference_url = "http://smollm-production.production.svc.cluster.local/v1/completions"
+    test_prompt = "Explain machine learning in simple terms:"
+
+    response = requests.post(inference_url, json={
+        "prompt": test_prompt,
+        "max_tokens": 100
+    })
+
+    assert response.status_code == 200
+    result = response.json()
+    generated_text = result["choices"][0]["text"]
+
+    print("✅ Inference successful")
+    print(f"Generated: {generated_text[:100]}...")
+
+    # 4. Monitor metrics
+    time.sleep(5)
+
+    # Check Prometheus metrics
+    metrics_url = "http://prometheus.monitoring.svc.cluster.local:9090/api/v1/query"
+    query = 'rate(kserve_model_request_total{model="smollm-production"}[5m])'
+    response = requests.get(metrics_url, params={"query": query})
+
+    print("✅ Metrics available in Prometheus")
+
+    return True
+
+if __name__ == "__main__":
+    test_e2e_workflow()
+```
+
+#### Validation Steps
+
+```bash
+# Complete end-to-end workflow
+make mlops-e2e-test
+
+# Or manually:
+# 1. Train on HPC
+sbatch scripts/mlops/smollm_production_train.sbatch
+
+# 2. Register model
+python scripts/mlops/register_model_mlflow.py
+
+# 3. Sync to cloud
+./scripts/mlops/sync_model_to_cloud.sh
+
+# 4. Deploy inference
+kubectl apply -f manifests/mlops/smollm-production-inference.yaml
+
+# 5. Test
+python scripts/mlops/e2e_test.py
+
+# 6. Monitor
+kubectl top pods -n production
+kubectl get hpa -n production
+```
+
+#### Success Criteria
+
+- [ ] Model trains successfully on HPC
+- [ ] Model registered in MLflow with metadata
+- [ ] Model synced to MinIO (cloud storage)
+- [ ] InferenceService deploys successfully
+- [ ] Inference endpoint accessible and functional
+- [ ] End-to-end latency <5 seconds (train→deploy)
+- [ ] Metrics visible in Grafana dashboards
+- [ ] Complete workflow documented
+
+---
+
+### MLOPS-5.2: MLOps Pipeline Automation
+
+**Duration:** 2 days
+**Priority:** MEDIUM
+**Dependencies:** MLOPS-5.1
+**Validation Target:** Automated MLOps workflows, CI/CD integration
+
+#### Objective
+
+Automate the complete MLOps pipeline with scripts and Makefile targets.
+
+#### Implementation
+
+**Makefile Targets** (add to `Makefile`):
+
+```makefile
+# MLOps Workflow Targets
+
+.PHONY: mlops-train mlops-register mlops-sync mlops-deploy mlops-e2e-test
+
+mlops-train:
+	@echo "Training model on HPC cluster..."
+	ssh admin@192.168.100.10 "sbatch /mnt/beegfs/scripts/smollm_production_train.sbatch"
+
+mlops-register:
+	@echo "Registering model in MLflow..."
+	python scripts/mlops/register_model_mlflow.py
+
+mlops-sync:
+	@echo "Syncing model to cloud storage..."
+	./scripts/mlops/sync_model_to_cloud.sh
+
+mlops-deploy:
+	@echo "Deploying inference service..."
+	kubectl apply -f manifests/mlops/smollm-production-inference.yaml
+	kubectl wait --for=condition=Ready inferenceservice/smollm-production -n production --timeout=300s
+
+mlops-e2e-test: mlops-train
+	@echo "Running end-to-end MLOps workflow..."
+	sleep 60  # Wait for training to start
+	# Wait for training completion (check SLURM)
+	@echo "Waiting for training completion..."
+	while ssh admin@192.168.100.10 "squeue -u admin | grep smollm" > /dev/null; do \
+		sleep 10; \
+	done
+	$(MAKE) mlops-register
+	$(MAKE) mlops-sync
+	$(MAKE) mlops-deploy
+	python scripts/mlops/e2e_test.py
+	@echo "✅ End-to-end MLOps workflow completed!"
+
+mlops-monitor:
+	@echo "Opening monitoring dashboards..."
+	@echo "MLflow: http://mlflow.cloud-cluster.local"
+	@echo "Grafana: http://grafana.cloud-cluster.local"
+	kubectl port-forward -n mlops svc/mlflow 5000:5000 &
+	kubectl port-forward -n monitoring svc/grafana 3000:3000 &
+```
+
+#### Success Criteria
+
+- [ ] Single command triggers complete workflow
+- [ ] Pipeline handles errors gracefully
+- [ ] Status reporting at each stage
+- [ ] Logs captured for debugging
+- [ ] Rollback capability on failure
+
+---
+
+## Summary and Validation Matrix
+
+### Task Completion Checklist
+
+| Task ID | Task Name | Duration | Status | Cluster |
+|---------|-----------|----------|--------|---------|
+| **MLOPS-1.1** | Single GPU MNIST Training | 1 day | Not Started | HPC |
+| **MLOPS-1.2** | Single GPU LLM Fine-tuning | 2 days | Not Started | HPC |
+| **MLOPS-2.1** | Multi-GPU Data Parallel Training | 2 days | Not Started | HPC |
+| **MLOPS-2.2** | Multi-GPU LLM Training | 2 days | Not Started | HPC |
+| **MLOPS-3.1** | Oumi Custom Cluster Config | 2 days | Not Started | HPC |
+| **MLOPS-3.2** | Oumi Evaluation | 1 day | Not Started | HPC |
+| **MLOPS-4.1** | CPU Model Inference | 1 day | Not Started | Cloud |
+| **MLOPS-4.2** | GPU Model Inference | 2 days | Not Started | Cloud |
+| **MLOPS-5.1** | End-to-End Pipeline | 3 days | Not Started | Both |
+| **MLOPS-5.2** | Pipeline Automation | 2 days | Not Started | Both |
+
+**Total: 18 days (3.6 weeks)**
+
+### Infrastructure Validation Coverage
+
+| Infrastructure Component | Validated By |
+|-------------------------|--------------|
+| SLURM Job Submission | MLOPS-1.1, 1.2, 2.1, 2.2 |
+| SLURM GRES (GPU Scheduling) | MLOPS-2.1, 2.2 |
+| BeeGFS Storage | All HPC tasks |
+| Apptainer Containers | All HPC tasks |
+| GPU Passthrough | MLOPS-1.2, 2.1, 2.2 |
+| Multi-GPU Communication | MLOPS-2.1, 2.2 |
+| Oumi Framework | MLOPS-1.2, 2.2, 3.1, 3.2 |
+| Kubernetes | MLOPS-4.1, 4.2, 5.1 |
+| KServe Inference | MLOPS-4.1, 4.2, 5.1 |
+| MinIO Storage | MLOPS-5.1 |
+| MLflow Registry | MLOPS-5.1 |
+| GPU Operator | MLOPS-4.2 |
+| Monitoring (Prometheus/Grafana) | MLOPS-5.1, 5.2 |
+| HPC→Cloud Integration | MLOPS-5.1 |
+
+### Success Metrics
+
+**Training Performance:**
+- Single GPU training: <5 minutes for MNIST, <30 minutes for SmolLM
+- Multi-GPU speedup: 1.7-1.9x for 2 GPUs
+- GPU utilization: >70%
+
+**Inference Performance:**
+- Cold start: <30 seconds
+- Warm inference latency (P95): <500ms
+- Throughput: >10 req/s per GPU
+- Autoscaling response: <2 minutes
+
+**Reliability:**
+- Job submission success rate: >99%
+- Inference API uptime: >99.9%
+- Model serving latency SLA: P95 <500ms
+
+**Workflow:**
+- End-to-end pipeline: <10 minutes from training completion to inference ready
+- Model registration: <1 minute
+- Model sync: <2 minutes
+
+---
+
+## Prerequisites
+
+### Software Requirements
+
+**HPC Cluster:**
+- SLURM operational with GPU GRES
+- BeeGFS mounted on all nodes
+- Apptainer installed
+- PyTorch container available
+- Oumi container available (or pip installed)
+
+**Cloud Cluster:**
+- Kubernetes operational
+- GPU Operator deployed
+- KServe installed
+- MLflow deployed
+- MinIO deployed
+- Prometheus/Grafana deployed
+
+**Local Workstation:**
+- Python 3.11+
+- Oumi CLI installed
+- kubectl configured
+- SSH access to both clusters
+
+### Data Requirements
+
+**Datasets (pre-downloaded to BeeGFS):**
+- MNIST: ~50 MB
+- CIFAR-10: ~170 MB
+- WikiText: ~200 MB
+- no_robots (HuggingFace): ~500 MB
+
+**Models (to be downloaded):**
+- SmolLM-135M: ~500 MB
+- GPT-2: ~500 MB
+
+### Network Requirements
+
+- HPC cluster accessible at 192.168.100.0/24
+- Cloud cluster accessible at 192.168.200.0/24
+- Internet access for HuggingFace Hub
+- Sufficient bandwidth for model transfers (~10 Mbps minimum)
+
+---
+
+## Troubleshooting Guide
+
+### Common Issues
+
+**Issue: SLURM job fails with "Unable to allocate resources"**
+
+Solution:
+```bash
+# Check GPU availability
+sinfo -o "%P %D %N %G"
+
+# Check GPU GRES configuration
+scontrol show node | grep -A 20 Gres
+
+# Verify GPU passthrough
+ssh compute01 "nvidia-smi"
+```
+
+**Issue: Oumi cannot connect to custom cluster**
+
+Solution:
+```bash
+# Verify SSH access
+ssh -i ~/.ssh/ai_how_cluster_key admin@192.168.100.10
+
+# Check cluster config
+oumi cluster show ai-how-hpc
+
+# Test connection
+oumi cluster test ai-how-hpc --verbose
+```
+
+**Issue: InferenceService not becoming ready**
+
+Solution:
+```bash
+# Check pod status
+kubectl get pods -l serving.kserve.io/inferenceservice=mnist-classifier
+
+# Check logs
+kubectl logs -l serving.kserve.io/inferenceservice=mnist-classifier
+
+# Check events
+kubectl describe inferenceservice mnist-classifier
+
+# Verify GPU allocation
+kubectl describe pod <pod-name> | grep -A 5 Resources
+```
+
+**Issue: Poor inference performance**
+
+Solution:
+```bash
+# Check GPU utilization
+kubectl exec -it <pod-name> -- nvidia-smi
+
+# Check resource limits
+kubectl describe pod <pod-name> | grep -A 10 Limits
+
+# Review metrics
+kubectl top pods
+```
+
+---
+
+## Next Steps After Completion
+
+1. **Performance Optimization:**
+   - Model quantization (INT8, FP16)
+   - Batch inference optimization
+   - Model caching strategies
+
+2. **Scale Testing:**
+   - Larger models (1B+ parameters)
+   - Multi-node training (SLURM multi-node jobs)
+   - Production load testing (1000+ req/s)
+
+3. **Advanced Features:**
+   - A/B testing infrastructure
+   - Canary deployments
+   - Model monitoring and drift detection
+   - Automated retraining pipelines
+
+4. **Production Hardening:**
+   - Authentication and authorization
+   - Rate limiting
+   - SSL/TLS certificates
+   - Disaster recovery procedures
+
+---
+
+## References
+
+### Documentation
+- **Oumi Documentation**: https://oumi.ai/docs/
+- **Oumi GitHub**: https://github.com/oumi-ai/oumi
+- **KServe Documentation**: https://kserve.github.io/
+- **MLflow Documentation**: https://mlflow.org/docs/
+- **PyTorch DDP**: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html
+
+### Internal Documentation
+- **HPC Task List**: `docs/implementation-plans/task-lists/hpc-slurm/README.md`
+- **Cloud Cluster Plan**: `docs/implementation-plans/task-lists/cloud-cluster/README.md`
+- **Design Document**: `docs/design-docs/cloud-cluster-oumi-inference.md`
+
+### Example Oumi Configurations
+- Quickstart: `configs/recipes/smollm/sft/135m/quickstart_train.yaml`
+- Evaluation: `configs/recipes/smollm/evaluation/135m/quickstart_eval.yaml`
+- Custom Cluster: See Oumi documentation on custom cluster integration
+
+---
+
+**Document Version:** 1.0
+**Status:** Planning - Not Started
+**Last Updated:** 2025-10-27
+**Estimated Effort:** 3-4 weeks (18 days)
