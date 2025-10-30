@@ -11,9 +11,12 @@ hpc-slurm/
 │   ├── phase-0-test-infrastructure.md
 │   ├── phase-1-core-infrastructure.md
 │   ├── phase-2-containers-compute.md
-│   └── phase-3-storage.md
-├── pending/                 # Active and upcoming work
+│   ├── phase-3-storage.md
 │   ├── phase-3-storage-fixes.md
+│   ├── phase-3-slurm-source-build.md
+│   ├── phase-4-validation-steps.md
+│   └── TASK-028.1-IMPLEMENTATION.md
+├── pending/                 # Active and upcoming work
 │   ├── phase-4-consolidation.md
 │   └── phase-6-validation.md
 ├── reference/               # Cross-cutting documentation
@@ -51,7 +54,7 @@ hpc-slurm/
 
 ## File Organization
 
-### Completed Phases (4 files)
+### Completed Phases (7 files)
 
 **Phase 0: Test Infrastructure** (Tasks 001-006)
 
@@ -77,26 +80,42 @@ hpc-slurm/
 - Status: ✅ **Code Complete** ⏳ Pending Validation (3/3 tasks code complete)
 - Content: Virtio-FS, BeeGFS 7.4.4 deployment, BeeGFS 8.1.0 upgrade
 
-### Pending Phases (2 files)
-
 **Phase 3: Storage Fixes** (Task 028.1) - ⚠️ **SUPERSEDED** by BeeGFS 8.1.0 upgrade
 
-- File: `pending/phase-3-storage-fixes.md`
-- Status: ⚠️ Obsolete (superseded by completed/ documentation)
-- Content: Historical reference for kernel compatibility investigation
-- **Note**: See `completed/TASK-028.1-IMPLEMENTATION.md` for current status
+- File: `completed/phase-3-storage-fixes.md`
+- Status: ⚠️ Historical reference (superseded by TASK-028.1-IMPLEMENTATION.md)
+- Content: Historical investigation documentation for kernel compatibility
+- **Note**: See `completed/TASK-028.1-IMPLEMENTATION.md` for final solution
 
-**Phase 4: Consolidation** (Tasks 029-036)
+**Phase 3: SLURM Source Build**
+
+- File: `completed/phase-3-slurm-source-build.md`
+- Status: ✅ Complete
+- Content: SLURM source build and package generation
+
+**Phase 4: Validation Framework**
+
+- File: `completed/phase-4-validation-steps.md`
+- Status: ✅ **Framework Implemented and Ready**
+- Content: Comprehensive 10-step validation framework for Phase 4 consolidation
+- Implementation: All validation scripts operational in `tests/phase-4-validation/`
+
+### Pending Phases (2 files)
+
+**Phase 4: Consolidation** (Tasks 029-048)
 
 - File: `pending/phase-4-consolidation.md`
-- Status: Not started (0/8 tasks)
+- Status: ✅ **95% COMPLETE** (22/23 tasks complete)
 - Content: Ansible playbook and test framework consolidation
+- **Remaining**: Task 040 (Container Registry on BeeGFS) - 0% complete
+- **Achievement**: 64% playbook reduction (14 → 5 playbooks), role consolidation complete
 
 **Phase 6: Validation** (Tasks 041-044)
 
 - File: `pending/phase-6-validation.md`
-- Status: Not started (0/4 tasks)
+- Status: Not started (0/4 tasks) - **BLOCKED by Phase 4**
 - Content: Final integration testing and validation with consolidated infrastructure
+- **Dependencies**: Phase 4 consolidation must be complete before proceeding
 
 ### Reference Documentation (3 files)
 
@@ -147,13 +166,31 @@ hpc-slurm/
 
 The original `hpc-slurm-task-list.md` (6,823 lines) has been split into:
 
-- **1 master index** (137 lines) - `../hpc-slurm-task-list.md`
-- **4 completed phase files** (38-50 lines each, placeholders)
-- **3 pending phase files** (59-113 lines each, placeholders)
-- **3 reference files** (131-215 lines each, complete)
-- **Total: 11 focused, manageable files**
+- **1 master index** - `../hpc-slurm-task-list.md`
+- **7 completed phase files** - Comprehensive documentation of completed work
+- **2 pending phase files** - Active and upcoming work
+- **3 reference files** - Cross-cutting documentation
+- **Total: 13 focused, manageable files**
 
 ✅ **Migration Complete**: The original monolithic file has been removed and replaced with this organized structure.
+
+## Overall Status Summary
+
+**Completed**: 29 tasks (60% of total tasks)
+
+- ✅ Phase 0: Test Infrastructure (6 tasks)
+- ✅ Phase 1: Core Infrastructure (12 tasks)
+- ✅ Phase 2: Containers & Compute (8 tasks)
+- ✅ Phase 3: Storage (3 tasks - code complete, validation pending)
+
+**In Progress**: 22 tasks (46% of remaining work)
+
+- 🔧 Phase 4: Consolidation (22/23 tasks complete - 95%)
+
+**Pending**: 4 tasks (8% of remaining work)
+
+- ⏳ Phase 4: Consolidation (1 task remaining - Task 040)
+- ⏳ Phase 6: Validation (4 tasks - blocked by Phase 4)
 
 ## Quick Links
 
