@@ -291,12 +291,10 @@ Each task has been verified by:
 
 ---
 
-**Note:** Build System Architecture (`docs/architecture/build-system.md`) is complete but tracked as
-TASK-DOC-5.1 in Category 5, not Category 3.
-
 **Category 3 Summary:** 1/7 tasks complete (14.3%)  
 **Note:** Architecture Overview is complete; other 6 architecture docs are placeholders.  
-**Note:** Build System documentation (TASK-DOC-5.1) lives in architecture/ but is tracked in Category 5.
+**Note:** Build System documentation (TASK-DOC-5.1) is located in
+`docs/architecture/build-system.md` but is tracked in Category 5, not Category 3.
 
 ---
 
