@@ -18,10 +18,14 @@
 #   --verbose               Enable verbose output
 #   --help                  Show this help message
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script configuration
+# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+SCRIPT_NAME="run-beegfs-tests.sh"
+# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+TEST_NAME="BeeGFS Master Test Runner"
 
 # Default configuration
 CONTROLLER_IP="${CONTROLLER_IP:-}"

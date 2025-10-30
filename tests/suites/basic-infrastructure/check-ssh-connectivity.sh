@@ -12,54 +12,21 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 # Script configuration
 SCRIPT_NAME="check-ssh-connectivity.sh"
 TEST_NAME="SSH Connectivity Test"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
+# Source shared utilities
+source "$SCRIPT_DIR/../common/suite-config.sh"
+source "$SCRIPT_DIR/../common/suite-logging.sh"
+source "$SCRIPT_DIR/../common/suite-utils.sh"
 
-# SSH configuration
+# Initialize suite
+init_suite_logging "$TEST_NAME"
+setup_suite_environment "$SCRIPT_NAME"
+
+# SSH configuration (loaded from suite-config.sh)
 SSH_KEY_PATH="${SSH_KEY_PATH:-$PROJECT_ROOT/build/shared/ssh-keys/id_rsa}"
 SSH_USER="${SSH_USER:-admin}"
 SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
-
-# Logging functions with LOG_DIR compliance
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    echo "Running: $test_name" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    if $test_function; then
-        log_info "✅ $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        log_error "❌ $test_name"
-        FAILED_TESTS+=("$test_name")
-    fi
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
 
 # Task 005 Test Functions
 test_ssh_key_exists() {
@@ -225,54 +192,31 @@ test_ssh_sudo_access() {
 }
 
 print_summary() {
-    local failed=$((TESTS_RUN - TESTS_PASSED))
+    generate_test_report "SSH Connectivity Test"
 
-    {
-        echo "========================================"
-        echo "SSH Connectivity Test Summary"
-        echo "========================================"
-        echo "Script: $SCRIPT_NAME"
-        echo "Tests run: $TESTS_RUN"
-        echo "Passed: $TESTS_PASSED"
-        echo "Failed: $failed"
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-
-    if [[ $failed -gt 0 ]]; then
-        {
-            echo "Failed tests:"
-            printf '  ❌ %s\n' "${FAILED_TESTS[@]}"
-            echo
-            echo "❌ SSH connectivity validation FAILED"
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    if [[ $TESTS_FAILED -gt 0 ]]; then
+        log_suite_error "SSH connectivity validation FAILED"
         return 1
     else
-        {
-            echo
-            echo "🎉 SSH connectivity validation PASSED!"
-            echo
-            echo "SSH COMPONENTS VALIDATED:"
-            echo "  ✅ SSH key exists and accessible"
-            echo "  ✅ SSH key permissions appropriate"
-            echo "  ✅ SSH connectivity to VMs working"
-            echo "  ✅ SSH authentication successful"
-            echo "  ✅ SSH command execution working"
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+        log_suite_success "SSH connectivity validation PASSED!"
+        log_suite_info "SSH COMPONENTS VALIDATED:"
+        log_suite_info "  ✅ SSH key exists and accessible"
+        log_suite_info "  ✅ SSH key permissions appropriate"
+        log_suite_info "  ✅ SSH connectivity to VMs working"
+        log_suite_info "  ✅ SSH authentication successful"
+        log_suite_info "  ✅ SSH command execution working"
         return 0
     fi
 }
 
 main() {
-    {
-        echo "========================================"
-        echo "$TEST_NAME"
-        echo "========================================"
-        echo "Script: $SCRIPT_NAME"
-        echo "Timestamp: $(date)"
-        echo "Log Directory: $LOG_DIR"
-        echo "SSH Key: $SSH_KEY_PATH"
-        echo "SSH User: $SSH_USER"
-        echo
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    format_test_header "$TEST_NAME"
+    log_suite_info "Script: $SCRIPT_NAME"
+    log_suite_info "Timestamp: $(date)"
+    log_suite_info "Log Directory: $LOG_DIR"
+    log_suite_info "SSH Key: $SSH_KEY_PATH"
+    log_suite_info "SSH User: $SSH_USER"
+    echo
 
     # Run Task 005 SSH connectivity tests
     run_test "SSH key exists" test_ssh_key_exists

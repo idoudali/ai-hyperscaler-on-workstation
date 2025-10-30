@@ -15,20 +15,16 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 # Script configuration
 SCRIPT_NAME="check-comprehensive-security.sh"
 TEST_NAME="Comprehensive Container Security Test (Task 009)"
-
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source shared utilities
-SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-if [[ -f "$SCRIPT_DIR/test-utils.sh" ]]; then
-    # shellcheck source=test-utils.sh
-    source "$SCRIPT_DIR/test-utils.sh"
-else
-    echo "Error: Shared test utilities not found: $SCRIPT_DIR/test-utils.sh"
-    exit 1
-fi
+source "$SCRIPT_DIR/../common/suite-config.sh"
+source "$SCRIPT_DIR/../common/suite-logging.sh"
+source "$SCRIPT_DIR/../common/suite-utils.sh"
+
+# Initialize suite
+init_suite_logging "$TEST_NAME"
+setup_suite_environment "$SCRIPT_NAME"
 
 # Task 009 Comprehensive Security Test Functions
 

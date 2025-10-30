@@ -12,54 +12,21 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 # Script configuration
 SCRIPT_NAME="check-configuration.sh"
 TEST_NAME="Configuration Test"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
+# Source shared utilities
+source "$SCRIPT_DIR/../common/suite-config.sh"
+source "$SCRIPT_DIR/../common/suite-logging.sh"
+source "$SCRIPT_DIR/../common/suite-utils.sh"
+
+# Initialize suite
+init_suite_logging "$TEST_NAME"
+setup_suite_environment "$SCRIPT_NAME"
 
 # Configuration paths
-PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "$0")/../../.." && pwd)}"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
 TEST_CONFIGS_DIR="$PROJECT_ROOT/tests/test-infra/configs"
 CONFIG_VALIDATION_SCRIPT="$PROJECT_ROOT/tests/test_config_validation.sh"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
-
-# Logging functions with LOG_DIR compliance
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    echo "Running: $test_name" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    if $test_function; then
-        log_info "✅ $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        log_error "❌ $test_name"
-        FAILED_TESTS+=("$test_name")
-    fi
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
 
 # Task 005 Test Functions
 test_config_files_exist() {
@@ -217,55 +184,32 @@ test_config_schema_validation() {
 }
 
 print_summary() {
-    local failed=$((TESTS_RUN - TESTS_PASSED))
+    generate_test_report "Configuration Test"
 
-    {
-        echo "========================================"
-        echo "Configuration Test Summary"
-        echo "========================================"
-        echo "Script: $SCRIPT_NAME"
-        echo "Tests run: $TESTS_RUN"
-        echo "Passed: $TESTS_PASSED"
-        echo "Failed: $failed"
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-
-    if [[ $failed -gt 0 ]]; then
-        {
-            echo "Failed tests:"
-            printf '  ❌ %s\n' "${FAILED_TESTS[@]}"
-            echo
-            echo "❌ Configuration validation FAILED"
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    if [[ $TESTS_FAILED -gt 0 ]]; then
+        log_suite_error "Configuration validation FAILED"
         return 1
     else
-        {
-            echo
-            echo "🎉 Configuration validation PASSED!"
-            echo
-            echo "CONFIGURATION COMPONENTS VALIDATED:"
-            echo "  ✅ Configuration files exist and accessible"
-            echo "  ✅ YAML syntax validation passed"
-            echo "  ✅ Configuration validation script functional"
-            echo "  ✅ All configs validation working"
-            echo "  ✅ Enhanced validation working"
-            echo "  ✅ Schema validation passed"
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+        log_suite_success "Configuration validation PASSED!"
+        log_suite_info "CONFIGURATION COMPONENTS VALIDATED:"
+        log_suite_info "  ✅ Configuration files exist and accessible"
+        log_suite_info "  ✅ YAML syntax validation passed"
+        log_suite_info "  ✅ Configuration validation script functional"
+        log_suite_info "  ✅ All configs validation working"
+        log_suite_info "  ✅ Enhanced validation working"
+        log_suite_info "  ✅ Schema validation passed"
         return 0
     fi
 }
 
 main() {
-    {
-        echo "========================================"
-        echo "$TEST_NAME"
-        echo "========================================"
-        echo "Script: $SCRIPT_NAME"
-        echo "Timestamp: $(date)"
-        echo "Log Directory: $LOG_DIR"
-        echo "Test Configs Directory: $TEST_CONFIGS_DIR"
-        echo "Config Validation Script: $CONFIG_VALIDATION_SCRIPT"
-        echo
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    format_test_header "$TEST_NAME"
+    log_suite_info "Script: $SCRIPT_NAME"
+    log_suite_info "Timestamp: $(date)"
+    log_suite_info "Log Directory: $LOG_DIR"
+    log_suite_info "Test Configs Directory: $TEST_CONFIGS_DIR"
+    log_suite_info "Config Validation Script: $CONFIG_VALIDATION_SCRIPT"
+    echo
 
     # Run Task 005 configuration tests
     run_test "Config files exist" test_config_files_exist

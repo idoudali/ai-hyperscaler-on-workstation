@@ -13,10 +13,16 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 # Script configuration
 SCRIPT_NAME="check-singularity-install.sh"
 TEST_NAME="Container Runtime Installation Check"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
+# Source shared utilities
+source "$SCRIPT_DIR/../common/suite-config.sh"
+source "$SCRIPT_DIR/../common/suite-logging.sh"
+source "$SCRIPT_DIR/../common/suite-utils.sh"
+
+# Initialize suite
+init_suite_logging "$TEST_NAME"
+setup_suite_environment "$SCRIPT_NAME"
 
 # Test configuration per Task 008 requirements
 CONTAINER_RUNTIME_BINARY="apptainer"
@@ -30,45 +36,6 @@ REQUIRED_PACKAGES=(
     "libfuse2"               # FUSE runtime libraries
     "libseccomp2"            # Seccomp security support
 )
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
-
-# Logging functions with LOG_DIR compliance
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    echo "Running: $test_name" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    if $test_function; then
-        log_info "✅ $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        log_error "❌ $test_name"
-        FAILED_TESTS+=("$test_name")
-    fi
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
 
 # Task 008 Test Functions
 test_apptainer_binary_available() {

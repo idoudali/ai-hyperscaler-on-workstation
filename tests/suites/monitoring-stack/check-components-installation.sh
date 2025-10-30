@@ -3,31 +3,15 @@
 # Consolidated tests for Prometheus and Node Exporter installation
 # Part of Task 015: Install Prometheus Monitoring Stack
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
 set -euo pipefail
 
-# Initialize logging and colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-LOG_FILE="${LOG_DIR:-/tmp}/components-installation-test.log"
-
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
+# Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="check-components-installation.sh"
+# shellcheck disable=SC2034
+TEST_NAME="Monitoring Stack Components Installation Validation"
 
 # =============================================================================
 # PROMETHEUS INSTALLATION TESTS

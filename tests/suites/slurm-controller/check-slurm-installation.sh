@@ -5,30 +5,14 @@
 # Validates SLURM controller packages, PMIx support, and all required dependencies
 #
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
-
 # Script configuration
+# shellcheck disable=SC2034
 SCRIPT_NAME="check-slurm-installation.sh"
+# shellcheck disable=SC2034
 TEST_NAME="SLURM Controller Installation Validation"
-
-
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
 
 # Expected packages (matching Ansible role configuration)
 # Note: Only checking for packages that are actually installed by the Ansible role
@@ -64,15 +48,15 @@ SLURM_BINARIES=(
 
 # Logging functions
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    log_suite_info "$@"
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    log_suite_warning "$@"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    log_suite_error "$@"
 }
 
 log_debug() {
@@ -306,7 +290,7 @@ main() {
     fi
 
     # Success criteria: All tests should pass (only testing packages that should be installed)
-    if [ $TESTS_PASSED -eq $TESTS_RUN ]; then
+    if [ "$TESTS_PASSED" -eq $TESTS_RUN ]; then
         log_info "SLURM controller installation validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else

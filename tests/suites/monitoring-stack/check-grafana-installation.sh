@@ -3,15 +3,16 @@
 # Validates Grafana installation, configuration, and basic functionality
 # Part of the Task 016 Grafana implementation
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Source common utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$(dirname "$SCRIPT_DIR")/../../test-infra/utils/test-framework-utils.sh"
-
-# Test suite configuration
+# Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="check-grafana-installation.sh"
+# shellcheck disable=SC2034
+TEST_NAME="Grafana Installation Validation"
+# Define test suite name for logging/reporting consistency
 TEST_SUITE_NAME="Grafana Installation Validation"
-export TEST_LOG_PREFIX="grafana-install"
 
 # Grafana installation validation tests
 test_grafana_package_installation() {
@@ -223,7 +224,7 @@ test_grafana_service_override() {
 
 # Main test execution
 main() {
-    init_logging "$(date '+%Y-%m-%d_%H-%M-%S')" "tests/logs" "grafana-install"
+    init_suite_logging "$TEST_SUITE_NAME"
 
     log_info "=== $TEST_SUITE_NAME ==="
 
@@ -235,7 +236,9 @@ main() {
     run_test "Service Configuration" test_grafana_service
     run_test "Service Override" test_grafana_service_override
 
-    print_test_summary
+    # Collect and report results using common utilities
+    collect_test_results
+    generate_test_report
 }
 
 # Run main function if script is executed directly

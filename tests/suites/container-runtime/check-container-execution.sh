@@ -13,10 +13,16 @@ PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(
 # Script configuration
 SCRIPT_NAME="check-container-execution.sh"
 TEST_NAME="Container Execution Test"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
+# Source shared utilities
+source "$SCRIPT_DIR/../common/suite-config.sh"
+source "$SCRIPT_DIR/../common/suite-logging.sh"
+source "$SCRIPT_DIR/../common/suite-utils.sh"
+
+# Initialize suite
+init_suite_logging "$TEST_NAME"
+setup_suite_environment "$SCRIPT_NAME"
 
 # Test configuration per Task 008 requirements
 CONTAINER_RUNTIME_BINARY="apptainer"
@@ -30,45 +36,6 @@ TEST_CONTAINER="docker://ubuntu:22.04"
 # Default: 180 seconds (3 minutes)
 # Usage: CONTAINER_PULL_TIMEOUT=300 ./check-container-execution.sh
 : "${CONTAINER_PULL_TIMEOUT:=180}"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
-
-# Logging functions with LOG_DIR compliance
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    echo "Running: $test_name" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    if $test_function; then
-        log_info "✅ $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        log_error "❌ $test_name"
-        FAILED_TESTS+=("$test_name")
-    fi
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
 
 # Task 008 Test Functions
 test_container_runtime_available() {
@@ -240,54 +207,31 @@ test_container_isolation() {
 }
 
 print_summary() {
-    local failed=$((TESTS_RUN - TESTS_PASSED))
+    generate_test_report "Container Execution Test"
 
-    {
-        echo "========================================"
-        echo "Container Execution Test Summary"
-        echo "========================================"
-        echo "Script: $SCRIPT_NAME"
-        echo "Tests run: $TESTS_RUN"
-        echo "Passed: $TESTS_PASSED"
-        echo "Failed: $failed"
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-
-    if [[ $failed -gt 0 ]]; then
-        {
-            echo "Failed tests:"
-            printf '  ❌ %s\n' "${FAILED_TESTS[@]}"
-            echo
-            echo "❌ Container execution validation FAILED"
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    if [[ $TESTS_FAILED -gt 0 ]]; then
+        log_suite_error "Container execution validation FAILED"
         return 1
     else
-        {
-            echo
-            echo "🎉 Container execution validation PASSED!"
-            echo
-            echo "EXECUTION COMPONENTS VALIDATED:"
-            echo "  ✅ Container runtime available"
-            echo "  ✅ Container pull and convert to SIF format"
-            echo "  ✅ Container execution working"
-            echo "  ✅ Bind mount functionality"
-            echo "  ✅ Container networking capabilities"
-            echo "  ✅ Container isolation working"
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+        log_suite_success "Container execution validation PASSED!"
+        log_suite_info "EXECUTION COMPONENTS VALIDATED:"
+        log_suite_info "  ✅ Container runtime available"
+        log_suite_info "  ✅ Container pull and convert to SIF format"
+        log_suite_info "  ✅ Container execution working"
+        log_suite_info "  ✅ Bind mount functionality"
+        log_suite_info "  ✅ Container networking capabilities"
+        log_suite_info "  ✅ Container isolation working"
         return 0
     fi
 }
 
 main() {
-    {
-        echo "========================================"
-        echo "$TEST_NAME"
-        echo "========================================"
-        echo "Script: $SCRIPT_NAME"
-        echo "Timestamp: $(date)"
-        echo "Log Directory: $LOG_DIR"
-        echo "Container Runtime: $CONTAINER_RUNTIME_BINARY"
-        echo
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    format_test_header "$TEST_NAME"
+    log_suite_info "Script: $SCRIPT_NAME"
+    log_suite_info "Timestamp: $(date)"
+    log_suite_info "Log Directory: $LOG_DIR"
+    log_suite_info "Container Runtime: $CONTAINER_RUNTIME_BINARY"
+    echo
 
     # Run Task 008 container execution tests
     run_test "Container runtime available" test_container_runtime_available

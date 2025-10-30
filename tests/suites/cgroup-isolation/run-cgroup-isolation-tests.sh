@@ -5,23 +5,14 @@
 #
 # This script orchestrates all cgroup isolation tests
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source test framework utilities if available
-if [ -f "$(dirname "$SCRIPT_DIR")/test-infra/utils/test-framework-utils.sh" ]; then
-    source "$(dirname "$SCRIPT_DIR")/test-infra/utils/test-framework-utils.sh"
-else
-    echo "WARNING: Test framework utilities not found, using basic logging"
-    log_info() { echo "[INFO] $*"; }
-    log_success() { echo "[SUCCESS] $*"; }
-    log_error() { echo "[ERROR] $*"; }
-    log_warning() { echo "[WARNING] $*"; }
-fi
-
-# Test suite counters
+# Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="run-cgroup-isolation-tests.sh"
+# shellcheck disable=SC2034
+TEST_NAME="Cgroup Isolation Test Suite Runner"
 TOTAL_SUITES=0
 PASSED_SUITES=0
 FAILED_SUITES=0

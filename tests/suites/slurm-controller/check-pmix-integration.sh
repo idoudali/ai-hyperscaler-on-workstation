@@ -5,23 +5,14 @@
 # Validates PMIx configuration, MPI integration, and SLURM PMIx settings
 #
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Source common test utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../../test-infra/utils/test-framework-utils.sh" 2>/dev/null || {
-    echo "Warning: test-framework-utils.sh not found, using basic logging"
-    log_info() { echo "[INFO] $*"; }
-    log_error() { echo "[ERROR] $*"; }
-    log_success() { echo "[SUCCESS] $*"; }
-    log_warn() { echo "[WARN] $*"; }
-    log_debug() { echo "[DEBUG] $*"; }
-}
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
+# Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="check-pmix-integration.sh"
+# shellcheck disable=SC2034
+TEST_NAME="SLURM PMIx Integration Validation"
 
 # Test execution function
 run_test() {
@@ -332,7 +323,7 @@ main() {
     fi
 
     # Success criteria: All tests should pass
-    if [ $TESTS_PASSED -eq $TESTS_RUN ]; then
+    if [ "$TESTS_PASSED" -eq $TESTS_RUN ]; then
         log_success "$TEST_NAME completed successfully (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else

@@ -18,10 +18,14 @@
 #   --verbose               Enable verbose output
 #   --help                  Show this help message
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
-# Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script configuration
+# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+SCRIPT_NAME="check-performance-scaling.sh"
+# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+TEST_NAME="BeeGFS Performance and Scaling Tests"
 
 # Default configuration
 CONTROLLER_IP="${CONTROLLER_IP:-}"
@@ -166,6 +170,7 @@ test_sequential_write() {
       ((TESTS_PASSED++))
 
       if [[ "$VERBOSE" == "true" ]]; then
+        # shellcheck disable=SC2001
         echo "$dd_output" | sed 's/^/  /'
       fi
     else
@@ -221,6 +226,7 @@ test_sequential_read() {
       ((TESTS_PASSED++))
 
       if [[ "$VERBOSE" == "true" ]]; then
+        # shellcheck disable=SC2001
         echo "$dd_output" | sed 's/^/  /'
       fi
     else
@@ -256,10 +262,14 @@ test_metadata_operations() {
 
   # Test file creation
   info "Creating $num_files files..."
+  # shellcheck disable=SC2155
   local start_time=$(date +%s.%N)
   if exec_on_node "$CONTROLLER_IP" "cd $test_dir && for i in {1..$num_files}; do touch file-\$i; done"; then
+    # shellcheck disable=SC2155
     local end_time=$(date +%s.%N)
+    # shellcheck disable=SC2155
     local duration=$(echo "$end_time - $start_time" | bc)
+    # shellcheck disable=SC2155
     local ops_per_sec=$(echo "$num_files / $duration" | bc)
     success "File creation: ${ops_per_sec} ops/sec"
     PERF_RESULTS["metadata_create"]="${ops_per_sec} ops/sec"
@@ -272,10 +282,14 @@ test_metadata_operations() {
 
   # Test file stat
   info "Stat'ing $num_files files..."
+  # shellcheck disable=SC2155
   start_time=$(date +%s.%N)
   if exec_on_node "$CONTROLLER_IP" "cd $test_dir && for i in {1..$num_files}; do stat file-\$i >/dev/null; done"; then
+    # shellcheck disable=SC2155
     end_time=$(date +%s.%N)
+    # shellcheck disable=SC2155
     duration=$(echo "$end_time - $start_time" | bc)
+    # shellcheck disable=SC2155
     ops_per_sec=$(echo "$num_files / $duration" | bc)
     success "File stat: ${ops_per_sec} ops/sec"
     PERF_RESULTS["metadata_stat"]="${ops_per_sec} ops/sec"
@@ -287,10 +301,14 @@ test_metadata_operations() {
 
   # Test file deletion
   info "Deleting $num_files files..."
+  # shellcheck disable=SC2155
   start_time=$(date +%s.%N)
   if exec_on_node "$CONTROLLER_IP" "cd $test_dir && rm -f file-*"; then
+    # shellcheck disable=SC2155
     end_time=$(date +%s.%N)
+    # shellcheck disable=SC2155
     duration=$(echo "$end_time - $start_time" | bc)
+    # shellcheck disable=SC2155
     ops_per_sec=$(echo "$num_files / $duration" | bc)
     success "File deletion: ${ops_per_sec} ops/sec"
     PERF_RESULTS["metadata_delete"]="${ops_per_sec} ops/sec"
@@ -322,6 +340,7 @@ test_parallel_io() {
   info "Running parallel writes on $num_nodes compute nodes..."
 
   local pids=()
+  # shellcheck disable=SC2155
   local start_time=$(date +%s.%N)
 
   # Start parallel writes
@@ -332,7 +351,7 @@ test_parallel_io() {
     (
       exec_on_node "$node_ip" \
         "dd if=/dev/zero of=$test_file bs=1M count=$TEST_SIZE_MB conv=fdatasync 2>&1" \
-        > /tmp/beegfs-parallel-write-node${i}.log 2>&1
+        > "${TMPDIR:-/tmp}/beegfs-parallel-write-node${i}.log" 2>&1
     ) &
     pids+=($!)
   done
@@ -345,11 +364,14 @@ test_parallel_io() {
     fi
   done
 
+  # shellcheck disable=SC2155
   local end_time=$(date +%s.%N)
+  # shellcheck disable=SC2155
   local duration=$(echo "$end_time - $start_time" | bc)
 
   if [[ "$all_success" == "true" ]]; then
     local total_mb=$((TEST_SIZE_MB * num_nodes))
+    # shellcheck disable=SC2155
     local aggregate_throughput=$(echo "$total_mb / $duration" | bc)
     success "Parallel write (${num_nodes} nodes): ${aggregate_throughput} MB/s aggregate"
     PERF_RESULTS["parallel_write"]="${aggregate_throughput} MB/s"
@@ -387,6 +409,7 @@ test_filesystem_stats() {
 
     if [[ "$VERBOSE" == "true" ]]; then
       info "BeeGFS filesystem usage:"
+      # shellcheck disable=SC2001
       echo "$df_output" | sed 's/^/  /'
     fi
   else
@@ -402,6 +425,7 @@ test_filesystem_stats() {
 
     if [[ "$VERBOSE" == "true" ]]; then
       info "BeeGFS pool information:"
+      # shellcheck disable=SC2001
       echo "$pool_output" | sed 's/^/  /'
     fi
   else
@@ -431,6 +455,7 @@ print_performance_summary() {
     print_color "$BLUE" "========================================"
 
     for key in "${!PERF_RESULTS[@]}"; do
+      # shellcheck disable=SC2155
       local label=$(echo "$key" | tr '_' ' ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2));}1')
       printf "  %-25s: %s\n" "$label" "${PERF_RESULTS[$key]}"
     done
