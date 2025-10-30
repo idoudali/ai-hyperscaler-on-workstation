@@ -17,6 +17,7 @@
 # - packer/: Infrastructure VM images (HPC controller, compute, cloud base)
 # - containers/: Application containers with Docker/Apptainer conversion
 # - 3rd-party/: External dependencies built from source
+# - examples/: Example programs and test applications (SLURM job examples)
 #
 # Usage:
 #   cmake -G Ninja -S . -B build
@@ -26,6 +27,7 @@
 #   - Packer images: build-packer-images, build-hpc-controller-image, etc.
 #   - Containers: build-all-containers, build-docker-<name>, etc.
 #   - Dependencies: build-beegfs-packages
+#   - Examples: build-slurm-jobs, build-hello-world, build-pi-calculation, build-matrix-multiply
 #   - Testing: test, test-apptainer-all
 #   - Cleanup: cleanup, clean-beegfs, clean-all-containers
 
@@ -84,6 +86,10 @@ add_subdirectory(containers)
 # --- Third-Party Dependencies ---
 # Add 3rd-party subdirectory for building external dependencies
 add_subdirectory(3rd-party)
+
+# --- Examples ---
+# Add examples subdirectory for example programs and test applications
+add_subdirectory(examples)
 
 # --- Custom Targets ---
 # Note: Packer-related targets are available in the packer/ subdirectory

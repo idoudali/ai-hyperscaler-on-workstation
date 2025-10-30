@@ -1,9 +1,9 @@
 # Tutorials (Category 2)
 
-**Status:** Pending - All tasks verified as placeholders
+**Status:** In Progress - 3 new SLURM tutorials added (10 total, 3 completed)
 **Created:** 2025-10-16
-**Last Updated:** 2025-01-21
-**Verified:** 2025-01-21 - All 7 tasks verified as placeholders (0% complete)
+**Last Updated:** 2025-01-30
+**Verified:** 2025-01-30 - 7 original tasks pending, 3 new SLURM tutorials (1 complete, 2 placeholders)
 
 **Priority:** 1-2 - Hands-on Learning Paths
 
@@ -229,6 +229,116 @@ tutorials build on quickstarts to provide complete learning paths.
 - [ ] Tool reference
 - [ ] 45 minute completion time
 
+## TASK-DOC-2.8: Tutorial - SLURM Basics ✅ COMPLETED
+
+**File:** `docs/tutorials/08-slurm-basics.md`
+
+**Status:** ✅ **COMPLETED** - Comprehensive beginner tutorial with hands-on examples
+
+**Goal:** Learn to submit and manage SLURM jobs on your HPC cluster
+
+**Content:**
+
+1. SLURM architecture and terminology
+2. First interactive job with srun
+3. Batch job submission with sbatch
+4. Parallel MPI jobs across nodes
+5. Resource requests and allocation
+6. Job monitoring and management
+7. Common issues and solutions
+8. Best practices
+
+**Hands-on Examples:**
+
+- Hello World MPI (2 nodes, 4 processes)
+- Monte Carlo Pi Calculation (parallel computation)
+- Matrix Multiplication (memory-intensive workload)
+
+**Learning Outcomes:**
+
+- Understand SLURM components and workflow
+- Can submit interactive and batch jobs
+- Can request appropriate resources
+- Can monitor and debug jobs
+- Can run parallel MPI programs
+
+**Success Criteria:**
+
+- [x] Step-by-step instructions with expected output
+- [x] Complete MPI examples (hello-world, pi-calc, matrix-mult)
+- [x] Resource request patterns explained
+- [x] Troubleshooting section
+- [x] Quick reference card
+- [x] 30-45 minute completion time
+
+**Related Files:**
+
+- Examples: `examples/slurm-jobs/{hello-world,pi-calculation,matrix-multiply}/`
+- Validation: `tests/validate-makefile-cluster.sh`
+- Makefile targets: `tests/Makefile` (validate-slurm-*)
+
+## TASK-DOC-2.9: Tutorial - SLURM Intermediate ⚠️ PLACEHOLDER
+
+**File:** `docs/tutorials/09-slurm-intermediate.md`
+
+**Status:** ⚠️ **PLACEHOLDER** - Structure created, content planned
+
+**Goal:** Master job arrays and workflow orchestration
+
+**Planned Content:**
+
+1. Job arrays for parameter sweeps
+2. Job dependencies and chains
+3. Advanced resource management (NUMA, affinity)
+4. Job profiling and optimization
+
+**Learning Outcomes:**
+
+- Can use job arrays for batch processing
+- Can create job dependency graphs
+- Can optimize resource allocation
+- Can profile and tune workloads
+
+**Success Criteria:**
+
+- [ ] Job array examples
+- [ ] Dependency chain examples
+- [ ] Resource optimization guide
+- [ ] Profiling workflow
+- [ ] 45-60 minute completion time
+
+## TASK-DOC-2.10: Tutorial - SLURM Advanced ⚠️ PLACEHOLDER
+
+**File:** `docs/tutorials/10-slurm-advanced.md`
+
+**Status:** ⚠️ **PLACEHOLDER** - Structure created, content planned
+
+**Goal:** GPU scheduling and container integration
+
+**Planned Content:**
+
+1. GPU job scheduling with GRES
+2. MIG (Multi-Instance GPU) support
+3. Container integration (Enroot/Pyxis)
+4. Advanced scheduling features
+5. Performance optimization
+
+**Learning Outcomes:**
+
+- Can schedule GPU jobs with GRES
+- Can use MIG GPU slices
+- Can run containerized SLURM jobs
+- Can configure advanced scheduling
+- Can optimize for specific workloads
+
+**Success Criteria:**
+
+- [ ] GPU GRES examples
+- [ ] MIG configuration and usage
+- [ ] Container job examples
+- [ ] Scheduling policy examples
+- [ ] 60-90 minute completion time
+
 ## Tutorial Standards
 
 **Tutorials Should:**
@@ -244,8 +354,11 @@ tutorials build on quickstarts to provide complete learning paths.
 
 **Tutorial Series Structure:**
 
-- **01-04:** Core system usage (cluster, distributed training, GPU, containers)
-- **05-07:** Advanced topics (custom images, monitoring, debugging)
+- **01-07:** Original tutorials (cluster, distributed training, GPU, containers, images, monitoring, debugging)
+- **08-10:** SLURM workload management series (basics, intermediate, advanced)
+  - **08:** Beginner - Job submission and management ✅ COMPLETE
+  - **09:** Intermediate - Job arrays and dependencies ⚠️ PLACEHOLDER
+  - **10:** Advanced - GPUs and containers ⚠️ PLACEHOLDER
 
 **Target Audience:**
 

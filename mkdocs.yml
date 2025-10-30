@@ -176,6 +176,10 @@ nav:
       - Custom Images: tutorials/05-custom-images.md
       - Monitoring Setup: tutorials/06-monitoring-setup.md
       - Job Debugging: tutorials/07-job-debugging.md
+      - SLURM:
+          - Basics: tutorials/slurm/08-slurm-basics.md
+          - Intermediate: tutorials/slurm/09-slurm-intermediate.md
+          - Advanced: tutorials/slurm/10-slurm-advanced.md
   - Architecture:
       - Overview: architecture/overview.md
       - Build System: architecture/build-system.md
