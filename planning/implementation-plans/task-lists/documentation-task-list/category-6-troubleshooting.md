@@ -1,8 +1,9 @@
 # Troubleshooting (Category 6)
 
-**Status:** Planning
+**Status:** Pending - All tasks verified as placeholders
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-01-21
+**Verified:** 2025-01-21 - All 4 tasks verified as placeholders (0% complete)
 
 **Priority:** 1-2 - Debugging and Issue Resolution
 
@@ -13,9 +14,11 @@ Consolidated troubleshooting and debugging information.
 Category 6 focuses on creating comprehensive troubleshooting documentation to help users diagnose and resolve common
 issues with the Hyperscaler on Workstation system.
 
-## TASK-DOC-6.1: Common Issues
+## TASK-DOC-6.1: Common Issues ⚠️ VERIFIED PENDING
 
 **File:** `docs/troubleshooting/common-issues.md`
+
+**Status:** ⚠️ **VERIFIED PENDING** - File exists but contains only placeholder content (Status: TODO)
 
 **Content:**
 
@@ -33,9 +36,11 @@ issues with the Hyperscaler on Workstation system.
 - [ ] Prevention strategies
 - [ ] Clear symptoms
 
-## TASK-DOC-6.2: Debugging Guide
+## TASK-DOC-6.2: Debugging Guide ⚠️ VERIFIED PENDING
 
 **File:** `docs/troubleshooting/debugging-guide.md`
+
+**Status:** ⚠️ **VERIFIED PENDING** - File exists but contains only placeholder content (Status: TODO)
 
 **Content:**
 
@@ -53,9 +58,11 @@ issues with the Hyperscaler on Workstation system.
 - [ ] Tool reference
 - [ ] Support procedures
 
-## TASK-DOC-6.3: FAQ
+## TASK-DOC-6.3: FAQ ⚠️ VERIFIED PENDING
 
 **File:** `docs/troubleshooting/faq.md`
+
+**Status:** ⚠️ **VERIFIED PENDING** - File exists but contains only placeholder content (Status: TODO)
 
 **Content:**
 
@@ -72,9 +79,11 @@ issues with the Hyperscaler on Workstation system.
 - [ ] Links to detailed docs
 - [ ] Regularly updated
 
-## TASK-DOC-6.4: Error Codes
+## TASK-DOC-6.4: Error Codes ⚠️ VERIFIED PENDING
 
 **File:** `docs/troubleshooting/error-codes.md`
+
+**Status:** ⚠️ **VERIFIED PENDING** - File exists but contains only placeholder content (Status: TODO)
 
 **Content:**
 
