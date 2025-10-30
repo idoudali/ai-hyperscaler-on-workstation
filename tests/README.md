@@ -29,66 +29,180 @@ make test-all-phased
 
 The test directory is organized into logical categories by purpose and execution phase:
 
-### Core Directories
+### Test Directories
 
-- **`foundation/`** - Phase 1: Prerequisite and foundation tests
-  - Base image validation
-  - Integration test runners
-  - Ansible role validation
-  - Configuration validation
-  - Fast, essential tests that must pass first
+- **`foundation/`** — Local prerequisite and validation tests (run first)
+  - `test_ai_how_cli.sh`
+    - Purpose: Verifies AI-HOW CLI installation, configuration, and PCIe commands
+    - VMs: none
+    - Config: `config/example-multi-gpu-clusters.yaml`
+    - Suites: none
+  - `test_ansible_roles.sh`
+    - Purpose: Validates role structure, dependencies, and playbook integration
+    - VMs: none
+    - Config: not applicable (discovers roles dynamically)
+    - Suites: none
+  - `test_base_images.sh`
+    - Purpose: Builds and verifies Packer images for controller and compute targets
+    - VMs: ephemeral Packer builder VMs
+    - Config: not applicable (invokes CMake/Packer targets)
+    - Suites: none
+  - `test_config_validation.sh`
+    - Purpose: Checks AI-HOW configuration files via the CLI validators
+    - VMs: none
+    - Config: `config/example-multi-gpu-clusters.yaml`
+    - Suites: none
+  - `test_pcie_validation.sh`
+    - Purpose: Exercises PCIe inventory and validation CLI workflows
+    - VMs: none
+    - Config: not applicable (CLI-only)
+    - Suites: none
+  - `test_run_basic_infrastructure.sh`
+    - Purpose: Validates VM lifecycle, SSH, and config plumbing
+    - VMs: 1 controller + 1 compute
+    - Config: `tests/test-infra/configs/test-minimal.yaml`
+    - Suites:
+      - `suites/basic-infrastructure/run-basic-infrastructure-tests.sh`
+  - `test_test_configs.sh`
+    - Purpose: Validates test configuration YAML schema and resource bounds
+    - VMs: none
+    - Config: iterates over `tests/test-infra/configs/test-*.yaml`
+    - Suites: none
 
-- **`frameworks/`** - Phase 2-3: Core unified test frameworks
-  - HPC Packer controller framework
-  - HPC Packer compute framework
-  - HPC runtime framework (Ansible validation)
-  - PCIe passthrough framework
-  - Comprehensive infrastructure validation
+- **`frameworks/`** — Unified cluster frameworks (Phase 2-3)
+  - `test-hpc-packer-controller-framework.sh`
+    - Purpose: Validates SLURM controller, accounting, monitoring stack, and Grafana
+    - VMs: 1 controller
+    - Config: `tests/test-infra/configs/test-slurm-controller.yaml`
+    - Suites:
+      - `suites/slurm-controller/run-slurm-controller-tests.sh`
+      - `suites/monitoring-stack/run-monitoring-stack-tests.sh`
+      - Legacy references (missing today): `grafana`, `slurm-accounting`
+  - `test-hpc-runtime-framework.sh`
+    - Purpose: Validates compute services, container runtime, GPU GRES, cgroup isolation,
+      job scripts, DCGM, and container workloads
+    - VMs: 1 controller + 2 GPU-capable compute nodes
+    - Config: `tests/test-infra/configs/test-slurm-compute.yaml`
+    - Suites:
+      - `suites/slurm-compute/run-slurm-compute-tests.sh`
+      - `suites/cgroup-isolation/run-cgroup-isolation-tests.sh`
+      - `suites/gpu-gres/run-gpu-gres-tests.sh`
+      - `suites/job-scripts/run-job-scripts-tests.sh`
+      - `suites/dcgm-monitoring/run-dcgm-monitoring-tests.sh`
+      - `suites/container-integration/run-container-integration-tests.sh`
+  - `test-hpc-packer-compute-framework.sh`
+    - Purpose: Validates the compute image via container-runtime tests
+    - VMs: 1 controller + 1 compute
+    - Config: `tests/test-infra/configs/test-container-runtime.yaml`
+    - Suites:
+      - `suites/container-runtime/run-container-runtime-tests.sh`
+  - `test-pcie-passthrough-framework.sh`
+    - Purpose: Verifies PCIe GPU passthrough and workload execution
+    - VMs: 1 controller + 1 GPU passthrough compute
+    - Config: expects `tests/test-infra/configs/test-pcie-passthrough.yaml`
+    - Suites:
+      - *(expected)* `suites/pcie-passthrough/run-pcie-passthrough-tests.sh` (directory currently missing)
 
-- **`advanced/`** - Phase 4: Advanced integration tests
-  - Container registry and distribution
-  - BeeGFS parallel filesystem
-  - VirtIO-FS filesystem sharing
-  - Complex multi-node tests
+- **`advanced/`** — Integration suites for storage, registry, and sharing workflows
+  - `test-container-registry-framework.sh`
+    - Purpose: Deploys the registry, syncs images, and validates SLURM access
+    - VMs: 1 controller + 2 compute
+    - Config: `tests/test-infra/configs/test-container-registry.yaml`
+    - Suites:
+      - `suites/container-registry/run-ansible-infrastructure-tests.sh`
+  - `test-beegfs-framework.sh`
+    - Purpose: Provisions BeeGFS services and exercises distributed filesystem performance
+    - VMs: 1 controller + 3 BeeGFS/compute nodes
+    - Config: `tests/test-infra/configs/test-beegfs.yaml`
+    - Suites:
+      - `suites/beegfs/run-beegfs-tests.sh`
+  - `test-virtio-fs-framework.sh`
+    - Purpose: Validates VirtIO-FS host directory sharing and performance checks
+    - VMs: 1 controller + 1 compute
+    - Config: `tests/test-infra/configs/test-virtio-fs.yaml`
+    - Suites:
+      - `suites/virtio-fs/run-virtio-fs-tests.sh`
 
-- **`utilities/`** - Helper scripts and validation tools
-  - SSH key management
-  - Container deployment
-  - Environment setup
-  - Component-specific validation
+- **`suites/`**
+  - Purpose: component-level suites executed inside clusters created by the frameworks.
+  - Behavior:
+    - Suites rely on an already-provisioned cluster.
+    - Suites never start VMs themselves.
+- **`legacy/`**
+  - Purpose: archived scripts kept for reference; behavior is frozen and not maintained.
+  - Examples:
+    - `legacy/test-grafana.sh`
+    - `legacy/test-ai-how-api-integration.sh`
+    - `legacy/run_base_images_test.sh`
+  - VMs: varies by script; treat as historical reference only.
 
-- **`legacy/`** - Deprecated tests (kept for reference)
-  - Superseded by newer unified frameworks
-  - May be removed in future releases
+### Supporting Directories
 
-### Unchanged Directories
+- **`test-infra/`**
+  - Shared orchestration utilities, cluster configuration YAML, logging helpers, CLI plumbing.
+- **`utilities/`**
+  - Helper scripts for SSH cleanup, container deployment, and validation helpers (invoked by other tests).
+- **`phase-4-validation/`**
+  - Step-wise harness kept for legacy flows; advanced frameworks reuse selected helpers.
+- **`suites/common/`**
+  - Shared suite helpers (logging/config utilities); not executed directly.
 
-- **`suites/`** - Test suite implementations (individual validation scripts)
-- **`test-infra/`** - Test infrastructure (configs, utilities, VM management)
-- **`phase-4-validation/`** - Comprehensive validation framework (10-step validation)
+#### Suite Execution Map
 
-## Recommended Test Execution Order
+- `foundation/test_run_basic_infrastructure.sh`
+  - Suites:
+    - `suites/basic-infrastructure`
+- `frameworks/test-hpc-packer-controller-framework.sh`
+  - Suites:
+    - `suites/slurm-controller`
+    - `suites/monitoring-stack`
+- `frameworks/test-hpc-runtime-framework.sh`
+  - Suites:
+    - `suites/slurm-compute`
+    - `suites/cgroup-isolation`
+    - `suites/gpu-gres`
+    - `suites/job-scripts`
+    - `suites/dcgm-monitoring`
+    - `suites/container-integration`
+- `frameworks/test-hpc-packer-compute-framework.sh`
+  - Suites:
+    - `suites/container-runtime`
+- `frameworks/test-pcie-passthrough-framework.sh`
+  - Suites:
+    - *(expected)* `suites/pcie-passthrough` (directory currently missing)
+- `advanced/test-container-registry-framework.sh`
+  - Suites:
+    - `suites/container-registry`
+- `advanced/test-beegfs-framework.sh`
+  - Suites:
+    - `suites/beegfs`
+- `advanced/test-virtio-fs-framework.sh`
+  - Suites:
+    - `suites/virtio-fs`
 
-1. **Foundation** (`make test-foundation`)
-   - Validates base images, Ansible roles, configurations
-   - Fast execution (~30-90 minutes)
-   - Must pass before proceeding
+All other foundation scripts are self-contained and do not execute suites. Notes:
 
-2. **Frameworks** (`make test-frameworks`)
-   - Validates controller, compute, and runtime configurations
-   - Medium execution (~60-120 minutes)
-   - Core infrastructure validation
+- Controller framework references to `grafana` and `slurm-accounting` remain for historical reasons; the directories and
+  configs were removed, so the script logs warnings when it cannot find them.
+- The PCIe framework expects a `pcie-passthrough` suite and matching config; neither exists yet, so the test exits after
+  logging a missing-suite warning.
 
-3. **Advanced** (`make test-advanced`)
-   - Validates storage, registry, and specialized components
-   - Longer execution (~90-150 minutes)
-   - Optional for basic deployments
+#### Orphan Suites
 
-Run all phases in order:
+- `container-deployment` — no owning test or framework today.
+- `container-e2e` — no owning test or framework today.
+- `gpu-validation` — manual suite referenced only by documentation examples.
+- `pcie-passthrough`
+  - Expected by the PCIe framework.
+  - Add suite directory plus config (for example `tests/test-infra/configs/test-pcie-passthrough.yaml`).
+- `grafana`
+  - Legacy controller suite still referenced in code.
+  - Directory removed from `tests/suites/` alongside configs.
+- `slurm-accounting`
+  - Legacy controller suite still referenced in code.
+  - Directory removed from `tests/suites/` alongside configs.
 
-```bash
-make test-all-phased
-```
+Refer to the "Recommended Test Execution Sequence" section below for guidance on running the test directories in order.
 
 ## Test Framework CLI Pattern
 
@@ -161,42 +275,6 @@ Every test framework should implement these commands:
 7. **Manual Validation**: Deploy with Ansible, validate manually before running tests
 8. **Test Discovery**: Easy discovery of all available tests via list-tests command
 
-### Implementation Reference
-
-See the unified test frameworks as reference implementations (Stream B consolidation):
-
-**New Unified Frameworks (Phase 3):**
-
-- `test-hpc-runtime-framework.sh` - Consolidates 6 runtime test suites
-- `test-hpc-packer-controller-framework.sh` - Consolidates 4 controller test suites
-- `test-hpc-packer-compute-framework.sh` - Consolidates 1 compute test suite
-
-**Refactored Standalone Frameworks (Phase 4):**
-
-- `test-beegfs-framework.sh` - 60% code reduction
-- `test-virtio-fs-framework.sh` - 77% code reduction
-- `test-pcie-passthrough-framework.sh` - 55% code reduction
-- `test-container-registry-framework.sh` - 86% code reduction
-
-```bash
-# View help and available commands
-./test-hpc-runtime-framework.sh --help
-
-# Complete end-to-end test with cleanup (CI/CD mode)
-./test-hpc-runtime-framework.sh e2e
-
-# Example workflow for debugging
-./test-hpc-runtime-framework.sh start-cluster      # Start once
-./test-hpc-runtime-framework.sh deploy-ansible     # Deploy changes
-./test-hpc-runtime-framework.sh run-tests          # Test multiple times
-
-# List and run individual tests (required feature)
-./test-hpc-runtime-framework.sh list-tests         # Show all available tests
-./test-hpc-runtime-framework.sh run-test check-slurm-compute.sh  # Run specific test
-
-./test-hpc-runtime-framework.sh stop-cluster       # Clean up
-```
-
 ### Required for New Test Frameworks
 
 When creating new test frameworks (e.g., `test-container-registry-framework.sh` for Task 021):
@@ -209,31 +287,6 @@ When creating new test frameworks (e.g., `test-container-registry-framework.sh` 
 - ✅ Provide comprehensive `--help` output with examples including e2e, list-tests, and run-test
 - ✅ Allow modular execution of test phases
 - ✅ Make `e2e` the default behavior when no command is specified
-
-**Existing Test Frameworks (Stream B Consolidation - Phase 3 & 4):**
-
-**Phase 3: Unified Frameworks (consolidated 11 suites into 3):**
-
-- ✅ `test-hpc-runtime-framework.sh` - Consolidates 6 runtime test suites
-  (slurm-compute, cgroup-isolation, gpu-gres, job-scripts, dcgm-monitoring,
-  container-integration)
-- ✅ `test-hpc-packer-controller-framework.sh` - Consolidates 4 controller
-  test suites (slurm-controller, monitoring-stack, grafana, slurm-accounting)
-- ✅ `test-hpc-packer-compute-framework.sh` - Consolidates 1 compute test
-  suite (container-runtime)
-
-**Phase 4: Refactored Standalone Frameworks (using Phase 2 shared utilities):**
-
-- ✅ `test-beegfs-framework.sh` - 60% code reduction (521 → 205 lines)
-- ✅ `test-virtio-fs-framework.sh` - 77% code reduction (762 → 176 lines)
-- ✅ `test-pcie-passthrough-framework.sh` - 55% code reduction (393 → 177 lines)
-- ✅ `test-container-registry-framework.sh` - 86% code reduction (1424 → 204 lines)
-
-**Total Consolidation Results:**
-
-- 15+ individual frameworks → 7 unified frameworks
-- 2,338 lines of duplicate code eliminated (71% reduction)
-- All frameworks support standardized CLI pattern with shared Phase 2 utilities
 
 ## Test Execution Order
 
@@ -505,10 +558,6 @@ make test-virtio-fs-unified
 echo "All unified framework tests completed successfully!"
 ```
 
-**Note**: This now uses 7 unified frameworks instead of 15+ individual frameworks,
-reducing consolidation while maintaining 100% test coverage. All 2,338 lines of
-duplicate code have been eliminated through Phase 2-4 consolidation.
-
 #### Debugging Failed Tests
 
 ```bash
@@ -542,813 +591,29 @@ make test-monitoring-stack
 make test-container-comprehensive
 ```
 
-### Time Estimates
-
-| Test Phase | Duration | Tests |
-|------------|----------|-------|
-| Pre-commit | ~30 seconds | Syntax, linting |
-| Foundation | ~30-90 minutes | Base images, integration, Ansible |
-| Core Infrastructure | ~40-80 minutes | SLURM, accounting, monitoring, Grafana |
-| Compute Nodes | ~20-40 minutes | Container runtime, PCIe |
-| Advanced Integration | ~45-70 minutes | Registry, container integration, DCGM |
-| **Total** | **~2.5-5 hours** | Complete suite |
-
-**Notes**:
-
-- Times vary based on system performance and whether base images need rebuilding
-- Container integration tests require pre-built container images (add ~30-60 minutes for initial build)
-- Advanced Integration phase includes container registry deployment and container image distribution
-
-## Test script list
-
-TODO document the tests and what they test
-
 ## Test Architecture Overview
 
-The test infrastructure uses a **two-tier approach**:
-
-1. **Pre-commit Hooks**: Fast, automatic validation of basic syntax and linting
-2. **Integration Tests**: Comprehensive validation of component integration and consistency
-
-This separation ensures:
-
-- ⚡ **Fast feedback** during development via pre-commit hooks
-- 🔧 **Comprehensive validation** via integration test suite
-- 🚀 **Efficient CI/CD** with appropriate validation at each stage
-
-## Pre-commit Validation
-
-Basic syntax and linting validation is handled automatically by pre-commit hooks:
-
-```bash
-# Run all pre-commit validation
-make test-precommit
-
-# Run only Ansible validation
-make test-ansible-syntax
-
-# Manual pre-commit commands
-pre-commit run --all-files ansible-lint
-pre-commit run --all-files ansible-playbook-syntax-check
-pre-commit run --all-files check-yaml
-```
-
-**Pre-commit Hook Coverage:**
-
-- ✅ YAML syntax validation for all files
-- ✅ ansible-lint with production profile
-- ✅ Ansible playbook syntax checking
-- ✅ Ansible role structure validation
-- ✅ Shell script linting (shellcheck)
-- ✅ Markdown formatting
-- ✅ General file formatting
-
-## Integration Test Components
-
-### 1. Base Images Test (`test_base_images.sh`)
-
-Tests Packer base image building and validation:
-
-- **Purpose**: Validates that HPC and Cloud base images build correctly
-- **Components**: HPC base image, Cloud base image, SSH keys, QEMU validation
-- **Duration**: 20-60 minutes (includes image building)
-- **Prerequisites**: Dev container, QEMU, sufficient disk space
-
-```bash
-# Run base images test
-make test-base-images
-
-# Options
-./test_base_images.sh --help
-./test_base_images.sh --skip-build    # Test existing images only
-./test_base_images.sh --verbose       # Detailed output
-./test_base_images.sh --force-cleanup # Rebuild from scratch
-```
-
-### 2. Container Runtime Test (`test_container_runtime.sh`)
-
-Tests Apptainer/Singularity container runtime implementation:
-
-- **Purpose**: Validates Task 008 - Container Runtime Ansible Role
-- **Components**: Ansible role structure, installation, security, functionality, actual deployment
-- **Duration**: 5-15 minutes
-- **Prerequisites**: Dev container, Ansible
-
-**Validation Criteria (Task 008):**
-
-**ANSIBLE ROLE COMPONENTS:**
-
-- ✅ Ansible role structure complete
-- ✅ Role syntax validation passed
-- ✅ Playbook integration working
-- ✅ Container runtime installation process
-
-**CONFIGURATION COMPONENTS:**
-
-- ✅ Container runtime functionality
-- ✅ Security configuration proper
-- ✅ Resource limits configured
-
-**ACTUAL DEPLOYMENT COMPONENTS:**
-
-- ✅ Package installation (apptainer + dependencies)
-- ✅ Configuration files deployment
-- ✅ Service status and permissions
-- ✅ Container execution capability
-- ✅ Real container execution (pull, run, bind mounts)
-
-```bash
-# Run container runtime tests
-make test-container-runtime
-
-# Run comprehensive container runtime tests (includes role-specific integration)
-make test-container-comprehensive
-
-# Options
-./test_container_runtime.sh --help
-./test_container_runtime.sh --skip-build       # Structure tests only
-./test_container_runtime.sh --deployment-only  # Actual deployment tests only
-./test_container_runtime.sh --verbose          # Detailed output
-```
-
-### 3. Ansible Roles Integration Test (`test_ansible_roles.sh`)
-
-High-level integration validation of Ansible roles and playbooks:
-
-- **Purpose**: Validates integration, consistency, and dependencies between roles
-- **Components**: Role dependencies, template consistency, cross-role variables
-- **Duration**: 2-5 minutes
-- **Prerequisites**: Dev container
-- **Note**: Basic syntax/linting handled by pre-commit hooks
-
-**Integration Test Coverage:**
-
-- Role dependencies and conflicts
-- Template variable consistency
-- Cross-role variable consistency
-- Variable usage patterns
-- Documentation coverage
-- Playbook-role integration
-- Global consistency validation
-
-**Note**: The integration tests gracefully handle roles without
-`defaults/main.yml` files, as these are optional in Ansible roles.
-
-**Basic Validation (Pre-commit Hooks):**
-
-- YAML syntax validation (check-yaml hook)
-- ansible-lint checks (ansible-lint hook)
-- Playbook syntax validation (local hook)
-- Role structure validation (local hook)
-
-```bash
-# Run integration tests
-make test-ansible-roles
-
-# Test specific role integration
-make test-role ROLE=container-runtime
-
-# Run basic syntax/linting validation
-make test-ansible-syntax
-
-# Options
-./test_ansible_roles.sh --help
-./test_ansible_roles.sh --role ROLE           # Test single role integration
-./test_ansible_roles.sh --integration-only    # Global consistency only
-./test_ansible_roles.sh --verbose             # Detailed output
-./test_ansible_roles.sh --fail-fast           # Stop on first test failure
-```
-
-### Stream B Consolidation Update
-
-**NOTE: As of 2025-10-27, the following individual test frameworks have been consolidated into 7 unified frameworks:**
-
-**Consolidated into `test-hpc-packer-controller-framework.sh`:**
-
-- test-slurm-controller-framework.sh (Task 010)
-- test-monitoring-stack-framework.sh (Task 015)
-- test-grafana-framework.sh (Task 017)
-- test-slurm-accounting-framework.sh (Task 019)
-
-**Consolidated into `test-hpc-runtime-framework.sh`:**
-
-- test-slurm-compute-framework.sh (Task 022)
-- test-gpu-gres-framework.sh (Task 023)
-- test-container-runtime-framework.sh (Task 008/009)
-- test-cgroup-isolation-framework.sh (Task 024)
-- test-job-scripts-framework.sh (Task 025)
-- test-dcgm-monitoring-framework.sh (Task 018)
-- test-container-integration-framework.sh (Task 026)
-
-**Consolidated into `test-hpc-packer-compute-framework.sh`:**
-
-- (Standalone container runtime suite already included in HPC Runtime)
-
-**Refactored with Phase 2 Utilities (71% code reduction):**
-
-- test-beegfs-framework.sh (Task 028) - 60% reduction
-- test-virtio-fs-framework.sh (Task 027) - 77% reduction
-- test-pcie-passthrough-framework.sh - 55% reduction
-- test-container-registry-framework.sh (Task 021) - 86% reduction
-
-**Total Impact:** 2,338 lines of duplicate code eliminated, 15+ frameworks consolidated into 7, 100% test coverage maintained.
-
-See the unified frameworks above for current execution instructions.
-
----
-
-### 4. HPC Packer Controller Framework (`test-hpc-packer-controller-framework.sh`) - Unified
-
-Comprehensive Prometheus monitoring stack validation (Task 015):
-
-- **Purpose**: Validates Prometheus monitoring stack deployment and functionality
-- **Components**: Prometheus server, Node Exporter, monitoring integration
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, base images
-
-**Validation Coverage:**
-
-- **Components Installation**: Prometheus and Node Exporter package installation, configuration, and service status
-- **Integration Testing**: Prometheus targets, metrics collection, data quality validation
-- **Environment Validation**: System prerequisites and Packer integration validation (built into framework)
-
-**Simplified Test Structure (Post-Consolidation):**
-
-- `suites/monitoring-stack/check-components-installation.sh`: Combined Prometheus + Node Exporter installation tests
-- `suites/monitoring-stack/check-monitoring-integration.sh`: Integration and data quality tests
-- Environment validation: Built into the main test framework
-
-```bash
-# Run monitoring stack tests
-make test-monitoring-stack
-
-# Run direct framework test
-./test-monitoring-stack-framework.sh
-
-# Options
-./test-monitoring-stack-framework.sh --help
-./test-monitoring-stack-framework.sh --verbose           # Detailed output
-./test-monitoring-stack-framework.sh start-cluster       # Start cluster independently
-./test-monitoring-stack-framework.sh deploy-ansible      # Deploy monitoring stack only
-./test-monitoring-stack-framework.sh run-tests          # Run tests on existing cluster
-```
-
-### 5. SLURM Controller Test (`test-slurm-controller-framework.sh`)
-
-SLURM controller installation and functionality validation (Task 010):
-
-- **Purpose**: Validates SLURM controller installation in HPC controller images
-- **Components**: SLURM controller service, configuration, job scheduling
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, HPC controller image
-
-```bash
-# Run SLURM controller tests
-./test-slurm-controller-framework.sh
-
-# Options and modular commands
-./test-slurm-controller-framework.sh --help
-./test-slurm-controller-framework.sh e2e                 # Complete test with cleanup
-./test-slurm-controller-framework.sh start-cluster       # Start cluster independently
-./test-slurm-controller-framework.sh deploy-ansible      # Deploy SLURM controller
-./test-slurm-controller-framework.sh run-tests           # Run tests on existing cluster
-./test-slurm-controller-framework.sh list-tests          # List available tests
-./test-slurm-controller-framework.sh run-test check-slurm-installation.sh
-```
-
-### 6. Grafana Test (`test-grafana-framework.sh`)
-
-Grafana dashboard platform implementation and validation (Task 017):
-
-- **Purpose**: Validates Grafana installation and functionality in HPC controller images
-- **Components**: Grafana server, dashboards, monitoring integration
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, HPC controller image
-
-```bash
-# Run Grafana tests
-./test-grafana-framework.sh
-
-# Options and modular commands
-./test-grafana-framework.sh --help
-./test-grafana-framework.sh e2e                 # Complete test with cleanup
-./test-grafana-framework.sh start-cluster       # Start cluster independently
-./test-grafana-framework.sh deploy-ansible      # Deploy monitoring stack with Grafana
-./test-grafana-framework.sh run-tests           # Run tests on existing cluster
-./test-grafana-framework.sh list-tests          # List available tests
-./test-grafana-framework.sh run-test check-grafana-installation.sh
-```
-
-### 7. SLURM Job Accounting Test (`test-slurm-accounting-framework.sh`)
-
-SLURM job accounting configuration and validation (Task 019):
-
-- **Purpose**: Validates SLURM job accounting functionality in HPC controller images
-- **Components**: SLURM accounting database, slurmdbd, job tracking
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, HPC controller image
-
-```bash
-# Run SLURM accounting tests
-./test-slurm-accounting-framework.sh
-
-# Options and modular commands
-./test-slurm-accounting-framework.sh --help
-./test-slurm-accounting-framework.sh e2e                 # Complete test with cleanup
-./test-slurm-accounting-framework.sh start-cluster       # Start cluster independently
-./test-slurm-accounting-framework.sh deploy-ansible      # Deploy SLURM accounting
-./test-slurm-accounting-framework.sh run-tests           # Run tests on existing cluster
-./test-slurm-accounting-framework.sh list-tests          # List available tests
-./test-slurm-accounting-framework.sh run-test check-job-accounting.sh
-```
-
-### 8. Container Runtime Test (`test-container-runtime-framework.sh`)
-
-Container runtime installation and security validation (Task 008/009):
-
-- **Purpose**: Validates Apptainer/Singularity container runtime in HPC compute images
-- **Components**: Container runtime, dependencies, security policies
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, HPC compute image
-
-**Validation Coverage:**
-
-- **Task 008**: Apptainer installation, version, dependencies, execution capabilities
-- **Task 009**: Security configuration, privilege escalation prevention, filesystem restrictions
-
-```bash
-# Run container runtime tests
-./test-container-runtime-framework.sh
-
-# Options and modular commands
-./test-container-runtime-framework.sh --help
-./test-container-runtime-framework.sh e2e                 # Complete test with cleanup
-./test-container-runtime-framework.sh start-cluster       # Start cluster independently
-./test-container-runtime-framework.sh deploy-ansible      # Deploy container runtime
-./test-container-runtime-framework.sh run-tests           # Run tests on existing cluster
-./test-container-runtime-framework.sh list-tests          # List available tests
-./test-container-runtime-framework.sh run-test check-singularity-install.sh
-```
-
-### 9. PCIe Passthrough Test (`test-pcie-passthrough-framework.sh`)
-
-GPU passthrough validation for HPC compute nodes:
-
-- **Purpose**: Validates PCIe GPU passthrough in HPC compute images
-- **Components**: GPU visibility, passthrough configuration, GPU workloads
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, HPC compute image, GPU hardware
-
-```bash
-# Run PCIe passthrough tests
-./test-pcie-passthrough-framework.sh
-
-# Options and modular commands
-./test-pcie-passthrough-framework.sh --help
-./test-pcie-passthrough-framework.sh e2e                 # Complete test with cleanup
-./test-pcie-passthrough-framework.sh start-cluster       # Start cluster independently
-./test-pcie-passthrough-framework.sh deploy-ansible      # Deploy GPU passthrough
-./test-pcie-passthrough-framework.sh run-tests           # Run tests on existing cluster
-./test-pcie-passthrough-framework.sh list-tests          # List available tests
-./test-pcie-passthrough-framework.sh run-test check-gpu-visibility.sh
-```
-
-### 10. GPU GRES Test (`test-gpu-gres-framework.sh`)
-
-GPU resource scheduling validation for HPC compute nodes (Task 023):
-
-- **Purpose**: Validates GPU GRES (Generic Resource Scheduling) configuration in HPC compute images
-- **Components**: GRES configuration, GPU detection, GPU scheduling
-- **Duration**: 10-20 minutes (includes cluster deployment)
-- **Prerequisites**: AI-HOW tool, dev container, HPC compute image
-
-**Validation Coverage:**
-
-- **GRES Configuration**: Configuration file deployment, syntax validation, directory structure
-- **GPU Detection**: PCI device detection, NVIDIA device files, GPU visibility
-- **GPU Scheduling**: SLURM GPU resource scheduling, job allocation, resource management
-
-```bash
-# Run GPU GRES tests
-./test-gpu-gres-framework.sh
-
-# Options and modular commands
-./test-gpu-gres-framework.sh --help
-./test-gpu-gres-framework.sh e2e                 # Complete test with cleanup
-./test-gpu-gres-framework.sh start-cluster       # Start cluster independently
-./test-gpu-gres-framework.sh deploy-ansible      # Deploy GRES configuration
-./test-gpu-gres-framework.sh run-tests           # Run tests on existing cluster
-./test-gpu-gres-framework.sh list-tests          # List available tests
-./test-gpu-gres-framework.sh run-test check-gres-configuration.sh
-```
-
-### 11. Container Integration Test (`test-container-integration-framework.sh`)
-
-Container integration validation for PyTorch CUDA, MPI, and GPU access (Task 026):
-
-- **Purpose**: Validates containerized ML/AI workload execution within HPC SLURM environment
-- **Components**: PyTorch + CUDA, MPI communication, distributed training, SLURM integration
-- **Duration**: 15-30 minutes (includes cluster deployment and comprehensive validation)
-- **Prerequisites**: AI-HOW tool, dev container, HPC compute image, **built container images**
-
-**Build Dependencies (MUST be completed before running tests):**
-
-These containers must be built and deployed before running container integration tests:
-
-```bash
-# Step 1: Build Docker image (Task 019)
-cd /path/to/ai-hyperscaler-on-workskation
-make config
-make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1"
-
-# Step 2: Convert to Apptainer SIF format (Task 020)
-make run-docker COMMAND="cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1"
-
-# Step 3: Verify built images
-docker images | grep pytorch-cuda12.1-mpi4.1
-ls -lh build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
-
-# Step 4: Deploy to cluster (Task 021)
-cd tests
-make test-container-registry-deploy
-
-# Step 5: Verify deployment
-ssh hpc-controller "ls -lh /opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif"
-```
-
-**Required Infrastructure (must be deployed):**
-
-- ✅ **TASK-021**: Container Registry Infrastructure
-- ✅ **TASK-022**: SLURM Compute Node Installation
-- ✅ **TASK-023**: GPU Resources (GRES) Configuration
-- ✅ **TASK-024**: Cgroup Resource Isolation
-
-**Validation Coverage:**
-
-- **Container Functionality**: Basic execution, Python environment, PyTorch import, file system access
-- **PyTorch CUDA Integration**: CUDA availability, GPU device detection, tensor operations, memory allocation
-- **MPI Communication**: MPI runtime, multi-process execution, point-to-point, collective operations
-- **Distributed Training**: Process groups, DistributedDataParallel, NCCL backend, multi-node coordination
-- **SLURM Integration**: Container execution via srun/sbatch, GPU GRES, resource isolation, multi-node jobs
-
-```bash
-# Run container integration tests
-./test-container-integration-framework.sh
-
-# Options and modular commands
-./test-container-integration-framework.sh --help
-./test-container-integration-framework.sh e2e                 # Complete test with cleanup
-./test-container-integration-framework.sh start-cluster       # Start cluster independently
-./test-container-integration-framework.sh deploy-ansible      # Deploy validation configuration
-./test-container-integration-framework.sh run-tests           # Run tests on existing cluster
-./test-container-integration-framework.sh list-tests          # List available tests
-./test-container-integration-framework.sh run-test check-pytorch-cuda-integration.sh
-
-# Makefile convenience targets
-cd tests
-make test-container-integration                               # Full workflow
-make test-container-integration-start                         # Start cluster
-make test-container-integration-deploy                        # Deploy configuration
-make test-container-integration-tests                         # Run tests
-make test-container-integration-stop                          # Stop cluster
-make test-container-integration-status                        # Show status
-```
-
-**Important Notes:**
-
-- GPU tests will skip gracefully if GPU hardware is not available (expected in test environments)
-- Container images MUST be built before running tests (see Build Dependencies above)
-- SLURM compute nodes must be deployed and registered
-- Container registry must be deployed with images distributed to all compute nodes
-- See `docs/CONTAINER-INTEGRATION-TESTING.md` for comprehensive documentation
-
-### 12. Integration Test (`test_integration.sh`)
-
-End-to-end integration validation:
-
-- **Purpose**: Tests overall infrastructure integration and consistency
-- **Components**: Project structure, build system, component integration
-- **Duration**: 2-5 minutes
-- **Prerequisites**: Dev container
-
-**Integration Validation:**
-
-- Project structure completeness
-- Build system functionality
-- Packer-Ansible integration
-- Role dependencies consistency
-- Configuration consistency
-- Documentation coverage
-- Build artifacts validation
-
-```bash
-# Run integration tests
-make test-integration
-
-# Options
-./test_integration.sh --help
-./test_integration.sh --quick    # Skip slow tests
-./test_integration.sh --verbose  # Detailed output
-```
-
-## Test Architecture
-
-### Common Test Patterns
-
-All test scripts follow consistent patterns established in `test_base_images.sh`:
-
-```bash
-# Function-based testing with tracking
-run_test "Test Name" test_function_name
-
-# Consistent logging with colors
-log_info "Information message"
-log_warn "Warning message"  
-log_error "Error message"
-log_verbose "Detailed information (only in --verbose mode)"
-
-# Signal handling for clean interruption
-trap cleanup INT TERM
-
-# Test tracking and summary
-print_summary  # Shows pass/fail counts and detailed results
-```
-
-### Test States
-
-- **✅ PASSED**: Test completed successfully
-- **❌ FAILED**: Test failed - check error messages
-- **⚠️ SKIPPED**: Test skipped due to conditions or options
-- **🎉 ALL PASSED**: All tests in suite completed successfully
-
-### Dev Container Integration
-
-All tests run inside the development container for consistency:
-
-- Uses `scripts/run-in-dev-container.sh` for command execution
-- Ensures consistent environment across different host systems
-- Provides necessary tools (Ansible, QEMU, Python, etc.)
-
-## Usage Examples
-
-### Daily Development Workflow
-
-```bash
-# 1. Fast validation during development (pre-commit)
-make test-precommit                    # All pre-commit validation
-make test-ansible-syntax              # Only Ansible validation
-
-# 2. Integration testing after changes
-make test-quick                       # Quick integration tests
-make test                            # Core infrastructure validation
-
-# 3. Component-specific testing
-make test-container-comprehensive     # Comprehensive container runtime tests
-make test-role ROLE=container-runtime # Test specific role integration
-./test_container_runtime.sh --verbose # Detailed container runtime testing
-```
-
-### Pre-commit Integration
-
-```bash
-# Install pre-commit hooks (one-time setup)
-pre-commit install
-
-# Pre-commit runs automatically on git commit
-git commit -m "feat: update ansible role"
-
-# Manual validation
-pre-commit run --all-files           # All hooks
-pre-commit run ansible-lint          # Just ansible-lint
-```
-
-### CI/CD Pipeline
-
-```bash
-# Stage 1: Fast syntax/linting validation
-make test-precommit
-
-# Stage 2: Integration testing
-make test-quick                      # Quick integration tests
-
-# Stage 3: Comprehensive validation
-make test-all                       # Full validation including builds
-```
-
-### Debugging Failed Tests
-
-```bash
-# Run with verbose output
-make test-verbose
-
-# Run with fail-fast mode (stop on first error)
-make test-fail-fast
-
-# Test individual components
-./test_integration.sh --verbose
-./test_ansible_roles.sh --role problematic-role --verbose
-./test_container_runtime.sh --skip-build --verbose
-
-# Use fail-fast for debugging specific issues
-./test_ansible_roles.sh --fail-fast --verbose
-```
-
-## Test Dependencies
-
-### Required Tools (provided in dev container)
-
-- **Ansible**: Role validation and playbook syntax
-- **Python**: YAML parsing and validation
-- **QEMU**: Image validation and testing
-- **BC Calculator**: Size calculations
-- **Standard Unix tools**: grep, find, sed, etc.
-
-### Optional Tools (enhance testing)
-
-- **ansible-lint**: Enhanced Ansible validation
-- **yamllint**: Enhanced YAML validation
-
-## Test Data and Artifacts
-
-### Generated Artifacts
-
-- `/tmp/ansible_test_outputs/`: Temporary test outputs
-- `/tmp/container_test_output.log`: Container test logs
-- Various temporary inventory and playbook files
-
-### Cleanup
-
-All tests clean up temporary files unless run in verbose mode (for debugging).
-
-```bash
-# Manual cleanup
-make clean
-```
-
-## Extending the Test Suite
-
-### Adding New Tests
-
-1. **Follow existing patterns** from `test_base_images.sh`
-2. **Use consistent logging** and error handling
-3. **Add command line options** (--help, --verbose, --skip-*)
-4. **Update Makefile** with new targets
-5. **Document in this README**
-
-### Test Function Template
-
-```bash
-test_new_functionality() {
-    log_info "Testing new functionality..."
-    
-    # Test implementation
-    [[ condition ]] || {
-        log_error "Test failure reason"
-        return 1
-    }
-    
-    log_info "New functionality test passed"
-}
-
-# Add to main()
-run_test "New functionality" test_new_functionality
-```
-
-## Integration with Task List
-
-These tests directly support the HPC SLURM task list validation:
-
-- **Base Images (Task 001)**: `test_base_images.sh`
-- **Container Runtime (Task 008/009)**: `test_container_runtime.sh` and `make test-container-comprehensive`
-- **SLURM Controller (Task 010)**: `test-slurm-controller-framework.sh`
-- **Monitoring Stack (Task 015)**: `test-monitoring-stack-framework.sh` and `make test-monitoring-stack`
-- **Grafana (Task 017)**: `test-grafana-framework.sh`
-- **SLURM Accounting (Task 019)**: `test-slurm-accounting-framework.sh`
-- **Container Registry (Task 021)**: `test-container-registry-framework.sh`
-- **SLURM Compute (Task 022)**: `test-slurm-compute-framework.sh`
-- **GPU GRES (Task 023)**: `test-gpu-gres-framework.sh` and `make test-gpu-gres`
-- **Container Integration (Task 026)**: `test-container-integration-framework.sh` and `make test-container-integration`
-- **General Infrastructure**: `test_integration.sh` and `test_ansible_roles.sh`
-- **AI-HOW CLI**: `test_ai_how_cli.sh`, `test_config_validation.sh`, `test_pcie_validation.sh`
-
-### Container Runtime Comprehensive Testing
-
-The `make test-container-comprehensive` target runs comprehensive validation for the Container Runtime Ansible Role:
-
-1. **Structure and Syntax**: Validates role structure, YAML syntax, and Ansible lint compliance
-2. **Integration**: Tests role integration with playbooks and other roles
-3. **Functionality**: Validates container runtime installation, configuration, and security
-4. **Deployment**: Tests actual package installation, service configuration, and container execution
-5. **Cross-Role Validation**: Ensures container-runtime role integrates properly with other roles
-
-### Monitoring Stack Comprehensive Testing
-
-The `make test-monitoring-stack` target runs comprehensive validation for the Prometheus Monitoring Stack (Task 015):
-
-1. **Environment Validation**: Validates system prerequisites, Ansible installation, and Packer integration (built into framework)
-2. **Components Installation**: Tests Prometheus server and Node Exporter installation, configuration, and service management
-3. **Integration Testing**: Validates Prometheus target discovery, metrics collection, and data quality
-4. **End-to-End Deployment**: Tests complete cluster deployment with monitoring stack via Ansible provisioning
-5. **Simplified Test Structure**: Consolidated test files reduce maintenance while preserving comprehensive coverage
-
-**Key Improvements from Consolidation:**
-
-- Reduced from 3 individual test files to 2 consolidated files
-- Combined Prometheus and Node Exporter installation tests for efficiency
-- Integrated environment validation into main test framework
-- Simplified test execution while maintaining full test coverage
-
-See `docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
-
-### GPU GRES Comprehensive Testing
-
-The `make test-gpu-gres` target runs comprehensive validation for GPU GRES (Generic Resource Scheduling) configuration
-(Task 023):
-
-1. **GRES Configuration**: Validates configuration file deployment, syntax, and directory structure
-2. **GPU Detection**: Tests PCI device detection, NVIDIA device files, and GPU visibility
-3. **GPU Scheduling**: Validates SLURM GPU resource scheduling and job allocation
-4. **Integration**: Tests GRES integration with SLURM controller and scheduler
-5. **End-to-End Deployment**: Tests complete cluster deployment with GRES configuration via Ansible provisioning
-
-**Test Coverage:**
-
-- Configuration file validation (`/etc/slurm/gres.conf`)
-- GPU detection utilities (lspci, nvidia-smi)
-- SLURM GRES integration (`GresTypes` in `slurm.conf`)
-- Node resource reporting (`scontrol show node`)
-- GPU scheduling capability (`sinfo -o "%N %G"`)
-- Configuration consistency checks
-
-**Documentation:**
-
-See `docs/GPU-GRES-WORKFLOW.md` for detailed workflow documentation and
-`docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
-
-### Container Integration Comprehensive Testing
-
-The `make test-container-integration` target runs comprehensive validation for containerized ML/AI workload execution
-(Task 026):
-
-1. **Container Functionality**: Tests basic container execution, Python environment, PyTorch import, and file system access
-2. **PyTorch CUDA Integration**: Validates CUDA availability, GPU device detection, tensor operations, and memory allocation
-3. **MPI Communication**: Tests MPI runtime, multi-process execution, point-to-point communication, and collective operations
-4. **Distributed Training**: Validates process groups, DistributedDataParallel, NCCL backend, and multi-node coordination
-5. **SLURM Integration**: Tests container execution via srun/sbatch, GPU GRES allocation, resource
-isolation, and multi-node jobs
-6. **End-to-End Deployment**: Tests complete cluster deployment with container integration via Ansible provisioning
-
-**Test Coverage:**
-
-- Container image accessibility and runtime availability (40+ individual validation checks)
-- PyTorch framework with CUDA integration (GPU tests skip gracefully without hardware)
-- MPI library functionality and multi-process communication
-- Distributed training environment setup (process groups, data parallelism)
-- SLURM scheduling with containers and GPU resources
-
-**Build Dependencies:**
-
-Container integration tests require pre-built container images:
-
-```bash
-# 1. Build Docker image (Task 019)
-make run-docker COMMAND="cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1"
-
-# 2. Convert to Apptainer SIF (Task 020)
-make run-docker COMMAND="cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1"
-
-# 3. Deploy to cluster (Task 021)
-cd tests && make test-container-registry-deploy
-```
-
-**Documentation:**
-
-See `docs/CONTAINER-INTEGRATION-TESTING.md` for comprehensive testing guide and
-`docs/implementation-plans/task-lists/hpc-slurm-task-list.md` for specific validation criteria.
+Detailed architecture notes live in the design documentation under `docs/` and in the header comments of each
+framework script. Use those sources (and the script `--help` output) for implementation specifics so this README stays a
+lightweight index.
+
+## Test Operations Summary
+
+- **Pre-commit hooks:** Run `make test-precommit` (or the narrower `make test-ansible-syntax`) before touching cluster
+  resources. Hook behaviour is defined in `.pre-commit-config.yaml` and the helper scripts in `tests/test-infra/`.
+- **Core flows:** Follow the steps in "Recommended Test Execution Sequence". Every script under `tests/` exposes
+  `--help`, which details subcommands, prerequisites, and optional flags.
+- **Make wrappers:** Targets such as `make test`, `make test-all`, `make test-quick`, and the component-specific
+  `make test-*-unified` simply forward to the framework scripts. See `tests/Makefile` for the authoritative mapping.
+- **Documentation sources:** Update the individual script headers or the design docs (e.g. `docs/CONTAINER-INTEGRATION-*
+  `.md`) when validation criteria change—this README intentionally avoids duplicating those explanations.
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Permission Errors**: Ensure test scripts are executable (`chmod +x`)
-2. **Container Errors**: Verify dev container script works (`./scripts/run-in-dev-container.sh echo test`)
-3. **Missing Dependencies**: Run tests in dev container environment
-4. **Disk Space**: Base image tests require ~4GB free space
-5. **Network Access**: Container execution tests may need internet access
-
-### Debug Commands
-
-```bash
-# Test dev container
-./scripts/run-in-dev-container.sh echo "Container working"
-
-# Check available space
-df -h build/
-
-# Verify test script permissions
-ls -la tests/test_*.sh
-
-# Manual test execution
-cd tests
-./test_integration.sh --verbose
-```
+- Always execute tests through the development container (`./scripts/run-in-dev-container.sh`) to guarantee the expected
+  toolchain and permissions.
+- If a framework fails, rerun it with `--help` to confirm prerequisites and review the log paths printed by the script
+  (logs are emitted under `tests/logs/`). Use the matching `stop-cluster` subcommand or `make clean` to tear down stale
+  VMs before retrying.
+- Verify external prerequisites—GPU availability, container images, registry content—against the relevant design doc
+  before escalating an issue.
