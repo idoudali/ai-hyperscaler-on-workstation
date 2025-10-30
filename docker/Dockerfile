@@ -114,6 +114,16 @@ RUN apt-get update && \
     man2html \
     && rm -rf /var/lib/apt/lists/*
 
+# Install OpenMPI development libraries (required for building SLURM job examples)
+# Reference: https://www.open-mpi.org/
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libopenmpi-dev \
+    openmpi-bin \
+    openmpi-common \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Go (required for building Apptainer)
 RUN GO_VERSION=1.23.2 && \
     ARCH=$(dpkg --print-architecture) && \

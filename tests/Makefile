@@ -101,6 +101,13 @@ help:
 	@echo "SSH key management:"
 	@echo "  clean-ssh-keys         - Remove SSH keys for IPs in CLUSTER_CONFIG (config-based)"
 	@echo ""
+	@echo "SLURM validation (for Makefile-deployed clusters):"
+	@echo "  validate-slurm             - Validate SLURM controller and compute nodes"
+	@echo "  validate-slurm-controller  - Validate controller services only"
+	@echo "  validate-slurm-compute     - Validate compute nodes only"
+	@echo "  validate-slurm-jobs        - Run example MPI jobs"
+	@echo "  validate-slurm-quick       - Quick validation (no examples)"
+	@echo ""
 
 # Run core infrastructure tests (fast, essential components)
 test: \
@@ -824,6 +831,42 @@ test-container-registry-unified-stop:
 test-container-registry-unified-status:
 	@echo "Checking refactored Container Registry test cluster status..."
 	@./advanced/test-container-registry-framework.sh status
+
+# ==============================================================================
+# SLURM Validation Targets (for Makefile-deployed clusters)
+# ==============================================================================
+# These targets validate SLURM clusters deployed via root Makefile targets:
+#   make hpc-cluster-start && make hpc-cluster-deploy
+#
+# They complement test-hpc-* targets which create their own test clusters.
+.PHONY: validate-slurm validate-slurm-controller validate-slurm-compute validate-slurm-jobs validate-slurm-quick
+
+# Quick SLURM validation (assumes cluster running via make hpc-cluster-deploy)
+validate-slurm:
+	@echo "=========================================="
+	@echo "Running SLURM validation on Makefile-deployed cluster..."
+	@echo "=========================================="
+	@./validate-makefile-cluster.sh slurm-only
+
+# Validate controller services only
+validate-slurm-controller:
+	@echo "Validating SLURM controller services..."
+	@./validate-makefile-cluster.sh controller-only
+
+# Validate compute nodes only
+validate-slurm-compute:
+	@echo "Validating SLURM compute nodes..."
+	@./validate-makefile-cluster.sh compute-only
+
+# Run example MPI jobs on deployed cluster
+validate-slurm-jobs:
+	@echo "Running example SLURM jobs..."
+	@./validate-makefile-cluster.sh run-examples
+
+# Quick validation (controller + compute, no examples)
+validate-slurm-quick:
+	@echo "Running quick SLURM validation..."
+	@./validate-makefile-cluster.sh quick
 
 # Clean artifacts
 clean:

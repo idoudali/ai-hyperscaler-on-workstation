@@ -130,11 +130,68 @@ run_test_script() {
     fi
 }
 
+# Detect Makefile cluster mode
+detect_cluster_mode() {
+    if [ "${MAKEFILE_CLUSTER_MODE:-false}" = "true" ]; then
+        log_info "Running in Makefile cluster mode"
+        log_info "Controller IP: ${CONTROLLER_IP:-not set}"
+
+        # In Makefile mode, tests run via SSH
+        if [ -z "${CONTROLLER_IP:-}" ]; then
+            log_error "CONTROLLER_IP not set in Makefile cluster mode"
+            return 1
+        fi
+
+        if [ -z "${SSH_KEY_PATH:-}" ]; then
+            log_error "SSH_KEY_PATH not set in Makefile cluster mode"
+            return 1
+        fi
+
+        if [ -z "${SSH_USER:-}" ]; then
+            log_error "SSH_USER not set in Makefile cluster mode"
+            return 1
+        fi
+
+        # Export for test scripts
+        export CONTROLLER_IP SSH_KEY_PATH SSH_USER
+        export TEST_MODE="remote"
+
+        log_info "✓ Makefile cluster mode configured"
+        return 0
+    else
+        log_debug "Running in standard test framework mode (local)"
+        export TEST_MODE="local"
+        return 0
+    fi
+}
+
 # System check functions
 check_system_requirements() {
     log_info "Checking system requirements for SLURM controller tests..."
 
-    # Check if running as root or with sudo access
+    # Detect cluster mode first
+    if ! detect_cluster_mode; then
+        log_error "Cluster mode detection failed"
+        return 1
+    fi
+
+    # In Makefile cluster mode, skip local system checks
+    if [ "${TEST_MODE:-local}" = "remote" ]; then
+        log_info "Remote test mode - skipping local system checks"
+        log_info "Will execute tests via SSH on controller: $CONTROLLER_IP"
+
+        # Test SSH connectivity
+        if ! ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+            "${SSH_USER}@${CONTROLLER_IP}" "echo 'SSH OK'" &>/dev/null; then
+            log_error "SSH connectivity test failed to controller: $CONTROLLER_IP"
+            return 1
+        fi
+
+        log_info "✓ SSH connectivity verified"
+        return 0
+    fi
+
+    # Check if running as root or with sudo access (local mode only)
     if [ "$EUID" -eq 0 ]; then
         log_debug "Running as root - full system access available"
     elif sudo -n true 2>/dev/null; then
