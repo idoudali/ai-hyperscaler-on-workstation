@@ -38,6 +38,17 @@
     - restart slurm services
 
 # Task 013: Container plugin configuration deployment
+- name: Check if tmpfs container plugin exists
+  stat:
+    path: /usr/lib/x86_64-linux-gnu/slurm-wlm/job_container_tmpfs.so
+  register: tmpfs_plugin_check
+  when: slurm_container_enabled | default(true)
+
+- name: Set tmpfs plugin availability fact
+  set_fact:
+    slurm_tmpfs_plugin_available: "{{ tmpfs_plugin_check.stat.exists | default(false) }}"
+  when: slurm_container_enabled | default(true)
+
 - name: Deploy SLURM plugin stack configuration template
   template:
     src: plugstack.conf.j2
@@ -52,19 +63,9 @@
   notify:
     - restart slurm services
 
-- name: Deploy SLURM container plugin configuration template
-  template:
-    src: container.conf.j2
-    dest: /etc/slurm/container.conf
-    mode: '0644'
-    owner: root
-    group: root
-    backup: true
-  become: true
-  register: container_config_deployed
-  when: slurm_container_enabled | default(true)
-  notify:
-    - restart slurm services
+# Note: container.conf.j2 is deprecated - SPANK plugins are now configured
+# directly in plugstack.conf with correct syntax (required|optional /path/to/plugin.so args)
+# The INI-style container.conf caused SPANK parsing errors
 
 - name: Create container images directory
   file:
@@ -193,22 +194,8 @@
 - name: Validate plugin stack configuration
   command: grep -E "{{ item }}" /etc/slurm/plugstack.conf
   loop:
-    - "include /etc/slurm/container.conf"
+    - "{% if slurm_tmpfs_plugin_available | default(false) %}optional /usr/lib.*job_container_tmpfs{% else %}# Note: job_container_tmpfs.so plugin not available{% endif %}"
   register: plugstack_config_check
-  changed_when: false
-  failed_when: false
-  when:
-    - not (packer_build | default(false))
-    - slurm_container_enabled | default(true)
-
-- name: Validate container configuration file
-  command: grep -E "{{ item }}" /etc/slurm/container.conf
-  loop:
-    - "required="
-    - "runtime_path="
-    - "enable_gpu="
-    - "enable_overlay="
-  register: container_config_check
   changed_when: false
   failed_when: false
   when:
@@ -230,7 +217,6 @@
       - Configuration file: /etc/slurm/slurm.conf
       - PMIx configuration file: {{ '/etc/slurm/pmix.conf' if pmix_enabled | default(true) else 'Not deployed' }}
       - Plugin stack configuration: {{ '/etc/slurm/plugstack.conf' if slurm_container_enabled | default(true) else 'Not deployed' }}
-      - Container configuration: {{ '/etc/slurm/container.conf' if slurm_container_enabled | default(true) else 'Not deployed' }}
       - PMIx enabled: {{ pmix_enabled | default(true) }}
       - Container plugin enabled: {{ slurm_container_enabled | default(true) }}
       - MPI default: {{ slurm_mpi_default | default('pmix') }}
@@ -252,7 +238,6 @@
       - Singularity runtime exists: {{ 'YES' if singularity_runtime is defined and singularity_runtime.stat.exists else 'NO' if singularity_runtime is defined else 'Not checked' }}
       - Container images directory: {{ 'CREATED' if container_images_dir is defined and container_images_dir.stat.exists else 'MISSING' if container_images_dir is defined else 'Not checked' }}
       - Plugin stack config valid: {{ 'PASSED' if (plugstack_config_check is defined and plugstack_config_check.results is defined and plugstack_config_check.results | selectattr('rc', 'defined') | selectattr('rc', 'equalto', 0) | list | length > 0) else 'Not checked' }}
-      - Container config valid: {{ 'PASSED' if (container_config_check is defined and container_config_check.results is defined and container_config_check.results | selectattr('rc', 'defined') | selectattr('rc', 'equalto', 0) | list | length > 0) else 'Not checked' }}
       {% endif %}
       {% else %}
       - Note: Detailed validation skipped during Packer build
