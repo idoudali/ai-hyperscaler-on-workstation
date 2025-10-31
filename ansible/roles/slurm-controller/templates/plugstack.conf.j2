@@ -1,40 +1,74 @@
 # SLURM Plugin Stack Configuration
 # Task 013: Configure SLURM Container Plugin
-# This file defines the plugin stack configuration for SLURM
-# It includes container plugin integration for Singularity/Apptainer
+# SPANK (SLURM Plugin Architecture for Node and job (K)control)
+#
+# Syntax: required|optional|include /path/to/plugin.so [option1=value1 option2=value2]
+# Documentation: https://slurm.schedmd.com/spank.html
 
-# Container plugin inclusion
-{% if slurm_container_enabled | default(true) %}
-include /etc/slurm/container.conf
+{% if slurm_container_enabled | default(false) %}
+#=============================================================================
+# Container Support
+#=============================================================================
+
+{% if slurm_oci_plugin_available | default(false) %}
+# OCI Container Plugin (SLURM 23.11+)
+# Provides native container support via --container option
+# Requires: slurm-wlm-container-oci package
+optional /usr/lib/x86_64-linux-gnu/slurm-wlm/oci.so runtime_path={{ singularity_runtime_path | default('/usr/bin/apptainer') }} enable_gpu={{ 'yes' if singularity_enable_gpu | default('true') == 'true' else 'no' }}
+
+{% else %}
+# Note: OCI plugin not available
+# Container support via direct Apptainer/Singularity calls in job scripts
+# See /etc/slurm/container-env.sh for container environment variables
 {% endif %}
 
-# Additional plugin configurations can be added here
-# Format: plugin_type:/path/to/plugin.so
+#=============================================================================
+# Filesystem Isolation
+#=============================================================================
+
+{% if slurm_tmpfs_plugin_available | default(false) %}
+# Job container tmpfs plugin for temporary filesystem isolation
+# Provides /tmp isolation for jobs
+optional /usr/lib/x86_64-linux-gnu/slurm-wlm/job_container_tmpfs.so base_path=/var/spool/slurm-tmpfs
+{% else %}
+# Note: job_container_tmpfs.so plugin not available
+# This plugin requires slurm-wlm-basic-plugins or similar package
+# Tmpfs isolation is disabled
+{% endif %}
+
+{% else %}
+#=============================================================================
+# Container Support Disabled
+#=============================================================================
+# To enable container support, set: slurm_container_enabled: true
+{% endif %}
+
+#=============================================================================
+# Additional SPANK Plugins
+#=============================================================================
 
 # Job submit plugins
 {% if slurm_job_submit_plugins | default([]) | length > 0 %}
 {% for plugin in slurm_job_submit_plugins %}
-job_submit:{{ plugin }}
+optional {{ plugin }}
 {% endfor %}
 {% endif %}
 
 # Site factor plugins
 {% if slurm_site_factor_plugins | default([]) | length > 0 %}
 {% for plugin in slurm_site_factor_plugins %}
-site_factor:{{ plugin }}
+optional {{ plugin }}
 {% endfor %}
 {% endif %}
 
-# Authentication plugins (additional)
-{% if slurm_auth_alt_plugins | default([]) | length > 0 %}
-{% for plugin in slurm_auth_alt_plugins %}
-auth_alt:{{ plugin }}
+# Custom SPANK plugins
+{% if slurm_custom_spank_plugins | default([]) | length > 0 %}
+{% for plugin in slurm_custom_spank_plugins %}
+{{ plugin.type | default('optional') }} {{ plugin.path }}{% if plugin.options is defined %} {{ plugin.options | join(' ') }}{% endif %}
+
 {% endfor %}
 {% endif %}
 
-# Cred plugins
-{% if slurm_cred_plugins | default([]) | length > 0 %}
-{% for plugin in slurm_cred_plugins %}
-cred:{{ plugin }}
-{% endfor %}
-{% endif %}
+#=============================================================================
+# End of SPANK Plugin Stack Configuration
+#=============================================================================
