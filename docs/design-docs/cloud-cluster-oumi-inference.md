@@ -37,5 +37,5 @@ The cloud cluster architecture supports:
 
 ## See Also
 
-- [Project Overview](../index.md)
+- [Project Overview](../README.md)
 - [Architecture Documentation](../architecture/overview.md)

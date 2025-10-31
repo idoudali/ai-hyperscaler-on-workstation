@@ -278,4 +278,4 @@ packer build -f packer/hpc-compute/image.pkr.hcl
 - **[roles/README.md](./roles/README.md)** - Roles documentation
 - **[README-packer-ansible.md](./README-packer-ansible.md)** - Packer usage
 - **[../3rd-party/README.md](../3rd-party/README.md)** - Package building
-- **[../docs/](../docs/)** - Architecture and design documents
+- **[../README.md](../README.md)** - Project overview and documentation
