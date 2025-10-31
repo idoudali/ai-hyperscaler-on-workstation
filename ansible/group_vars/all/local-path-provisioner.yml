@@ -1,0 +1,27 @@
+# Local Path Provisioner Configuration for Kubespray
+# This enables the local-path provisioner StorageClass which is required for
+# MinIO and PostgreSQL PVCs in the MLOps stack.
+#
+# The local-path provisioner creates persistent volumes using local storage
+# on worker nodes, which is ideal for development and testing environments.
+#
+# Reference: https://github.com/rancher/local-path-provisioner
+# Kubespray variable: local_path_provisioner_enabled
+
+# Enable local-path provisioner
+local_path_provisioner_enabled: true
+
+# Storage class name (must match PVC storageClassName)
+local_path_provisioner_storage_class: "local-path"
+
+# Set as default storage class (optional, but recommended for local clusters)
+local_path_provisioner_is_default_storageclass: "true"
+
+# Reclaim policy (Delete means volumes are deleted when PVC is deleted)
+local_path_provisioner_reclaim_policy: Delete
+
+# Base directory for persistent volumes on worker nodes
+local_path_provisioner_claim_root: /opt/local-path-provisioner/
+
+# Namespace for the provisioner
+local_path_provisioner_namespace: "local-path-storage"

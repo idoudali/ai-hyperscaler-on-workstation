@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-config
+  namespace: mlops
+  labels:
+    app: postgresql
+    component: database
+data:
+  postgresql.conf: |
+    # PostgreSQL configuration for MLflow
+    max_connections = 100
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    wal_buffers = 8MB
+    checkpoint_completion_target = 0.9
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+
+    # Logging
+    log_timezone = 'UTC'
+    log_statement = 'none'
+    log_min_duration_statement = 1000
+
+    # Extensions
+    shared_preload_libraries = 'pg_stat_statements'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-init-scripts
+  namespace: mlops
+  labels:
+    app: postgresql
+    component: database
+data:
+  01-create-extensions.sql: |
+    -- Create commonly used extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+  02-mlflow-schema.sql: |
+    -- MLflow schema will be created automatically by MLflow
+    -- This is a placeholder for any custom initialization
+    -- Grant necessary permissions
+    GRANT ALL PRIVILEGES ON DATABASE mlflow TO mlflow;

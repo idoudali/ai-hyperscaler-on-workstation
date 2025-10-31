@@ -26,6 +26,9 @@
 # Set default shell to bash
 SHELL := /bin/bash
 
+# Include shared variables
+include Makefile.vars
+
 # Docker image settings
 IMAGE_NAME := ai-how-dev
 IMAGE_TAG  := latest
@@ -36,23 +39,6 @@ DEV_CONTAINER_SCRIPT := ./scripts/run-in-dev-container.sh
 
 # Build system variables
 BUILD_DIR := build
-
-# Cluster State
-CLUSTER_STATE_DIR := output/cluster-state
-
-# SSH Keys (shared between Packer builds and Ansible)
-SSH_KEYS_DIR := build/shared/ssh-keys
-SSH_PRIVATE_KEY := $(SSH_KEYS_DIR)/id_rsa
-SSH_PUBLIC_KEY := $(SSH_KEYS_DIR)/id_rsa.pub
-
-# Container deployment defaults
-# Controller IP auto-detected via ai-how if not provided
-CLUSTER_CONFIG ?= config/example-multi-gpu-clusters.yaml
-CONTAINER_DEPLOY_USER ?= admin
-CONTAINER_DEPLOY_TARGET ?= /mnt/beegfs/containers
-CONTAINER_DEPLOY_SSH_KEY ?= $(SSH_PRIVATE_KEY)
-CONTAINER_DEPLOY_SYNC_NODES ?= false
-CONTAINER_DEPLOY_VERIFY ?= true
 
 #==============================================================================
 # Build Configuration Helper
@@ -77,20 +63,22 @@ all: help
 #==============================================================================
 # Docker Environment Management
 #==============================================================================
-.PHONY: build-docker shell-docker push-docker clean-docker lint-docker
 
 # Build the Docker image
+.PHONY: build-docker
 build-docker:
 	@echo "Building Docker image: $(FULL_IMAGE_NAME)..."
 	@docker build -t $(FULL_IMAGE_NAME) ./docker
 
 # Run an interactive shell in the development container
+.PHONY: shell-docker
 shell-docker:
 	@echo "Starting interactive shell in Docker container..."
 	@$(DEV_CONTAINER_SCRIPT)
 
 # Run a command in the development container
 # Usage: make run-docker COMMAND="cmake --build build --target deploy"
+.PHONY: run-docker
 run-docker:
 	@echo "Running command in Docker container: $(COMMAND)"
 	@$(DEV_CONTAINER_SCRIPT) $(COMMAND)
@@ -104,12 +92,14 @@ run-docker:
 # 	@docker push $(REGISTRY_URL)/$(FULL_IMAGE_NAME)
 
 # Clean up Docker artifacts
+.PHONY: clean-docker
 clean-docker:
 	@echo "Cleaning up Docker images and containers..."
 	@docker rmi $(FULL_IMAGE_NAME) || true
 	@docker container prune -f || true
 
 # Lint the Dockerfile
+.PHONY: lint-docker
 lint-docker:
 	@echo "Linting Dockerfile..."
 	@echo "--> No linter configured. Please add one (e.g., hadolint)."
@@ -118,9 +108,9 @@ lint-docker:
 #==============================================================================
 # Python Virtual Environment Management (uv)
 #==============================================================================
-.PHONY: venv-mkdocs venv-create pre-commit-install pre-commit-run pre-commit-run-all
 
 # Create Python virtual environment and install MkDocs dependencies
+.PHONY: venv-mkdocs
 venv-mkdocs:
 	@echo "Creating Python virtual environment using uv..."
 	@uv venv --clear $(VENV_NAME)
@@ -130,6 +120,7 @@ venv-mkdocs:
 	@echo "MkDocs virtual environment setup complete"
 
 # Create Python virtual environment and install all dependencies
+.PHONY: venv-create
 venv-create: venv-mkdocs
 	@echo "Installing workspace packages in editable mode..."
 	@uv pip install --reinstall -e $(PYTHON_DIR)/ai_how
@@ -145,14 +136,17 @@ venv-create: venv-mkdocs
 
 # Run pre-commit hooks using nox-based configuration
 # Install pre-commit hooks
+.PHONY: pre-commit-install
 pre-commit-install:
 	@echo "Installing pre-commit hooks..."
 	@uv run pre-commit install
 
+.PHONY: pre-commit-run
 pre-commit-run:
 	@echo "Running pre-commit hooks with nox-based configuration..."
 	@uv run pre-commit run
 
+.PHONY: pre-commit-run-all
 pre-commit-run-all:
 	@echo "Running pre-commit hooks with nox-based configuration..."
 	@uv run pre-commit run --all-files
@@ -160,9 +154,9 @@ pre-commit-run-all:
 #==============================================================================
 # MkDocs Documentation Management
 #==============================================================================
-.PHONY: docs-build docs-serve docs-clean
 
 # Build the documentation site
+.PHONY: docs-build
 docs-build: venv-mkdocs
 	@echo "Building documentation with MkDocs..."
 	# Add ai_how package source to PYTHONPATH so mkdocstrings can find the module
@@ -170,6 +164,7 @@ docs-build: venv-mkdocs
 	@PYTHONPATH=$(PYTHON_DIR)/ai_how/src:$$PYTHONPATH uv run mkdocs build
 
 # Serve the documentation locally for development
+.PHONY: docs-serve
 docs-serve: venv-mkdocs
 	@echo "Serving documentation locally at http://localhost:8000..."
 	# Add ai_how package source to PYTHONPATH so mkdocstrings can find the module
@@ -177,6 +172,7 @@ docs-serve: venv-mkdocs
 	@PYTHONPATH=$(PYTHON_DIR)/ai_how/src:$$PYTHONPATH uv run mkdocs serve
 
 # Clean the documentation build artifacts
+.PHONY: docs-clean
 docs-clean:
 	@echo "Cleaning documentation build artifacts..."
 	@rm -rf site/
@@ -184,29 +180,33 @@ docs-clean:
 #==============================================================================
 # AI-HOW Python Package Management (Nox)
 #==============================================================================
-.PHONY: test-ai-how lint-ai-how format-ai-how docs-ai-how clean-ai-how
 
 # Run tests for the ai-how package using Nox
+.PHONY: test-ai-how
 test-ai-how: venv-create
 	@echo "Running tests for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s test
 
 # Run linting for the ai-how package using Nox
+.PHONY: lint-ai-how
 lint-ai-how: venv-create
 	@echo "Running linting for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && unset FORCE_COLOR NO_COLOR && UV_VENV_CLEAR=0 uv run nox -s lint
 
 # Format the code for the ai-how package using Nox
+.PHONY: format-ai-how
 format-ai-how: venv-create
 	@echo "Formatting code for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && unset FORCE_COLOR NO_COLOR && UV_VENV_CLEAR=0 uv run nox -s format
 
 # Build the documentation for the ai-how package using Nox
+.PHONY: docs-ai-how
 docs-ai-how: venv-create
 	@echo "Building documentation for ai-how package..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s docs
 
 # Clean the ai-how package build artifacts using Nox
+.PHONY: clean-ai-how
 clean-ai-how: venv-create
 	@echo "Cleaning ai-how package build artifacts..."
 	@cd $(PYTHON_DIR)/ai_how && UV_VENV_CLEAR=0 uv run nox -s clean
@@ -215,12 +215,12 @@ clean-ai-how: venv-create
 #==============================================================================
 # Configuration Template Rendering
 #==============================================================================
-.PHONY: config-render config-validate
 
 # Rendered configuration file (default)
 CLUSTER_RENDERED ?= output/cluster-state/rendered-config.yaml
 
 # Render configuration with variable expansion
+.PHONY: config-render
 config-render: venv-create
 	@echo "=========================================="
 	@echo "Rendering Cluster Configuration"
@@ -247,6 +247,7 @@ config-render: venv-create
 	@echo "  - Or validate: make config-validate"
 
 # Validate configuration without rendering
+.PHONY: config-validate
 config-validate: venv-create
 	@echo "=========================================="
 	@echo "Validating Cluster Configuration"
@@ -297,27 +298,13 @@ containers-deploy-beegfs: venv-create
 #==============================================================================
 # Cluster Lifecycle Management
 #==============================================================================
-.PHONY: hpc-cluster-inventory hpc-cluster-start hpc-cluster-stop hpc-cluster-deploy hpc-cluster-destroy hpc-cluster-status
-.PHONY: cloud-cluster-inventory cloud-cluster-start cloud-cluster-stop cloud-cluster-deploy cloud-cluster-destroy cloud-cluster-status
-.PHONY: system-start system-stop system-deploy system-status system-destroy
-.PHONY: cluster-inventory cluster-start cluster-stop cluster-deploy cluster-destroy cluster-status clean-ssh-keys
-
-# Cluster configuration file
-CLUSTER_CONFIG ?= config/example-multi-gpu-clusters.yaml
-CLUSTER_NAME ?= hpc
-CLOUD_CLUSTER_NAME ?= cloud
-
-# Separate inventory outputs for each cluster type
-HPC_INVENTORY_OUTPUT ?= $(CLUSTER_STATE_DIR)/hpc-inventory.ini
-CLOUD_INVENTORY_OUTPUT ?= $(CLUSTER_STATE_DIR)/cloud-inventory.ini
-# Generic inventory output (for backward compatibility)
-INVENTORY_OUTPUT ?= $(HPC_INVENTORY_OUTPUT)
 
 #==============================================================================
 # HPC Cluster Lifecycle Management
 #==============================================================================
 
 # Generate Ansible inventory for HPC cluster
+.PHONY: hpc-cluster-inventory
 hpc-cluster-inventory: config-render
 	@echo "Generating Ansible inventory for HPC cluster..."
 	@echo "Configuration: $(CLUSTER_RENDERED)"
@@ -339,6 +326,7 @@ hpc-cluster-inventory: config-render
 	@echo "   File: $(HPC_INVENTORY_OUTPUT)"
 
 # Start HPC cluster VMs
+.PHONY: hpc-cluster-start
 hpc-cluster-start: venv-create clean-ssh-keys
 	@echo "Starting HPC cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -346,6 +334,7 @@ hpc-cluster-start: venv-create clean-ssh-keys
 	@echo "✅ HPC cluster VMs started successfully"
 
 # Stop HPC cluster VMs (graceful shutdown)
+.PHONY: hpc-cluster-stop
 hpc-cluster-stop: venv-create
 	@echo "Stopping HPC cluster VMs (graceful shutdown)..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -353,6 +342,7 @@ hpc-cluster-stop: venv-create
 	@echo "✅ HPC cluster VMs stopped successfully"
 
 # Deploy runtime configuration to HPC cluster
+.PHONY: hpc-cluster-deploy
 hpc-cluster-deploy: hpc-cluster-inventory
 	@echo "=========================================="
 	@echo "Deploying Runtime Configuration to HPC Cluster"
@@ -383,6 +373,7 @@ hpc-cluster-deploy: hpc-cluster-inventory
 	@echo "  - Test cluster: sinfo && srun hostname"
 
 # Destroy HPC cluster VMs
+.PHONY: hpc-cluster-destroy
 hpc-cluster-destroy: venv-create
 	@echo "Destroying HPC cluster VMs and cleaning up resources..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -390,6 +381,7 @@ hpc-cluster-destroy: venv-create
 	@echo "✅ HPC cluster destroyed successfully"
 
 # Check HPC cluster status
+.PHONY: hpc-cluster-status
 hpc-cluster-status: venv-create
 	@echo "Checking HPC cluster status..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -403,6 +395,7 @@ hpc-cluster-status: venv-create
 #==============================================================================
 
 # Generate Ansible inventory for Cloud cluster
+.PHONY: cloud-cluster-inventory
 cloud-cluster-inventory: config-render
 	@echo "Generating Ansible inventory for Cloud cluster..."
 	@echo "Configuration: $(CLUSTER_RENDERED)"
@@ -415,6 +408,7 @@ cloud-cluster-inventory: config-render
 	@echo "⚠️  Note: If IPs are incorrect, check that the cluster name in config matches libvirt VM domain names"
 
 # Start Cloud cluster VMs
+.PHONY: cloud-cluster-start
 cloud-cluster-start: venv-create clean-ssh-keys
 	@echo "Starting Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -422,6 +416,7 @@ cloud-cluster-start: venv-create clean-ssh-keys
 	@echo "✅ Cloud cluster VMs started successfully"
 
 # Stop Cloud cluster VMs
+.PHONY: cloud-cluster-stop
 cloud-cluster-stop: venv-create
 	@echo "Stopping Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -429,6 +424,7 @@ cloud-cluster-stop: venv-create
 	@echo "✅ Cloud cluster VMs stopped successfully"
 
 # Deploy Kubernetes to Cloud cluster (single consolidated playbook)
+.PHONY: cloud-cluster-deploy
 cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "=========================================="
 	@echo "Deploying Kubernetes Cluster via Kubespray"
@@ -449,6 +445,7 @@ cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "✅ Kubernetes cluster deployment completed"
 
 # Destroy Cloud cluster VMs
+.PHONY: cloud-cluster-destroy
 cloud-cluster-destroy: venv-create
 	@echo "Destroying Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -456,16 +453,69 @@ cloud-cluster-destroy: venv-create
 	@echo "✅ Cloud cluster destroyed successfully"
 
 # Check Cloud cluster status
+.PHONY: cloud-cluster-status
 cloud-cluster-status: venv-create
 	@echo "Checking Cloud cluster status..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how cloud status $(CLUSTER_CONFIG)
 
 #==============================================================================
+# GitOps and Kubernetes Manifest Deployment (Wrapper Targets)
+#==============================================================================
+# These targets call the k8s-manifests/Makefile for actual implementation
+
+# GitOps deployment targets (delegate to k8s-manifests/Makefile)
+.PHONY: gitops-deploy-mlops-stack
+gitops-deploy-mlops-stack:
+	@$(MAKE) -C k8s-manifests gitops-deploy-mlops-stack
+
+.PHONY: gitops-deploy-minio
+gitops-deploy-minio:
+	@$(MAKE) -C k8s-manifests gitops-deploy-minio
+
+.PHONY: gitops-deploy-postgresql
+gitops-deploy-postgresql:
+	@$(MAKE) -C k8s-manifests gitops-deploy-postgresql
+
+.PHONY: gitops-deploy-apps
+gitops-deploy-apps:
+	@$(MAKE) -C k8s-manifests gitops-deploy-apps
+
+.PHONY: gitops-validate
+gitops-validate:
+	@$(MAKE) -C k8s-manifests gitops-validate
+
+.PHONY: gitops-status
+gitops-status:
+	@$(MAKE) -C k8s-manifests gitops-status
+
+.PHONY: gitops-update-repo-url
+gitops-update-repo-url:
+	@$(MAKE) -C k8s-manifests gitops-update-repo-url GIT_REPO_URL=$(GIT_REPO_URL)
+
+# Manual k8s deployment targets (delegate to k8s-manifests/Makefile)
+.PHONY: k8s-deploy-manual
+k8s-deploy-manual:
+	@$(MAKE) -C k8s-manifests k8s-deploy-manual
+
+.PHONY: k8s-deploy-minio-manual
+k8s-deploy-minio-manual:
+	@$(MAKE) -C k8s-manifests k8s-deploy-minio-manual
+
+.PHONY: k8s-deploy-postgresql-manual
+k8s-deploy-postgresql-manual:
+	@$(MAKE) -C k8s-manifests k8s-deploy-postgresql-manual
+
+.PHONY: k8s-validate-manifests
+k8s-validate-manifests:
+	@$(MAKE) -C k8s-manifests k8s-validate-manifests
+
+#==============================================================================
 # System-wide Cluster Management (Both HPC and Cloud)
 #==============================================================================
 
 # Start complete ML system (both HPC and Cloud clusters)
+.PHONY: system-start
 system-start: venv-create clean-ssh-keys
 	@echo "=========================================="
 	@echo "Starting Complete ML Platform"
@@ -475,6 +525,7 @@ system-start: venv-create clean-ssh-keys
 	@uv run ai-how system start $(CLUSTER_CONFIG)
 
 # Stop complete ML system (both HPC and Cloud clusters)
+.PHONY: system-stop
 system-stop: venv-create
 	@echo "=========================================="
 	@echo "Stopping Complete ML Platform"
@@ -484,6 +535,7 @@ system-stop: venv-create
 	@uv run ai-how system stop $(CLUSTER_CONFIG)
 
 # Deploy complete ML system (both HPC and Cloud clusters)
+.PHONY: system-deploy
 system-deploy: hpc-cluster-deploy cloud-cluster-deploy
 	@echo "=========================================="
 	@echo "✅ Complete ML Platform Deployed"
@@ -497,6 +549,7 @@ system-deploy: hpc-cluster-deploy cloud-cluster-deploy
 	@echo "  - Verify services: make system-status"
 
 # Show status of complete ML system
+.PHONY: system-status
 system-status: venv-create
 	@echo "=========================================="
 	@echo "Complete ML Platform Status"
@@ -506,6 +559,7 @@ system-status: venv-create
 	@uv run ai-how system status $(CLUSTER_CONFIG)
 
 # Destroy complete ML system (both HPC and Cloud clusters)
+.PHONY: system-destroy
 system-destroy: venv-create
 	@echo "=========================================="
 	@echo "Destroying Complete ML Platform"
@@ -519,11 +573,22 @@ system-destroy: venv-create
 #==============================================================================
 
 # Old cluster-* targets now point to system-* (manages both clusters)
+.PHONY: cluster-start
 cluster-start: system-start
+
+.PHONY: cluster-stop
 cluster-stop: system-stop
+
+.PHONY: cluster-status
 cluster-status: system-status
+
+.PHONY: cluster-destroy
 cluster-destroy: system-destroy
+
+.PHONY: cluster-inventory
 cluster-inventory: hpc-cluster-inventory
+
+.PHONY: cluster-deploy
 cluster-deploy: hpc-cluster-deploy
 
 #==============================================================================
@@ -534,6 +599,7 @@ cluster-deploy: hpc-cluster-deploy
 
 # Remove SSH host keys for cluster IPs defined in configuration
 # This is called BEFORE cluster-start to proactively clean old keys
+.PHONY: clean-ssh-keys
 clean-ssh-keys:
 	@echo "Removing SSH host keys for cluster configuration..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
@@ -549,9 +615,9 @@ clean-ssh-keys:
 #==============================================================================
 # Cluster Validation Workflow
 #==============================================================================
-.PHONY: validate-cluster-full validate-cluster-runtime
 
 # Full cluster validation: inventory -> start -> deploy -> tests -> stop
+.PHONY: validate-cluster-full
 validate-cluster-full:
 	@echo "=========================================="
 	@echo "Starting Full Cluster Validation Workflow"
@@ -576,6 +642,7 @@ validate-cluster-full:
 	@echo "Note: Cluster is still running. Use 'make cluster-stop' to shut down."
 
 # Runtime validation only (assumes cluster is already running)
+.PHONY: validate-cluster-runtime
 validate-cluster-runtime:
 	@echo "=========================================="
 	@echo "Validating Runtime Configuration"
@@ -659,6 +726,23 @@ help:
 	@echo "  make cloud-cluster-destroy   - Destroy Cloud cluster VMs (ai-how cloud destroy)."
 	@echo "  make cloud-cluster-status    - Check Cloud cluster status (ai-how cloud status)."
 	@echo ""
+	@echo "GitOps Application Deployment (implemented in k8s-manifests/Makefile):"
+	@echo "  make gitops-deploy-mlops-stack - Deploy all MLOps apps via GitOps (App of Apps)."
+	@echo "  make gitops-deploy-minio       - Deploy MinIO individually via GitOps."
+	@echo "  make gitops-deploy-postgresql  - Deploy PostgreSQL individually via GitOps."
+	@echo "  make gitops-deploy-apps        - Deploy all apps individually (not App of Apps)."
+	@echo "  make gitops-validate           - Validate GitOps configuration (repo URLs, etc)."
+	@echo "  make gitops-status             - Check ArgoCD application status."
+	@echo "  make gitops-update-repo-url    - Update Git repo URL (use GIT_REPO_URL=...)."
+	@echo ""
+	@echo "Manual Kubernetes Deployment (implemented in k8s-manifests/Makefile):"
+	@echo "  make k8s-deploy-manual         - Deploy all apps directly with kubectl."
+	@echo "  make k8s-deploy-minio-manual   - Deploy MinIO directly (no ArgoCD)."
+	@echo "  make k8s-deploy-postgresql-manual - Deploy PostgreSQL directly (no ArgoCD)."
+	@echo "  make k8s-validate-manifests    - Validate manifests with kustomize build."
+	@echo ""
+	@echo "  Note: For detailed k8s/GitOps help, run: make -C k8s-manifests help"
+	@echo ""
 	@echo "Backward Compatibility (cluster-* now = system-*):"
 	@echo "  make cluster-start     - Alias for system-start (starts both clusters)."
 	@echo "  make cluster-stop      - Alias for system-stop (stops both clusters)."
@@ -676,20 +760,23 @@ help:
 	@echo ""
 	@echo "  make help           - Display this help message."
 	@echo ""
-	@echo "Configuration Variables:"
-	@echo "  CLUSTER_STATE_DIR      - Cluster state directory (default: output/cluster-state)"
-	@echo "  CLUSTER_RENDERED       - Path to rendered config (default: \$${CLUSTER_STATE_DIR}/rendered-config.yaml)"
-	@echo "  CLUSTER_CONFIG         - Path to cluster config (default: config/example-multi-gpu-clusters.yaml)"
-	@echo "  CLUSTER_NAME           - HPC cluster name for inventory (default: hpc)"
-	@echo "  CLOUD_CLUSTER_NAME     - Cloud cluster name for inventory (default: cloud)"
-	@echo "  HPC_INVENTORY_OUTPUT   - HPC inventory output path (default: \$${CLUSTER_STATE_DIR}/hpc-inventory.ini)"
-	@echo "  CLOUD_INVENTORY_OUTPUT - Cloud inventory output path (default: \$${CLUSTER_STATE_DIR}/cloud-inventory.ini)"
-	@echo "  INVENTORY_OUTPUT       - Generic inventory path (default: \$${HPC_INVENTORY_OUTPUT})"
-	@echo "  SSH_KEYS_DIR           - SSH keys directory (default: build/shared/ssh-keys)"
-	@echo "  SSH_PRIVATE_KEY        - SSH private key path (default: \$${SSH_KEYS_DIR}/id_rsa)"
+	@echo "Configuration Variables (defined in Makefile.vars):"
+	@echo "  CLUSTER_STATE_DIR           - Cluster state directory (default: output/cluster-state)"
+	@echo "  CLUSTER_RENDERED            - Path to rendered config (default: \$${CLUSTER_STATE_DIR}/rendered-config.yaml)"
+	@echo "  CLUSTER_CONFIG              - Path to cluster config (default: config/example-multi-gpu-clusters.yaml)"
+	@echo "  CLUSTER_NAME                - HPC cluster name for inventory (default: hpc)"
+	@echo "  CLOUD_CLUSTER_NAME          - Cloud cluster name for inventory (default: cloud)"
+	@echo "  CLOUD_CLUSTER_KUBECONFIG    - Path to kubeconfig (default: \$${CLUSTER_STATE_DIR}/kubeconfigs/cloud-cluster.kubeconfig)"
+	@echo "  HPC_INVENTORY_OUTPUT        - HPC inventory output path (default: \$${CLUSTER_STATE_DIR}/hpc-inventory.ini)"
+	@echo "  CLOUD_INVENTORY_OUTPUT      - Cloud inventory output path (default: \$${CLUSTER_STATE_DIR}/cloud-inventory.ini)"
+	@echo "  INVENTORY_OUTPUT            - Generic inventory path (default: \$${HPC_INVENTORY_OUTPUT})"
+	@echo "  SSH_KEYS_DIR                - SSH keys directory (default: build/shared/ssh-keys)"
+	@echo "  SSH_PRIVATE_KEY             - SSH private key path (default: \$${SSH_KEYS_DIR}/id_rsa)"
 	@echo ""
 	@echo "Notes:"
+	@echo "  - Shared variables are defined in Makefile.vars (included by both main and k8s-manifests Makefiles)"
 	@echo "  - system-* targets use unified ai-how system commands for both clusters"
 	@echo "  - Use hpc-cluster-* or cloud-cluster-* for individual cluster control"
 	@echo "  - cluster-* targets now point to system-* for backward compatibility"
 	@echo "  - Shared GPU scenarios: use hpc-cluster-* and cloud-cluster-* separately"
+	@echo "  - GitOps/k8s targets are implemented in k8s-manifests/Makefile (wrapper targets provided here)"

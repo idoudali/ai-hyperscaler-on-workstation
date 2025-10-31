@@ -309,6 +309,28 @@ Kubespray automatically handles:
    - NGINX Ingress Controller
    - Node-local DNS cache (optional)
 
+6. **Storage Provisioner (Configured):**
+   - Local-path provisioner for dynamic PVC provisioning
+   - Configuration: `ansible/group_vars/all/local-path-provisioner.yml`
+   - Storage class: `local-path` (default)
+   - Base directory: `/opt/local-path-provisioner/`
+   - Reclaim policy: Delete
+
+**Storage Provisioner Configuration:**
+
+```yaml
+# ansible/group_vars/all/local-path-provisioner.yml
+local_path_provisioner_enabled: true
+local_path_provisioner_storage_class: "local-path"
+local_path_provisioner_is_default_storageclass: "true"
+local_path_provisioner_reclaim_policy: Delete
+local_path_provisioner_claim_root: /opt/local-path-provisioner/
+local_path_provisioner_namespace: "local-path-storage"
+```
+
+This configuration is automatically applied during inventory generation and
+enables persistent storage for MLOps applications (MinIO, PostgreSQL).
+
 ### Deliverables
 
 - [x] Install Kubespray via CMake (`3rd-party/kubespray/CMakeLists.txt`)
@@ -320,6 +342,7 @@ Kubespray automatically handles:
 - [x] Add Kubernetes deployment methods to CloudClusterManager (`deploy_kubernetes()`, `generate_kubespray_inventory()`)
 - [x] Update Makefile target (`cloud-cluster-deploy`)
 - [x] Document Kubespray configuration options
+- [x] Configure local-path storage provisioner (`ansible/group_vars/all/local-path-provisioner.yml`)
 
 ### Validation
 
@@ -350,6 +373,31 @@ kubectl get pods -n ingress-nginx
 kubectl top nodes
 kubectl top pods -A
 # Expected: Resource metrics available
+
+# Check storage provisioner
+kubectl get storageclass
+# Expected: local-path (default)
+
+kubectl get pods -n local-path-storage
+# Expected: local-path-provisioner pod running
+
+# Test dynamic provisioning
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+EOF
+kubectl get pvc test-pvc
+# Expected: Bound status
+kubectl delete pvc test-pvc
 ```
 
 ### Success Criteria
@@ -360,12 +408,14 @@ kubectl top pods -A
 - [x] Wrapper playbook provides deployment workflow (`ansible/playbooks/deploy-cloud-cluster.yml`)
 - [x] Cloud manager can generate inventory and deploy Kubernetes (methods implemented)
 - [x] Kubespray configuration files created (group_vars)
+- [x] Local-path provisioner configuration added (`ansible/group_vars/all/local-path-provisioner.yml`)
 - [ ] Kubernetes cluster deploys without errors (pending deployment testing)
 - [ ] All nodes reach Ready state (pending deployment testing)
 - [ ] CoreDNS resolves cluster services (pending deployment testing)
 - [ ] Calico CNI provides pod networking (pending deployment testing)
 - [ ] Ingress controller is operational (pending deployment testing)
 - [ ] Metrics-server provides resource data (pending deployment testing)
+- [ ] Local-path provisioner creates PVs dynamically (pending deployment testing)
 - [ ] Kubeconfig is accessible on workstation (pending deployment testing)
 
 ### Troubleshooting
@@ -688,11 +738,28 @@ Full specification: `docs/design-docs/cloud-cluster-oumi-inference.md#task-cloud
 ## Phase Completion Checklist
 
 - [x] CLOUD-2.1: Kubespray integration complete (CMake, inventory, role, playbook, manager methods)
+- [x] Local-path storage provisioner configured
+- [x] GitOps infrastructure prepared (ArgoCD ready for Phase 3)
 - [ ] CLOUD-2.2: GPU operator installed and validated (Next task)
 - [ ] Kubernetes cluster deployment tested end-to-end
 - [ ] GPU scheduling tested and validated
 - [ ] All validation tests pass
 - [ ] Documentation updated
+
+## GitOps Readiness
+
+The Kubernetes cluster is now ready for GitOps-based application deployment:
+
+- ✅ Local-path storage provisioner enabled
+- ✅ ArgoCD installation ready (deployed in Phase 3)
+- ✅ Storage classes available for PVCs
+- ✅ Kustomize manifests prepared for MLOps applications
+
+**Note:** ArgoCD is deployed as part of the cloud runtime playbook (`playbook-cloud-runtime.yml`) in Phase 3, which includes:
+
+1. Kubernetes cluster deployment (Kubespray)
+2. ArgoCD installation (for GitOps)
+3. GitOps application deployment (MinIO, PostgreSQL)
 
 ## Next Phase
 
