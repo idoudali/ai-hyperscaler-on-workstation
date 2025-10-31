@@ -1,0 +1,13 @@
+# Create ArgoCD namespace
+# Follows official guide: kubectl create namespace argocd
+
+- name: Ensure ArgoCD namespace exists
+  kubernetes.core.k8s:
+    state: present
+    kind: Namespace
+    name: "{{ argocd_namespace }}"
+    definition:
+      metadata:
+        labels:
+          name: "{{ argocd_namespace }}"
+          component: gitops

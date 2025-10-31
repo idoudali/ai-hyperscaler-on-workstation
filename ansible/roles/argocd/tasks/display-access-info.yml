@@ -1,0 +1,73 @@
+# Display ArgoCD access information
+
+- name: Get ArgoCD initial admin password
+  kubernetes.core.k8s_info:
+    kind: Secret
+    name: argocd-initial-admin-secret
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_admin_secret
+
+- name: Decode admin password
+  ansible.builtin.set_fact:
+    argocd_decoded_password: "{{ argocd_admin_secret.resources[0].data.password | b64decode }}"
+  when: argocd_admin_secret.resources | length > 0
+
+- name: Display ArgoCD access information
+  ansible.builtin.debug:
+    msg:
+      - "================================================================"
+      - "✅ ArgoCD Deployment Complete"
+      - "================================================================"
+      - ""
+      - "DEPLOYMENT INFO:"
+      - "  Namespace: {{ argocd_namespace }}"
+      - "  Version: {{ argocd_version }}"
+      - ""
+      - "ACCESS METHODS:"
+      - "  {% if argocd_ingress_enabled %}[Ingress] http{{ 's' if argocd_ingress_tls_enabled else '' }}://{{ argocd_ingress_host }}{% endif %}"
+      - "  [Port-forward] kubectl port-forward svc/argocd-server -n {{ argocd_namespace }} 8080:443"
+      - "                 Then open: https://localhost:8080"
+      - ""
+      - "LOGIN CREDENTIALS:"
+      - "  Username: admin"
+      - "  Password: {{ argocd_decoded_password }}"
+      - ""
+      - "⚠️  SECURITY: Change password immediately after first login!"
+      - ""
+      - "INSTALL ARGOCD CLI:"
+      - "  # Linux/WSL:"
+      - "  curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64"
+      - "  sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd"
+      - "  rm argocd-linux-amd64"
+      - ""
+      - "  # macOS:"
+      - "  brew install argocd"
+      - ""
+      - "CLI QUICK START:"
+      - "  # 1. Start port-forward (in separate terminal):"
+      - "  kubectl port-forward svc/argocd-server -n {{ argocd_namespace }} 8080:443"
+      - ""
+      - "  # 2. Login:"
+      - "  argocd login localhost:8080 --username admin --password {{ argocd_decoded_password }} --insecure"
+      - ""
+      - "  # 3. Change password (REQUIRED):"
+      - "  argocd account update-password"
+      - ""
+      - "  # 4. List applications:"
+      - "  argocd app list"
+      - ""
+      - "  # 5. Sync application:"
+      - "  argocd app sync <app-name>"
+      - ""
+      - "NEXT STEPS:"
+      - "  1. ⚠️  IMPORTANT: Change admin password immediately"
+      - "  2. Deploy GitOps applications: kubectl apply -f k8s-manifests/argocd-apps/"
+      - "  3. Configure Git repository credentials (if private repo)"
+      - "  4. Delete initial password secret: kubectl delete secret argocd-initial-admin-secret -n {{ argocd_namespace }}"
+      - ""
+      - "DOCUMENTATION:"
+      - "  Quick Start: docs/getting-started/quickstart-gitops.md"
+      - "  Full Guide:  docs/workflows/gitops-deployment-workflow.md"
+      - "  Role README: ansible/roles/argocd/README.md"
+      - ""
+      - "================================================================"

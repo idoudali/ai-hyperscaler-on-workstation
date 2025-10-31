@@ -1,21 +1,29 @@
-# Cloud Cluster Kubernetes Deployment Playbook
-# Complete Kubernetes cluster deployment using Kubespray with import_playbook
+# Cloud Runtime Configuration Playbook
+# Unified runtime configuration for complete cloud cluster deployment
+# Consolidates Kubespray, ArgoCD, and GitOps deployments into a single maintainable file
 #
-# This playbook orchestrates:
-# 1. Pre-flight preparation (IPv6 disable, DNS, packages)
-# 2. Kubespray environment setup
-# 3. Kubernetes cluster deployment (via import_playbook)
-# 4. Post-deployment configuration
-# 5. Cluster validation
-# 6. Kubeconfig retrieval
+# Recommended Execution Order:
+#   1. Kubespray deployment (tags: kubespray, k8s)
+#   2. ArgoCD installation (tags: argocd, gitops)
+#   3. GitOps applications (tags: gitops-apps, mlops)
 #
-# Usage:
+# Usage Examples:
+#   # Full deployment (all steps)
 #   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml
+#
+#   # Deploy only Kubespray
+#   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml --tags kubespray
+#
+#   # Deploy ArgoCD only
+#   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml --tags argocd
+#
+#   # Deploy GitOps apps only
+#   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml --tags gitops-apps
 #
 # IMPORTANT: This playbook is for RUNTIME deployment only (packer_build=false)
 
 # Pre-validation
-- name: Cloud Cluster Deployment - Pre-validation
+- name: Cloud Runtime Configuration - Pre-validation
   hosts: localhost
   gather_facts: false
   tags:
@@ -33,11 +41,11 @@
           Do NOT run this during Packer image builds.
         success_msg: "Runtime deployment mode confirmed"
 
-    - name: Display deployment plan
+    - name: Display runtime configuration plan
       ansible.builtin.debug:
         msg: |
           ====================================================================
-          Cloud Cluster Kubernetes Deployment
+          Cloud Runtime Configuration
           ====================================================================
 
           This playbook will deploy:
@@ -46,12 +54,21 @@
           - CNI networking (Calico)
           - Core DNS and metrics-server
           - Kubernetes Dashboard
+          - ArgoCD for GitOps
+          - MinIO and PostgreSQL applications managed through GitOps
+
+          Recommended execution order:
+          1. Kubespray deployment (tags: kubespray, k8s)
+          2. ArgoCD installation (tags: argocd, gitops)
+          3. GitOps applications (tags: gitops-apps, mlops)
 
           Configuration includes:
           - Kubernetes control plane and worker nodes
           - Container runtime and networking
           - Cluster networking and DNS
           - Kubernetes Dashboard (web UI)
+          - ArgoCD for application delivery
+          - MinIO and PostgreSQL for MLOps
 
           ====================================================================
 
@@ -150,16 +167,13 @@
       ansible.builtin.apt:
         name: conntrack
         state: present
-        update_cache: true
-        cache_valid_time: 0
       when:
         - ansible_os_family == 'Debian'
         - ansible_distribution_major_version | int >= 13
       register: conntrack_install
-      retries: 5
-      delay: 10
+      retries: 3
+      delay: 5
       until: conntrack_install is succeeded
-      ignore_errors: false
 
     - name: Ensure DNS configuration present
       ansible.builtin.include_role:
@@ -252,45 +266,34 @@
         mode: '0644'
       when: ansible_os_family == 'Debian'
 
-# Prepare Kubespray environment
-- name: Prepare Kubespray Environment
+# Deploy Kubernetes with Kubespray
+- name: Deploy Cloud Cluster with Kubespray
   hosts: localhost
   gather_facts: false
   become: false
   tags:
     - kubespray
-    - prepare
+    - k8s
+    - kubernetes
   vars:
     kubespray_source_dir: "{{ playbook_dir }}/../../build/3rd-party/kubespray/kubespray-src"
-    kubespray_inventory_file: "{{ inventory_file | default('output/cluster-state/inventory.yml') }}"
+    kubespray_inventory_file: "{{ inventory_file | default('ansible/inventories/cloud-cluster/inventory.ini') }}"
   tasks:
     - name: Display deployment information
       ansible.builtin.debug:
         msg: |
           ================================================================
-          Kubespray Environment Preparation
+          Cloud Cluster Kubernetes Deployment
           ================================================================
           Inventory: {{ kubespray_inventory_file }}
           Kubespray: {{ kubespray_source_dir }}
           ================================================================
+      delegate_to: localhost
+      run_once: true
 
-    - name: Prepare Kubespray (validate, setup venv, install collections)
+    - name: Run Kubespray cluster deployment via role
       ansible.builtin.include_role:
         name: kubespray-integration
-
-# Deploy Kubernetes cluster via Kubespray Collection
-# Note: Privilege escalation (become=true) is configured in the inventory
-# by the generate-kubespray-inventory.py script since ansible.cfg has
-# become=False globally. Kubespray requires sudo for all its operations.
-- name: Deploy Kubernetes Cluster
-  import_playbook: kubernetes_sigs.kubespray.cluster
-  vars:
-    # Override default Kubespray variables if needed
-    override_system_hostname: false
-    disable_swap: true
-  tags:
-    - kubespray
-    - k8s
 
 # Post-Kubespray Configuration
 - name: Post-Kubespray Configuration
@@ -301,12 +304,8 @@
     - kubespray
     - post-kubespray
   tasks:
-    - name: Display post-configuration message
-      ansible.builtin.debug:
-        msg: "Post-Kubespray configuration (if needed) goes here"
-      run_once: true
-      # Note: Kubespray already ensures nodes are Ready during deployment
-      # Skipping redundant node readiness check to avoid Python dependency issues
+  # Note: Kubespray already ensures nodes are Ready during deployment
+  # Skipping redundant node readiness check to avoid Python dependency issues
 
 # Validate Cluster Health
 - name: Validate Cluster Health
@@ -354,6 +353,7 @@
   tags:
     - kubespray
     - kubeconfig
+    - argocd
   vars:
     # Extract cluster name from inventory path or use default
     # Default to 'cloud-cluster' if not specified
@@ -426,7 +426,7 @@
         state: absent
       run_once: true
       become: false
-      ignore_errors: true
+      failed_when: false
 
     - name: Update kubeconfig server URL to use control plane IP
       ansible.builtin.replace:
@@ -508,8 +508,125 @@
   roles:
     - role: k8s-dashboard
 
+# Validate ArgoCD Prerequisites
+- name: Validate ArgoCD Prerequisites
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster_name: "{{ kubeconfig_cluster_name | default('cloud-cluster') }}"
+    kubeconfig_dir: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs"
+    kubeconfig_path: "{{ kubeconfig_dir }}/{{ cluster_name }}.kubeconfig"
+  tags:
+    - argocd
+    - validation
+    - pre-argocd
+  tasks:
+    - name: Check kubectl is available
+      ansible.builtin.command: kubectl version --client -o json
+      register: kubectl_version
+      changed_when: false
+      failed_when: kubectl_version.rc != 0
+
+    - name: Check Kubernetes cluster is accessible
+      ansible.builtin.command: kubectl cluster-info
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: cluster_info
+      changed_when: false
+      failed_when: cluster_info.rc != 0
+
+    - name: Display cluster information
+      ansible.builtin.debug:
+        msg: "{{ cluster_info.stdout_lines }}"
+
+    - name: Check kubernetes.core collection
+      ansible.builtin.command: ansible-galaxy collection list kubernetes.core
+      register: k8s_collection
+      changed_when: false
+      failed_when: k8s_collection.rc != 0
+
+    - name: Check if kubernetes library is already installed
+      ansible.builtin.command: "{{ ansible_python_interpreter | default('/usr/bin/python3') }} -c 'import kubernetes; print(kubernetes.__version__)'"
+      register: k8s_lib_check
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fail if kubernetes library is not installed
+      ansible.builtin.fail:
+        msg: |
+          kubernetes Python library is not installed.
+          Please run: make venv-create
+          This will install kubernetes along with other Ansible dependencies.
+      when: k8s_lib_check.rc != 0
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display prerequisites check
+      ansible.builtin.debug:
+        msg:
+          - "✓ kubectl is available"
+          - "✓ Kubernetes cluster is accessible"
+          - "✓ kubernetes.core collection is installed"
+          - "✓ kubernetes Python library is installed"
+          - "Ready to deploy ArgoCD"
+
+# Deploy ArgoCD
+- name: Deploy ArgoCD
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster_name: "{{ kubeconfig_cluster_name | default('cloud-cluster') }}"
+    kubeconfig_dir: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs"
+    kubeconfig_path: "{{ kubeconfig_dir }}/{{ cluster_name }}.kubeconfig"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  tags:
+    - argocd
+    - gitops
+  roles:
+    - role: argocd
+
+# Display ArgoCD Next Steps
+- name: Display ArgoCD Next Steps
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - argocd
+    - info
+  tasks:
+    - name: Display GitOps setup instructions
+      ansible.builtin.debug:
+        msg:
+          - "================================================================"
+          - "ArgoCD Deployed Successfully"
+          - "================================================================"
+          - ""
+          - "Next Steps:"
+          - ""
+          - "1. Access ArgoCD UI:"
+          - "   kubectl port-forward svc/argocd-server -n argocd 8080:443"
+          - "   URL: https://localhost:8080 (accept the self-signed certificate)"
+          - ""
+          - "2. Login with credentials displayed above"
+          - ""
+          - "3. Configure Git repositories for your applications:"
+          - "   Edit k8s-manifests/argocd-apps/*.yaml to point at your Git remote"
+          - "   Commit and push changes so ArgoCD can track them"
+          - ""
+          - "4. Define applications in Git:"
+          - "   Store Kubernetes manifests under k8s-manifests/"
+          - "   (See docs/workflows/gitops-deployment-workflow.md for structure and examples)"
+          - ""
+          - "5. Trigger syncs via ArgoCD UI or CLI once manifests are committed"
+          - ""
+          - "Refer to docs/workflows/gitops-deployment-workflow.md for the full GitOps process."
+          - ""
+          - "================================================================"
+
 # Post-validation
-- name: Cloud Cluster Deployment - Post-validation
+- name: Cloud Runtime Configuration - Post-validation
   hosts: localhost
   gather_facts: false
   tags:
@@ -517,14 +634,14 @@
     - post-check
     - summary
   tasks:
-    - name: Display deployment completion
+    - name: Display configuration completion
       ansible.builtin.debug:
         msg: |
           ====================================================================
-          Cloud Cluster Kubernetes Deployment Complete
+          Cloud Runtime Configuration Complete
           ====================================================================
 
-          Cluster deployed successfully!
+          Cluster configured successfully!
 
           Deployed Components:
           1. Kubernetes Cluster (via Kubespray)
@@ -538,19 +655,26 @@
              - Web UI for cluster management
              - Access via port-forward (see Dashboard deployment output)
 
+          3. ArgoCD (GitOps control plane)
+             - ArgoCD server and controllers
+             - UI available for GitOps application management
+
           Access Points:
           - Kubernetes API: Use kubectl with generated kubeconfig
           - Kubeconfig location: See output above
           - Dashboard UI: See Dashboard deployment output above
+          - ArgoCD UI: kubectl port-forward svc/argocd-server -n argocd 8080:443 (https://localhost:8080)
 
           Next Steps:
           1. Verify cluster status: kubectl get nodes
-          2. Check pods: kubectl get pods --all-namespaces
-          3. Configure kubectl: export KUBECONFIG=<kubeconfig_path>
+          2. Access ArgoCD UI and login using the credentials above
+          3. Update ArgoCD application manifests in k8s-manifests/ to point to your Git repository
+          4. Review docs/workflows/gitops-deployment-workflow.md for managing applications via GitOps
+          5. Configure kubectl: See Kubespray output for kubeconfig location
 
           For troubleshooting:
           - Kubespray logs: Check Ansible output above
-          - Cluster status: kubectl get nodes
-          - Pod status: kubectl get pods --all-namespaces
+          - ArgoCD logs: kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server
+          - Application status: argocd app list
 
           ====================================================================
