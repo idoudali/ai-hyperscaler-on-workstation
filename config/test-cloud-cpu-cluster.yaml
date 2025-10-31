@@ -1,0 +1,46 @@
+version: "1.0"
+metadata:
+  name: "test-cloud-cpu-cluster"
+  description: "Dual-stack AI infrastructure emulation"
+
+global: {}
+
+clusters:
+  cloud:
+    name: "test-cloud-cpu-cluster"
+    # Default base image path for cloud cluster - can be absolute or relative to the current working directory
+    # This will be used by all nodes unless they specify their own base_image_path
+    # Relative paths will be resolved from the directory where the CLI is executed
+    base_image_path: "build/packer/cloud-base/cloud-base/cloud-base.qcow2"
+    network:
+      subnet: "192.168.3.0/24"
+      bridge: "virbr3"
+    control_plane:
+      cpu_cores: 4
+      memory_gb: 8
+      disk_gb: 100
+      ip_address: "192.168.3.10"
+      # Control plane uses cluster default image
+      # base_image_path: "build/packer/cloud-controller/cloud-controller.qcow2"  # Could override here
+
+    worker_nodes:
+      cpu:
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.3.11"
+          # CPU worker uses cluster default image
+          # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
+        - worker_type: "cpu"
+          cpu_cores: 4
+          memory_gb: 8
+          disk_gb: 100
+          ip: "192.168.3.12"
+          # CPU worker uses cluster default image
+          # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
+
+    kubernetes_config:
+      cni: "calico"
+      ingress: "nginx"
+      storage_class: "local-path"

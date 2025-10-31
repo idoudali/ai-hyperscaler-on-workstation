@@ -28,7 +28,8 @@
         "hpc": { "$ref": "#/definitions/hpcCluster" },
         "cloud": { "$ref": "#/definitions/cloudCluster" }
       },
-      "required": ["hpc", "cloud"]
+      "minProperties": 1,
+      "additionalProperties": false
     }
   },
   "required": ["version", "metadata", "clusters"],
