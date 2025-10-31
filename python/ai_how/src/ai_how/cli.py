@@ -1416,8 +1416,8 @@ def inventory_generate_k8s(
             console.print(f"   SSH Key: {generator.ssh_key_path}")
             console.print(f"   SSH User: {ssh_user}")
 
-            # Create group_vars directory with CoreDNS fix
-            # This prevents the DNS forwarding loop issue in CoreDNS
+            # Create group_vars directory with CoreDNS fix and local-path provisioner config
+            # This prevents the DNS forwarding loop issue in CoreDNS and enables storage
             inventory_dir = output.parent
             group_vars_dir = inventory_dir / "group_vars" / "all"
             group_vars_dir.mkdir(parents=True, exist_ok=True)
@@ -1429,9 +1429,10 @@ def inventory_generate_k8s(
                     project_root = find_project_root()
                 except FileNotFoundError as root_error:
                     raise FileNotFoundError(
-                        "Unable to determine project root to locate DNS fix template"
+                        "Unable to determine project root to locate group_vars templates"
                     ) from root_error
 
+            # Copy DNS fix
             ansible_dns_fix_path = project_root / "ansible/group_vars/all/dns-fix.yml"
             if not ansible_dns_fix_path.exists():
                 raise FileNotFoundError(f"DNS fix file not found: {ansible_dns_fix_path}")
@@ -1440,6 +1441,20 @@ def inventory_generate_k8s(
             dns_fix_file = group_vars_dir / "dns-fix.yml"
             dns_fix_file.write_text(dns_fix_content)
             console.print(f"✅ CoreDNS fix created: {dns_fix_file}")
+
+            # Copy local-path provisioner config
+            ansible_local_path_path = (
+                project_root / "ansible/group_vars/all/local-path-provisioner.yml"
+            )
+            if ansible_local_path_path.exists():
+                local_path_content = ansible_local_path_path.read_text(encoding="utf-8")
+                local_path_file = group_vars_dir / "local-path-provisioner.yml"
+                local_path_file.write_text(local_path_content)
+                console.print(f"✅ Local-path provisioner config created: {local_path_file}")
+            else:
+                console.print(
+                    f"⚠️  Local-path provisioner config not found: {ansible_local_path_path}"
+                )
         else:
             console.print(content)
 

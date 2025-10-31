@@ -28,16 +28,24 @@
 Kubernetes (K8s) is a container orchestration platform that automates deployment, scaling, and management of
 containerized applications. On the AI-HOW cloud cluster, Kubernetes provides:
 
-**Before you begin:** Make sure you have kubectl configured locally. See the
-[Managing Multiple Kubernetes Configs](../../kubeconfig-management.md) guide for
-setup instructions.
-
 - **Container orchestration** - Automatic scheduling and management
 - **GPU sharing** - MIG GPU resources for ML workloads
 - **Service discovery** - Automatic networking and load balancing
 - **Self-healing** - Automatic restart of failed containers
 - **Rolling updates** - Zero-downtime deployments
 - **Resource management** - CPU, memory, and GPU allocation
+
+**📚 Official Documentation:** [Kubernetes Overview](https://kubernetes.io/docs/concepts/overview/)
+
+### Understanding YAML Manifests and kubectl
+
+This tutorial uses YAML files to define Kubernetes resources. For detailed information about:
+
+- How YAML files are structured and parsed
+- How kubectl processes and applies manifests
+- YAML file organization best practices
+
+See: **[How kubectl Works Tutorial](02-how-kubectl-works.md)**
 
 ### Kubernetes vs Traditional VMs
 
@@ -69,112 +77,7 @@ setup instructions.
 
 ## Accessing Kubernetes
 
-There are two ways to access your Kubernetes cluster:
-
-1. **Local Access** (recommended) - Use kubectl from your local machine
-2. **Cluster-Side Access** - SSH to a cluster node and use kubectl there
-
-### Local Access (Recommended)
-
-This is the preferred method for day-to-day Kubernetes management. You run `kubectl` commands from your local machine.
-
-#### Prerequisites
-
-1. **kubectl installed locally** - See [kubeconfig management guide](../../kubeconfig-management.md) for installation instructions
-2. **Cluster deployed** - The cluster must be deployed via Ansible playbooks
-3. **Kubeconfig available** - After deployment, kubeconfig files are saved in `output/cluster-state/kubeconfigs/`
-
-#### Step 1: Set Up Local kubectl (One-Time Setup)
-
-If you haven't installed kubectl yet:
-
-**Linux:**
-
-```bash
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-kubectl version --client
-```
-
-**macOS:**
-
-```bash
-brew install kubectl
-# Or download binary
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/amd64/kubectl"
-chmod +x kubectl
-sudo mv kubectl /usr/local/bin/
-```
-
-**Windows:**
-
-```powershell
-choco install kubernetes-cli
-```
-
-#### Step 2: Configure kubectl to Use Your Cluster
-
-From the project root directory:
-
-```bash
-# List available clusters
-./scripts/manage-kubeconfig.sh list
-
-# Switch to your cluster (e.g., cloud-cluster)
-./scripts/manage-kubeconfig.sh use cloud-cluster
-
-# Or manually set KUBECONFIG
-export KUBECONFIG=$(pwd)/output/cluster-state/kubeconfigs/cloud-cluster.kubeconfig
-```
-
-**See [Managing Multiple Kubernetes Configs](../../kubeconfig-management.md) for detailed kubeconfig management.**
-
-#### Step 3: Verify Local Access
-
-```bash
-# Test cluster connectivity
-kubectl cluster-info
-
-# Output:
-# Kubernetes control plane is running at https://<control-plane-ip>:6443
-# CoreDNS is running at https://...
-
-# List nodes
-kubectl get nodes
-
-# Output:
-# NAME                STATUS   ROLES           AGE   VERSION
-# cloud-control-01    Ready    control-plane   30d   v1.28.x
-# cloud-worker-01     Ready    worker          30d   v1.28.x
-```
-
-#### Step 4: Check Your Access Level
-
-```bash
-# View your user context
-kubectl config view
-
-# Check what you can do
-kubectl auth can-i --list
-```
-
-**You're now ready to manage the cluster from your local machine!**
-
-### Cluster-Side Access (Alternative)
-
-Sometimes you may need to access the cluster directly from a node (e.g., for
-troubleshooting, node maintenance, or when local access isn't available).
-
-#### When to Use Cluster-Side Access
-
-- ✅ Troubleshooting cluster nodes
-- ✅ Checking node-level logs
-- ✅ Network debugging
-- ✅ Local access not available
-
-**Note:** For day-to-day operations, prefer local access for better security and convenience.
-
-#### Step 1: Connect to Control Plane Node
+### Step 1: Connect to Control Plane Node
 
 ```bash
 # SSH to the cloud cluster control plane
@@ -185,7 +88,7 @@ hostname
 # Output: cloud-control-01
 ```
 
-#### Step 2: Verify kubectl is Available
+### Step 2: Verify kubectl is Available
 
 ```bash
 # Check kubectl version
@@ -196,20 +99,18 @@ kubectl version --client
 # Kustomize Version: v5.x.x
 ```
 
-On cluster nodes, kubectl is typically installed automatically during deployment.
-
-#### Step 3: Test Cluster Access
+### Step 3: Test Cluster Access
 
 ```bash
 # Test cluster connectivity
 kubectl cluster-info
 
 # Output:
-# Kubernetes control plane is running at https://127.0.0.1:6443
-# (Note: On nodes, API server is at localhost)
+# Kubernetes control plane is running at https://...
+# CoreDNS is running at https://...
 ```
 
-#### Step 4: Check Your Access Level
+### Step 4: Check Your Access Level
 
 ```bash
 # View your user context
@@ -219,29 +120,20 @@ kubectl config view
 kubectl auth can-i --list
 ```
 
-### Configuration File Locations
+### Configuration File Location
 
-**Local Access:**
+Your kubectl configuration is stored at `~/.kube/config`. For detailed information about kubectl configuration
+and how it works, see [How kubectl Works](02-how-kubectl-works.md#kubectl-configuration).
 
-- Default: `~/.kube/config` (when using `manage-kubeconfig.sh set-default`)
-- Custom: `output/cluster-state/kubeconfigs/{cluster-name}.kubeconfig`
-- Set via: `export KUBECONFIG=/path/to/kubeconfig`
+```bash
+# View configuration
+cat ~/.kube/config
 
-**Cluster-Side Access:**
+# Set custom config location (optional)
+export KUBECONFIG=/path/to/custom/config
+```
 
-- Default: `~/.kube/config` (on the node)
-- System config: `/etc/kubernetes/admin.conf` (on control plane nodes)
-
-### Choosing Access Method
-
-| Scenario | Recommended Method |
-|----------|-------------------|
-| Day-to-day management | Local access |
-| Deployment and updates | Local access |
-| Troubleshooting nodes | Cluster-side access |
-| Checking node health | Cluster-side access |
-| Network debugging | Cluster-side access |
-| CI/CD pipelines | Local access (with kubeconfig) |
+**📚 Official Documentation:** [kubectl Configuration](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
 
 ## Cluster Status and Health
 
@@ -351,6 +243,8 @@ Cluster
     └── Resources (CPU, Memory, GPU)
 ```
 
+**📚 Official Documentation:** [Kubernetes Objects](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/)
+
 ### Core Objects
 
 #### 1. **Pod**
@@ -406,6 +300,9 @@ containers that share:
 
 ### Create a Simple Pod
 
+This example creates a Pod using a YAML manifest. For details on YAML structure and how
+`kubectl apply` works, see [How kubectl Works](02-how-kubectl-works.md#yaml-file-structure).
+
 ```bash
 # Create a simple nginx pod
 cat <<EOF | kubectl apply -f -
@@ -425,6 +322,8 @@ EOF
 
 # Output: pod/my-first-pod created
 ```
+
+**📚 Official Documentation:** [Pods](https://kubernetes.io/docs/concepts/workloads/pods/)
 
 ### View Pods
 
@@ -536,7 +435,12 @@ A Deployment manages a set of identical Pods. It provides:
 - **Rollback** - Revert to previous versions
 - **Self-healing** - Automatic Pod replacement
 
+**📚 Official Documentation:** [Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+
 ### Create a Deployment
+
+This example shows a Deployment YAML manifest. For understanding YAML structure and kubectl
+processing, see [How kubectl Works](02-how-kubectl-works.md#yaml-file-structure).
 
 ```bash
 # Create nginx deployment with 3 replicas
@@ -664,6 +568,8 @@ A Service provides stable networking for Pods:
 - **DNS name** - `<service-name>.<namespace>.svc.cluster.local`
 - **Load balancing** - Distributes traffic across Pods
 - **Service discovery** - Automatic DNS registration
+
+**📚 Official Documentation:** [Services](https://kubernetes.io/docs/concepts/services-networking/service/)
 
 ### Service Types
 
@@ -1424,11 +1330,18 @@ kubectl cp <pod-name>:/path/file.txt /local/ -c <container-name>
 
 ### Learn More
 
-1. **Managing Multiple Clusters:** [Managing Multiple Kubernetes Configs](../../kubeconfig-management.md)
-How to manage kubeconfigs locally
-2. **Kubernetes Official Docs:** https://kubernetes.io/docs/
-3. **kubectl Cheat Sheet:** https://kubernetes.io/docs/reference/kubectl/cheatsheet/
-4. **MLOps on Kubernetes:** Coming soon
+1. **Kubernetes Official Documentation:**
+   - [Kubernetes Concepts](https://kubernetes.io/docs/concepts/)
+   - [kubectl Reference](https://kubernetes.io/docs/reference/kubectl/)
+   - [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
+   - [API Reference](https://kubernetes.io/docs/reference/kubernetes-api/)
+
+2. **Related Tutorials:**
+   - [How kubectl Works](02-how-kubectl-works.md) - Understanding YAML processing and kubectl internals
+   - [GitOps Workflow](../../../docs/gitops-workflow.md) - GitOps deployment workflow
+   - [Manual Kubernetes Deployment](../../../docs/getting-started/manual-k8s-deployment.md) - Manual deployment guide
+
+3. **MLOps on Kubernetes:** Coming soon
 
 ### Practice Exercises
 
@@ -1440,12 +1353,13 @@ How to manage kubeconfigs locally
 
 ### Advanced Topics
 
-- **Helm:** Package manager for Kubernetes
-- **Kustomize:** Configuration management
-- **ArgoCD:** GitOps continuous delivery
-- **Istio:** Service mesh
-- **Prometheus/Grafana:** Monitoring
-- **Cert-Manager:** TLS certificates
+- **Helm:** [Package manager for Kubernetes](https://helm.sh/docs/)
+- **Kustomize:** [Configuration management](https://kustomize.io/)
+  - See [How kubectl Works](02-how-kubectl-works.md#how-kustomize-works) for details
+- **ArgoCD:** [GitOps continuous delivery](https://argo-cd.readthedocs.io/)
+- **Istio:** [Service mesh](https://istio.io/latest/docs/)
+- **Prometheus/Grafana:** [Monitoring](https://prometheus.io/docs/)
+- **Cert-Manager:** [TLS certificates](https://cert-manager.io/docs/)
 
 ## Quick Reference
 

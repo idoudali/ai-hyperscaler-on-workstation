@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-buckets
+  namespace: mlops
+  labels:
+    app: minio
+    component: bucket-setup
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: minio
+        component: bucket-setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: quay.io/minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for MinIO to be ready and configuring client..."
+              MAX_RETRIES=30
+              RETRY_COUNT=0
+              while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                if mc alias set minio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} 2>/dev/null; then
+                  echo "MinIO client configured successfully!"
+                  break
+                fi
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "Waiting for MinIO... (attempt $RETRY_COUNT/$MAX_RETRIES)"
+                sleep 2
+              done
+              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                echo "ERROR: Failed to configure MinIO client after $MAX_RETRIES attempts"
+                exit 1
+              fi
+
+              echo "Creating buckets..."
+              for bucket in mlflow-artifacts models datasets experiments; do
+                if ! mc ls minio/${bucket} > /dev/null 2>&1; then
+                  echo "Creating bucket: ${bucket}"
+                  mc mb minio/${bucket}
+                else
+                  echo "Bucket ${bucket} already exists"
+                fi
+              done
+
+              echo "Listing all buckets:"
+              mc ls minio/
+              echo "Bucket creation complete!"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: accesskey
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: secretkey
