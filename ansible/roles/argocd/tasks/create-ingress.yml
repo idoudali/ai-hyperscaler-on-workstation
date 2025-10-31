@@ -1,0 +1,43 @@
+# Create ArgoCD Ingress
+
+- name: Create ArgoCD Ingress
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: argocd-server
+        namespace: "{{ argocd_namespace }}"
+        labels:
+          app.kubernetes.io/name: argocd-server
+          app.kubernetes.io/component: server
+        annotations:
+          nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+          nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+      spec:
+        ingressClassName: "{{ argocd_ingress_class }}"
+        rules:
+          - host: "{{ argocd_ingress_host }}"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: argocd-server
+                      port:
+                        name: https
+        tls: "{{ [{'hosts': [argocd_ingress_host], 'secretName': argocd_ingress_tls_secret}] if argocd_ingress_tls_enabled else [] }}"
+
+- name: Verify ingress creation
+  kubernetes.core.k8s_info:
+    kind: Ingress
+    name: argocd-server
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_ingress_info
+  failed_when: argocd_ingress_info.resources | length == 0
+
+- name: Display ingress status
+  ansible.builtin.debug:
+    msg: "ArgoCD ingress created: http{{ 's' if argocd_ingress_tls_enabled else '' }}://{{ argocd_ingress_host }}"

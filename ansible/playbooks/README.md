@@ -47,16 +47,15 @@ Targeted playbooks for deploying individual infrastructure components.
 
 ### 2.1. Cloud Cluster Runtime Playbooks
 
-Playbooks for Kubernetes cluster deployment using **Kubespray as an Ansible Collection** (`kubernetes_sigs.kubespray`).
+Unified playbook for complete cloud cluster deployment with GitOps infrastructure.
 
 | Playbook | Component | Purpose | Use Case |
 |----------|-----------|---------|----------|
-| **playbook-cloud-runtime.yml** | Cloud Runtime | Complete K8s deployment with pre/post config | Single consolidated playbook |
+| **playbook-cloud-runtime.yml** | Cloud Runtime | Deploy Kubernetes via Kubespray and install ArgoCD (GitOps control plane) | Complete cloud cluster deployment |
 
-**Architecture:** Uses **Kubespray as an Ansible Collection** with `import_playbook` for native integration and
-real-time output.
+**Note:** This consolidated playbook includes:
 
-**playbook-cloud-runtime.yml** (Complete Single Playbook):
+**playbook-cloud-runtime.yml** (Complete GitOps-enabled deployment):
 
 - **Phase 1**: Pre-validation and pre-flight setup (IPv6 disable, DNS, packages)
 - **Phase 2**: Kubespray collection build and installation
@@ -65,6 +64,10 @@ real-time output.
 - **Phase 5**: Cluster validation
 - **Phase 6**: Kubeconfig retrieval and setup
 - **Phase 7**: Kubernetes Dashboard deployment (automatically deployed)
+- **GitOps Enablement**: ArgoCD installation for managing applications declaratively
+
+See [GitOps Workflow Documentation](../../docs/workflows/gitops-deployment-workflow.md)
+for the full process of defining and syncing applications after ArgoCD is installed.
 
 **Usage (Recommended - via Makefile):**
 
@@ -76,10 +79,20 @@ make cloud-cluster-deploy CLUSTER_CONFIG=config/your-cluster.yaml
 **Usage (Direct Playbook Execution):**
 
 ```bash
-# Full deployment with all pre/post configuration
-ansible-playbook -i output/cluster-state/inventory.yml \
-  -e "inventory_file=output/cluster-state/inventory.yml" \
-  playbooks/playbook-cloud-runtime.yml
+# Full deployment
+ansible-playbook -i inventory.ini playbook-cloud-runtime.yml
+```
+
+**Usage with tags:**
+
+```bash
+# Deploy only Kubespray
+ansible-playbook -i inventory.ini playbook-cloud-runtime.yml --tags kubespray
+
+# Deploy only ArgoCD
+ansible-playbook -i inventory.ini playbook-cloud-runtime.yml --tags argocd
+
+# After ArgoCD is installed, manage applications via GitOps (see docs/workflows/gitops-deployment-workflow.md)
 ```
 
 ### 3. Packer Image Build Playbooks
@@ -259,35 +272,53 @@ ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml --limit h
 ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml --limit compute_nodes
 ```
 
-### Pattern 3.1: Cloud Cluster Kubernetes Deployment
-
-**Complete Deployment with Pre/Post Configuration (Recommended):**
+### Pattern 3.1: Cloud Cluster with GitOps Deployment
 
 ```bash
-# 1. Deploy complete Kubernetes cluster with all configuration
-ansible-playbook -i inventories/cloud-cluster/inventory.ini ansible/playbooks/playbook-cloud-runtime.yml
+# 1. Deploy complete cloud cluster runtime (Kubernetes + ArgoCD + Apps)
+ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml
 
-# 2. Deploy with specific tags (e.g., only Kubespray phase)
-ansible-playbook -i inventories/cloud-cluster/inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags kubespray
+# 2. Deploy only specific components using tags
+# Deploy Kubernetes only
+ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags kubespray
+
+# Deploy ArgoCD only
+ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags argocd
+
+# Deploy GitOps apps only
+ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags gitops-apps
 
 # 3. Verify cluster status (kubeconfig automatically retrieved)
 # Note: kubeconfig filename is based on cluster name (e.g., cloud-cluster.kubeconfig)
-export KUBECONFIG=output/cluster-state/kubeconfigs/$(grep cluster_name output/cluster-state/rendered-config.yaml | head -1 | awk '{print $2}').kubeconfig
+export CLUSTER_NAME=$(grep cluster_name output/cluster-state/rendered-config.yaml | head -1 | awk '{print $2}')
+export KUBECONFIG="output/cluster-state/kubeconfigs/${CLUSTER_NAME}.kubeconfig"
 kubectl get nodes
 kubectl get pods --all-namespaces
 
 # 4. Access Kubernetes Dashboard (automatically deployed)
 kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
 # Open https://localhost:8443 in browser
+
+# 5. Monitor ArgoCD sync status
+kubectl get applications -n argocd
+
+# 6. Access ArgoCD UI
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+# Open: https://localhost:8080
+
+# 7. Modify applications declaratively
+# Edit k8s-manifests/, commit, push. ArgoCD will automatically sync changes within a few minutes.
 ```
 
 **Important:**
 
 - All cloud deployment playbooks use the shell module with async support for reliable Kubespray execution
-- `playbook-cloud-runtime.yml` includes pre-flight setup, deployment, post-config, validation, and kubeconfig
-retrieval
+- `playbook-cloud-runtime.yml` includes pre-flight setup, deployment, post-config, validation, and kubeconfig retrieval
 - Kubeconfig is automatically retrieved and saved to `output/cluster-state/kubeconfigs/{{ cluster_name }}.kubeconfig`
-- **Kubernetes Dashboard is automatically deployed** with `playbook-cloud-runtime.yml` (see [Dashboard Access](#kubernetes-dashboard-access) section below)
+- **Kubernetes Dashboard is automatically deployed** with `playbook-cloud-runtime.yml` (see
+  [Dashboard Access](#kubernetes-dashboard-access) section below)
+- GitOps applications are defined under `k8s-manifests/` and continuously reconciled by ArgoCD. See the
+  [GitOps Workflow](../../docs/workflows/gitops-deployment-workflow.md) for the complete process.
 
 **Advantages of Shell Module with Async:**
 
@@ -629,7 +660,9 @@ uv pip install -r ansible/requirements.txt
 
 ## Kubernetes Dashboard Access
 
-The Kubernetes Dashboard is **automatically deployed** when using `playbook-cloud-runtime.yml` (included in `make cloud-cluster-deploy`). The Dashboard provides a web-based UI for managing your Kubernetes cluster.
+The Kubernetes Dashboard is **automatically deployed** when using `playbook-cloud-runtime.yml`
+(included in `make cloud-cluster-deploy`). The Dashboard provides a web-based UI for managing your
+Kubernetes cluster.
 
 ### Accessing the Dashboard
 
@@ -640,13 +673,13 @@ The Kubernetes Dashboard is **automatically deployed** when using `playbook-clou
 export KUBECONFIG=/path/to/project/output/cluster-state/kubeconfigs/<cluster-name>.kubeconfig
 ```
 
-2. **Start port-forward:**
+1. **Start port-forward:**
 
 ```bash
 kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
 ```
 
-3. **Open in browser:**
+1. **Open in browser:**
 
 - URL: `https://localhost:8443`
 - Accept the self-signed certificate warning (if prompted)
@@ -685,7 +718,7 @@ kubectl -n kubernetes-dashboard get secret \
 
 ```bash
 # One-liner to start port-forward (replace <cluster-name> with your actual cluster name)
-export KUBECONFIG=/path/to/project/output/cluster-state/kubeconfigs/<cluster-name>.kubeconfig && \
+export KUBECONFIG=/path/to/project/output/cluster-state/kubeconfigs/<cluster-name>.kubeconfig
 kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
 ```
 
@@ -710,8 +743,10 @@ helm list -n kubernetes-dashboard
 
 For detailed Dashboard deployment and configuration options, see:
 
-- **[k8s-dashboard role documentation](../roles/k8s-dashboard/README.md)** - Complete role documentation
-- **[Official Kubernetes Dashboard Guide](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)** - Official documentation
+- **[k8s-dashboard role documentation](../roles/k8s-dashboard/README.md)** – Role usage guide
+- **[Official Kubernetes Dashboard Guide][dashboard-guide]** – Project documentation
+
+[dashboard-guide]: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
 
 ## Playbook Dependencies
 

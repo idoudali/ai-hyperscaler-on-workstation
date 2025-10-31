@@ -391,7 +391,9 @@ cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "Cluster Config: $(CLUSTER_CONFIG)"
 	@echo ""
 	@echo "Deploying complete Kubernetes cluster..."
-	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
+	@ANSIBLE_CONFIG=ansible/ansible.cfg \
+	ANSIBLE_COLLECTIONS_PATH=ansible/collections \
+	uv run ansible-playbook \
 		-v \
 		-i $(CLOUD_INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \

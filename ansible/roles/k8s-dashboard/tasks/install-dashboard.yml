@@ -17,6 +17,10 @@
     - dashboard-install
 
 - name: Install Helm if not present (to user directory)
+  when: helm_check.rc != 0
+  tags:
+    - dashboard
+    - dashboard-install
   block:
     - name: Get Helm latest version
       ansible.builtin.uri:
@@ -86,10 +90,6 @@
       tags:
         - dashboard
         - dashboard-install
-  when: helm_check.rc != 0
-  tags:
-    - dashboard
-    - dashboard-install
 
 - name: Set Helm binary path
   ansible.builtin.set_fact:
@@ -138,7 +138,6 @@
 - name: Display Dashboard installation status
   ansible.builtin.debug:
     msg: "Kubernetes Dashboard installed successfully in namespace {{ dashboard_namespace }}"
-  when: dashboard_install_result.changed
   tags:
     - dashboard
     - dashboard-install

@@ -1,0 +1,72 @@
+# ArgoCD deployment defaults
+
+# ArgoCD version
+argocd_version: "v2.9.3"
+
+# Namespace
+argocd_namespace: argocd
+
+# Installation method
+argocd_install_method: manifest # manifest or helm
+argocd_install_manifest_url: "https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml"
+
+# Server configuration
+argocd_server_insecure: true # Set to false in production with TLS
+argocd_server_replicas: 1
+
+# Ingress configuration
+argocd_ingress_enabled: true
+argocd_ingress_host: argocd.cloud-cluster.local
+argocd_ingress_class: nginx
+argocd_ingress_tls_enabled: false
+argocd_ingress_tls_secret: argocd-server-tls
+
+# Resource limits
+argocd_controller_resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "2000m"
+    memory: "4Gi"
+
+argocd_server_resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+argocd_repo_server_resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+# Initial admin password (leave empty to auto-generate)
+argocd_admin_password: ""
+
+# Git repository configuration (optional)
+argocd_repo_url: ""
+argocd_repo_branch: "main"
+argocd_repo_credentials: ""
+
+# Application defaults
+argocd_default_project: default
+argocd_sync_policy_automated: true
+argocd_sync_policy_prune: true
+argocd_sync_policy_self_heal: true
+
+# RBAC configuration
+argocd_rbac_enabled: true
+argocd_rbac_policy: ""
+
+# Node selector and tolerations
+argocd_node_selector: {}
+argocd_tolerations: []
+
+# Wait for deployment
+argocd_wait_timeout: 600 # seconds

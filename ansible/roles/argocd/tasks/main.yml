@@ -1,0 +1,33 @@
+# Main tasks for ArgoCD deployment
+# Follows official guide: https://argo-cd.readthedocs.io/en/stable/getting_started/
+
+- name: Include namespace creation
+  ansible.builtin.include_tasks: create-namespace.yml
+  tags:
+    - argocd
+    - argocd-namespace
+
+- name: Include ArgoCD installation
+  ansible.builtin.include_tasks: install-argocd.yml
+  tags:
+    - argocd
+    - argocd-install
+
+- name: Include ingress creation
+  ansible.builtin.include_tasks: create-ingress.yml
+  when: argocd_ingress_enabled | bool
+  tags:
+    - argocd
+    - argocd-ingress
+
+- name: Include validation
+  ansible.builtin.include_tasks: validation.yml
+  tags:
+    - argocd
+    - argocd-validate
+
+- name: Include access information
+  ansible.builtin.include_tasks: display-access-info.yml
+  tags:
+    - argocd
+    - argocd-info

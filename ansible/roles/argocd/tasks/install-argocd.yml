@@ -1,0 +1,45 @@
+# Install ArgoCD
+# Follows official guide: https://argo-cd.readthedocs.io/en/stable/getting_started/
+
+- name: Apply ArgoCD installation manifest
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ argocd_namespace }}"
+    src: "{{ argocd_install_manifest_url }}"
+
+- name: Wait for ArgoCD server deployment
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: argocd-server
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_server
+  until: >
+    argocd_server.resources | length > 0 and argocd_server.resources[0].status.readyReplicas | default(0) > 0
+  retries: 60
+  delay: 10
+
+- name: Wait for ArgoCD repo-server deployment
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    name: argocd-repo-server
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_repo
+  until: >
+    argocd_repo.resources | length > 0 and argocd_repo.resources[0].status.readyReplicas | default(0) > 0
+  retries: 60
+  delay: 10
+
+- name: Wait for ArgoCD application-controller statefulset
+  kubernetes.core.k8s_info:
+    kind: StatefulSet
+    name: argocd-application-controller
+    namespace: "{{ argocd_namespace }}"
+  register: argocd_controller
+  until: >
+    argocd_controller.resources | length > 0 and argocd_controller.resources[0].status.readyReplicas | default(0) > 0
+  retries: 60
+  delay: 10
+
+- name: Display ArgoCD installation status
+  ansible.builtin.debug:
+    msg: "ArgoCD {{ argocd_version }} installed successfully"

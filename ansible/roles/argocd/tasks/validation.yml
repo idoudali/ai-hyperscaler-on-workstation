@@ -1,0 +1,56 @@
+# Validate ArgoCD deployment
+
+- name: Debug - Check KUBECONFIG environment
+  ansible.builtin.debug:
+    msg:
+      - "KUBECONFIG env: {{ lookup('env', 'KUBECONFIG') | default('NOT SET') }}"
+      - "Checking ArgoCD in namespace: {{ argocd_namespace }}"
+
+- name: Verify cluster connectivity with kubectl
+  ansible.builtin.command: kubectl cluster-info
+  register: cluster_info
+  changed_when: false
+  failed_when: false
+
+- name: Display cluster connectivity status
+  ansible.builtin.debug:
+    msg:
+      - "Cluster connectivity: {{ 'OK' if cluster_info.rc == 0 else 'FAILED' }}"
+      - "{{ cluster_info.stdout if cluster_info.rc == 0 else cluster_info.stderr }}"
+
+- name: Check ArgoCD pods via kubectl (fallback validation)
+  ansible.builtin.command: kubectl get pods -n {{ argocd_namespace }} -o json
+  register: argocd_pods_kubectl
+  changed_when: false
+  failed_when: false
+
+- name: Parse kubectl output
+  ansible.builtin.set_fact:
+    argocd_pods_data: "{{ argocd_pods_kubectl.stdout | from_json }}"
+  when: argocd_pods_kubectl.rc == 0
+
+- name: Count ArgoCD pods
+  ansible.builtin.set_fact:
+    argocd_pods_count: "{{ argocd_pods_data['items'] | length }}"
+  when: argocd_pods_kubectl.rc == 0 and argocd_pods_data is defined
+
+- name: Verify ArgoCD server service via kubectl
+  ansible.builtin.command: kubectl get svc argocd-server -n {{ argocd_namespace }} -o json
+  register: argocd_service_kubectl
+  changed_when: false
+  failed_when: argocd_service_kubectl.rc != 0
+
+- name: Display validation summary
+  ansible.builtin.debug:
+    msg:
+      - "================================================================"
+      - "ArgoCD Validation Complete"
+      - "================================================================"
+      - "Cluster connectivity: {{ 'OK' if cluster_info.rc == 0 else 'FAILED' }}"
+      - "ArgoCD pods found: {{ argocd_pods_count | default('N/A') }}"
+      - "ArgoCD service: {{ 'EXISTS' if argocd_service_kubectl.rc == 0 else 'NOT FOUND' }}"
+      - ""
+      - "Manual verification:"
+      - "  kubectl get pods -n {{ argocd_namespace }}"
+      - "  kubectl get svc -n {{ argocd_namespace }}"
+      - "================================================================"
