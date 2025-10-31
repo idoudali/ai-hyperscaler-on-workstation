@@ -95,7 +95,7 @@ class XMLTracer:
         }
         self.xml_records.append(record)
 
-    def save_trace(self):
+    def save_trace(self) -> Path:
         """Save metadata summary to trace folder.
 
         Returns:

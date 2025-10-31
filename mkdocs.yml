@@ -21,7 +21,7 @@ theme:
     - content.code.copy
     - content.tabs.link
     - header.autohide
-    - navigation.expand
+    # - navigation.expand  # Removed to enable collapsible navigation
     - navigation.footer
     - navigation.indexes
     - navigation.instant
@@ -34,7 +34,7 @@ theme:
     - search.share
     - search.suggest
     - toc.follow
-    - toc.integrate
+    # - toc.integrate  # Removed to keep page TOC in right sidebar, not mixed with navigation
   palette:
     - scheme: default
       primary: blue grey
@@ -159,7 +159,7 @@ markdown_extensions:
 
 # Page tree
 nav:
-  - Home: index.md
+  - Home: README.md
   - Getting Started:
       - Prerequisites: getting-started/prerequisites.md
       - Installation: getting-started/installation.md

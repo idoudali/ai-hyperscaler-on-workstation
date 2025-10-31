@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
@@ -192,7 +193,7 @@ class LibvirtClient:
         return any(pattern.lower() in error_str for pattern in fallback_patterns)
 
     @contextmanager
-    def get_connection(self):
+    def get_connection(self) -> Generator[Any, None, None]:
         """Context manager for getting libvirt connection.
 
         Yields:
