@@ -166,19 +166,20 @@ clusters:
       memory_gb: 8
       disk_gb: 100
       ip_address: "192.168.200.10"
-    worker_nodes:                                # Worker node groups by type
-      cpu:                                       # CPU worker group
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.200.11"
-      gpu:                                       # GPU worker group
-        - worker_type: "gpu"
-          cpu_cores: 8
-          memory_gb: 16
-          disk_gb: 200
-          ip: "192.168.200.12"
+    worker_nodes:                                # Worker nodes (flat array)
+      - cpu_cores: 4                             # CPU worker (no GPU)
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.200.11"
+      - cpu_cores: 8                             # GPU worker (has pcie_passthrough)
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.200.12"
+        pcie_passthrough:                        # GPU presence determines worker type
+          enabled: true
+          devices:
+            - pci_address: "0000:01:00.0"
+              device_type: "gpu"
     kubernetes_config:                          # Kubernetes configuration
       cni: "calico"                             # Container Network Interface
       ingress: "nginx"                          # Ingress controller
@@ -191,18 +192,45 @@ clusters:
 
 ```yaml
 worker_nodes:
-  gpu:
-    - worker_type: "gpu"
-      cpu_cores: 8
-      memory_gb: 16
-      disk_gb: 200
-      ip: "192.168.200.12"
-    - worker_type: "gpu"
-      cpu_cores: 8
-      memory_gb: 16
-      disk_gb: 200
-      ip: "192.168.200.13"
+  - cpu_cores: 8
+    memory_gb: 16
+    disk_gb: 200
+    ip: "192.168.200.12"
+    pcie_passthrough:
+      enabled: true
+      devices:
+        - pci_address: "0000:01:00.0"
+          device_type: "gpu"
+  - cpu_cores: 8
+    memory_gb: 16
+    disk_gb: 200
+    ip: "192.168.200.13"
+    pcie_passthrough:
+      enabled: true
+      devices:
+        - pci_address: "0000:02:00.0"
+          device_type: "gpu"
 ```
+
+#### Worker Type Detection
+
+Worker nodes are automatically classified as **CPU** or **GPU** workers based on their configuration:
+
+- **CPU Workers**: No `pcie_passthrough` configuration or `pcie_passthrough.enabled: false`
+- **GPU Workers**: Has `pcie_passthrough.enabled: true` with at least one device where `device_type: "gpu"`
+
+The system automatically:
+
+- Names CPU workers as: `{cluster-name}-cpu-worker-01`, `-02`, etc.
+- Names GPU workers as: `{cluster-name}-gpu-worker-01`, `-02`, etc.
+- Maintains separate numbering sequences for each type
+
+**Example**: In a cluster with 2 CPU workers followed by 2 GPU workers, you'll see:
+
+- `my-cluster-cpu-worker-01` (first worker, no GPU)
+- `my-cluster-cpu-worker-02` (second worker, no GPU)
+- `my-cluster-gpu-worker-01` (third worker, has GPU)
+- `my-cluster-gpu-worker-02` (fourth worker, has GPU)
 
 ## GPU and PCIe Passthrough Configuration
 
@@ -582,12 +610,10 @@ clusters:
       disk_gb: 100
       ip_address: "192.168.200.10"
     worker_nodes:
-      cpu:
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.200.11"
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.200.11"
     kubernetes_config:
       cni: "calico"
       ingress: "nginx"
@@ -647,21 +673,17 @@ clusters:
       disk_gb: 100
       ip_address: "192.168.200.10"
     worker_nodes:
-      cpu:
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.200.11"
-      gpu:
-        - worker_type: "gpu"
-          cpu_cores: 8
-          memory_gb: 16
-          disk_gb: 200
-          ip: "192.168.200.12"
-          pcie_passthrough:
-            enabled: true
-            devices:
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.200.11"
+      - cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.200.12"
+        pcie_passthrough:
+          enabled: true
+          devices:
               - pci_address: "0000:65:00.2"
                 device_type: "gpu"
                 vendor_id: "10de"
@@ -729,12 +751,10 @@ clusters:
       disk_gb: 100
       ip_address: "192.168.200.10"
     worker_nodes:
-      cpu:
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.200.11"
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.200.11"
     kubernetes_config:
       cni: "calico"
       ingress: "nginx"

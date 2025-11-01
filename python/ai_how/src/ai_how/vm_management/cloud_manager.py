@@ -209,9 +209,9 @@ class CloudClusterManager(HPCClusterManager):
         total_disk_needed = self.cloud_config["control_plane"]["disk_gb"]
 
         # Add worker nodes disk requirements
-        worker_nodes_config = self.cloud_config.get("worker_nodes", {})
-        for worker_type in ["cpu", "gpu"]:
-            for worker_config in worker_nodes_config.get(worker_type, []):
+        worker_nodes_config = self.cloud_config.get("worker_nodes", [])
+        if isinstance(worker_nodes_config, list):
+            for worker_config in worker_nodes_config:
                 total_disk_needed += worker_config["disk_gb"]
 
         logger.debug(f"Total disk requirement: {total_disk_needed}GB")
@@ -249,6 +249,14 @@ class CloudClusterManager(HPCClusterManager):
         logger.debug(f"Creating infrastructure for cluster: {cluster_name}")
         logger.debug(f"Base image: {base_image}")
         logger.debug(f"Pool path: {pool_path}")
+
+        # Prepare static DHCP reservations from VM configurations (using parent class method)
+        static_leases, vm_macs = self._prepare_static_dhcp_leases(cluster_name, self.cloud_config)
+
+        # Add static leases to network configuration
+        if static_leases:
+            network_config["static_leases"] = static_leases
+            network_config["vm_macs"] = vm_macs
 
         try:
             # Create cluster virtual network
@@ -288,13 +296,22 @@ class CloudClusterManager(HPCClusterManager):
             self._create_worker_nodes(cluster_state)
 
             # Get config for determining which workers to auto-start
-            worker_nodes_config = self.cloud_config.get("worker_nodes", {})
-            cpu_workers_config = worker_nodes_config.get("cpu", [])
-            gpu_workers_config = worker_nodes_config.get("gpu", [])
+            worker_nodes_config = self.cloud_config.get("worker_nodes", [])
+
+            # Separate workers by type for auto-start resolution
+            cpu_workers_configs = []
+            gpu_workers_configs = []
+
+            if isinstance(worker_nodes_config, list):
+                for worker_config in worker_nodes_config:
+                    if self._has_gpu(worker_config):
+                        gpu_workers_configs.append(worker_config)
+                    else:
+                        cpu_workers_configs.append(worker_config)
 
             # Use AutoStartResolver to get indices of workers that should not auto-start
-            cpu_no_start_indices = AutoStartResolver.get_no_start_indices(cpu_workers_config)
-            gpu_no_start_indices = AutoStartResolver.get_no_start_indices(gpu_workers_config)
+            cpu_no_start_indices = AutoStartResolver.get_no_start_indices(cpu_workers_configs)
+            gpu_no_start_indices = AutoStartResolver.get_no_start_indices(gpu_workers_configs)
 
             # Track worker counters for matching
             cpu_counter = 0
@@ -323,25 +340,17 @@ class CloudClusterManager(HPCClusterManager):
                 # Start all workers that should be auto-started
                 self._start_vm_if_needed(worker_vm)
 
-    def _should_auto_start_vm(self, vm_info: VMInfo) -> bool:
+    def _should_auto_start_vm(self, vm_info: VMInfo) -> bool:  # noqa: ARG002
         """Check if a VM should be auto-started based on configuration.
 
         Args:
-            vm_info: VM information
+            vm_info: VM information (unused, kept for backward compatibility)
 
         Returns:
             True if VM should be auto-started, False otherwise
         """
-        worker_nodes_config = self.cloud_config.get("worker_nodes", {})
-
-        # Check GPU workers for disable_auto_start flag
-        if vm_info.vm_type == "gpu":
-            gpu_workers = worker_nodes_config.get("gpu", [])
-            for gpu_worker_cfg in gpu_workers:
-                if gpu_worker_cfg.get("disable_auto_start"):
-                    return False
-
-        # Auto-start by default for all other VMs
+        # This method is deprecated - auto-start is now handled by AutoStartResolver
+        # in _create_and_start_vms(). Kept for backward compatibility.
         return True
 
     def _create_control_plane_vm(self, cluster_state: ClusterState) -> None:
@@ -411,22 +420,56 @@ class CloudClusterManager(HPCClusterManager):
         cluster_state.controller = vm_info
         logger.info(f"Created control plane VM: {vm_name}")
 
+    @staticmethod
+    def _has_gpu(worker_config: dict[str, Any]) -> bool:
+        """Check if worker configuration has GPU passthrough enabled.
+
+        Args:
+            worker_config: Worker node configuration dictionary
+
+        Returns:
+            True if worker has GPU devices configured, False otherwise
+        """
+        pcie_config = worker_config.get("pcie_passthrough", {})
+        if not pcie_config.get("enabled", False):
+            return False
+
+        devices = pcie_config.get("devices", [])
+        return any(dev.get("device_type") == "gpu" for dev in devices)
+
     def _create_worker_nodes(self, cluster_state: ClusterState) -> None:
-        """Create worker nodes (both CPU and GPU types)."""
+        """Create worker nodes (both CPU and GPU types).
+
+        Worker type is determined by presence of GPU in pcie_passthrough configuration.
+        """
         cluster_name = self.cluster_name
-        worker_nodes_config = self.cloud_config.get("worker_nodes", {})
+        worker_nodes_config = self.cloud_config.get("worker_nodes", [])
 
-        # Process CPU workers
-        cpu_workers = worker_nodes_config.get("cpu", [])
-        for i, worker_config in enumerate(cpu_workers):
-            vm_name = f"{cluster_name}-cpu-worker-{i + 1:02d}"
-            self._create_worker_vm(cluster_name, vm_name, worker_config, cluster_state, "cpu")
+        # Ensure worker_nodes is a list
+        if not isinstance(worker_nodes_config, list):
+            logger.warning(
+                f"worker_nodes expected to be a list, got {type(worker_nodes_config).__name__}"
+            )
+            return
 
-        # Process GPU workers
-        gpu_workers = worker_nodes_config.get("gpu", [])
-        for i, worker_config in enumerate(gpu_workers):
-            vm_name = f"{cluster_name}-gpu-worker-{i + 1:02d}"
-            self._create_worker_vm(cluster_name, vm_name, worker_config, cluster_state, "gpu")
+        # Track separate counters for CPU and GPU workers
+        cpu_counter = 0
+        gpu_counter = 0
+
+        for worker_config in worker_nodes_config:
+            # Determine worker type based on GPU presence
+            has_gpu = self._has_gpu(worker_config)
+            worker_type = "gpu" if has_gpu else "cpu"
+
+            # Increment appropriate counter
+            if worker_type == "gpu":
+                gpu_counter += 1
+                vm_name = f"{cluster_name}-gpu-worker-{gpu_counter:02d}"
+            else:
+                cpu_counter += 1
+                vm_name = f"{cluster_name}-cpu-worker-{cpu_counter:02d}"
+
+            self._create_worker_vm(cluster_name, vm_name, worker_config, cluster_state, worker_type)
 
     def _create_worker_vm(
         self,

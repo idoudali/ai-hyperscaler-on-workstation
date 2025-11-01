@@ -828,18 +828,11 @@ def cloud_status(
         # Initialize Cloud manager
         cloud_manager = CloudClusterManager(config_data, state_path)
 
-        # Get status
-        status = cloud_manager.status()
+        # Get status with VM details (uses inherited status_cluster method)
+        status_data = cloud_manager.status_cluster()
 
-        # Display status
-        table = Table(title="Cloud Cluster Status")
-        table.add_column("Property", style="cyan")
-        table.add_column("Value", style="white")
-
-        for key, value in status.items():
-            table.add_row(str(key), str(value))
-
-        console.print(table)
+        # Display status using the same function as HPC cluster
+        _display_cluster_status(status_data, cluster_type="Cloud")
 
     except FileNotFoundError:
         console.print(f"[red]Error:[/red] Configuration file not found: {config}")

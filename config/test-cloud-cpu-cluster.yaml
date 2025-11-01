@@ -24,21 +24,18 @@ clusters:
       # base_image_path: "build/packer/cloud-controller/cloud-controller.qcow2"  # Could override here
 
     worker_nodes:
-      cpu:
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.3.11"
-          # CPU worker uses cluster default image
-          # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.3.12"
-          # CPU worker uses cluster default image
-          # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.3.11"
+        # CPU worker uses cluster default image
+        # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.3.12"
+        # CPU worker uses cluster default image
+        # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
 
     kubernetes_config:
       cni: "calico"

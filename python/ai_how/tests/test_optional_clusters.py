@@ -46,17 +46,14 @@ class TestOptionalClusters:
                         "disk_gb": 100,
                         "ip_address": "192.168.200.10",
                     },
-                    "worker_nodes": {
-                        "cpu": [
-                            {
-                                "worker_type": "cpu",
-                                "cpu_cores": 4,
-                                "memory_gb": 8,
-                                "disk_gb": 100,
-                                "ip": "192.168.200.11",
-                            }
-                        ]
-                    },
+                    "worker_nodes": [
+                        {
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ],
                     "kubernetes_config": {
                         "cni": "calico",
                         "ingress": "nginx",
@@ -150,17 +147,14 @@ class TestOptionalClusters:
                         "disk_gb": 100,
                         "ip_address": "192.168.200.10",
                     },
-                    "worker_nodes": {
-                        "cpu": [
-                            {
-                                "worker_type": "cpu",
-                                "cpu_cores": 4,
-                                "memory_gb": 8,
-                                "disk_gb": 100,
-                                "ip": "192.168.200.11",
-                            }
-                        ]
-                    },
+                    "worker_nodes": [
+                        {
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ],
                     "kubernetes_config": {
                         "cni": "calico",
                         "ingress": "nginx",
@@ -217,17 +211,14 @@ class TestOptionalClusters:
                         "disk_gb": 100,
                         "ip_address": "192.168.200.10",
                     },
-                    "worker_nodes": {
-                        "cpu": [
-                            {
-                                "worker_type": "cpu",
-                                "cpu_cores": 4,
-                                "memory_gb": 8,
-                                "disk_gb": 100,
-                                "ip": "192.168.200.11",
-                            }
-                        ]
-                    },
+                    "worker_nodes": [
+                        {
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ],
                     "kubernetes_config": {
                         "cni": "calico",
                         "ingress": "nginx",
@@ -300,26 +291,23 @@ class TestOptionalClusters:
                         "disk_gb": 100,
                         "ip_address": "192.168.200.10",
                     },
-                    "worker_nodes": {
-                        "gpu": [
-                            {
-                                "worker_type": "gpu",
-                                "cpu_cores": 8,
-                                "memory_gb": 32,
-                                "disk_gb": 200,
-                                "ip": "192.168.200.20",
-                                "pcie_passthrough": {
-                                    "enabled": True,
-                                    "devices": [
-                                        {
-                                            "pci_address": "0000:01:00.0",
-                                            "device_type": "gpu",
-                                        }
-                                    ],
-                                },
-                            }
-                        ]
-                    },
+                    "worker_nodes": [
+                        {
+                            "cpu_cores": 8,
+                            "memory_gb": 32,
+                            "disk_gb": 200,
+                            "ip": "192.168.200.20",
+                            "pcie_passthrough": {
+                                "enabled": True,
+                                "devices": [
+                                    {
+                                        "pci_address": "0000:01:00.0",
+                                        "device_type": "gpu",
+                                    }
+                                ],
+                            },
+                        }
+                    ],
                     "kubernetes_config": {
                         "cni": "calico",
                         "ingress": "nginx",
@@ -474,17 +462,14 @@ class TestOptionalClusters:
                         "disk_gb": 100,
                         "ip_address": "192.168.200.10",
                     },
-                    "worker_nodes": {
-                        "cpu": [
-                            {
-                                "worker_type": "cpu",
-                                "cpu_cores": 4,
-                                "memory_gb": 8,
-                                "disk_gb": 100,
-                                "ip": "192.168.200.11",
-                            }
-                        ]
-                    },
+                    "worker_nodes": [
+                        {
+                            "cpu_cores": 4,
+                            "memory_gb": 8,
+                            "disk_gb": 100,
+                            "ip": "192.168.200.11",
+                        }
+                    ],
                     "kubernetes_config": {
                         "cni": "calico",
                         "ingress": "nginx",
