@@ -187,17 +187,14 @@ def test_validate_cluster_config_with_base_image_path(cluster_schema_file: Path,
                     "disk_gb": 100,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 4,
-                            "memory_gb": 8,
-                            "disk_gb": 100,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 4,
+                        "memory_gb": 8,
+                        "disk_gb": 100,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -269,17 +266,14 @@ def test_validate_cluster_config_base_image_path_wrong_extension(
                     "disk_gb": 100,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 4,
-                            "memory_gb": 8,
-                            "disk_gb": 100,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 4,
+                        "memory_gb": 8,
+                        "disk_gb": 100,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -329,17 +323,14 @@ def test_validate_cluster_config_relative_base_image_path(
                     "disk_gb": 100,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 4,
-                            "memory_gb": 8,
-                            "disk_gb": 100,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 4,
+                        "memory_gb": 8,
+                        "disk_gb": 100,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",

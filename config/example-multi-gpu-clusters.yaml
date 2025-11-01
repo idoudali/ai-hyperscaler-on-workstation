@@ -157,36 +157,32 @@ clusters:
       # base_image_path: "build/packer/cloud-controller/cloud-controller.qcow2"  # Could override here
 
     worker_nodes:
-      cpu:
-        - worker_type: "cpu"
-          cpu_cores: 4
-          memory_gb: 8
-          disk_gb: 100
-          ip: "192.168.200.11"
-          # CPU worker uses cluster default image
-          # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
-      gpu:
-        - worker_type: "gpu"
-          auto_start: false
-          cpu_cores: 8
-          memory_gb: 16
-          disk_gb: 200
-          ip: "192.168.200.12"
-          # GPU worker with NVIDIA RTX 4060 (device ID 2789)
-          # base_image_path: "build/packer/cloud-gpu-worker/cloud-gpu-worker.qcow2"  # Could override here
-          pcie_passthrough:
-            enabled: true
-            devices:
-              # NVIDIA RTX 4060 GPU device (primary function)
-              - pci_address: "0000:01:00.0"
-                device_type: "gpu"
-                vendor_id: "10de"
-                device_id: "2789"
-              # Audio device (secondary function) - typically required for same IOMMU group
-              - pci_address: "0000:01:00.1"
-                device_type: "audio"
-                vendor_id: "10de"
-                device_id: "2299"
+      - cpu_cores: 4
+        memory_gb: 8
+        disk_gb: 100
+        ip: "192.168.200.11"
+        # CPU worker uses cluster default image
+        # base_image_path: "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"  # Could override here
+      - auto_start: false
+        cpu_cores: 8
+        memory_gb: 16
+        disk_gb: 200
+        ip: "192.168.200.12"
+        # GPU worker with NVIDIA RTX 4060 (device ID 2789)
+        # base_image_path: "build/packer/cloud-gpu-worker/cloud-gpu-worker.qcow2"  # Could override here
+        pcie_passthrough:
+          enabled: true
+          devices:
+            # NVIDIA RTX 4060 GPU device (primary function)
+            - pci_address: "0000:01:00.0"
+              device_type: "gpu"
+              vendor_id: "10de"
+              device_id: "2789"
+            # Audio device (secondary function) - typically required for same IOMMU group
+            - pci_address: "0000:01:00.1"
+              device_type: "audio"
+              vendor_id: "10de"
+              device_id: "2299"
 
     kubernetes_config:
       cni: "calico"

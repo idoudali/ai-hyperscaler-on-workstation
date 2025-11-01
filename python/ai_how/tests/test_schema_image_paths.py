@@ -64,17 +64,14 @@ def test_cluster_level_image_path_optional():
                     "disk_gb": 20,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 2,
-                            "memory_gb": 4,
-                            "disk_gb": 20,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 2,
+                        "memory_gb": 4,
+                        "disk_gb": 20,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -129,17 +126,14 @@ def test_controller_node_image_path_override():
                     "disk_gb": 20,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 2,
-                            "memory_gb": 4,
-                            "disk_gb": 20,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 2,
+                        "memory_gb": 4,
+                        "disk_gb": 20,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -200,17 +194,14 @@ def test_compute_node_image_path_override():
                     "disk_gb": 20,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 2,
-                            "memory_gb": 4,
-                            "disk_gb": 20,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 2,
+                        "memory_gb": 4,
+                        "disk_gb": 20,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -259,29 +250,32 @@ def test_cloud_worker_node_image_path_override():
                     # override
                     "base_image_path": "build/packer/cloud-controller/cloud-controller.qcow2",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 2,
-                            "memory_gb": 4,
-                            "disk_gb": 20,
-                            "ip": "192.168.200.11",
-                            # Override
-                            "base_image_path": "build/packer/cloud-worker/cloud-worker.qcow2",
-                        }
-                    ],
-                    "gpu": [
-                        {
-                            "worker_type": "gpu",
-                            "cpu_cores": 4,
-                            "memory_gb": 8,
-                            "disk_gb": 50,
-                            "ip": "192.168.200.12",
-                            # Uses cluster default
-                        }
-                    ],
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 2,
+                        "memory_gb": 4,
+                        "disk_gb": 20,
+                        "ip": "192.168.200.11",
+                        # Override
+                        "base_image_path": "build/packer/cloud-worker/cloud-worker.qcow2",
+                    },
+                    {
+                        "cpu_cores": 4,
+                        "memory_gb": 8,
+                        "disk_gb": 50,
+                        "ip": "192.168.200.12",
+                        "pcie_passthrough": {
+                            "enabled": True,
+                            "devices": [
+                                {
+                                    "pci_address": "0000:01:00.0",
+                                    "device_type": "gpu",
+                                }
+                            ],
+                        },
+                        # Uses cluster default
+                    },
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -328,17 +322,14 @@ def test_invalid_base_image_path_pattern():
                     "disk_gb": 20,
                     "ip_address": "192.168.200.10",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 2,
-                            "memory_gb": 4,
-                            "disk_gb": 20,
-                            "ip": "192.168.200.11",
-                        }
-                    ]
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 2,
+                        "memory_gb": 4,
+                        "disk_gb": 20,
+                        "ip": "192.168.200.11",
+                    }
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",
@@ -407,34 +398,33 @@ def test_mixed_image_specification_levels():
                     # Must specify
                     "base_image_path": "build/packer/cloud-controller/cloud-controller.qcow2",
                 },
-                "worker_nodes": {
-                    "cpu": [
-                        {
-                            "worker_type": "cpu",
-                            "cpu_cores": 2,
-                            "memory_gb": 4,
-                            "disk_gb": 20,
-                            "ip": "192.168.200.11",
-                            # Must specify
-                            "base_image_path": (
-                                "build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"
-                            ),
-                        }
-                    ],
-                    "gpu": [
-                        {
-                            "worker_type": "gpu",
-                            "cpu_cores": 4,
-                            "memory_gb": 8,
-                            "disk_gb": 50,
-                            "ip": "192.168.200.12",
-                            # Must specify
-                            "base_image_path": (
-                                "build/packer/cloud-gpu-worker/cloud-gpu-worker.qcow2"
-                            ),
-                        }
-                    ],
-                },
+                "worker_nodes": [
+                    {
+                        "cpu_cores": 2,
+                        "memory_gb": 4,
+                        "disk_gb": 20,
+                        "ip": "192.168.200.11",
+                        # Must specify
+                        "base_image_path": ("build/packer/cloud-cpu-worker/cloud-cpu-worker.qcow2"),
+                    },
+                    {
+                        "cpu_cores": 4,
+                        "memory_gb": 8,
+                        "disk_gb": 50,
+                        "ip": "192.168.200.12",
+                        "pcie_passthrough": {
+                            "enabled": True,
+                            "devices": [
+                                {
+                                    "pci_address": "0000:01:00.0",
+                                    "device_type": "gpu",
+                                }
+                            ],
+                        },
+                        # Must specify
+                        "base_image_path": ("build/packer/cloud-gpu-worker/cloud-gpu-worker.qcow2"),
+                    },
+                ],
                 "kubernetes_config": {
                     "cni": "calico",
                     "ingress": "nginx",

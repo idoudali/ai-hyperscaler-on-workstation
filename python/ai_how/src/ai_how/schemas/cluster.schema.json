@@ -273,15 +273,7 @@
         "network": { "$ref": "#/definitions/network" },
         "hardware": { "$ref": "#/definitions/hardwareConfig" },
         "control_plane": { "$ref": "#/definitions/controllerNode" },
-        "worker_nodes": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/workerNode"
-            }
-          }
-        },
+        "worker_nodes": { "$ref": "#/definitions/computeNodeGroup" },
         "kubernetes_config": {
           "type": "object",
           "properties": {
@@ -342,6 +334,11 @@
                 { "type": "string", "format": "ipv4" },
                 { "type": "string", "enum": ["DHCP"] }
               ]
+            },
+            "auto_start": {
+              "type": "boolean",
+              "description": "If false, VM will not be started automatically during cluster startup (default: true)",
+              "default": true
             }
           },
           "required": ["ip"]
@@ -368,78 +365,6 @@
           "type": "array",
           "items": { "$ref": "#/definitions/VMDefinition" },
           "minItems": 1
-        }
-      ]
-    },
-    "workerNode": {
-      "oneOf": [
-        {
-          "allOf": [
-            { "$ref": "#/definitions/VMDefinition" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "worker_type": { "const": "cpu" },
-                "auto_start": {
-                  "type": "boolean",
-                  "description": "If false, VM will not be started automatically during cluster startup (default: true)",
-                  "default": true
-                },
-                "cpu_cores": { "type": "integer", "minimum": 1 },
-                "memory_gb": { "type": "integer", "minimum": 1 },
-                "disk_gb": { "type": "integer", "minimum": 10 },
-                "ip": {
-                  "oneOf": [
-                    { "type": "string", "format": "ipv4" },
-                    { "type": "string", "enum": ["DHCP"] }
-                  ]
-                },
-                "base_image_path": {
-                  "type": "string",
-                  "description": "Override the cluster default base image path"
-                },
-                "pcie_passthrough": {
-                  "$ref": "#/definitions/pciePassthrough"
-                }
-              },
-              "required": ["worker_type", "cpu_cores", "memory_gb", "disk_gb", "ip"]
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/definitions/VMDefinition" },
-            {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "worker_type": { "const": "gpu" },
-                "auto_start": {
-                  "type": "boolean",
-                  "description": "If false, VM will not be started automatically during cluster startup (default: true)",
-                  "default": true
-                },
-                "cpu_cores": { "type": "integer", "minimum": 1 },
-                "memory_gb": { "type": "integer", "minimum": 1 },
-                "disk_gb": { "type": "integer", "minimum": 10 },
-                "ip": {
-                  "oneOf": [
-                    { "type": "string", "format": "ipv4" },
-                    { "type": "string", "enum": ["DHCP"] }
-                  ]
-                },
-                "base_image_path": {
-                  "type": "string",
-                  "description": "Override the cluster default base image path"
-                },
-                "pcie_passthrough": {
-                  "$ref": "#/definitions/pciePassthrough"
-                }
-              },
-              "required": ["worker_type", "cpu_cores", "memory_gb", "disk_gb", "ip"]
-            }
-          ]
         }
       ]
     }

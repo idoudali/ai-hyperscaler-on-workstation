@@ -721,6 +721,102 @@ class HPCClusterManager:
         logger.debug("All prerequisite checks completed")
         log_function_exit(logger, "_check_prerequisites")
 
+    def _prepare_static_dhcp_leases(
+        self, cluster_name: str, cluster_config: dict[str, Any]
+    ) -> tuple[dict[str, str], dict[str, str]]:
+        """Prepare static DHCP lease mappings for cluster VMs.
+
+        This method extracts IP addresses from the cluster configuration and generates
+        MAC addresses for each VM, creating the mappings needed for static DHCP reservations.
+
+        Args:
+            cluster_name: Name of the cluster
+            cluster_config: Cluster configuration dictionary (can be HPC or Cloud config)
+
+        Returns:
+            Tuple of (static_leases, vm_macs) where:
+                - static_leases: dict mapping VM name -> IP address
+                - vm_macs: dict mapping VM name -> MAC address
+        """
+        log_function_entry(logger, "_prepare_static_dhcp_leases", cluster_name=cluster_name)
+
+        static_leases = {}
+        vm_macs = {}
+
+        # Handle both HPC-style controller and Cloud-style control plane configurations
+        controller_types = [
+            ("controller", "controller"),  # HPC-style
+            ("control_plane", "control-plane"),  # Cloud-style
+        ]
+
+        for config_key, vm_suffix in controller_types:
+            controller_config = cluster_config.get(config_key)
+            if controller_config and "ip_address" in controller_config:
+                controller_name = f"{cluster_name}-{vm_suffix}"
+                static_leases[controller_name] = controller_config["ip_address"]
+                vm_macs[controller_name] = self._generate_mac_address(controller_name)
+                logger.debug(
+                    f"Added static lease for {config_key}: {controller_name} -> "
+                    f"{controller_config['ip_address']}"
+                )
+
+        # Handle HPC-style compute nodes
+        compute_nodes = cluster_config.get("compute_nodes", [])
+        if isinstance(compute_nodes, list):
+            for i, node_config in enumerate(compute_nodes):
+                if "ip" in node_config:
+                    vm_name = f"{cluster_name}-compute-{i + 1:02d}"
+                    static_leases[vm_name] = node_config["ip"]
+                    vm_macs[vm_name] = self._generate_mac_address(vm_name)
+                    logger.debug(
+                        f"Added static lease for compute node: {vm_name} -> {node_config['ip']}"
+                    )
+
+        # Handle Cloud-style worker nodes (flat list, type determined by GPU presence)
+        worker_nodes_config = cluster_config.get("worker_nodes", [])
+        if isinstance(worker_nodes_config, list):
+            # Track separate counters for CPU and GPU workers
+            cpu_counter = 0
+            gpu_counter = 0
+
+            for worker_config in worker_nodes_config:
+                if "ip" not in worker_config:
+                    continue
+
+                # Determine worker type based on GPU presence in pcie_passthrough
+                pcie_config = worker_config.get("pcie_passthrough", {})
+                has_gpu = False
+                if pcie_config.get("enabled", False):
+                    devices = pcie_config.get("devices", [])
+                    has_gpu = any(dev.get("device_type") == "gpu" for dev in devices)
+
+                # Increment appropriate counter and create VM name
+                if has_gpu:
+                    gpu_counter += 1
+                    vm_name = f"{cluster_name}-gpu-worker-{gpu_counter:02d}"
+                    worker_type_label = "GPU worker"
+                else:
+                    cpu_counter += 1
+                    vm_name = f"{cluster_name}-cpu-worker-{cpu_counter:02d}"
+                    worker_type_label = "CPU worker"
+
+                static_leases[vm_name] = worker_config["ip"]
+                vm_macs[vm_name] = self._generate_mac_address(vm_name)
+                logger.debug(
+                    f"Added static lease for {worker_type_label}: {vm_name} -> "
+                    f"{worker_config['ip']}"
+                )
+
+        if static_leases:
+            logger.debug(f"Prepared {len(static_leases)} static DHCP reservations")
+
+        log_function_exit(
+            logger,
+            "_prepare_static_dhcp_leases",
+            result=f"{len(static_leases)} leases",
+        )
+        return static_leases, vm_macs
+
     def _create_cluster_infrastructure(self) -> None:
         """Create cluster network, storage pool and base infrastructure."""
         log_function_entry(logger, "_create_cluster_infrastructure")
@@ -736,35 +832,12 @@ class HPCClusterManager:
         logger.debug(f"Network config: {network_config}")
 
         # Prepare static DHCP reservations from VM configurations
-        static_leases = {}
-        vm_macs = {}
-
-        # Add controller static lease if IP is configured
-        controller_config = self.hpc_config["controller"]
-        if "ip_address" in controller_config:
-            controller_name = f"{cluster_name}-controller"
-            static_leases[controller_name] = controller_config["ip_address"]
-            vm_macs[controller_name] = self._generate_mac_address(controller_name)
-            logger.debug(
-                f"Added static lease for controller: {controller_name} -> "
-                f"{controller_config['ip_address']}"
-            )
-
-        # Add compute node static leases if IPs are configured
-        for i, node_config in enumerate(self.hpc_config["compute_nodes"]):
-            if "ip" in node_config:
-                compute_name = f"{cluster_name}-compute-{i + 1:02d}"
-                static_leases[compute_name] = node_config["ip"]
-                vm_macs[compute_name] = self._generate_mac_address(compute_name)
-                logger.debug(
-                    f"Added static lease for compute node: {compute_name} -> {node_config['ip']}"
-                )
+        static_leases, vm_macs = self._prepare_static_dhcp_leases(cluster_name, self.hpc_config)
 
         # Add static leases to network configuration
         if static_leases:
             network_config["static_leases"] = static_leases
             network_config["vm_macs"] = vm_macs
-            logger.debug(f"Configured {len(static_leases)} static DHCP reservations")
 
         try:
             # Create cluster virtual network
