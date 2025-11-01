@@ -15,6 +15,7 @@ from ai_how.utils.config_parser import ClusterConfigParser
 from ai_how.utils.gpu_utils import GPUAddressParser
 from ai_how.utils.logging import log_function_entry, log_function_exit, run_subprocess_with_logging
 from ai_how.utils.vm_config_utils import AutoStartResolver
+from ai_how.utils.vm_utils import generate_mac_address, get_project_root, has_gpu_passthrough
 from ai_how.vm_management.hpc_manager import HPCClusterManager, HPCManagerError
 from ai_how.vm_management.libvirt_client import LibvirtClient
 from ai_how.vm_management.network_manager import NetworkManager, NetworkManagerError
@@ -92,43 +93,6 @@ class CloudClusterManager(HPCClusterManager):
         self.volume_manager = VolumeManager(self.libvirt_client)
         self.network_manager = NetworkManager(self.libvirt_client)
         self.state_manager = ClusterStateManager(state_file)
-
-    @staticmethod
-    def _get_project_root(config_file: Path) -> Path:
-        """Find the project root by searching for marker files.
-
-        This method searches upward from the config file location for project markers
-        like .git directory or pyproject.toml to reliably identify the project root.
-
-        Args:
-            config_file: Path to a configuration file within the project
-
-        Returns:
-            Path to the project root directory
-
-        Raises:
-            CloudManagerError: If project root cannot be determined
-        """
-        markers = [".git", "pyproject.toml", "CMakeLists.txt"]
-        current = config_file.resolve().parent
-
-        # Search up to 10 levels to find a marker
-        for _ in range(10):
-            for marker in markers:
-                if (current / marker).exists():
-                    return current
-            if current.parent == current:
-                # Reached filesystem root
-                break
-            current = current.parent
-
-        # Fallback: if no marker found, use the traditional .parent.parent.parent
-        # This maintains backward compatibility but logs a warning
-        logger.warning(
-            f"Could not find project root markers near {config_file}. "
-            f"Using fallback path traversal."
-        )
-        return config_file.resolve().parent.parent.parent
 
     def start_cluster(self) -> bool:
         """Start the complete Cloud cluster.
@@ -304,7 +268,7 @@ class CloudClusterManager(HPCClusterManager):
 
             if isinstance(worker_nodes_config, list):
                 for worker_config in worker_nodes_config:
-                    if self._has_gpu(worker_config):
+                    if has_gpu_passthrough(worker_config):
                         gpu_workers_configs.append(worker_config)
                     else:
                         cpu_workers_configs.append(worker_config)
@@ -339,19 +303,6 @@ class CloudClusterManager(HPCClusterManager):
 
                 # Start all workers that should be auto-started
                 self._start_vm_if_needed(worker_vm)
-
-    def _should_auto_start_vm(self, vm_info: VMInfo) -> bool:  # noqa: ARG002
-        """Check if a VM should be auto-started based on configuration.
-
-        Args:
-            vm_info: VM information (unused, kept for backward compatibility)
-
-        Returns:
-            True if VM should be auto-started, False otherwise
-        """
-        # This method is deprecated - auto-start is now handled by AutoStartResolver
-        # in _create_and_start_vms(). Kept for backward compatibility.
-        return True
 
     def _create_control_plane_vm(self, cluster_state: ClusterState) -> None:
         """Create control plane VM."""
@@ -420,23 +371,6 @@ class CloudClusterManager(HPCClusterManager):
         cluster_state.controller = vm_info
         logger.info(f"Created control plane VM: {vm_name}")
 
-    @staticmethod
-    def _has_gpu(worker_config: dict[str, Any]) -> bool:
-        """Check if worker configuration has GPU passthrough enabled.
-
-        Args:
-            worker_config: Worker node configuration dictionary
-
-        Returns:
-            True if worker has GPU devices configured, False otherwise
-        """
-        pcie_config = worker_config.get("pcie_passthrough", {})
-        if not pcie_config.get("enabled", False):
-            return False
-
-        devices = pcie_config.get("devices", [])
-        return any(dev.get("device_type") == "gpu" for dev in devices)
-
     def _create_worker_nodes(self, cluster_state: ClusterState) -> None:
         """Create worker nodes (both CPU and GPU types).
 
@@ -458,8 +392,7 @@ class CloudClusterManager(HPCClusterManager):
 
         for worker_config in worker_nodes_config:
             # Determine worker type based on GPU presence
-            has_gpu = self._has_gpu(worker_config)
-            worker_type = "gpu" if has_gpu else "cpu"
+            worker_type = "gpu" if has_gpu_passthrough(worker_config) else "cpu"
 
             # Increment appropriate counter
             if worker_type == "gpu":
@@ -589,7 +522,7 @@ class CloudClusterManager(HPCClusterManager):
                 # PCIe passthrough configuration (per-VM)
                 "pcie_passthrough": pcie_passthrough or {},
                 # MAC address generation for network
-                "mac_address": self._generate_mac_address(vm_name),
+                "mac_address": generate_mac_address(vm_name),
             }
 
             xml_config = template.render(**template_vars)
@@ -599,22 +532,6 @@ class CloudClusterManager(HPCClusterManager):
             raise CloudManagerError(f"Template not found: {e}") from e
         except Exception as e:
             raise CloudManagerError(f"Failed to generate VM XML: {e}") from e
-
-    def _generate_mac_address(self, vm_name: str) -> str:
-        """Generate consistent MAC address for VM based on name."""
-        import hashlib
-
-        # Create deterministic MAC address based on VM name
-        hash_object = hashlib.md5(vm_name.encode())
-        hex_dig = hash_object.hexdigest()
-
-        # Use first 6 bytes and ensure it's a valid MAC
-        mac_bytes = [hex_dig[i : i + 2] for i in range(0, 12, 2)]
-
-        # Ensure first byte is even (unicast) and has local admin bit set
-        mac_bytes[0] = f"{(int(mac_bytes[0], 16) & 0xFE) | 0x02:02x}"
-
-        return ":".join(mac_bytes)
 
     def _template_exists(self, template_name: str) -> bool:
         """Check if a template exists."""
@@ -825,7 +742,7 @@ class CloudClusterManager(HPCClusterManager):
 
         try:
             # Determine project root and inventory output path
-            project_root = self._get_project_root(config_file)
+            project_root = get_project_root(config_file)
             if output_path is None:
                 inventory_dir = project_root / "ansible" / "inventories" / "cloud-cluster"
                 inventory_dir.mkdir(parents=True, exist_ok=True)
@@ -913,7 +830,7 @@ class CloudClusterManager(HPCClusterManager):
                 self._wait_for_vms_ssh_ready(ssh_timeout)
 
             # Verify Kubespray is installed
-            project_root = self._get_project_root(config_file)
+            project_root = get_project_root(config_file)
             kubespray_dir = project_root / "build" / "3rd-party" / "kubespray" / "kubespray-src"
             cluster_yml = kubespray_dir / "cluster.yml"
 
@@ -995,7 +912,7 @@ class CloudClusterManager(HPCClusterManager):
         ssh_key_path = Path.home() / ".ssh" / "id_rsa"
         if not ssh_key_path.exists():
             # Use state manager's state file to find project root
-            project_root = self._get_project_root(self.state_manager.state_file)
+            project_root = get_project_root(self.state_manager.state_file)
             ssh_key_path = project_root / "build" / "shared" / "ssh-keys" / "id_rsa"
 
         ssh_username = "admin"  # Default from Packer build

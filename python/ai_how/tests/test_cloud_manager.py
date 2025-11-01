@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from ai_how.utils.vm_utils import has_gpu_passthrough
 from ai_how.vm_management.cloud_manager import CloudClusterManager, CloudManagerError
 
 
@@ -120,7 +121,9 @@ class TestCloudClusterManager:
 
     def test_has_gpu_detection(self, mock_cloud_config, state_file):
         """Test GPU detection in worker configurations."""
-        manager = CloudClusterManager(mock_cloud_config["clusters"]["cloud"], state_file)
+        # Note: This test now uses the utility function directly since _has_gpu was moved
+        # to ai_how.utils.vm_utils.has_gpu_passthrough
+        CloudClusterManager(mock_cloud_config["clusters"]["cloud"], state_file)
 
         # Test CPU worker (no GPU)
         cpu_worker = {
@@ -129,7 +132,7 @@ class TestCloudClusterManager:
             "disk_gb": 100,
             "ip": "192.168.200.11",
         }
-        assert not manager._has_gpu(cpu_worker)
+        assert not has_gpu_passthrough(cpu_worker)
 
         # Test GPU worker (has pcie_passthrough with GPU device)
         gpu_worker = {
@@ -142,7 +145,7 @@ class TestCloudClusterManager:
                 "devices": [{"pci_address": "0000:01:00.0", "device_type": "gpu"}],
             },
         }
-        assert manager._has_gpu(gpu_worker)
+        assert has_gpu_passthrough(gpu_worker)
 
         # Test worker with passthrough disabled
         disabled_gpu_worker = {
@@ -155,7 +158,7 @@ class TestCloudClusterManager:
                 "devices": [{"pci_address": "0000:01:00.0", "device_type": "gpu"}],
             },
         }
-        assert not manager._has_gpu(disabled_gpu_worker)
+        assert not has_gpu_passthrough(disabled_gpu_worker)
 
         # Test worker with non-GPU devices only
         audio_worker = {
@@ -168,7 +171,7 @@ class TestCloudClusterManager:
                 "devices": [{"pci_address": "0000:01:00.1", "device_type": "audio"}],
             },
         }
-        assert not manager._has_gpu(audio_worker)
+        assert not has_gpu_passthrough(audio_worker)
 
     def test_worker_nodes_disk_calculation(self, mock_cloud_config, state_file):
         """Test disk space calculation with flat worker_nodes list."""
@@ -196,10 +199,10 @@ class TestCloudClusterManager:
         assert len(worker_nodes) == 2, "Should have 2 workers"
 
         # Verify first worker is CPU (no GPU)
-        assert not manager._has_gpu(worker_nodes[0])
+        assert not has_gpu_passthrough(worker_nodes[0])
 
         # Verify second worker is GPU (has pcie_passthrough)
-        assert manager._has_gpu(worker_nodes[1])
+        assert has_gpu_passthrough(worker_nodes[1])
 
     def test_worker_node_type_separation(self, mock_cloud_config, state_file):
         """Test that workers are correctly separated by type for auto-start."""
@@ -212,7 +215,7 @@ class TestCloudClusterManager:
         gpu_workers = []
 
         for worker_config in worker_nodes:
-            if manager._has_gpu(worker_config):
+            if has_gpu_passthrough(worker_config):
                 gpu_workers.append(worker_config)
             else:
                 cpu_workers.append(worker_config)
