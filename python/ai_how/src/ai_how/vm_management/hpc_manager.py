@@ -21,6 +21,7 @@ from ai_how.utils.logging import (
 )
 from ai_how.utils.path_utils import resolve_and_validate_image_path
 from ai_how.utils.vm_config_utils import AutoStartResolver
+from ai_how.utils.vm_utils import generate_mac_address, has_gpu_passthrough
 from ai_how.vm_management.libvirt_client import LibvirtClient, LibvirtConnectionError
 from ai_how.vm_management.network_manager import NetworkManager, NetworkManagerError
 from ai_how.vm_management.vm_lifecycle import VMLifecycleError, VMLifecycleManager
@@ -754,7 +755,7 @@ class HPCClusterManager:
             if controller_config and "ip_address" in controller_config:
                 controller_name = f"{cluster_name}-{vm_suffix}"
                 static_leases[controller_name] = controller_config["ip_address"]
-                vm_macs[controller_name] = self._generate_mac_address(controller_name)
+                vm_macs[controller_name] = generate_mac_address(controller_name)
                 logger.debug(
                     f"Added static lease for {config_key}: {controller_name} -> "
                     f"{controller_config['ip_address']}"
@@ -767,7 +768,7 @@ class HPCClusterManager:
                 if "ip" in node_config:
                     vm_name = f"{cluster_name}-compute-{i + 1:02d}"
                     static_leases[vm_name] = node_config["ip"]
-                    vm_macs[vm_name] = self._generate_mac_address(vm_name)
+                    vm_macs[vm_name] = generate_mac_address(vm_name)
                     logger.debug(
                         f"Added static lease for compute node: {vm_name} -> {node_config['ip']}"
                     )
@@ -784,14 +785,11 @@ class HPCClusterManager:
                     continue
 
                 # Determine worker type based on GPU presence in pcie_passthrough
-                pcie_config = worker_config.get("pcie_passthrough", {})
-                has_gpu = False
-                if pcie_config.get("enabled", False):
-                    devices = pcie_config.get("devices", [])
-                    has_gpu = any(dev.get("device_type") == "gpu" for dev in devices)
+                # Use shared utility function for consistency
+                worker_has_gpu = has_gpu_passthrough(worker_config)
 
                 # Increment appropriate counter and create VM name
-                if has_gpu:
+                if worker_has_gpu:
                     gpu_counter += 1
                     vm_name = f"{cluster_name}-gpu-worker-{gpu_counter:02d}"
                     worker_type_label = "GPU worker"
@@ -801,7 +799,7 @@ class HPCClusterManager:
                     worker_type_label = "CPU worker"
 
                 static_leases[vm_name] = worker_config["ip"]
-                vm_macs[vm_name] = self._generate_mac_address(vm_name)
+                vm_macs[vm_name] = generate_mac_address(vm_name)
                 logger.debug(
                     f"Added static lease for {worker_type_label}: {vm_name} -> "
                     f"{worker_config['ip']}"
@@ -1067,7 +1065,7 @@ class HPCClusterManager:
                 # Virtio-FS host directory sharing configuration (per-VM)
                 "virtio_fs_mounts": virtio_fs_mounts or [],
                 # MAC address generation for network
-                "mac_address": self._generate_mac_address(vm_name),
+                "mac_address": generate_mac_address(vm_name),
             }
 
             xml_config = template.render(**template_vars)
@@ -1077,22 +1075,6 @@ class HPCClusterManager:
             raise HPCManagerError(f"Template not found: {e}") from e
         except Exception as e:
             raise HPCManagerError(f"Failed to generate VM XML: {e}") from e
-
-    def _generate_mac_address(self, vm_name: str) -> str:
-        """Generate consistent MAC address for VM based on name."""
-        import hashlib
-
-        # Create deterministic MAC address based on VM name
-        hash_object = hashlib.md5(vm_name.encode())
-        hex_dig = hash_object.hexdigest()
-
-        # Use first 6 bytes and ensure it's a valid MAC
-        mac_bytes = [hex_dig[i : i + 2] for i in range(0, 12, 2)]
-
-        # Ensure first byte is even (unicast) and has local admin bit set
-        mac_bytes[0] = f"{(int(mac_bytes[0], 16) & 0xFE) | 0x02:02x}"
-
-        return ":".join(mac_bytes)
 
     def get_xml_trace_summary(self) -> dict:
         """Get summary of XML operations for this cluster operation.
