@@ -23,7 +23,7 @@
 
 - name: Validate SLURM configuration
   ansible.builtin.include_tasks: validate-config.yml
-  when: slurm_validate_config | default(false)
+  when: slurm_validate_config | default(true)
   tags:
     - slurm
     - validation

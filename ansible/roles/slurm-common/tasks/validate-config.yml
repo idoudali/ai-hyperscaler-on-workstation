@@ -1,6 +1,26 @@
 # SLURM Common - Configuration Validation
 # Used by both controller and compute roles for validating configuration
 
+- name: CRITICAL - Validate SLURM controller address is not localhost
+  ansible.builtin.assert:
+    that:
+      - slurm_controller_addr is defined
+      - slurm_controller_addr != "127.0.0.1"
+      - slurm_controller_addr != "localhost"
+      - slurm_controller_addr != "::1"
+    fail_msg: |
+      ❌ CRITICAL ERROR: slurm_controller_addr is set to {{ slurm_controller_addr }}!
+
+      This is a localhost address and will prevent compute nodes from connecting to the controller.
+      The controller address MUST be set to the actual IP address of the controller node.
+
+      Fix: Update ansible/roles/*/defaults/main.yml or set in inventory/group_vars/
+    success_msg: "✅ SLURM controller address validated: {{ slurm_controller_addr }}"
+  tags:
+    - slurm
+    - validation
+    - critical
+
 - name: Check if SLURM configuration file exists
   ansible.builtin.stat:
     path: /etc/slurm/slurm.conf
