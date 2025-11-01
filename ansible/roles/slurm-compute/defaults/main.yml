@@ -127,7 +127,9 @@ slurm_task_plugin_param: "Sched"
 # Cluster configuration
 slurm_cluster_name: "hpc-cluster"
 slurm_controller_name: "controller"
-slurm_controller_addr: "127.0.0.1"
+# CRITICAL FIX: Use actual controller IP, not localhost
+# This should be set in inventory/group_vars or will use controller's IP from facts
+slurm_controller_addr: "{{ hostvars[groups['hpc_controllers'][0]]['ansible_default_ipv4']['address'] | default('192.168.100.10') }}"
 slurm_controller_port: 6817
 slurm_compute_port: 6818
 
