@@ -47,17 +47,18 @@ Simple distributed matrix multiplication:
 ## Quick Start
 
 ```bash
+# Build all examples (on your laptop, from project root)
+make run-docker COMMAND="cmake --build build --target build-slurm-jobs"
+
+# Copy to controller's BeeGFS shared storage (includes binaries and sbatch scripts)
+scp -i build/shared/ssh-keys/id_rsa -r build/examples/slurm-jobs \
+    admin@<controller-ip>:/mnt/beegfs/
+
 # SSH to controller node
 ssh -i build/shared/ssh-keys/id_rsa admin@<controller-ip>
 
-# Copy examples to controller (if not already there)
-# scp -i build/shared/ssh-keys/id_rsa -r examples/slurm-jobs admin@<controller-ip>:~/
-
-# Navigate to an example
-cd ~/slurm-jobs/hello-world
-
-# Compile the program
-bash compile.sh
+# Navigate to example on BeeGFS (accessible from all nodes)
+cd /mnt/beegfs/slurm-jobs/hello-world
 
 # Submit the job
 sbatch hello.sbatch
@@ -69,12 +70,18 @@ squeue
 cat slurm-*.out
 ```
 
+**Note:**
+
+- The CMake build process automatically copies the sbatch scripts to the build directory alongside the binaries.
+- Examples are copied to `/mnt/beegfs/` (shared BeeGFS storage) so all compute nodes can access them.
+- The sbatch scripts use `--chdir` to run from the BeeGFS directory.
+
 ## Example Structure
 
 Each example directory contains:
 
 - `*.c` - C source code for the MPI program
-- `compile.sh` - Compilation script (handles MPI compiler wrapper)
+- `CMakeLists.txt` - CMake build configuration
 - `*.sbatch` - SLURM batch script with resource requests
 
 ## SLURM Batch Script Anatomy
@@ -96,20 +103,26 @@ All example batch scripts follow this pattern:
 mpirun ./program_name
 ```
 
-## Compiling MPI Programs
+## Building MPI Programs
 
-All examples use `mpicc` (MPI C compiler wrapper):
+All examples are built using CMake in the Docker container:
 
 ```bash
-# Basic compilation
-mpicc -o program_name source.c
+# Build all examples
+make run-docker COMMAND="cmake --build build --target build-slurm-jobs"
 
-# With optimization
-mpicc -O2 -o program_name source.c
-
-# With debugging symbols
-mpicc -g -o program_name source.c
+# Build specific example
+make run-docker COMMAND="cmake --build build --target build-hello-world"
+make run-docker COMMAND="cmake --build build --target build-pi-calculation"
+make run-docker COMMAND="cmake --build build --target build-matrix-multiply"
 ```
+
+**Output:**
+
+- Binaries: `build/examples/slurm-jobs/<example-name>/<binary-name>`
+- Sbatch scripts: `build/examples/slurm-jobs/<example-name>/<script-name>.sbatch`
+
+The build process automatically copies sbatch scripts alongside the binaries for easy deployment.
 
 ## Monitoring Jobs
 
@@ -144,11 +157,12 @@ scancel <job-id>
 - Check `mpirun` is in PATH
 - Verify network connectivity between nodes
 
-### Compilation errors
+### Build errors
 
-- Check gcc is installed: `gcc --version`
-- Check MPI compiler wrapper: `mpicc --version`
-- Verify MPI headers are accessible
+- Ensure Docker container is built: `make build-docker`
+- Reconfigure CMake: `make config`
+- Check MPI is found: Look for "Found MPI" in CMake output
+- Verify build directory exists: `ls -la build/`
 
 ### Job output not found
 

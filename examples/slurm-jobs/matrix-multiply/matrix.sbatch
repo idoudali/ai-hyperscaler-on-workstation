@@ -8,7 +8,8 @@
 #SBATCH --time=00:10:00             # Max runtime: 10 minutes
 #SBATCH --output=slurm-%j.out       # Output file (%j = job ID)
 #SBATCH --error=slurm-%j.err        # Error file
-#SBATCH --partition=main            # Partition name (adjust if needed)
+#SBATCH --partition=compute         # Partition name (default CPU partition)
+#SBATCH --chdir=/mnt/beegfs/slurm-jobs/matrix-multiply  # Working directory on shared storage
 
 # ========================================
 # SLURM Job Script: Matrix Multiplication
@@ -44,7 +45,9 @@ echo ""
 # Check if executable exists
 if [ ! -f "./matrix-mult" ]; then
     echo "ERROR: Executable ./matrix-mult not found"
-    echo "Please run: bash compile.sh"
+    echo "Please build the example using CMake and copy to /mnt/beegfs/:"
+    echo "  On your laptop: make run-docker COMMAND=\"cmake --build build --target build-matrix-multiply\""
+    echo "  Then copy: scp -r build/examples/slurm-jobs admin@<controller>:/mnt/beegfs/"
     exit 1
 fi
 

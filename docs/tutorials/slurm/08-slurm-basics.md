@@ -224,36 +224,50 @@ cat hello-123.out
 
 ## Part 3: Parallel MPI Jobs
 
-### Step 1: Copy MPI Examples
+### Step 1: Build MPI Examples
+
+The project uses CMake to build all SLURM job examples in the Docker container:
 
 ```bash
 # On your laptop (project root)
-scp -i build/shared/ssh-keys/id_rsa -r examples/slurm-jobs \
-    admin@$CONTROLLER_IP:~/
+
+# Build all SLURM job examples
+make run-docker COMMAND="cmake --build build --target build-slurm-jobs"
+
+# Or build just hello-world
+make run-docker COMMAND="cmake --build build --target build-hello-world"
 ```
 
-### Step 2: Compile Hello World
+**What this does:**
+
+- Compiles MPI programs using `mpicc` in the container
+- Copies sbatch scripts alongside binaries
+- Outputs everything to `build/examples/slurm-jobs/`
+- Ensures consistent build environment
+
+### Step 2: Copy Examples to BeeGFS Shared Storage
 
 ```bash
-# SSH to controller (if not already there)
-ssh -i build/shared/ssh-keys/id_rsa admin@$CONTROLLER_IP
-
-# Navigate to example
-cd ~/slurm-jobs/hello-world
-
-# Compile
-bash compile.sh
+# Copy compiled binaries and batch scripts to BeeGFS (accessible from all nodes)
+scp -i build/shared/ssh-keys/id_rsa -r build/examples/slurm-jobs \
+    admin@$CONTROLLER_IP:/mnt/beegfs/
 ```
 
-**Expected output:**
+**Why BeeGFS?**
 
-```text
-=========================================
-Compiling MPI Hello World
-=========================================
-MPI Compiler: gcc (Ubuntu ...) ...
-Compiling hello.c...
-✓ Compilation successful
+- BeeGFS (`/mnt/beegfs/`) is shared storage accessible from all compute nodes
+- Jobs can run on any node without copying files individually
+- Output files are written to shared storage automatically
+
+**Note:** The build process automatically copies the sbatch script alongside the binary, so you only need one `scp` command.
+
+**Alternative: Build Individual Example**
+
+For building just one example:
+
+```bash
+# Build only hello-world
+make run-docker COMMAND="cmake --build build --target build-hello-world"
 ```
 
 ### Step 3: Test Locally
@@ -261,9 +275,23 @@ Compiling hello.c...
 Before submitting to SLURM, test the program works:
 
 ```bash
+# SSH to controller (if not already there)
+ssh -i build/shared/ssh-keys/id_rsa admin@$CONTROLLER_IP
+
+# Navigate to hello-world directory on BeeGFS
+cd /mnt/beegfs/slurm-jobs/hello-world
+
 # Run with 4 MPI processes
 mpirun -np 4 ./hello
 ```
+
+**What is `mpirun`?**
+
+- `mpirun` is the MPI runtime launcher that starts and manages multiple MPI processes
+- `-np 4` specifies the number of processes to launch (4 in this case)
+- `./hello` is the executable to run
+- **Note:** This runs all 4 processes on the current node (controller) for
+testing. SLURM will handle multi-node execution when you submit the job.
 
 **Expected output:**
 
@@ -462,16 +490,24 @@ scontrol show node compute-1
 
 Let's run a more computationally intensive example.
 
-### Step 1: Compile Pi Calculator
+### Step 1: Build and Copy Pi Calculator
 
 ```bash
-cd ~/slurm-jobs/pi-calculation
-bash compile.sh
+# On your laptop (project root) - build the binary and copy sbatch script
+make run-docker COMMAND="cmake --build build --target build-pi-calculation"
+
+# Copy to BeeGFS (if not already copied in Part 3)
+scp -i build/shared/ssh-keys/id_rsa -r build/examples/slurm-jobs \
+    admin@$CONTROLLER_IP:/mnt/beegfs/
 ```
 
 ### Step 2: Test Locally
 
 ```bash
+# SSH to controller
+ssh -i build/shared/ssh-keys/id_rsa admin@$CONTROLLER_IP
+cd /mnt/beegfs/slurm-jobs/pi-calculation
+
 # Small test (1 million samples)
 mpirun -np 4 ./pi-monte-carlo 1000000
 ```
@@ -614,16 +650,19 @@ sacct -j 123 --format=JobID,State,MaxRSS,ReqMem
 **Solutions:**
 
 ```bash
-# 1. Check MPI installed
+# 1. Check MPI runtime is installed
 which mpirun
+mpirun --version
 
 # 2. Load MPI module (if using modules)
 module load mpi/openmpi
 
-# 3. Verify compilation used correct mpicc
-which mpicc
-mpicc --version
+# 3. Verify MPI libraries are available
+ldd ./your-mpi-program
 ```
+
+**Note:** Programs are built on your laptop using the Docker container. The
+controller/compute nodes only need MPI runtime libraries, not build tools.
 
 ---
 
@@ -755,9 +794,16 @@ Congratulations! You can now:
 **Explore more examples:**
 
 ```bash
-# Matrix multiplication (memory-intensive)
-cd ~/slurm-jobs/matrix-multiply
-bash compile.sh
+# On your laptop - build matrix multiply example
+make run-docker COMMAND="cmake --build build --target build-matrix-multiply"
+
+# Copy to BeeGFS (if not already copied)
+scp -i build/shared/ssh-keys/id_rsa -r build/examples/slurm-jobs \
+    admin@$CONTROLLER_IP:/mnt/beegfs/
+
+# On controller - submit job
+ssh -i build/shared/ssh-keys/id_rsa admin@$CONTROLLER_IP
+cd /mnt/beegfs/slurm-jobs/matrix-multiply
 sbatch matrix.sbatch
 
 # Experiment with different sizes
