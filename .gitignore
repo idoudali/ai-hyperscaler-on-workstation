@@ -95,6 +95,11 @@ logs/
 id_rsa*
 id_ed25519*
 
+# Kubernetes kubeconfig files (contain sensitive certificates)
+output/cluster-state/kubeconfigs/
+*.kubeconfig
+config-*
+
 # Secrets and sensitive data
 .secrets
 secrets.yaml
