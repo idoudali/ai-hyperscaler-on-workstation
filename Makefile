@@ -205,7 +205,7 @@ clean-ai-how: venv-create
 CLUSTER_RENDERED ?= output/cluster-state/rendered-config.yaml
 
 # Render configuration with variable expansion
-config-render:
+config-render: venv-create
 	@echo "=========================================="
 	@echo "Rendering Cluster Configuration"
 	@echo "=========================================="
@@ -231,7 +231,7 @@ config-render:
 	@echo "  - Or validate: make config-validate"
 
 # Validate configuration without rendering
-config-validate:
+config-validate: venv-create
 	@echo "=========================================="
 	@echo "Validating Cluster Configuration"
 	@echo "=========================================="
@@ -291,14 +291,14 @@ hpc-cluster-inventory: config-render
 	@echo "   SSH User: admin (matches Packer VMs)"
 
 # Start HPC cluster VMs
-hpc-cluster-start: clean-ssh-keys
+hpc-cluster-start: venv-create clean-ssh-keys
 	@echo "Starting HPC cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc start $(CLUSTER_CONFIG)
 	@echo "✅ HPC cluster VMs started successfully"
 
 # Stop HPC cluster VMs (graceful shutdown)
-hpc-cluster-stop:
+hpc-cluster-stop: venv-create
 	@echo "Stopping HPC cluster VMs (graceful shutdown)..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc stop $(CLUSTER_CONFIG)
@@ -346,7 +346,7 @@ hpc-cluster-deploy: hpc-cluster-inventory
 	@echo "  - Test cluster: sinfo && srun hostname"
 
 # Destroy HPC cluster VMs
-hpc-cluster-destroy:
+hpc-cluster-destroy: venv-create
 	@echo "Destroying HPC cluster VMs and cleaning up resources..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@echo "⚠️  WARNING: This will permanently delete the VMs and their data"
@@ -355,7 +355,7 @@ hpc-cluster-destroy:
 	@echo "✅ HPC cluster destroyed successfully"
 
 # Check HPC cluster status
-hpc-cluster-status:
+hpc-cluster-status: venv-create
 	@echo "Checking HPC cluster status..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc status $(CLUSTER_CONFIG)
@@ -375,14 +375,14 @@ cloud-cluster-inventory: config-render
 	@echo "✅ Cloud cluster inventory generated"
 
 # Start Cloud cluster VMs
-cloud-cluster-start: clean-ssh-keys
+cloud-cluster-start: venv-create clean-ssh-keys
 	@echo "Starting Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how cloud start $(CLUSTER_CONFIG)
 	@echo "✅ Cloud cluster VMs started successfully"
 
 # Stop Cloud cluster VMs
-cloud-cluster-stop:
+cloud-cluster-stop: venv-create
 	@echo "Stopping Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how cloud stop $(CLUSTER_CONFIG)
@@ -406,7 +406,7 @@ cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "✅ Kubernetes cluster deployment completed"
 
 # Destroy Cloud cluster VMs
-cloud-cluster-destroy:
+cloud-cluster-destroy: venv-create
 	@echo "Destroying Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@echo "⚠️  WARNING: This will permanently delete the VMs"
@@ -415,7 +415,7 @@ cloud-cluster-destroy:
 	@echo "✅ Cloud cluster destroyed successfully"
 
 # Check Cloud cluster status
-cloud-cluster-status:
+cloud-cluster-status: venv-create
 	@echo "Checking Cloud cluster status..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how cloud status $(CLUSTER_CONFIG)
@@ -425,7 +425,7 @@ cloud-cluster-status:
 #==============================================================================
 
 # Start complete ML system (both HPC and Cloud clusters)
-system-start: clean-ssh-keys
+system-start: venv-create clean-ssh-keys
 	@echo "=========================================="
 	@echo "Starting Complete ML Platform"
 	@echo "=========================================="
@@ -434,7 +434,7 @@ system-start: clean-ssh-keys
 	@uv run ai-how system start $(CLUSTER_CONFIG)
 
 # Stop complete ML system (both HPC and Cloud clusters)
-system-stop:
+system-stop: venv-create
 	@echo "=========================================="
 	@echo "Stopping Complete ML Platform"
 	@echo "=========================================="
@@ -443,7 +443,7 @@ system-stop:
 	@uv run ai-how system stop $(CLUSTER_CONFIG)
 
 # Show status of complete ML system
-system-status:
+system-status: venv-create
 	@echo "=========================================="
 	@echo "Complete ML Platform Status"
 	@echo "=========================================="
@@ -452,7 +452,7 @@ system-status:
 	@uv run ai-how system status $(CLUSTER_CONFIG)
 
 # Destroy complete ML system (both HPC and Cloud clusters)
-system-destroy:
+system-destroy: venv-create
 	@echo "=========================================="
 	@echo "Destroying Complete ML Platform"
 	@echo "=========================================="
