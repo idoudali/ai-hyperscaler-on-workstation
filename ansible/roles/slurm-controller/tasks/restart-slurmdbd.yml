@@ -1,0 +1,88 @@
+# Task file for restarting slurmdbd with validation
+# Called by the restart slurmdbd handler
+
+- name: Reload systemd daemon before restarting slurmdbd
+  systemd:
+    daemon_reload: true
+  become: true
+
+- name: Check if slurmdbd configuration file exists
+  stat:
+    path: /etc/slurm/slurmdbd.conf
+  register: slurmdbd_config_file
+  become: true
+
+- name: Verify slurmdbd configuration file exists
+  fail:
+    msg: "slurmdbd configuration file not found at /etc/slurm/slurmdbd.conf"
+  when: not slurmdbd_config_file.stat.exists
+
+- name: Display configuration validation result
+  debug:
+    msg: "slurmdbd configuration file exists and will be validated on service start"
+
+- name: Check current slurmdbd service status
+  systemd:
+    name: slurmdbd
+  register: slurmdbd_status
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: Stop slurmdbd if running
+  systemd:
+    name: slurmdbd
+    state: stopped
+  become: true
+  when: slurmdbd_status.status.ActiveState == 'active'
+
+- name: Start slurmdbd service
+  systemd:
+    name: slurmdbd
+    state: started
+    enabled: true
+  become: true
+  register: slurmdbd_start_result
+
+- name: Check slurmdbd service status after start
+  systemd:
+    name: slurmdbd
+  register: slurmdbd_after_start
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: Get slurmdbd journal logs if start failed
+  command: journalctl -u slurmdbd --no-pager -n 20
+  register: slurmdbd_logs
+  changed_when: false
+  failed_when: false
+  when: slurmdbd_after_start.status.ActiveState != 'active'
+
+- name: Display slurmdbd error logs
+  debug:
+    msg: "slurmdbd failed to start. Logs: {{ slurmdbd_logs.stdout_lines }}"
+  when:
+    - slurmdbd_after_start.status.ActiveState != 'active'
+    - slurmdbd_logs.stdout_lines is defined
+
+- name: Wait for slurmdbd to be ready
+  wait_for:
+    port: "{{ slurm_accounting_storage_port | default(6819) }}"
+    host: "{{ slurm_accounting_storage_host | default('localhost') }}"
+    delay: 2
+    timeout: 30
+  become: false
+  when: slurmdbd_after_start.status.ActiveState == 'active'
+
+- name: Verify slurmdbd is running
+  systemd:
+    name: slurmdbd
+  register: slurmdbd_final_status
+  become: true
+  changed_when: false
+
+- name: Display slurmdbd restart status
+  debug:
+    msg: "slurmdbd restarted successfully - State: {{ slurmdbd_final_status.status.ActiveState }}"
+  when: slurmdbd_final_status.status.ActiveState == 'active'

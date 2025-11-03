@@ -55,7 +55,7 @@ slurm_job_acct_gather_frequency: 30
 slurm_accounting_log_file: "/var/log/slurm/slurmdbd.log"
 slurm_accounting_state_dir: "/var/lib/slurm"
 slurm_accounting_debug_level: 3
-slurm_accounting_debug_flags: "DB_ARCHIVE,DB_AS"
+slurm_accounting_debug_flags: "DB_ARCHIVE,DB_ASSOC"
 
 # SLURM accounting archiving
 slurm_accounting_archive_events: "yes"

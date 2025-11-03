@@ -145,7 +145,7 @@ MinJobAge={{ slurm_min_job_age | default('300') }}
 
 # Default partition
 PartitionName={{ slurm_default_partition | default('compute') }} \
-    Nodes={% for host in groups['compute_nodes'] | default([]) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
+    Nodes={% for host in (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
     Default={{ slurm_default_partition_default | default('YES') }} \
     MaxTime={{ slurm_partition_max_time | default('INFINITE') }} \
     State={{ slurm_partition_state | default('UP') }}
@@ -153,7 +153,7 @@ PartitionName={{ slurm_default_partition | default('compute') }} \
 # GPU partition (if GPUs are available)
 {% if gres_types is defined and 'gpu' in gres_types %}
 PartitionName={{ slurm_gpu_partition | default('gpu') }} \
-    Nodes={% for host in groups['compute_nodes'] | default([]) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
+    Nodes={% for host in (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
     Default={{ slurm_gpu_partition_default | default('NO') }} \
     MaxTime={{ slurm_gpu_partition_max_time | default('INFINITE') }} \
     State={{ slurm_gpu_partition_state | default('UP') }} \
@@ -165,12 +165,12 @@ PartitionName={{ slurm_gpu_partition | default('gpu') }} \
 #=============================================================================
 
 # Compute nodes - dynamically generated from inventory
-{% for host in groups['compute_nodes'] | default([]) %}
+{% for host in (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) %}
 NodeName={{ hostvars[host].slurm_node_name | default(host) }} \
     NodeAddr={{ hostvars[host].ansible_host | default(host) }} \
     Sockets={{ hostvars[host].slurm_node_sockets | default('1') }} \
     CoresPerSocket={{ hostvars[host].slurm_node_cores_per_socket | default('8') }} \
-    ThreadsPerCore={{ hostvars[host].slurm_node_threads_per_core | default('2') }} \
+    ThreadsPerCore={{ hostvars[host].slurm_node_threads_per_core | default('1') }} \
     State={{ hostvars[host].slurm_node_state | default('UNKNOWN') }}
 {% endfor %}
 

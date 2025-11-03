@@ -25,6 +25,11 @@
       {{ (resolv_conf_content['content'] | b64decode).splitlines() | select('match', '^nameserver\\s+') | list }}
   when: resolv_conf_stat.stat.exists
 
+- name: Initialize current nameservers as empty when file doesn't exist
+  ansible.builtin.set_fact:
+    _current_nameservers: []
+  when: not resolv_conf_stat.stat.exists
+
 - name: Decide whether to use systemd-resolved
   ansible.builtin.set_fact:
     _use_resolved: >-

@@ -31,7 +31,7 @@
 
           This playbook will configure:
           - Controllers: {{ groups['hpc_controllers'] | default([]) | join(', ') }}
-          - Compute Nodes: {{ groups['compute_nodes'] | default([]) | join(', ') }}
+          - Compute Nodes: {{ ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | join(', ') }}
 
           Configuration includes:
           - SLURM controller and compute services
@@ -47,14 +47,14 @@
 
 # Configure hostnames and /etc/hosts for all nodes
 - name: Configure Cluster Hostnames and DNS
-  hosts: hpc_controllers,compute_nodes
+  hosts: hpc_controllers,hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: true
   tasks:
     - name: Build /etc/hosts entries for all cluster nodes
       set_fact:
         cluster_hosts_entries: "{{ cluster_hosts_entries | default([]) + [{'ip': hostvars[item].ansible_host, 'hostname': hostvars[item].slurm_node_name | default(item)}] }}"
-      loop: "{{ groups['hpc_controllers'] + groups['compute_nodes'] }}"
+      loop: "{{ groups['hpc_controllers'] + (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) }}"
       run_once: true
       tags:
         - hostname
@@ -73,7 +73,7 @@
 
 # Copy SLURM packages to all nodes
 - name: Distribute SLURM Packages to All Nodes
-  hosts: hpc_controllers,compute_nodes
+  hosts: hpc_controllers,hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: false
   vars:
@@ -251,7 +251,7 @@
         - auth
 
 - name: Copy MUNGE Key to Compute Nodes
-  hosts: compute_nodes
+  hosts: hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: false
   tasks:
@@ -298,9 +298,9 @@
         name: munge
         state: restarted
 
-# Compute node configuration
+# Compute node configuration (includes both regular compute nodes and GPU nodes)
 - name: Configure HPC Compute Nodes
-  hosts: compute_nodes
+  hosts: hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: true
   vars:
@@ -726,7 +726,7 @@
         - storage
 
 - name: Deploy BeeGFS Storage Services
-  hosts: compute_nodes
+  hosts: hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: true
   vars:
@@ -879,12 +879,12 @@
         name: beegfs-storage
       register: compute_storage_service_status
       delegate_to: "{{ item }}"
-      loop: "{{ groups['compute_nodes'] | default([]) }}"
+      loop: "{{ (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) }}"
       changed_when: false
       failed_when: false
       when:
         - beegfs_enabled | default(false) | bool
-        - groups['compute_nodes'] is defined and groups['compute_nodes'] | length > 0
+        - ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | length > 0
       tags:
         - beegfs
         - storage
@@ -915,7 +915,7 @@
         - verification
 
 - name: Deploy BeeGFS Client on All Nodes
-  hosts: hpc_controllers,compute_nodes
+  hosts: hpc_controllers,hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: true
   vars:
@@ -1025,7 +1025,7 @@
         - storage
 
 - name: Verify BeeGFS Mounts on All Nodes
-  hosts: hpc_controllers,compute_nodes
+  hosts: hpc_controllers,hpc_compute_nodes,hpc_gpu_nodes
   become: true
   gather_facts: false
   tags:
@@ -1214,8 +1214,8 @@
       register: compute_node_file_check
       when:
         - beegfs_enabled | default(false) | bool
-        - groups['compute_nodes'] is defined
-      loop: "{{ groups['compute_nodes'] }}"
+        - ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | length > 0
+      loop: "{{ (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) }}"
       tags:
         - beegfs
         - storage
@@ -1229,7 +1229,7 @@
         success_msg: "Compute node {{ item.item }} can access controller-created file"
       when:
         - beegfs_enabled | default(false) | bool
-        - groups['compute_nodes'] is defined
+        - ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | length > 0
       loop: "{{ compute_node_file_check.results | default([]) }}"
       tags:
         - beegfs
@@ -1237,7 +1237,7 @@
         - verification
 
     - name: Create test file from compute node
-      delegate_to: "{{ groups['compute_nodes'][0] }}"
+      delegate_to: "{{ ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])))[0] }}"
       copy:
         content: "Test file created from compute node - {{ ansible_date_time.iso8601 }}\n"
         dest: "{{ beegfs_config_parsed.mount_point | default('/mnt/beegfs') }}/compute-to-controller-test.txt"
@@ -1246,8 +1246,7 @@
         mode: '0644'
       when:
         - beegfs_enabled | default(false) | bool
-        - groups['compute_nodes'] is defined
-        - groups['compute_nodes'] | length > 0
+        - ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | length > 0
       tags:
         - beegfs
         - storage
@@ -1259,8 +1258,7 @@
       register: controller_file_check
       when:
         - beegfs_enabled | default(false) | bool
-        - groups['compute_nodes'] is defined
-        - groups['compute_nodes'] | length > 0
+        - ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | length > 0
       tags:
         - beegfs
         - storage
@@ -1274,8 +1272,7 @@
         success_msg: "Controller can access compute-created file - cross-node sharing verified"
       when:
         - beegfs_enabled | default(false) | bool
-        - groups['compute_nodes'] is defined
-        - groups['compute_nodes'] | length > 0
+        - ((groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([]))) | length > 0
       tags:
         - beegfs
         - storage

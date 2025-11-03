@@ -133,12 +133,23 @@
         group: root
         mode: '0755'
 
+    - name: Remove old slurmdbd config if it exists (to clean invalid keys)
+      file:
+        path: /etc/slurm/slurmdbd.conf
+        state: absent
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
     - name: Deploy slurmdbd configuration template
       template:
         src: slurmdbd.conf.j2
         dest: /etc/slurm/slurmdbd.conf
-        owner: root
-        group: root
+        owner: "{{ slurm_user | default('slurm') }}"
+        group: "{{ slurm_user | default('slurm') }}"
         mode: '0600'
         backup: true
       notify:
@@ -226,12 +237,160 @@
         - accounting
         - slurmdbd
 
+    - name: Check if slurmdbd configuration file exists
+      stat:
+        path: /etc/slurm/slurmdbd.conf
+      register: slurmdbd_config_file
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Display configuration validation result
+      debug:
+        msg: "slurmdbd configuration file exists and will be validated on service start"
+      when:
+        - not (packer_build | default(false) | bool)
+        - slurmdbd_config_file.stat.exists
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Show configuration file missing error
+      debug:
+        msg: "WARNING: slurmdbd configuration file not found at /etc/slurm/slurmdbd.conf"
+      when:
+        - not (packer_build | default(false) | bool)
+        - not slurmdbd_config_file.stat.exists
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
     - name: Start and enable slurmdbd service (Live deployment mode)
       systemd:
         name: slurmdbd
         state: started
         enabled: true
+      register: slurmdbd_start_result
       when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Wait a moment for slurmdbd to initialize
+      ansible.builtin.pause:
+        seconds: 2
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Check slurmdbd service status after start
+      systemd:
+        name: slurmdbd
+      register: slurmdbd_status_check
+      changed_when: false
+      failed_when: false
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Display slurmdbd service status
+      debug:
+        msg:
+          - "slurmdbd service status:"
+          - "  ActiveState: {{ slurmdbd_status_check.status.ActiveState | default('unknown') }}"
+          - "  SubState: {{ slurmdbd_status_check.status.SubState | default('unknown') }}"
+          - "  LoadState: {{ slurmdbd_status_check.status.LoadState | default('unknown') }}"
+          - "  MainPID: {{ slurmdbd_status_check.status.MainPID | default('N/A') }}"
+      when:
+        - not (packer_build | default(false) | bool)
+        - slurmdbd_status_check is defined
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Get slurmdbd journal logs
+      command: journalctl -u slurmdbd --no-pager -n 30
+      register: slurmdbd_journal_logs
+      changed_when: false
+      failed_when: false
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Display slurmdbd journal logs
+      debug:
+        msg: "{{ slurmdbd_journal_logs.stdout_lines | default([]) }}"
+      when:
+        - not (packer_build | default(false) | bool)
+        - slurmdbd_journal_logs.stdout_lines is defined
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Check if slurmdbd port is listening
+      command: netstat -tlnp | grep :6819 || ss -tlnp | grep :6819 || true
+      register: slurmdbd_port_check
+      changed_when: false
+      failed_when: false
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Display port listening status
+      debug:
+        msg: "Port 6819 listening status: {{ 'LISTENING' if (slurmdbd_port_check.stdout | default('') != '') else 'NOT LISTENING' }}"
+      when:
+        - not (packer_build | default(false) | bool)
+        - slurmdbd_port_check is defined
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Check slurmdbd log file for errors
+      command: tail -n 20 /var/log/slurm/slurmdbd.log
+      register: slurmdbd_log_file
+      changed_when: false
+      failed_when: false
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - slurmdbd
+
+    - name: Display slurmdbd log file contents
+      debug:
+        msg: "{{ slurmdbd_log_file.stdout_lines | default([]) }}"
+      when:
+        - not (packer_build | default(false) | bool)
+        - slurmdbd_log_file.stdout_lines is defined
       tags:
         - slurm
         - slurm-controller

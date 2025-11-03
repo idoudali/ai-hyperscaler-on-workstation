@@ -80,6 +80,44 @@
     - slurm-controller
     - verify
 
+# Install MPI runtime (OpenMPI) for running MPI programs on controller
+- name: Install OpenMPI runtime packages
+  apt:
+    name:
+      - openmpi-bin
+      - openmpi-common
+    state: present
+    update_cache: true
+  become: true
+  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - mpi
+    - openmpi
+    - slurm-controller
+    - install
+
+- name: Verify MPI runtime installation
+  ansible.builtin.command: mpirun --version
+  register: mpirun_version
+  changed_when: false
+  failed_when: false
+  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - mpi
+    - openmpi
+    - slurm-controller
+    - verify
+
+- name: Display MPI runtime version
+  ansible.builtin.debug:
+    msg: "MPI runtime installed: {{ mpirun_version.stdout_lines[0] if mpirun_version.rc == 0 else 'Not available' }}"
+  when: not ((packer_build | default(false)) | bool)
+  tags:
+    - mpi
+    - openmpi
+    - slurm-controller
+    - verify
+
 - name: Verify PMIx libraries installation
   ansible.builtin.stat:
     path: "/usr/lib/x86_64-linux-gnu/libpmix.so.2"
@@ -111,6 +149,7 @@
       {% if not ((packer_build | default(false)) | bool) %}
       - PMIx library present: {{ pmix_library_check.stat.exists if pmix_library_check is defined else 'Not checked' }}
       - MUNGE available: {{ 'Yes' if munge_version_check is defined and munge_version_check.rc == 0 else 'No' }}
+      - MPI runtime available: {{ 'Yes' if mpirun_version is defined and mpirun_version.rc == 0 else 'No' }}
       {% endif %}
   tags:
     - slurm

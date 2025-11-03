@@ -5,7 +5,7 @@ After=network.target munge.service
 Wants=munge.service
 
 [Service]
-Type=forking
+Type=simple
 EnvironmentFile=-/etc/slurm/slurmdbd.conf
 ExecStart=/usr/sbin/slurmdbd -D
 ExecReload=/bin/kill -HUP $MAINPID
@@ -16,13 +16,13 @@ Restart=on-failure
 RestartSec=5
 User={{ slurm_user | default('slurm') }}
 Group={{ slurm_user | default('slurm') }}
-PIDFile=/var/run/slurmdbd.pid
 
 # Security settings
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
+ReadOnlyPaths=/etc/slurm
 ReadWritePaths=/var/log/slurm
 ReadWritePaths=/var/lib/slurm
 ReadWritePaths=/var/run
