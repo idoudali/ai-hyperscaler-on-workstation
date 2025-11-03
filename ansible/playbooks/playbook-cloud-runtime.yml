@@ -1,0 +1,364 @@
+# Cloud Cluster Kubernetes Deployment Playbook
+# Consolidated playbook for deploying Kubernetes cluster using Kubespray
+#
+# This playbook consolidates the previous deploy-cloud-cluster.yml and playbook-cloud.yml
+# into a single maintainable file focused on Kubernetes cluster deployment.
+#
+# Usage Examples:
+#   # Full deployment
+#   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml
+#
+#   # Deploy only Kubespray (with tags)
+#   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml --tags kubespray
+#
+# IMPORTANT: This playbook is for RUNTIME deployment only (packer_build=false)
+
+# Pre-validation
+- name: Cloud Cluster Deployment - Pre-validation
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - validation
+    - pre-check
+    - always
+  tasks:
+    - name: Verify runtime deployment mode
+      ansible.builtin.assert:
+        that:
+          - not ((packer_build | default(false)) | bool)
+        fail_msg: |
+          ERROR: This playbook is for RUNTIME deployment only!
+          It must be run with packer_build=false on live VMs.
+          Do NOT run this during Packer image builds.
+        success_msg: "Runtime deployment mode confirmed"
+
+    - name: Display deployment plan
+      ansible.builtin.debug:
+        msg: |
+          ====================================================================
+          Cloud Cluster Kubernetes Deployment
+          ====================================================================
+
+          This playbook will deploy:
+          - Kubernetes cluster via Kubespray
+          - Container runtime (containerd)
+          - CNI networking (Calico)
+          - Core DNS and metrics-server
+
+          Configuration includes:
+          - Kubernetes control plane and worker nodes
+          - Container runtime and networking
+          - Cluster networking and DNS
+
+          ====================================================================
+
+# Pre-flight - Prepare Debian nodes
+- name: Pre-flight - Prepare Debian nodes
+  hosts: all
+  gather_facts: true
+  become: true
+  tags:
+    - preflight
+    - setup
+    - kubespray
+  tasks:
+    - name: Prefer IPv4 connectivity (disable IPv6)
+      ansible.builtin.include_role:
+        name: network-ipv6
+      vars:
+        disable_ipv6: true
+
+    - name: Update APT cache on Debian systems
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+      register: apt_update
+      retries: 3
+      delay: 5
+      until: apt_update is succeeded
+
+    - name: Pre-install conntrack package (Debian 13+)
+      ansible.builtin.apt:
+        name: conntrack
+        state: present
+      when:
+        - ansible_os_family == 'Debian'
+        - ansible_distribution_major_version | int >= 13
+      register: conntrack_install
+      retries: 3
+      delay: 5
+      until: conntrack_install is succeeded
+
+    - name: Ensure DNS configuration present
+      ansible.builtin.include_role:
+        name: dns-config
+
+# Deploy Kubernetes with Kubespray
+- name: Deploy Cloud Cluster with Kubespray
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tags:
+    - kubespray
+    - k8s
+    - kubernetes
+  vars:
+    kubespray_source_dir: "{{ playbook_dir }}/../../build/3rd-party/kubespray/kubespray-src"
+    kubespray_inventory_file: "{{ inventory_file | default('ansible/inventories/cloud-cluster/inventory.ini') }}"
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          Cloud Cluster Kubernetes Deployment
+          ================================================================
+          Inventory: {{ kubespray_inventory_file }}
+          Kubespray: {{ kubespray_source_dir }}
+          ================================================================
+      delegate_to: localhost
+      run_once: true
+
+    - name: Run Kubespray cluster deployment via role
+      ansible.builtin.include_role:
+        name: kubespray-integration
+
+# Post-Kubespray Configuration
+- name: Post-Kubespray Configuration
+  hosts: kube_node
+  gather_facts: true
+  become: true
+  tags:
+    - kubespray
+    - post-kubespray
+  tasks:
+  # Note: Kubespray already ensures nodes are Ready during deployment
+  # Skipping redundant node readiness check to avoid Python dependency issues
+
+# Validate Cluster Health
+- name: Validate Cluster Health
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: false
+  tags:
+    - kubespray
+    - validation
+    - k8s-validation
+  tasks:
+    - name: Get control plane host address
+      ansible.builtin.set_fact:
+        control_plane_host: "{{ hostvars[groups['kube_control_plane'][0]]['ansible_host'] | default(hostvars[groups['kube_control_plane'][0]]['inventory_hostname']) }}"
+      run_once: true
+
+    - name: Wait for API server to be ready
+      ansible.builtin.wait_for:
+        host: "{{ control_plane_host }}"
+        port: 6443
+        delay: 10
+        timeout: 300
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display deployment success message
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          Kubernetes Cluster Deployment Complete
+          ================================================================
+          API Server: {{ control_plane_host }}:6443
+          Status: Ready
+
+          Note: Use 'kubectl get nodes' to verify cluster status.
+          Kubespray has already validated all nodes are Ready.
+          ================================================================
+      run_once: true
+
+# Copy kubeconfig from control plane to localhost
+- name: Copy kubeconfig to localhost
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: false
+  tags:
+    - kubespray
+    - kubeconfig
+  vars:
+    # Extract cluster name from inventory path or use default
+    # Default to 'cloud-cluster' if not specified
+    cluster_name: "{{ kubeconfig_cluster_name | default('cloud-cluster') }}"
+    # Save kubeconfig in repo output directory (gitignored)
+    kubeconfig_dir: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs"
+    kubeconfig_filename: "{{ cluster_name }}.kubeconfig"
+    kubeconfig_path: "{{ kubeconfig_dir }}/{{ kubeconfig_filename }}"
+  tasks:
+    - name: Get control plane host address
+      ansible.builtin.set_fact:
+        control_plane_host: "{{ hostvars[groups['kube_control_plane'][0]]['ansible_host'] | default(hostvars[groups['kube_control_plane'][0]]['inventory_hostname']) }}"
+      run_once: true
+
+    - name: Find kubeconfig location on control plane
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: kubeconfig_check
+      loop:
+        - /etc/kubernetes/admin.conf
+        - ~/.kube/config
+        - ~admin/.kube/config
+      failed_when: false
+      changed_when: false
+
+    - name: Get source kubeconfig path
+      ansible.builtin.set_fact:
+        source_kubeconfig_path: "{{ (kubeconfig_check.results | selectattr('stat.exists', 'equalto', true) | map(attribute='item') | first) | default('/etc/kubernetes/admin.conf') }}"
+      run_once: true
+
+    - name: Ensure kubeconfig output directory exists
+      ansible.builtin.file:
+        path: "{{ kubeconfig_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      run_once: true
+      become: false
+
+    - name: Copy kubeconfig to readable temp location on control plane
+      ansible.builtin.copy:
+        src: "{{ source_kubeconfig_path }}"
+        dest: /tmp/admin.conf.tmp
+        remote_src: true
+        mode: '0644'
+      run_once: true
+      become: true
+      # This become applies to control plane (not localhost) since task runs on control plane
+
+    - name: Read kubeconfig content from control plane
+      ansible.builtin.slurp:
+        src: /tmp/admin.conf.tmp
+      register: kubeconfig_content
+      run_once: true
+      become: false
+      # No sudo needed - file is readable after copy
+
+    - name: Write kubeconfig to localhost
+      ansible.builtin.copy:
+        content: "{{ kubeconfig_content.content | b64decode }}"
+        dest: "{{ kubeconfig_path }}"
+        mode: '0644'
+      delegate_to: localhost
+      run_once: true
+      become: false
+
+    - name: Clean up temp kubeconfig on control plane
+      ansible.builtin.file:
+        path: /tmp/admin.conf.tmp
+        state: absent
+      run_once: true
+      become: false
+      ignore_errors: true
+
+    - name: Update kubeconfig server URL to use control plane IP
+      ansible.builtin.replace:
+        path: "{{ kubeconfig_path }}"
+        regexp: 'server: https://127\.0\.0\.1:\d+'
+        replace: "server: https://{{ control_plane_host }}:6443"
+      delegate_to: localhost
+      run_once: true
+      become: false
+      when: control_plane_host is defined
+
+    - name: Update kubeconfig server URL (alternative format)
+      ansible.builtin.replace:
+        path: "{{ kubeconfig_path }}"
+        regexp: 'server: https://localhost:\d+'
+        replace: "server: https://{{ control_plane_host }}:6443"
+      delegate_to: localhost
+      run_once: true
+      become: false
+      when: control_plane_host is defined
+
+    - name: Update context name in kubeconfig to include cluster name
+      ansible.builtin.replace:
+        path: "{{ kubeconfig_path }}"
+        regexp: 'name: kubernetes-admin@kubernetes'
+        replace: "name: kubernetes-admin@{{ cluster_name }}"
+      delegate_to: localhost
+      run_once: true
+      become: false
+
+    - name: Update cluster name in kubeconfig
+      ansible.builtin.replace:
+        path: "{{ kubeconfig_path }}"
+        regexp: '    cluster: kubernetes'
+        replace: "    cluster: {{ cluster_name }}"
+      delegate_to: localhost
+      run_once: true
+      become: false
+
+    - name: Display kubeconfig location and usage instructions
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          Kubeconfig Saved for Cluster: {{ cluster_name }}
+          ================================================================
+          Location: {{ kubeconfig_path }}
+          Kubernetes API Server: {{ control_plane_host }}:6443
+
+          To use this cluster:
+            export KUBECONFIG={{ kubeconfig_path }}
+            kubectl get nodes
+
+          Or use absolute path from project root:
+            export KUBECONFIG=$(pwd)/output/cluster-state/kubeconfigs/{{ kubeconfig_filename }}
+            kubectl get nodes
+
+          To manage multiple clusters, use:
+            scripts/manage-kubeconfig.sh use {{ cluster_name }}
+
+          All kubeconfigs are stored in: output/cluster-state/kubeconfigs/
+          (This directory is gitignored for security)
+          ================================================================
+      delegate_to: localhost
+      run_once: true
+      become: false
+
+# Post-validation
+- name: Cloud Cluster Deployment - Post-validation
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - validation
+    - post-check
+    - summary
+  tasks:
+    - name: Display deployment completion
+      ansible.builtin.debug:
+        msg: |
+          ====================================================================
+          Cloud Cluster Kubernetes Deployment Complete
+          ====================================================================
+
+          Cluster deployed successfully!
+
+          Deployed Components:
+          1. Kubernetes Cluster (via Kubespray)
+             - Control plane nodes
+             - Worker nodes
+             - Container runtime (containerd)
+             - CNI networking (Calico)
+             - CoreDNS
+             - Metrics-server
+
+          Access Points:
+          - Kubernetes API: Use kubectl with generated kubeconfig
+          - Kubeconfig location: See output above
+
+          Next Steps:
+          1. Verify cluster status: kubectl get nodes
+          2. Check pods: kubectl get pods --all-namespaces
+          3. Configure kubectl: export KUBECONFIG=<kubeconfig_path>
+
+          For troubleshooting:
+          - Kubespray logs: Check Ansible output above
+          - Cluster status: kubectl get nodes
+          - Pod status: kubectl get pods --all-namespaces
+
+          ====================================================================

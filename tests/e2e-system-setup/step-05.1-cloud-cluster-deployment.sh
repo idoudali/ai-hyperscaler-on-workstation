@@ -98,7 +98,7 @@ main() {
   fi
 
   log_info "${STEP_NUMBER}.1: Checking playbook syntax..."
-  if ! run_docker_command "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/playbooks/deploy-cloud-cluster.yml --syntax-check" \
+  if ! run_docker_command "ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook ansible/playbooks/playbook-cloud-runtime.yml --syntax-check" \
     "$step_dir/syntax-check.log" "Playbook syntax check"; then
     tail -20 "$step_dir/syntax-check.log"
     return 1

@@ -137,6 +137,8 @@
   environment:
     ANSIBLE_PYTHON_INTERPRETER: /usr/bin/python3
     ANSIBLE_CONFIG: "{{ playbook_dir + '/..' + '/ansible.cfg' }}"
+    # Override global become=False for Kubespray (needs root for system file writes)
+    ANSIBLE_BECOME: "True"
     ANSIBLE_ROLES_PATH: "{{ kubespray_source_dir_abs }}/roles:{{ playbook_dir + '/..' + '/roles' }}"
     PYTHONUNBUFFERED: "1"
     ANSIBLE_FORCE_COLOR: "1"

@@ -45,6 +45,31 @@ Targeted playbooks for deploying individual infrastructure components.
 | **playbook-beegfs-runtime-config.yml** | BeeGFS (Runtime) | BeeGFS post-deployment configuration | Production cluster BeeGFS setup |
 | **playbook-virtio-fs-runtime-config.yml** | Virtio-FS Storage | Virtio-FS shared storage configuration | VM-based shared storage |
 
+### 2.1. Cloud Cluster Runtime Playbooks
+
+Consolidated playbook for Kubernetes cluster deployment using Kubespray.
+
+| Playbook | Component | Purpose | Use Case |
+|----------|-----------|---------|----------|
+| **playbook-cloud-runtime.yml** | Cloud Runtime | Deploy Kubernetes cluster via Kubespray | Complete Kubernetes cluster deployment |
+
+**Note:** This consolidated playbook includes:
+
+- Kubernetes cluster deployment via Kubespray
+- Container runtime (containerd)
+- CNI networking (Calico)
+- CoreDNS and metrics-server
+
+**Usage:**
+
+```bash
+# Full deployment
+ansible-playbook -i inventory.ini playbook-cloud-runtime.yml
+
+# Deploy only Kubespray (with tags)
+ansible-playbook -i inventory.ini playbook-cloud-runtime.yml --tags kubespray
+```
+
 ### 3. Packer Image Build Playbooks
 
 Playbooks specifically designed for use during Packer image builds to pre-install software.
@@ -221,6 +246,24 @@ ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml --limit h
 # Configure only compute nodes
 ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml --limit compute_nodes
 ```
+
+### Pattern 3.1: Cloud Cluster Kubernetes Deployment
+
+```bash
+# 1. Deploy complete Kubernetes cluster via Kubespray
+ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml
+
+# 2. Deploy with specific tags
+ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags kubespray
+
+# 3. Verify cluster status
+export KUBECONFIG=output/cluster-state/kubeconfigs/cloud-cluster.kubeconfig
+kubectl get nodes
+kubectl get pods --all-namespaces
+```
+
+**Important:** This consolidated playbook deploys the Kubernetes cluster infrastructure only.
+The kubeconfig will be saved to `output/cluster-state/kubeconfigs/` for accessing the cluster.
 
 ### Pattern 4: Packer Image Building
 

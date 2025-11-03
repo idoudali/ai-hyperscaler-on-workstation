@@ -209,20 +209,20 @@ config-render: venv-create
 	@echo "=========================================="
 	@echo "Rendering Cluster Configuration"
 	@echo "=========================================="
-	@echo "Source: config/example-multi-gpu-clusters.yaml"
+	@echo "Source: $(CLUSTER_CONFIG)"
 	@echo "Output: $(CLUSTER_RENDERED)"
 	@echo ""
-	@if [ ! -f "config/example-multi-gpu-clusters.yaml" ]; then \
-		echo "❌ Error: Source configuration not found: config/example-multi-gpu-clusters.yaml"; \
+	@if [ ! -f "$(CLUSTER_CONFIG)" ]; then \
+		echo "❌ Error: Source configuration not found: $(CLUSTER_CONFIG)"; \
 		exit 1; \
 	fi
 	@echo "🔧 Creating cluster state directory..."
 	@mkdir -p $(CLUSTER_STATE_DIR)
 	@echo "🔧 Processing configuration with variable expansion..."
-	@uv run ai-how render config/example-multi-gpu-clusters.yaml -o $(CLUSTER_RENDERED) --show-variables
+	@uv run ai-how render $(CLUSTER_CONFIG) -o $(CLUSTER_RENDERED) --show-variables
 	@echo ""
 	@echo "✅ Configuration rendered successfully!"
-	@echo "📁 Source: config/example-multi-gpu-clusters.yaml"
+	@echo "📁 Source: $(CLUSTER_CONFIG)"
 	@echo "📁 Rendered: $(CLUSTER_RENDERED)"
 	@echo ""
 	@echo "Next steps:"
@@ -401,7 +401,7 @@ cloud-cluster-deploy: cloud-cluster-inventory
 		-i $(INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \
 		-e "inventory_file=$(INVENTORY_OUTPUT)" \
-		ansible/playbooks/deploy-cloud-cluster.yml
+		ansible/playbooks/playbook-cloud-runtime.yml
 	@echo ""
 	@echo "✅ Kubernetes cluster deployment completed"
 
