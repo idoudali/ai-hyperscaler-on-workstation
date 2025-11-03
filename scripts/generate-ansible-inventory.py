@@ -64,19 +64,49 @@ def generate_inventory(config_path: str, cluster_name: str, ssh_key_path: str = 
         inventory_lines.append("")
 
     # Generate compute nodes inventory
+    # Separate GPU nodes from regular compute nodes based on pcie_passthrough configuration
     if 'compute_nodes' in cluster:
-        inventory_lines.append("[compute_nodes]")
+        regular_compute_nodes = []
+        gpu_compute_nodes = []
+
         for idx, node in enumerate(cluster['compute_nodes'], start=1):
+            # Check if node has GPU configuration
+            has_gpu = False
+            if 'pcie_passthrough' in node and node['pcie_passthrough'].get('enabled', False):
+                devices = node['pcie_passthrough'].get('devices', [])
+                has_gpu = any(d.get('device_type') == 'gpu' for d in devices)
+
             ip = node.get('ip', f'192.168.100.{10+idx}')
             hostname = f"{cluster_name}-compute{idx:02d}"
             slurm_name = f"compute-{idx:02d}"
-            inventory_lines.append(f"{hostname} ansible_host={ip} slurm_node_name={slurm_name} ansible_user={ssh_username} {ssh_args}")
-        inventory_lines.append("")
+            node_line = f"{hostname} ansible_host={ip} slurm_node_name={slurm_name} ansible_user={ssh_username} {ssh_args}"
+
+            if has_gpu:
+                gpu_compute_nodes.append(node_line)
+            else:
+                regular_compute_nodes.append(node_line)
+
+        # Generate hpc_compute_nodes group (regular CPU nodes)
+        if regular_compute_nodes:
+            inventory_lines.append("[hpc_compute_nodes]")
+            inventory_lines.extend(regular_compute_nodes)
+            inventory_lines.append("")
+
+        # Generate hpc_gpu_nodes group (GPU-enabled nodes)
+        if gpu_compute_nodes:
+            inventory_lines.append("[hpc_gpu_nodes]")
+            inventory_lines.extend(gpu_compute_nodes)
+            inventory_lines.append("")
 
     # Generate group variables
     inventory_lines.append("[hpc:children]")
     inventory_lines.append("hpc_controllers")
-    inventory_lines.append("compute_nodes")
+    if 'compute_nodes' in cluster:
+        # Only include groups that have hosts
+        if regular_compute_nodes:
+            inventory_lines.append("hpc_compute_nodes")
+        if gpu_compute_nodes:
+            inventory_lines.append("hpc_gpu_nodes")
     inventory_lines.append("")
 
     inventory_lines.append("[hpc:vars]")

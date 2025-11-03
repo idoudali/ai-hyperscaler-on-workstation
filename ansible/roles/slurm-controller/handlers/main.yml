@@ -3,7 +3,7 @@
 # Note: Service restarts are skipped during Packer builds to prevent build failures
 
 - name: restart slurm services
-  service:
+  systemd:
     name: "{{ item }}"
     state: restarted
   loop:
@@ -12,36 +12,32 @@
     - munge
   become: true
   listen: restart slurm services
-  when: not (packer_build | default(false) | bool)
-  failed_when: false # Don't fail deployment if restart fails - services will be started later
+  when: not ((packer_build | default(false)) | bool)
 
 - name: restart slurmctld
-  service:
+  systemd:
     name: slurmctld
     state: restarted
   become: true
-  when: not (packer_build | default(false) | bool)
+  when: not ((packer_build | default(false)) | bool)
 
 - name: restart slurmdbd
-  service:
-    name: slurmdbd
-    state: restarted
-  become: true
-  when: not (packer_build | default(false) | bool)
+  include_tasks: ../tasks/restart-slurmdbd.yml
+  when: not ((packer_build | default(false)) | bool)
 
 - name: restart munge
-  service:
+  systemd:
     name: munge
     state: restarted
   become: true
-  when: not (packer_build | default(false) | bool)
+  when: not ((packer_build | default(false)) | bool)
 
 - name: restart mariadb
-  service:
+  systemd:
     name: mariadb
     state: restarted
   become: true
-  when: not (packer_build | default(false) | bool)
+  when: not ((packer_build | default(false)) | bool)
 
 - name: reload systemd
   systemd:

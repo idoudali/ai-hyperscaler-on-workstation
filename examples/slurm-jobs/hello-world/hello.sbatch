@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mpi-hello        # Job name
-#SBATCH --nodes=2                   # Number of nodes
+#SBATCH --nodes=2                   # Number of nodes (compute-01, compute-02)
+#SBATCH --nodelist=compute-01,compute-02  # Specify compute nodes explicitly
 #SBATCH --ntasks-per-node=2         # MPI processes per node (total: 4)
 #SBATCH --cpus-per-task=1           # CPU cores per MPI process
 #SBATCH --time=00:05:00             # Max runtime: 5 minutes

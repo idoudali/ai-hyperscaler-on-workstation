@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=pi-monte-carlo   # Job name
-#SBATCH --nodes=2                   # Number of nodes
+#SBATCH --nodes=2                   # Number of nodes (compute-01, compute-02)
+#SBATCH --nodelist=compute-01,compute-02  # Specify compute nodes explicitly
 #SBATCH --ntasks-per-node=4         # MPI processes per node (total: 8)
 #SBATCH --cpus-per-task=1           # CPU cores per MPI process
 #SBATCH --time=00:10:00             # Max runtime: 10 minutes
