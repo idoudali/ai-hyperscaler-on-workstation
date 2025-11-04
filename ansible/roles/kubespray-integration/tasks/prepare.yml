@@ -1,0 +1,151 @@
+# Kubespray Integration Role - Preparation Tasks
+# This file contains setup and validation tasks for Kubespray collection deployment
+
+- name: Verify Kubespray installation
+  ansible.builtin.stat:
+    path: "{{ kubespray_source_dir }}/galaxy.yml"
+  register: kubespray_check
+  delegate_to: localhost
+  run_once: true
+  become: false
+  failed_when: false
+
+- name: Fail if Kubespray not installed
+  ansible.builtin.fail:
+    msg: |
+      Kubespray not found at: {{ kubespray_source_dir }}
+      Please install Kubespray first:
+        cmake --build build --target install-kubespray
+      Or:
+        make run-docker COMMAND="cmake --build build --target install-kubespray"
+  when: not kubespray_check.stat.exists
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Verify inventory file exists
+  ansible.builtin.stat:
+    path: "{{ (playbook_dir + '/..' + '/..' + '/' + kubespray_inventory_file) if not kubespray_inventory_file.startswith('/') else kubespray_inventory_file }}"
+  register: inventory_check
+  delegate_to: localhost
+  run_once: true
+  become: false
+  failed_when: false
+
+- name: Fail if inventory not found
+  ansible.builtin.fail:
+    msg: |
+      Kubespray inventory not found at: {{ kubespray_inventory_file }}
+      Please generate inventory first:
+        python scripts/generate-kubespray-inventory.py config/cloud-cluster.yaml cloud <inventory_path>
+  when: not inventory_check.stat.exists
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Display deployment information
+  ansible.builtin.debug:
+    msg: |
+      Preparing Kubernetes cluster deployment via Kubespray Collection
+      Inventory: {{ kubespray_inventory_file }}
+      Kubespray Source: {{ kubespray_source_dir }}
+      Collection: kubernetes_sigs.kubespray
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Resolve absolute paths
+  ansible.builtin.set_fact:
+    kubespray_source_dir_abs: "{{ lookup('pipe', 'realpath ' ~ kubespray_source_dir) }}"
+    kubespray_inventory_abs: "{{ lookup('pipe', 'realpath ' ~ ((playbook_dir + '/..' + '/..' + '/' + kubespray_inventory_file) if not kubespray_inventory_file.startswith('/') else kubespray_inventory_file)) }}"
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Display resolved paths
+  ansible.builtin.debug:
+    msg: |
+      Resolved Paths:
+      - Kubespray Source: {{ kubespray_source_dir_abs }}
+      - Inventory: {{ kubespray_inventory_abs }}
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+# Build Kubespray as an Ansible collection
+- name: Check if Kubespray collection tarball exists
+  ansible.builtin.stat:
+    path: "{{ kubespray_source_dir_abs }}/kubernetes_sigs-kubespray-2.29.0.tar.gz"
+  register: collection_tarball_check
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Build Kubespray collection
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection build --force
+    chdir: "{{ kubespray_source_dir_abs }}"
+  when: not collection_tarball_check.stat.exists
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: true
+
+- name: Display collection build status
+  ansible.builtin.debug:
+    msg: |
+      Kubespray collection built: {{ kubespray_source_dir_abs }}/kubernetes_sigs-kubespray-2.29.0.tar.gz
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+# Install Kubespray collection
+- name: Ensure collections directory exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../collections"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Check if Kubespray collection is installed
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../collections/ansible_collections/kubernetes_sigs/kubespray"
+  register: collection_check
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Install Kubespray collection
+  ansible.builtin.command:
+    cmd: >
+      ansible-galaxy collection install {{ kubespray_source_dir_abs }}/kubernetes_sigs-kubespray-2.29.0.tar.gz -p {{ playbook_dir }}/../collections --force
+    chdir: "{{ kubespray_source_dir_abs }}"
+  when: not collection_check.stat.exists
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: true
+
+- name: Display collection installation status
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Kubespray collection installed!
+      ========================================
+
+      Collection: kubernetes_sigs.kubespray (v2.29.0)
+      Location: {{ playbook_dir }}/../collections/ansible_collections/kubernetes_sigs/kubespray
+
+      Available playbooks:
+        - kubernetes_sigs.kubespray.cluster (Main cluster deployment)
+        - kubernetes_sigs.kubespray.scale (Scale cluster)
+        - kubernetes_sigs.kubespray.upgrade_cluster (Upgrade cluster)
+        - kubernetes_sigs.kubespray.reset (Reset cluster)
+
+      Ready for deployment!
+      ========================================
+  delegate_to: localhost
+  run_once: true
+  become: false

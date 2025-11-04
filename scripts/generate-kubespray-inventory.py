@@ -164,7 +164,9 @@ def generate_kubespray_inventory(
         print(f"   Run 'make config' or build Packer images to generate SSH keys", file=sys.stderr)
 
     # SSH connection arguments for Kubespray
-    ssh_args = f"ansible_ssh_private_key_file={ssh_key_path} ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'"
+    # Note: ansible_become=true is required because ansible.cfg has become=False globally
+    # but Kubespray requires sudo for all package management and system configuration tasks
+    ssh_args = f"ansible_ssh_private_key_file={ssh_key_path} ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' ansible_become=true"
 
     # Build expected libvirt domain names for cloud cluster dynamically
     # Format: {cluster_name}-cluster-{node-name}

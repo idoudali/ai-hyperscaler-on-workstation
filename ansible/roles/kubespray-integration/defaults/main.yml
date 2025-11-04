@@ -1,13 +1,16 @@
-# Default variables for kubespray-integration role
+# Kubespray Integration Role - Default Variables
+# These can be overridden at the playbook level
 
-# Path to Kubespray source directory (relative to project root)
-kubespray_source_dir: "../../build/3rd-party/kubespray/kubespray-src"
+# Path to Kubespray source directory
+kubespray_source_dir: "{{ playbook_dir }}/../../build/3rd-party/kubespray/kubespray-src"
 
-# Path to Kubespray inventory file
-kubespray_inventory_file: "../../ansible/inventories/cloud-cluster/inventory.ini"
+# Path to Kubespray inventory file (relative to project root or absolute)
+kubespray_inventory_file: "output/cluster-state/inventory.yml"
 
-# Kubernetes version (can be overridden via group_vars)
-kube_version: v1.28.0
+# Kubespray collection details
+kubespray_collection_namespace: "kubernetes_sigs"
+kubespray_collection_name: "kubespray"
+kubespray_collection_version: "2.29.0"
 
-# Network plugin (can be overridden via group_vars)
-kube_network_plugin: calico
+# Collections installation path (relative to ansible/ directory)
+collections_path: "{{ playbook_dir }}/../collections"
