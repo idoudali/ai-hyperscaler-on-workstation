@@ -6,6 +6,8 @@ Wants=munge.service
 
 [Service]
 Type=simple
+RuntimeDirectory=slurmdbd
+RuntimeDirectoryMode=0755
 EnvironmentFile=-/etc/slurm/slurmdbd.conf
 ExecStart=/usr/sbin/slurmdbd -D
 ExecReload=/bin/kill -HUP $MAINPID

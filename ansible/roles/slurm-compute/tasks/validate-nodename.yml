@@ -1,0 +1,129 @@
+# SLURM Compute Node - NodeName Validation and Configuration
+# This task file ensures the compute node hostname matches the SLURM NodeName
+
+- name: Verify slurm_node_name is defined
+  assert:
+    that:
+      - slurm_node_name is defined
+      - slurm_node_name | length > 0
+    fail_msg: |
+      ERROR: slurm_node_name is not defined for this host!
+
+      This variable is REQUIRED for SLURM compute nodes.
+      Add it to your inventory:
+
+      hosts:
+        {{ inventory_hostname }}:
+          ansible_host: {{ ansible_host }}
+          slurm_node_name: compute-01  # REQUIRED - must match VM hostname
+    success_msg: "slurm_node_name is defined: {{ slurm_node_name }}"
+  tags:
+    - slurm
+    - slurm-compute
+    - validate
+
+- name: Get current hostname
+  command: hostname
+  register: current_hostname
+  changed_when: false
+  tags:
+    - slurm
+    - slurm-compute
+    - validate
+
+- name: Display hostname information
+  debug:
+    msg:
+      - "Current hostname: {{ current_hostname.stdout }}"
+      - "Expected slurm_node_name: {{ slurm_node_name }}"
+      - "Match: {{ current_hostname.stdout == slurm_node_name }}"
+  tags:
+    - slurm
+    - slurm-compute
+    - validate
+
+- name: Check if hostname matches slurm_node_name
+  set_fact:
+    hostname_matches: "{{ current_hostname.stdout == slurm_node_name }}"
+  tags:
+    - slurm
+    - slurm-compute
+    - validate
+
+- name: Set hostname to match slurm_node_name
+  hostname:
+    name: "{{ slurm_node_name }}"
+  become: true
+  when: not hostname_matches
+  register: hostname_changed
+  tags:
+    - slurm
+    - slurm-compute
+    - configure
+
+- name: Update /etc/hostname
+  copy:
+    content: "{{ slurm_node_name }}\n"
+    dest: /etc/hostname
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  when: not hostname_matches
+  tags:
+    - slurm
+    - slurm-compute
+    - configure
+
+- name: Update /etc/hosts with correct hostname
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1\t{{ slurm_node_name }}"
+    state: present
+  become: true
+  when: not hostname_matches
+  tags:
+    - slurm
+    - slurm-compute
+    - configure
+
+- name: Warn if hostname was changed
+  debug:
+    msg: |
+      WARNING: Hostname was changed from '{{ current_hostname.stdout }}' to '{{ slurm_node_name }}'
+      This requires slurmd to be restarted to take effect.
+      The handler will restart slurmd automatically.
+  when: hostname_changed is defined and hostname_changed.changed
+  tags:
+    - slurm
+    - slurm-compute
+    - configure
+
+- name: Verify hostname is correct after change
+  command: hostname
+  register: final_hostname
+  changed_when: false
+  when: hostname_changed is defined and hostname_changed.changed
+  tags:
+    - slurm
+    - slurm-compute
+    - validate
+
+- name: Display final hostname
+  debug:
+    msg: "Final hostname: {{ final_hostname.stdout if (final_hostname is defined and final_hostname.stdout is defined) else current_hostname.stdout }}"
+  tags:
+    - slurm
+    - slurm-compute
+    - validate
+
+- name: Notify to restart slurmd if hostname changed
+  command: /bin/true
+  notify: restart slurmd
+  when: hostname_changed is defined and hostname_changed.changed
+  changed_when: true
+  tags:
+    - slurm
+    - slurm-compute
+    - configure

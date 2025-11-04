@@ -43,6 +43,9 @@ LogFile={{ slurm_accounting_log_file | default('/var/log/slurm/slurmdbd.log') }}
 # SLURM database daemon user
 SlurmUser={{ slurm_user | default('slurm') }}
 
+# PID file location (in RuntimeDirectory created by systemd)
+PidFile=/var/run/slurmdbd/slurmdbd.pid
+
 #=============================================================================
 # Authentication and Security
 #=============================================================================

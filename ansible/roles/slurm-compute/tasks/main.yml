@@ -21,6 +21,16 @@
     - slurm-compute
     - directories
 
+# Validate and configure NodeName BEFORE configuring slurm.conf
+- name: Validate and configure NodeName
+  include_tasks: validate-nodename.yml
+  vars:
+    slurm_node_name: "{{ hostvars[inventory_hostname].slurm_node_name | default(inventory_hostname) }}"
+  tags:
+    - slurm-compute
+    - slurm-compute-validate
+    - validate
+
 - name: Include SLURM compute node configuration
   include_tasks: configure.yml
   tags:
