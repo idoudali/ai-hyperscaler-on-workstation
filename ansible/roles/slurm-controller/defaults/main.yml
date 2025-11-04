@@ -20,6 +20,7 @@ slurm_controller_dependencies:
   - munge
   - libmariadb3
   - mariadb-client
+  - mariadb-server # Database server for SLURM accounting
   - libpmix2
   - libpam0g
   - libhwloc15
@@ -43,7 +44,8 @@ slurm_database_user: "slurm"
 slurm_database_password: "slurm"
 
 # SLURM accounting configuration
-slurm_accounting_storage_type: "accounting_storage/none" # Set to 'accounting_storage/slurmdbd' to enable accounting database
+# Note: Override this in inventory to enable accounting: slurm_accounting_storage_type: "accounting_storage/slurmdbd"
+slurm_accounting_storage_type: "{{ 'accounting_storage/slurmdbd' if (setup_slurm_accounting | default(false)) else 'accounting_storage/none' }}"
 slurm_accounting_storage_host: "localhost"
 slurm_accounting_storage_port: 6819
 slurm_accounting_storage_user: "slurm"

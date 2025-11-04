@@ -10,6 +10,21 @@
     - accounting
     - database
   block:
+    - name: Ensure MariaDB server is installed
+      apt:
+        name:
+          - mariadb-server
+          - mariadb-client
+          - python3-pymysql
+        state: present
+        update_cache: true
+      become: true
+      tags:
+        - slurm
+        - slurm-controller
+        - accounting
+        - database
+
     - name: Start and enable MariaDB service
       systemd:
         name: mariadb
