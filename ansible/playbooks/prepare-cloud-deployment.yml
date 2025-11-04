@@ -1,0 +1,106 @@
+# Preparation Playbook for Cloud Cluster Deployment
+# This playbook handles all preparation steps before Kubespray deployment
+
+# Pre-validation
+- name: Cloud Cluster Deployment - Pre-validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Verify runtime deployment mode
+      ansible.builtin.assert:
+        that:
+          - not ((packer_build | default(false)) | bool)
+        fail_msg: |
+          ERROR: This playbook is for RUNTIME deployment only!
+          It must be run with packer_build=false on live VMs.
+          Do NOT run this during Packer image builds.
+        success_msg: "Runtime deployment mode confirmed"
+
+    - name: Display deployment plan
+      ansible.builtin.debug:
+        msg: |
+          ====================================================================
+          Cloud Cluster Kubernetes Deployment - Preparation
+          ====================================================================
+
+          This playbook will prepare for:
+          - Kubernetes cluster deployment via Kubespray
+          - Container runtime (containerd)
+          - CNI networking (Calico)
+          - Core DNS and metrics-server
+
+          ====================================================================
+
+# Pre-flight - Prepare Debian nodes
+- name: Pre-flight - Prepare Debian nodes
+  hosts: all
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Prefer IPv4 connectivity (disable IPv6)
+      ansible.builtin.include_role:
+        name: network-ipv6
+      vars:
+        disable_ipv6: true
+
+    - name: Update APT cache on Debian systems
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+      register: apt_update
+      retries: 3
+      delay: 5
+      until: apt_update is succeeded
+
+    - name: Pre-install conntrack package (Debian 13+)
+      ansible.builtin.apt:
+        name: conntrack
+        state: present
+        update_cache: true
+        cache_valid_time: 0
+      when:
+        - ansible_os_family == 'Debian'
+        - ansible_distribution_major_version | int >= 13
+      register: conntrack_install
+      retries: 5
+      delay: 10
+      until: conntrack_install is succeeded
+      ignore_errors: false
+
+    - name: Ensure DNS configuration present
+      ansible.builtin.include_role:
+        name: dns-config
+
+# Prepare Kubespray environment
+- name: Prepare Kubespray Environment
+  hosts: localhost
+  gather_facts: false
+  become: false
+  vars:
+    kubespray_source_dir: "{{ playbook_dir }}/../../build/3rd-party/kubespray/kubespray-src"
+    kubespray_inventory_file: "{{ inventory_file | default('output/cluster-state/inventory.yml') }}"
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          Kubespray Environment Preparation
+          ================================================================
+          Inventory: {{ kubespray_inventory_file }}
+          Kubespray: {{ kubespray_source_dir }}
+          ================================================================
+
+    - name: Prepare Kubespray (validate, setup venv, install collections)
+      ansible.builtin.include_role:
+        name: kubespray-integration
+
+    - name: Display preparation complete message
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          Preparation Complete!
+          ================================================================
+
+          Kubespray environment is ready for Kubernetes deployment.
+          ================================================================

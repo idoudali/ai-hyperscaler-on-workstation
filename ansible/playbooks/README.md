@@ -47,27 +47,69 @@ Targeted playbooks for deploying individual infrastructure components.
 
 ### 2.1. Cloud Cluster Runtime Playbooks
 
-Consolidated playbook for Kubernetes cluster deployment using Kubespray.
+Playbooks for Kubernetes cluster deployment using **Kubespray as an Ansible Collection** (`kubernetes_sigs.kubespray`).
 
 | Playbook | Component | Purpose | Use Case |
 |----------|-----------|---------|----------|
-| **playbook-cloud-runtime.yml** | Cloud Runtime | Deploy Kubernetes cluster via Kubespray | Complete Kubernetes cluster deployment |
+| **playbook-cloud-runtime.yml** | Cloud Runtime | Complete K8s deployment with pre/post config | Recommended - single playbook |
+| **prepare-cloud-deployment.yml** | Kubespray Preparation | Kubespray environment setup | Two-step approach - Step 1 |
+| **deploy-cloud-k8s.yml** | Kubernetes Deployment | Kubespray execution + post-config | Two-step approach - Step 2 |
 
-**Note:** This consolidated playbook includes:
+**Architecture:** Uses **Kubespray as an Ansible Collection** with `import_playbook` for native integration and
+real-time output.
 
-- Kubernetes cluster deployment via Kubespray
-- Container runtime (containerd)
-- CNI networking (Calico)
-- CoreDNS and metrics-server
+**playbook-cloud-runtime.yml** (Complete - Single Playbook):
 
-**Usage:**
+- **Phase 1**: Pre-validation and pre-flight setup (IPv6 disable, DNS, packages)
+- **Phase 2**: Kubespray collection build and installation
+- **Phase 3**: Kubernetes deployment via `import_playbook kubernetes_sigs.kubespray.cluster`
+- **Phase 4**: Post-deployment configuration
+- **Phase 5**: Cluster validation
+- **Phase 6**: Kubeconfig retrieval and setup
+
+**Two-Step Approach** (prepare + deploy):
+
+**Step 1**: `prepare-cloud-deployment.yml`
+
+- Pre-validation
+- Pre-flight setup (IPv6, DNS, packages)
+- Kubespray collection build and installation
+
+**Step 2**: `deploy-cloud-k8s.yml`
+
+- Kubernetes deployment via `import_playbook kubernetes_sigs.kubespray.cluster`
+- Post-deployment configuration
+- Cluster validation
+- Kubeconfig retrieval
+
+**Usage (Recommended - via Makefile):**
 
 ```bash
-# Full deployment
-ansible-playbook -i inventory.ini playbook-cloud-runtime.yml
+# Complete two-step deployment (easiest)
+make cloud-cluster-deploy CLUSTER_CONFIG=config/your-cluster.yaml
+```
 
-# Deploy only Kubespray (with tags)
-ansible-playbook -i inventory.ini playbook-cloud-runtime.yml --tags kubespray
+**Usage (Complete - Single Playbook):**
+
+```bash
+# Full deployment with all pre/post configuration
+ansible-playbook -i output/cluster-state/inventory.yml \
+  -e "inventory_file=output/cluster-state/inventory.yml" \
+  playbooks/playbook-cloud-runtime.yml
+```
+
+**Usage (Two-Step Manual):**
+
+```bash
+# Step 1: Preparation
+ansible-playbook -i output/cluster-state/inventory.yml \
+  -e "inventory_file=output/cluster-state/inventory.yml" \
+  playbooks/prepare-cloud-deployment.yml
+
+# Step 2: Deployment
+ansible-playbook -i output/cluster-state/inventory.yml \
+  -e "inventory_file=output/cluster-state/inventory.yml" \
+  playbooks/deploy-cloud-k8s.yml
 ```
 
 ### 3. Packer Image Build Playbooks
@@ -249,21 +291,37 @@ ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml --limit c
 
 ### Pattern 3.1: Cloud Cluster Kubernetes Deployment
 
+**Complete Deployment with Pre/Post Configuration (Recommended):**
+
 ```bash
-# 1. Deploy complete Kubernetes cluster via Kubespray
-ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml
+# 1. Deploy complete Kubernetes cluster with all configuration
+ansible-playbook -i inventories/cloud-cluster/inventory.ini ansible/playbooks/playbook-cloud-runtime.yml
 
-# 2. Deploy with specific tags
-ansible-playbook -i inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags kubespray
+# 2. Deploy with specific tags (e.g., only Kubespray phase)
+ansible-playbook -i inventories/cloud-cluster/inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags kubespray
 
-# 3. Verify cluster status
+# 3. Verify cluster status (kubeconfig automatically retrieved)
 export KUBECONFIG=output/cluster-state/kubeconfigs/cloud-cluster.kubeconfig
 kubectl get nodes
 kubectl get pods --all-namespaces
 ```
 
-**Important:** This consolidated playbook deploys the Kubernetes cluster infrastructure only.
-The kubeconfig will be saved to `output/cluster-state/kubeconfigs/` for accessing the cluster.
+**Important:**
+
+- All cloud deployment playbooks use the shell module with async support for reliable Kubespray execution
+- `playbook-cloud-runtime.yml` includes pre-flight setup, deployment, post-config, validation, and kubeconfig
+retrieval
+- The two-step approach (`prepare-cloud-deployment.yml` + `deploy-cloud-k8s.yml`) provides more control over the
+deployment process
+- Kubeconfig is automatically retrieved and saved to `output/cluster-state/kubeconfigs/` for all deployment methods
+
+**Advantages of Shell Module with Async:**
+
+- ✅ Real-time output (no buffering)
+- ✅ Reliable execution for long-running deployments
+- ✅ Correct working directory handling (Kubespray's relative imports work)
+- ✅ No parse-time limitations
+- ✅ Async support prevents timeouts
 
 ### Pattern 4: Packer Image Building
 
@@ -518,6 +576,82 @@ ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml \
 ansible-playbook -i inventories/hpc/hosts.yml playbook-hpc-runtime.yml \
   -vvv 2>&1 | grep -i "time\|duration"
 ```
+
+### Permission Denied Errors (Kubespray/Cloud Deployments)
+
+**Problem:** Kubespray tasks fail with permission denied errors like:
+
+```text
+E: Could not create temporary file for /var/lib/apt/extended_states - mkstemp (13: Permission denied)
+E: Failed to write temporary StateFile /var/lib/apt/extended_states
+```
+
+**Root Cause:** `ansible.cfg` has `become = False` set globally (principle of least privilege), but Kubespray
+requires sudo for all package management and system configuration tasks.
+
+**Solution:** The inventory generation script (`scripts/generate-kubespray-inventory.py`) automatically adds
+`ansible_become=true` to all cloud cluster hosts. This ensures Kubespray operations run with proper privileges.
+
+**Verification:**
+
+```bash
+# Check inventory includes ansible_become=true
+grep ansible_become output/cluster-state/inventory.yml
+
+# Expected output (each host should have ansible_become=true):
+# control-plane ... ansible_become=true
+# cpu-worker-01 ... ansible_become=true
+```
+
+**Manual Fix (if needed):**
+
+```bash
+# Regenerate inventory with proper become settings
+uv run python scripts/generate-kubespray-inventory.py \
+  output/cluster-state/rendered-config.yaml \
+  cloud \
+  output/cluster-state/inventory.yml
+```
+
+**Note:** Do NOT modify Kubespray collection files directly (they are managed dependencies). Always configure
+privilege escalation through inventory or playbook-level settings.
+
+### Missing Python Dependencies (jmespath)
+
+**Problem:** Kubespray tasks fail with missing Python library errors like:
+
+```text
+fatal: [control-plane]: FAILED! => 
+    msg: You need to install "jmespath" prior to running json_query filter
+```
+
+**Root Cause:** The `jmespath` Python library is required for Ansible's `json_query` filter, which is used by
+Kubespray roles (particularly the Multus network plugin). This dependency was missing from `ansible/requirements.txt`.
+
+**Solution:** The `jmespath` package has been added to `ansible/requirements.txt` and is automatically installed
+when setting up the virtual environment.
+
+**Verification:**
+
+```bash
+# Check if jmespath is installed
+uv pip list | grep jmespath
+
+# Expected output:
+# jmespath    1.0.1
+```
+
+**Manual Fix (if needed):**
+
+```bash
+# Install jmespath in the current environment
+uv pip install jmespath>=1.0.0
+
+# Or reinstall all Ansible requirements
+uv pip install -r ansible/requirements.txt
+```
+
+**Note:** Always use `uv pip install` to maintain consistency with the project's package management approach.
 
 ## Playbook Dependencies
 

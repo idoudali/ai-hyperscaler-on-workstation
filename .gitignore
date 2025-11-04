@@ -19,6 +19,7 @@ output-*/
 *.retry
 .vault_pass
 vault_password_file
+ansible/collections/ansible_collections/
 
 # Vagrant
 .vagrant/

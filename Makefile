@@ -388,7 +388,7 @@ cloud-cluster-stop: venv-create
 	@uv run ai-how cloud stop $(CLUSTER_CONFIG)
 	@echo "✅ Cloud cluster VMs stopped successfully"
 
-# Deploy Kubernetes to Cloud cluster
+# Deploy Kubernetes to Cloud cluster (two-step: prepare + deploy)
 cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "=========================================="
 	@echo "Deploying Kubernetes to Cloud Cluster"
@@ -396,12 +396,25 @@ cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "Inventory: $(INVENTORY_OUTPUT)"
 	@echo "Cluster Config: $(CLUSTER_CONFIG)"
 	@echo ""
-	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
+	@echo "Step 1/2: Preparing Kubespray environment..."
+	@ANSIBLE_CONFIG=ansible/ansible.cfg \
+	ANSIBLE_COLLECTIONS_PATH=ansible/collections \
+	uv run ansible-playbook \
 		-v \
 		-i $(INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \
 		-e "inventory_file=$(INVENTORY_OUTPUT)" \
-		ansible/playbooks/playbook-cloud-runtime.yml
+		ansible/playbooks/prepare-cloud-deployment.yml
+	@echo ""
+	@echo "Step 2/2: Deploying Kubernetes cluster..."
+	@ANSIBLE_CONFIG=ansible/ansible.cfg \
+	ANSIBLE_COLLECTIONS_PATH=ansible/collections \
+	uv run ansible-playbook \
+		-vv \
+		-i $(INVENTORY_OUTPUT) \
+		-e "cluster_config=$(CLUSTER_CONFIG)" \
+		-e "inventory_file=$(INVENTORY_OUTPUT)" \
+		ansible/playbooks/deploy-cloud-k8s.yml
 	@echo ""
 	@echo "✅ Kubernetes cluster deployment completed"
 

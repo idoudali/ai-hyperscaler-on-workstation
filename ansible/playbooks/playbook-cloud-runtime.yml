@@ -1,15 +1,16 @@
 # Cloud Cluster Kubernetes Deployment Playbook
-# Consolidated playbook for deploying Kubernetes cluster using Kubespray
+# Complete Kubernetes cluster deployment using Kubespray with import_playbook
 #
-# This playbook consolidates the previous deploy-cloud-cluster.yml and playbook-cloud.yml
-# into a single maintainable file focused on Kubernetes cluster deployment.
+# This playbook orchestrates:
+# 1. Pre-flight preparation (IPv6 disable, DNS, packages)
+# 2. Kubespray environment setup
+# 3. Kubernetes cluster deployment (via import_playbook)
+# 4. Post-deployment configuration
+# 5. Cluster validation
+# 6. Kubeconfig retrieval
 #
-# Usage Examples:
-#   # Full deployment
+# Usage:
 #   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml
-#
-#   # Deploy only Kubespray (with tags)
-#   ansible-playbook -i inventories/cloud-cluster/inventory.ini playbooks/playbook-cloud-runtime.yml --tags kubespray
 #
 # IMPORTANT: This playbook is for RUNTIME deployment only (packer_build=false)
 
@@ -82,46 +83,246 @@
       ansible.builtin.apt:
         name: conntrack
         state: present
+        update_cache: true
+        cache_valid_time: 0
       when:
         - ansible_os_family == 'Debian'
         - ansible_distribution_major_version | int >= 13
       register: conntrack_install
-      retries: 3
-      delay: 5
+      retries: 5
+      delay: 10
       until: conntrack_install is succeeded
+      ignore_errors: false
 
     - name: Ensure DNS configuration present
       ansible.builtin.include_role:
         name: dns-config
 
-# Deploy Kubernetes with Kubespray
-- name: Deploy Cloud Cluster with Kubespray
+    - name: Debug OS family
+      ansible.builtin.debug:
+        msg: "OS family: {{ ansible_os_family | default('NOT SET') }}, Distribution: {{ ansible_distribution | default('NOT SET') }}"
+
+    - name: Fix APT permissions for Kubespray (fix extended_states)
+      ansible.builtin.debug:
+        msg: "Fixing APT extended_states permissions for {{ ansible_os_family }}"
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure /var/lib/apt directory exists and has correct permissions
+      ansible.builtin.file:
+        path: /var/lib/apt
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: ansible_os_family == 'Debian'
+
+    - name: Fix ownership and permissions of /var/lib/apt directory recursively
+      ansible.builtin.command:
+        cmd: chown -R root:root /var/lib/apt && chmod -R u+rwX,go+rX /var/lib/apt
+      changed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure all subdirectories under /var/lib/apt are writable
+      ansible.builtin.command:
+        cmd: find /var/lib/apt -type d -exec chmod 755 {} \;
+      changed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure all files under /var/lib/apt have correct permissions
+      ansible.builtin.command:
+        cmd: find /var/lib/apt -type f -exec chmod 644 {} \;
+      changed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Remove /var/lib/apt/extended_states if it exists to recreate with proper permissions
+      ansible.builtin.file:
+        path: /var/lib/apt/extended_states
+        state: absent
+      when: ansible_os_family == 'Debian'
+
+    - name: Create /var/lib/apt/extended_states with correct permissions
+      ansible.builtin.file:
+        path: /var/lib/apt/extended_states
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+      when: ansible_os_family == 'Debian'
+
+    - name: Verify /var/lib/apt/extended_states permissions after fix
+      ansible.builtin.stat:
+        path: /var/lib/apt/extended_states
+      register: apt_extended_states_verify
+      when: ansible_os_family == 'Debian'
+
+    - name: Display APT extended_states permissions
+      ansible.builtin.debug:
+        msg: "APT extended_states: exists={{ apt_extended_states_verify.stat.exists | default(false) }}, owner={{ apt_extended_states_verify.stat.uid | default('unknown') }}, group={{ apt_extended_states_verify.stat.gid | default('unknown') }}, mode={{ apt_extended_states_verify.stat.mode | default('unknown') }}"
+      when:
+        - ansible_os_family == 'Debian'
+        - apt_extended_states_verify.stat is defined
+
+    - name: Test apt-mark can write to extended_states (verify fix worked)
+      ansible.builtin.command:
+        cmd: apt-mark showmanual | head -1
+      register: apt_mark_test
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Display apt-mark test result
+      ansible.builtin.debug:
+        msg: "apt-mark test: rc={{ apt_mark_test.rc | default('unknown') }}, stdout={{ apt_mark_test.stdout | default('') }}"
+      when:
+        - ansible_os_family == 'Debian'
+        - apt_mark_test is defined
+
+    - name: Disable APT extended_states to avoid permission issues (optional safety measure)
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/99-disable-extended-states
+        line: 'APT::Extended-States "0";'
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: ansible_os_family == 'Debian'
+
+# Prepare Kubespray environment
+- name: Prepare Kubespray Environment
   hosts: localhost
   gather_facts: false
   become: false
   tags:
     - kubespray
-    - k8s
-    - kubernetes
+    - prepare
   vars:
     kubespray_source_dir: "{{ playbook_dir }}/../../build/3rd-party/kubespray/kubespray-src"
-    kubespray_inventory_file: "{{ inventory_file | default('ansible/inventories/cloud-cluster/inventory.ini') }}"
+    kubespray_inventory_file: "{{ inventory_file | default('output/cluster-state/inventory.yml') }}"
   tasks:
     - name: Display deployment information
       ansible.builtin.debug:
         msg: |
           ================================================================
-          Cloud Cluster Kubernetes Deployment
+          Kubespray Environment Preparation
           ================================================================
           Inventory: {{ kubespray_inventory_file }}
           Kubespray: {{ kubespray_source_dir }}
           ================================================================
-      delegate_to: localhost
-      run_once: true
 
-    - name: Run Kubespray cluster deployment via role
+    - name: Prepare Kubespray (validate, setup venv, install collections)
       ansible.builtin.include_role:
         name: kubespray-integration
+
+# Fix APT permissions before Kubespray (critical for Debian systems)
+- name: Fix APT permissions before Kubespray
+  hosts: all
+  gather_facts: true
+  become: true
+  tags:
+    - kubespray
+    - k8s
+    - pre-kubespray
+  tasks:
+    - name: Fix APT extended_states permissions for Kubespray
+      ansible.builtin.debug:
+        msg: "Fixing APT extended_states permissions before Kubespray deployment"
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure /var/lib/apt directory exists with correct permissions
+      ansible.builtin.file:
+        path: /var/lib/apt
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: ansible_os_family == 'Debian'
+
+    - name: Fix ownership and permissions of /var/lib/apt recursively
+      ansible.builtin.command:
+        cmd: chown -R root:root /var/lib/apt && chmod -R u+rwX,go+rX /var/lib/apt
+      changed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure all subdirectories under /var/lib/apt are writable
+      ansible.builtin.command:
+        cmd: find /var/lib/apt -type d -exec chmod 755 {} \;
+      changed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure all files under /var/lib/apt have correct permissions
+      ansible.builtin.command:
+        cmd: find /var/lib/apt -type f -exec chmod 644 {} \;
+      changed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Remove /var/lib/apt/extended_states if it exists
+      ansible.builtin.file:
+        path: /var/lib/apt/extended_states
+        state: absent
+      when: ansible_os_family == 'Debian'
+
+    - name: Create /var/lib/apt/extended_states with correct permissions
+      ansible.builtin.file:
+        path: /var/lib/apt/extended_states
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+      when: ansible_os_family == 'Debian'
+
+    - name: Verify apt-mark can access extended_states
+      ansible.builtin.command:
+        cmd: apt-mark showmanual | head -1
+      register: apt_mark_verify
+      changed_when: false
+      failed_when: apt_mark_verify.rc != 0
+      when: ansible_os_family == 'Debian'
+
+    - name: Display apt-mark verification result
+      ansible.builtin.debug:
+        msg: "apt-mark verification: {{ 'SUCCESS' if apt_mark_verify.rc == 0 else 'FAILED' }}"
+      when:
+        - ansible_os_family == 'Debian'
+        - apt_mark_verify is defined
+
+    - name: Disable APT extended_states as additional safety measure
+      ansible.builtin.lineinfile:
+        path: /etc/apt/apt.conf.d/99-disable-extended-states
+        line: 'APT::Extended-States "0";'
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: ansible_os_family == 'Debian'
+
+    - name: Reload APT configuration
+      ansible.builtin.command:
+        cmd: apt-config dump | grep -i extended
+      register: apt_config_check
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == 'Debian'
+
+    - name: Display APT extended_states configuration
+      ansible.builtin.debug:
+        msg: "APT extended_states config: {{ apt_config_check.stdout_lines | default(['not set']) }}"
+      when:
+        - ansible_os_family == 'Debian'
+        - apt_config_check is defined
+
+# Deploy Kubernetes cluster via Kubespray Collection
+# Note: Privilege escalation (become=true) is configured in the inventory
+# by the generate-kubespray-inventory.py script since ansible.cfg has
+# become=False globally. Kubespray requires sudo for all its operations.
+- name: Deploy Kubernetes Cluster
+  import_playbook: kubernetes_sigs.kubespray.cluster
+  vars:
+    # Override default Kubespray variables if needed
+    override_system_hostname: false
+    disable_swap: true
+  tags:
+    - kubespray
+    - k8s
 
 # Post-Kubespray Configuration
 - name: Post-Kubespray Configuration
@@ -132,8 +333,12 @@
     - kubespray
     - post-kubespray
   tasks:
-  # Note: Kubespray already ensures nodes are Ready during deployment
-  # Skipping redundant node readiness check to avoid Python dependency issues
+    - name: Display post-configuration message
+      ansible.builtin.debug:
+        msg: "Post-Kubespray configuration (if needed) goes here"
+      run_once: true
+      # Note: Kubespray already ensures nodes are Ready during deployment
+      # Skipping redundant node readiness check to avoid Python dependency issues
 
 # Validate Cluster Health
 - name: Validate Cluster Health
