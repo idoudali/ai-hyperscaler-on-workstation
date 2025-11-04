@@ -15,3 +15,4 @@ cryptography>=41.0.0
 paramiko>=3.0.0
 netaddr>=0.10.0
 jmespath>=1.0.0  # Required for json_query filter used by Kubespray
+distlib>=0.3.0  # Required for ansible-galaxy collection build

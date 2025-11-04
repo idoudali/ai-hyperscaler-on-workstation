@@ -40,6 +40,11 @@ BUILD_DIR := build
 # Cluster State
 CLUSTER_STATE_DIR := output/cluster-state
 
+# SSH Keys (shared between Packer builds and Ansible)
+SSH_KEYS_DIR := build/shared/ssh-keys
+SSH_PRIVATE_KEY := $(SSH_KEYS_DIR)/id_rsa
+SSH_PUBLIC_KEY := $(SSH_KEYS_DIR)/id_rsa.pub
+
 #==============================================================================
 # Build Configuration Helper
 #==============================================================================
@@ -209,20 +214,20 @@ config-render: venv-create
 	@echo "=========================================="
 	@echo "Rendering Cluster Configuration"
 	@echo "=========================================="
-	@echo "Source: $(CLUSTER_CONFIG)"
+	@echo "Source: config/example-multi-gpu-clusters.yaml"
 	@echo "Output: $(CLUSTER_RENDERED)"
 	@echo ""
-	@if [ ! -f "$(CLUSTER_CONFIG)" ]; then \
-		echo "❌ Error: Source configuration not found: $(CLUSTER_CONFIG)"; \
+	@if [ ! -f "config/example-multi-gpu-clusters.yaml" ]; then \
+		echo "❌ Error: Source configuration not found: config/example-multi-gpu-clusters.yaml"; \
 		exit 1; \
 	fi
 	@echo "🔧 Creating cluster state directory..."
 	@mkdir -p $(CLUSTER_STATE_DIR)
 	@echo "🔧 Processing configuration with variable expansion..."
-	@uv run ai-how render $(CLUSTER_CONFIG) -o $(CLUSTER_RENDERED) --show-variables
+	@uv run ai-how render config/example-multi-gpu-clusters.yaml -o $(CLUSTER_RENDERED) --show-variables
 	@echo ""
 	@echo "✅ Configuration rendered successfully!"
-	@echo "📁 Source: $(CLUSTER_CONFIG)"
+	@echo "📁 Source: config/example-multi-gpu-clusters.yaml"
 	@echo "📁 Rendered: $(CLUSTER_RENDERED)"
 	@echo ""
 	@echo "Next steps:"
@@ -251,14 +256,19 @@ config-validate: venv-create
 #==============================================================================
 .PHONY: hpc-cluster-inventory hpc-cluster-start hpc-cluster-stop hpc-cluster-deploy hpc-cluster-destroy hpc-cluster-status
 .PHONY: cloud-cluster-inventory cloud-cluster-start cloud-cluster-stop cloud-cluster-deploy cloud-cluster-destroy cloud-cluster-status
-.PHONY: system-start system-stop system-status system-destroy
+.PHONY: system-start system-stop system-deploy system-status system-destroy
 .PHONY: cluster-inventory cluster-start cluster-stop cluster-deploy cluster-destroy cluster-status clean-ssh-keys
 
 # Cluster configuration file
 CLUSTER_CONFIG ?= config/example-multi-gpu-clusters.yaml
 CLUSTER_NAME ?= hpc
 CLOUD_CLUSTER_NAME ?= cloud
-INVENTORY_OUTPUT ?= $(CLUSTER_STATE_DIR)/inventory.yml
+
+# Separate inventory outputs for each cluster type
+HPC_INVENTORY_OUTPUT ?= $(CLUSTER_STATE_DIR)/hpc-inventory.ini
+CLOUD_INVENTORY_OUTPUT ?= $(CLUSTER_STATE_DIR)/cloud-inventory.ini
+# Generic inventory output (for backward compatibility)
+INVENTORY_OUTPUT ?= $(HPC_INVENTORY_OUTPUT)
 
 #==============================================================================
 # HPC Cluster Lifecycle Management
@@ -269,26 +279,21 @@ hpc-cluster-inventory: config-render
 	@echo "Generating Ansible inventory for HPC cluster..."
 	@echo "Configuration: $(CLUSTER_RENDERED)"
 	@echo "Cluster: $(CLUSTER_NAME)"
-	@echo "Output: $(INVENTORY_OUTPUT)"
-	@echo "⚠️  NOTE: Using workaround script (ai-how inventory feature not yet implemented)"
+	@echo "Output: $(HPC_INVENTORY_OUTPUT)"Mo
 	@echo ""
 	@echo "Checking for SSH keys from Packer build system..."
-	@if [ ! -f "build/shared/ssh-keys/id_rsa" ]; then \
-		echo "⚠️  SSH keys not found. Generating them now..."; \
-		mkdir -p build/shared/ssh-keys; \
-		ssh-keygen -t rsa -b 4096 -f build/shared/ssh-keys/id_rsa -N "" -C "packer-build@shared" || exit 1; \
-		echo "✅ SSH keys generated"; \
-	else \
-		echo "✅ SSH keys found: build/shared/ssh-keys/id_rsa"; \
+	@if [ ! -f "$(SSH_PRIVATE_KEY)" ]; then \
+		echo "❌ Error: SSH private key not found: $(SSH_PRIVATE_KEY)"; \
+		echo "Please build the base images first to generate SSH keys."; \
+		exit 1; \
 	fi
+	@echo "✅ SSH keys found: $(SSH_PRIVATE_KEY)"
 	@echo ""
-	@mkdir -p $(dir $(INVENTORY_OUTPUT))
-	@uv run python scripts/generate-ansible-inventory.py $(CLUSTER_RENDERED) $(CLUSTER_NAME) $(INVENTORY_OUTPUT)
+	@mkdir -p $(dir $(HPC_INVENTORY_OUTPUT))
+	@uv run ai-how inventory generate-hpc $(CLUSTER_RENDERED) $(CLUSTER_NAME) --output $(HPC_INVENTORY_OUTPUT)
 	@echo ""
 	@echo "✅ Inventory generated successfully"
-	@echo "   File: $(INVENTORY_OUTPUT)"
-	@echo "   SSH Key: build/shared/ssh-keys/id_rsa (from Packer build)"
-	@echo "   SSH User: admin (matches Packer VMs)"
+	@echo "   File: $(HPC_INVENTORY_OUTPUT)"
 
 # Start HPC cluster VMs
 hpc-cluster-start: venv-create clean-ssh-keys
@@ -309,28 +314,17 @@ hpc-cluster-deploy: hpc-cluster-inventory
 	@echo "=========================================="
 	@echo "Deploying Runtime Configuration to HPC Cluster"
 	@echo "=========================================="
-	@echo "Inventory: $(INVENTORY_OUTPUT)"
+	@echo "Inventory: $(HPC_INVENTORY_OUTPUT)"
 	@echo "Cluster Config: $(CLUSTER_CONFIG)"
 	@echo "Cluster Name: $(CLUSTER_NAME)"
 	@echo ""
-	@echo "Verifying prerequisites..."
-	@if [ ! -f "$(INVENTORY_OUTPUT)" ]; then \
-		echo "❌ Error: Inventory generation failed"; \
-		exit 1; \
-	fi
-	@if [ ! -f "build/shared/ssh-keys/id_rsa" ]; then \
-		echo "❌ Error: SSH private key not found"; \
-		exit 1; \
-	fi
-	@echo "✅ Prerequisites verified"
-	@echo ""
 	@echo "Starting Ansible deployment..."
 	@echo "Using uv run for Ansible execution"
-	@echo "SSH Key: build/shared/ssh-keys/id_rsa"
+	@echo "SSH Key: $(SSH_PRIVATE_KEY)"
 	@echo ""
 	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
 		-v \
-		-i $(INVENTORY_OUTPUT) \
+		-i $(HPC_INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \
 		-e "cluster_name=$(CLUSTER_NAME)" \
 		ansible/playbooks/playbook-hpc-runtime.yml
@@ -341,7 +335,7 @@ hpc-cluster-deploy: hpc-cluster-inventory
 	@echo ""
 	@echo "Next Steps:"
 	@echo "  - Check deployment status in the output above"
-	@echo "  - SSH to controller: ssh -i build/shared/ssh-keys/id_rsa admin@192.168.100.10"
+	@echo "  - SSH to controller: ssh -i $(SSH_PRIVATE_KEY) admin@192.168.100.10"
 	@echo "  - Verify services: systemctl status slurmctld slurmdbd slurmd"
 	@echo "  - Test cluster: sinfo && srun hostname"
 
@@ -349,8 +343,6 @@ hpc-cluster-deploy: hpc-cluster-inventory
 hpc-cluster-destroy: venv-create
 	@echo "Destroying HPC cluster VMs and cleaning up resources..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
-	@echo "⚠️  WARNING: This will permanently delete the VMs and their data"
-	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || (echo "Aborted."; exit 1)
 	@uv run ai-how hpc destroy $(CLUSTER_CONFIG)
 	@echo "✅ HPC cluster destroyed successfully"
 
@@ -369,10 +361,11 @@ cloud-cluster-inventory: config-render
 	@echo "Generating Ansible inventory for Cloud cluster..."
 	@echo "Configuration: $(CLUSTER_RENDERED)"
 	@echo "Cluster: $(CLOUD_CLUSTER_NAME)"
-	@echo "Output: $(INVENTORY_OUTPUT)"
-	@mkdir -p $(dir $(INVENTORY_OUTPUT))
-	@uv run python scripts/generate-kubespray-inventory.py $(CLUSTER_RENDERED) $(CLOUD_CLUSTER_NAME) $(INVENTORY_OUTPUT)
+	@echo "Output: $(CLOUD_INVENTORY_OUTPUT)"
+	@mkdir -p $(dir $(CLOUD_INVENTORY_OUTPUT))
+	@uv run ai-how inventory generate-k8s $(CLUSTER_RENDERED) $(CLOUD_CLUSTER_NAME) --output $(CLOUD_INVENTORY_OUTPUT)
 	@echo "✅ Cloud cluster inventory generated"
+	@echo "   File: $(CLOUD_INVENTORY_OUTPUT)"
 
 # Start Cloud cluster VMs
 cloud-cluster-start: venv-create clean-ssh-keys
@@ -388,32 +381,28 @@ cloud-cluster-stop: venv-create
 	@uv run ai-how cloud stop $(CLUSTER_CONFIG)
 	@echo "✅ Cloud cluster VMs stopped successfully"
 
-# Deploy Kubernetes to Cloud cluster (two-step: prepare + deploy)
+# Deploy Kubernetes to Cloud cluster (two-step approach)
 cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "=========================================="
 	@echo "Deploying Kubernetes to Cloud Cluster"
 	@echo "=========================================="
-	@echo "Inventory: $(INVENTORY_OUTPUT)"
+	@echo "Inventory: $(CLOUD_INVENTORY_OUTPUT)"
 	@echo "Cluster Config: $(CLUSTER_CONFIG)"
 	@echo ""
-	@echo "Step 1/2: Preparing Kubespray environment..."
-	@ANSIBLE_CONFIG=ansible/ansible.cfg \
-	ANSIBLE_COLLECTIONS_PATH=ansible/collections \
-	uv run ansible-playbook \
+	@echo "Step 1: Preparing Kubespray environment..."
+	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
 		-v \
-		-i $(INVENTORY_OUTPUT) \
+		-i $(CLOUD_INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \
-		-e "inventory_file=$(INVENTORY_OUTPUT)" \
+		-e "inventory_file=$(CLOUD_INVENTORY_OUTPUT)" \
 		ansible/playbooks/prepare-cloud-deployment.yml
 	@echo ""
-	@echo "Step 2/2: Deploying Kubernetes cluster..."
-	@ANSIBLE_CONFIG=ansible/ansible.cfg \
-	ANSIBLE_COLLECTIONS_PATH=ansible/collections \
-	uv run ansible-playbook \
-		-vv \
-		-i $(INVENTORY_OUTPUT) \
+	@echo "Step 2: Deploying Kubernetes cluster..."
+	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
+		-v \
+		-i $(CLOUD_INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \
-		-e "inventory_file=$(INVENTORY_OUTPUT)" \
+		-e "inventory_file=$(CLOUD_INVENTORY_OUTPUT)" \
 		ansible/playbooks/deploy-cloud-k8s.yml
 	@echo ""
 	@echo "✅ Kubernetes cluster deployment completed"
@@ -422,8 +411,6 @@ cloud-cluster-deploy: cloud-cluster-inventory
 cloud-cluster-destroy: venv-create
 	@echo "Destroying Cloud cluster VMs..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
-	@echo "⚠️  WARNING: This will permanently delete the VMs"
-	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || (echo "Aborted."; exit 1)
 	@uv run ai-how cloud destroy $(CLUSTER_CONFIG)
 	@echo "✅ Cloud cluster destroyed successfully"
 
@@ -454,6 +441,19 @@ system-stop: venv-create
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@echo ""
 	@uv run ai-how system stop $(CLUSTER_CONFIG)
+
+# Deploy complete ML system (both HPC and Cloud clusters)
+system-deploy: hpc-cluster-deploy cloud-cluster-deploy
+	@echo "=========================================="
+	@echo "✅ Complete ML Platform Deployed"
+	@echo "=========================================="
+	@echo ""
+	@echo "Both HPC and Cloud clusters have been deployed successfully."
+	@echo ""
+	@echo "Next Steps:"
+	@echo "  - HPC Cluster: ssh -i $(SSH_PRIVATE_KEY) admin@192.168.100.10"
+	@echo "  - Cloud Cluster: Check kubeconfig in output/cluster-state/kubeconfigs/"
+	@echo "  - Verify services: make system-status"
 
 # Show status of complete ML system
 system-status: venv-create
@@ -596,6 +596,7 @@ help:
 	@echo "System-wide Cluster Management (Both HPC + Cloud):"
 	@echo "  make system-start      - Start complete ML platform (ai-how system start)."
 	@echo "  make system-stop       - Stop complete ML platform (ai-how system stop)."
+	@echo "  make system-deploy     - Deploy both HPC (SLURM) and Cloud (K8s) clusters."
 	@echo "  make system-status     - Show status of both clusters (ai-how system status)."
 	@echo "  make system-destroy    - Destroy complete ML platform (ai-how system destroy)."
 	@echo ""
@@ -638,7 +639,11 @@ help:
 	@echo "  CLUSTER_CONFIG         - Path to cluster config (default: config/example-multi-gpu-clusters.yaml)"
 	@echo "  CLUSTER_NAME           - HPC cluster name for inventory (default: hpc)"
 	@echo "  CLOUD_CLUSTER_NAME     - Cloud cluster name for inventory (default: cloud)"
-	@echo "  INVENTORY_OUTPUT       - Output path for inventory (default: \$${CLUSTER_STATE_DIR}/inventory.yml)"
+	@echo "  HPC_INVENTORY_OUTPUT   - HPC inventory output path (default: \$${CLUSTER_STATE_DIR}/hpc-inventory.ini)"
+	@echo "  CLOUD_INVENTORY_OUTPUT - Cloud inventory output path (default: \$${CLUSTER_STATE_DIR}/cloud-inventory.ini)"
+	@echo "  INVENTORY_OUTPUT       - Generic inventory path (default: \$${HPC_INVENTORY_OUTPUT})"
+	@echo "  SSH_KEYS_DIR           - SSH keys directory (default: build/shared/ssh-keys)"
+	@echo "  SSH_PRIVATE_KEY        - SSH private key path (default: \$${SSH_KEYS_DIR}/id_rsa)"
 	@echo ""
 	@echo "Notes:"
 	@echo "  - system-* targets use unified ai-how system commands for both clusters"
