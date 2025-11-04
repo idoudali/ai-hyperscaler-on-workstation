@@ -753,16 +753,14 @@ class CloudClusterManager(HPCClusterManager):
             # Get cluster name
             cluster_name = self.cloud_config.get("name", "cloud")
 
-            # Generate inventory using Python script
-            script_path = project_root / "scripts" / "generate-kubespray-inventory.py"
-            if not script_path.exists():
-                raise CloudManagerError(f"Inventory generation script not found: {script_path}")
-
+            # Generate inventory using ai-how CLI
             cmd = [
-                "python3",
-                str(script_path),
+                "ai-how",
+                "inventory",
+                "generate-k8s",
                 str(config_file),
                 cluster_name,
+                "--output",
                 str(output_path),
             ]
 

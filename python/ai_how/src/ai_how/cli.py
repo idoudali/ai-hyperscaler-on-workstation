@@ -1307,6 +1307,122 @@ def inventory_pcie(ctx: typer.Context) -> None:  # noqa: ARG001
         raise typer.Exit(code=1) from e
 
 
+@inventory.command("generate-hpc")
+def inventory_generate_hpc(
+    ctx: typer.Context,  # noqa: ARG001
+    config: Annotated[
+        Path,
+        typer.Argument(help="Path to cluster configuration YAML file"),
+    ],
+    cluster_name: Annotated[
+        str,
+        typer.Argument(help="Name of the HPC cluster to generate inventory for"),
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help="Output file path (default: stdout)"),
+    ] = None,
+    format: Annotated[  # noqa: A002
+        str,
+        typer.Option("--format", "-f", help="Output format: ini or yaml"),
+    ] = "ini",
+    ssh_key: Annotated[
+        Path | None,
+        typer.Option(
+            "--ssh-key", help="Path to SSH private key (default: build/shared/ssh-keys/id_rsa)"
+        ),
+    ] = None,
+    ssh_user: Annotated[
+        str,
+        typer.Option("--ssh-user", help="SSH username"),
+    ] = "admin",
+) -> None:
+    """Generate Ansible inventory for HPC/SLURM cluster."""
+    from ai_how.inventory import HPCInventoryGenerator, INIFormatter, YAMLFormatter
+
+    try:
+        # Generate inventory
+        generator = HPCInventoryGenerator(config, cluster_name, ssh_key, ssh_user)
+        inventory = generator.generate()
+
+        # Format inventory
+        formatter = YAMLFormatter() if format.lower() == "yaml" else INIFormatter()
+
+        content = formatter.format(inventory)
+
+        # Output
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(content)
+            console.print(f"✅ HPC inventory written to: {output}")
+            console.print(f"   SSH Key: {generator.ssh_key_path}")
+            console.print(f"   SSH User: {ssh_user}")
+        else:
+            console.print(content)
+
+    except Exception as e:
+        console.print(f"[red]❌ Error generating HPC inventory:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+@inventory.command("generate-k8s")
+def inventory_generate_k8s(
+    ctx: typer.Context,  # noqa: ARG001
+    config: Annotated[
+        Path,
+        typer.Argument(help="Path to cluster configuration YAML file"),
+    ],
+    cluster_name: Annotated[
+        str,
+        typer.Argument(help="Name of the Kubernetes cluster to generate inventory for"),
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help="Output file path (default: stdout)"),
+    ] = None,
+    format: Annotated[  # noqa: A002
+        str,
+        typer.Option("--format", "-f", help="Output format: ini or yaml"),
+    ] = "ini",
+    ssh_key: Annotated[
+        Path | None,
+        typer.Option(
+            "--ssh-key", help="Path to SSH private key (default: build/shared/ssh-keys/id_rsa)"
+        ),
+    ] = None,
+    ssh_user: Annotated[
+        str,
+        typer.Option("--ssh-user", help="SSH username"),
+    ] = "admin",
+) -> None:
+    """Generate Ansible inventory for Kubernetes/Kubespray cluster."""
+    from ai_how.inventory import INIFormatter, KubernetesInventoryGenerator, YAMLFormatter
+
+    try:
+        # Generate inventory
+        generator = KubernetesInventoryGenerator(config, cluster_name, ssh_key, ssh_user)
+        inventory = generator.generate()
+
+        # Format inventory
+        formatter = YAMLFormatter() if format.lower() == "yaml" else INIFormatter()
+
+        content = formatter.format(inventory)
+
+        # Output
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(content)
+            console.print(f"✅ Kubernetes inventory written to: {output}")
+            console.print(f"   SSH Key: {generator.ssh_key_path}")
+            console.print(f"   SSH User: {ssh_user}")
+        else:
+            console.print(content)
+
+    except Exception as e:
+        console.print(f"[red]❌ Error generating Kubernetes inventory:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+
 def _display_cluster_status(status: dict, cluster_type: str = "HPC") -> None:
     """Display cluster status information in a formatted table.
 

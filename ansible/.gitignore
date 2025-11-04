@@ -12,3 +12,8 @@ __pycache__/
 
 # Ansible facts cache
 /tmp/ansible_facts
+
+# Generated Ansible inventories (generated dynamically from cluster.yaml)
+inventories/inventories/
+inventories/generated/
+inventories/cloud-cluster/

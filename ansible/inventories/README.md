@@ -1,64 +1,187 @@
 # Ansible Inventories
 
 **Status:** Production  
-**Version:** 1.0  
+**Version:** 2.0  
 **Last Updated:** 2025-01-27
 
 ## Overview
 
-This directory contains Ansible inventory files for different deployment scenarios and environments.
+This directory contains dynamically generated Ansible inventory files for HPC (SLURM) and Cloud (Kubernetes) clusters.
+Inventories are generated from YAML cluster configuration files using the `ai-how` CLI tool.
 
-## Inventory Structure
+## Dynamic Inventory Generation
+
+All inventories are **generated dynamically** and should **not be committed** to version control.
+
+### Architecture
 
 ```text
-inventories/
-├── production/          # Production environment inventories
-├── staging/            # Staging environment inventories
-├── development/        # Development environment inventories
-└── test/              # Test environment inventories
+Source Configuration → ai-how CLI → Generated Inventory → Ansible Playbooks
+    (cluster.yaml)                  (output/cluster-state/)
+```
+
+### Generated Inventory Locations
+
+```text
+output/cluster-state/
+├── hpc-inventory.ini      # HPC cluster inventory (SLURM)
+└── cloud-inventory.ini    # Cloud cluster inventory (Kubernetes)
 ```
 
 ## Usage
 
-### Basic Usage
+### Generate Inventories
+
+#### HPC Cluster (SLURM)
 
 ```bash
-# Use specific inventory file
-ansible-playbook -i inventories/production/hosts.yml playbook.yml
+# Using Makefile (recommended)
+make hpc-cluster-inventory
 
-# Use inventory directory
-ansible-playbook -i inventories/production/ playbook.yml
+# Using ai-how CLI directly
+ai-how inventory generate-hpc \
+  output/cluster-state/rendered-config.yaml \
+  hpc \
+  --output output/cluster-state/hpc-inventory.ini
 ```
 
-### Dynamic Inventories
-
-For cloud environments, consider using dynamic inventories:
+#### Cloud Cluster (Kubernetes)
 
 ```bash
-# AWS EC2 dynamic inventory
-ansible-playbook -i inventories/aws_ec2.yml playbook.yml
+# Using Makefile (recommended)
+make cloud-cluster-inventory
 
-# OpenStack dynamic inventory
-ansible-playbook -i inventories/openstack.yml playbook.yml
+# Using ai-how CLI directly
+ai-how inventory generate-k8s \
+  output/cluster-state/rendered-config.yaml \
+  cloud \
+  --output output/cluster-state/cloud-inventory.ini
 ```
 
-## Environment-Specific Configuration
+### Deploy with Generated Inventories
 
-Each environment directory should contain:
+```bash
+# Deploy HPC cluster (generates inventory automatically)
+make hpc-cluster-deploy
 
-- `hosts.yml` - Main inventory file
-- `group_vars/` - Group-specific variables
-- `host_vars/` - Host-specific variables
-- `ansible.cfg` - Environment-specific Ansible configuration
+# Deploy Cloud cluster (generates inventory automatically)
+make cloud-cluster-deploy
+
+# Deploy both clusters
+make system-deploy
+```
+
+### Manual Ansible Usage
+
+```bash
+# Use generated HPC inventory
+ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
+  -i output/cluster-state/hpc-inventory.ini \
+  ansible/playbooks/playbook-hpc-runtime.yml
+
+# Use generated Cloud inventory
+ANSIBLE_CONFIG=ansible/ansible.cfg ansible-playbook \
+  -i output/cluster-state/cloud-inventory.ini \
+  ansible/playbooks/deploy-cloud-cluster.yml
+```
+
+## Inventory Features
+
+### HPC Cluster Inventory
+
+Generated from `cluster.yaml` with the following:
+
+- **Node Discovery**: Automatically discovers controller and compute nodes
+- **Live IP Resolution**: Queries `virsh` for actual VM IP addresses
+- **GPU Configuration**: Detects PCIe passthrough GPUs and generates SLURM GRES config
+- **Storage**: Includes BeeGFS and VirtIO-FS configuration
+- **SSH Settings**: Injects SSH keys and connection parameters
+
+### Cloud Cluster Inventory
+
+Generated for Kubespray deployment with:
+
+- **Control Plane Nodes**: Extracted from cluster configuration
+- **Worker Nodes**: Includes GPU workers for ML workloads
+- **Kubernetes Requirements**: Includes `ansible_become=true` required by Kubespray
+- **Network Configuration**: Calculates IPs from subnet configuration
+- **GPU Support**: Tags GPU workers for specialized scheduling
+
+## Configuration Sources
+
+Inventories are generated from cluster configuration files located in:
+
+- `config/example-multi-gpu-clusters.yaml` - Main cluster configuration
+- `output/cluster-state/rendered-config.yaml` - Rendered configuration with expanded variables
+
+See `config/README.md` for cluster configuration documentation.
+
+## Output Formats
+
+The `ai-how` inventory generator supports multiple output formats:
+
+- **INI Format** (default) - Standard Ansible INI inventory
+- **YAML Format** - Structured YAML inventory
+
+```bash
+# Generate YAML format
+ai-how inventory generate-hpc cluster.yaml hpc --format yaml --output inventory.yml
+```
+
+## Important Notes
+
+### Never Commit Generated Inventories
+
+Generated inventory files are excluded via `.gitignore`:
+
+```gitignore
+# Generated Ansible inventories
+inventories/inventories/
+inventories/generated/
+inventories/cloud-cluster/
+```
+
+### Inventory Regeneration
+
+Inventories should be regenerated whenever:
+
+- Cluster configuration changes (nodes added/removed)
+- VMs are recreated (IP addresses may change)
+- GPU passthrough configuration is modified
+- Storage or network settings are updated
+
+### Live IP Resolution
+
+The inventory generator queries running VMs via `virsh` to get actual IP addresses.
+If a VM is shut off, it will be excluded from the inventory automatically.
 
 ## Security Considerations
 
-- **Never commit sensitive data** (passwords, API keys) to version control
-- **Use Ansible Vault** for encrypting sensitive variables
-- **Restrict file permissions** on inventory files containing secrets
+- **SSH Keys**: Inventories include paths to SSH private keys stored in `build/shared/ssh-keys/`
+- **Key Generation**: SSH keys are generated by Packer during base image builds
+- **Access Control**: Restrict access to generated inventory files as they contain IP addresses and SSH key paths
+- **No Secrets**: Inventories do not contain passwords or API keys
+
+## Integration with Makefile
+
+The project Makefile provides convenient targets for inventory generation:
+
+```bash
+# HPC targets
+make hpc-cluster-inventory    # Generate HPC inventory
+make hpc-cluster-deploy       # Generate + deploy HPC
+
+# Cloud targets
+make cloud-cluster-inventory  # Generate Cloud inventory
+make cloud-cluster-deploy     # Generate + deploy Cloud
+
+# System-wide targets
+make system-deploy            # Generate + deploy both clusters
+```
 
 ## See Also
 
-- [Ansible Documentation](https://docs.ansible.com/)
-- [Inventory Best Practices](https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html)
-- [Ansible Vault](https://docs.ansible.com/ansible/latest/user_guide/vault.html)
+- **Python Module**: `python/ai_how/src/ai_how/inventory/` - Inventory generation implementation
+- **CLI Documentation**: `ai-how inventory --help` - CLI usage and options
+- **Cluster Configuration**: `config/README.md` - Cluster configuration documentation
+- **Ansible Documentation**: <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html>
