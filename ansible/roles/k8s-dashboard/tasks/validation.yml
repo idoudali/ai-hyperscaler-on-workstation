@@ -1,0 +1,99 @@
+# Validate Kubernetes Dashboard deployment
+
+- name: Check Dashboard Helm release
+  ansible.builtin.command:
+    cmd: "{{ helm_binary_path | default('helm') }} list -n {{ dashboard_namespace }} -o json"
+  changed_when: false
+  register: helm_releases
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Parse Helm release info
+  ansible.builtin.set_fact:
+    dashboard_release_found: "{{ (helm_releases.stdout | from_json | selectattr('name', 'equalto', dashboard_release_name) | list | length) > 0 }}"
+    dashboard_release_status: >-
+      {{
+        (
+          helm_releases.stdout | from_json | selectattr('name', 'equalto', dashboard_release_name) | list | first
+        ).status
+        if (helm_releases.stdout | from_json | selectattr('name', 'equalto', dashboard_release_name) | list | length) > 0
+        else 'missing'
+      }}
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Verify Dashboard Helm release is deployed
+  ansible.builtin.assert:
+    that:
+      - dashboard_release_found
+      - dashboard_release_status == 'deployed'
+    fail_msg: >-
+      Kubernetes Dashboard Helm release status is "{{ dashboard_release_status }}". Expected "deployed". Check Helm release logs: helm status {{ dashboard_release_name }} -n {{ dashboard_namespace }}
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Check Dashboard namespace exists
+  kubernetes.core.k8s_info:
+    kind: Namespace
+    name: "{{ dashboard_namespace }}"
+  register: namespace_check
+  failed_when: false
+  changed_when: false
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Determine namespace existence
+  ansible.builtin.set_fact:
+    dashboard_namespace_exists: "{{ (namespace_check.resources | length | int) > 0 }}"
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Check Dashboard pods (any status)
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ dashboard_namespace }}"
+  register: dashboard_pods
+  failed_when: false
+  changed_when: false
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Calculate Dashboard pod count
+  ansible.builtin.set_fact:
+    dashboard_pod_count: >-
+      {{ dashboard_pods.resources | length if dashboard_pods.resources is defined else 0 }}
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Display validation summary
+  ansible.builtin.debug:
+    msg:
+      - "Kubernetes Dashboard deployment validation complete!"
+      - "Namespace: {{ dashboard_namespace }}"
+      - "Helm Release: {{ dashboard_release_status if dashboard_release_found else 'NOT FOUND' }}"
+      - "Namespace exists: {{ 'YES' if dashboard_namespace_exists else 'NO' }}"
+      - "Pods in namespace: {{ dashboard_pod_count }}"
+      - ""
+      - "Dashboard is ready for access!"
+      - "See deployment output above for detailed access instructions."
+      - ""
+      - "Quick start:"
+      - "1. export KUBECONFIG={{ kubeconfig_path }}"
+      - "2. kubectl -n {{ dashboard_namespace }} port-forward svc/kubernetes-dashboard-kong-proxy 8443:443"
+      - "3. Open http://localhost:8000 in browser"
+      - "4. kubectl -n kubernetes-dashboard create token admin-user"
+      - ""
+      - "Troubleshooting:"
+      - "  kubectl get pods -n {{ dashboard_namespace }}"
+      - "  kubectl describe pod -n {{ dashboard_namespace }} <pod-name>"
+  tags:
+    - dashboard
+    - dashboard-validate

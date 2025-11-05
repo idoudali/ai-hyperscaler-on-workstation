@@ -1,0 +1,19 @@
+# Kubernetes Dashboard Role - Main Tasks
+
+- name: Include Dashboard installation
+  ansible.builtin.include_tasks: install-dashboard.yml
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Include Dashboard validation
+  ansible.builtin.include_tasks: validation.yml
+  tags:
+    - dashboard
+    - dashboard-validate
+
+- name: Include Dashboard access information
+  ansible.builtin.include_tasks: display-access-info.yml
+  tags:
+    - dashboard
+    - dashboard-info

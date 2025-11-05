@@ -1,0 +1,21 @@
+# CoreDNS Upstream DNS Configuration
+# This file fixes the DNS forwarding loop issue that causes CoreDNS to crash
+#
+# Problem: By default, upstream_dns_servers is empty ([]), which causes CoreDNS
+# to forward DNS queries to /etc/resolv.conf. If /etc/resolv.conf points back
+# to 127.0.0.1 (systemd-resolved), this creates an infinite loop and CoreDNS
+# crashes with: "plugin/loop: Loop detected"
+#
+# Solution: Explicitly configure upstream DNS servers so CoreDNS forwards to
+# real external DNS servers instead of /etc/resolv.conf
+#
+# Reference: https://github.com/kubernetes-sigs/kubespray
+# See also: ansible/collections/.../roles/kubernetes-apps/ansible/templates/coredns-config.yml.j2
+
+# Upstream DNS servers for CoreDNS
+# These are used by CoreDNS to resolve external DNS queries (outside the cluster)
+# Google Public DNS and Cloudflare DNS for redundancy
+upstream_dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+  - 1.1.1.1

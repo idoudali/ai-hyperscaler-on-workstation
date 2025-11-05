@@ -1,0 +1,54 @@
+# Display Kubernetes Dashboard access information
+
+- name: Get Dashboard Kong proxy service
+  kubernetes.core.k8s_info:
+    kind: Service
+    namespace: "{{ dashboard_namespace }}"
+    name: kubernetes-dashboard-kong-proxy
+  register: kong_proxy_service
+  tags:
+    - dashboard
+    - dashboard-info
+
+- name: Verify Kong proxy service exists
+  ansible.builtin.fail:
+    msg: "Kong proxy service not found. Dashboard may not be fully deployed."
+  when: kong_proxy_service.resources | length == 0
+  tags:
+    - dashboard
+    - dashboard-info
+
+- name: Display Dashboard access information
+  ansible.builtin.debug:
+    msg:
+      - "================================================================"
+      - "Kubernetes Dashboard - Access Instructions"
+      - "================================================================"
+      - ""
+      - "The Kubernetes Dashboard has been successfully deployed!"
+      - ""
+      - "STEP 1: Set KUBECONFIG environment variable"
+      - "   export KUBECONFIG=$(pwd)/output/cluster-state/kubeconfigs/cloud-cluster.kubeconfig"
+      - ""
+      - "STEP 2: Start port-forward to Kong proxy service"
+      - "   kubectl -n {{ dashboard_namespace }} port-forward svc/kubernetes-dashboard-kong-proxy 8443:443"
+      - ""
+      - "STEP 3: Open in your browser"
+      - "   https://localhost:8443"
+      - ""
+      - "   NOTE: You may see a certificate warning. Click 'Advanced' and proceed."
+      - "   This is expected because the dashboard uses a self-signed certificate."
+      - ""
+      - "STEP 4: Get authentication token"
+      - "   kubectl -n {{ dashboard_namespace }} create token admin-user"
+      - ""
+      - "   Copy the entire token output and paste it into the dashboard login page."
+      - "   Token is valid for 1 hour. Generate a new one when it expires."
+      - ""
+      - "================================================================"
+      - "Official Documentation:"
+      - "  https://kubernetes.io/docs/tasks/web-ui-dashboard/"
+      - "================================================================"
+  tags:
+    - dashboard
+    - dashboard-info

@@ -20,7 +20,7 @@ from ai_how.state.cluster_state import ClusterStateManager, VMState
 from ai_how.system_manager import SystemClusterManager, SystemManagerError
 from ai_how.utils.logging import configure_logging
 from ai_how.utils.virsh_utils import get_domain_ip
-from ai_how.validation import validate_config
+from ai_how.validation import find_project_root, validate_config
 from ai_how.vm_management.cloud_manager import CloudClusterManager, CloudManagerError
 from ai_how.vm_management.hpc_manager import HPCClusterManager, HPCManagerError
 from ai_how.vm_management.libvirt_client import LibvirtClient
@@ -1415,6 +1415,31 @@ def inventory_generate_k8s(
             console.print(f"✅ Kubernetes inventory written to: {output}")
             console.print(f"   SSH Key: {generator.ssh_key_path}")
             console.print(f"   SSH User: {ssh_user}")
+
+            # Create group_vars directory with CoreDNS fix
+            # This prevents the DNS forwarding loop issue in CoreDNS
+            inventory_dir = output.parent
+            group_vars_dir = inventory_dir / "group_vars" / "all"
+            group_vars_dir.mkdir(parents=True, exist_ok=True)
+
+            try:
+                project_root = find_project_root("Makefile")
+            except FileNotFoundError:
+                try:
+                    project_root = find_project_root()
+                except FileNotFoundError as root_error:
+                    raise FileNotFoundError(
+                        "Unable to determine project root to locate DNS fix template"
+                    ) from root_error
+
+            ansible_dns_fix_path = project_root / "ansible/group_vars/all/dns-fix.yml"
+            if not ansible_dns_fix_path.exists():
+                raise FileNotFoundError(f"DNS fix file not found: {ansible_dns_fix_path}")
+
+            dns_fix_content = ansible_dns_fix_path.read_text(encoding="utf-8")
+            dns_fix_file = group_vars_dir / "dns-fix.yml"
+            dns_fix_file.write_text(dns_fix_content)
+            console.print(f"✅ CoreDNS fix created: {dns_fix_file}")
         else:
             console.print(content)
 

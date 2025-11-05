@@ -45,13 +45,80 @@
           - Container runtime (containerd)
           - CNI networking (Calico)
           - Core DNS and metrics-server
+          - Kubernetes Dashboard
 
           Configuration includes:
           - Kubernetes control plane and worker nodes
           - Container runtime and networking
           - Cluster networking and DNS
+          - Kubernetes Dashboard (web UI)
 
           ====================================================================
+
+# Pre-flight SSH Key Bootstrap (if needed)
+- name: Bootstrap SSH Keys if Needed
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - bootstrap
+    - ssh-keys
+    - preflight
+  tasks:
+    - name: Test SSH connectivity to all hosts
+      ansible.builtin.ping:
+      register: ssh_test_result
+      changed_when: false
+      failed_when: false
+      loop: "{{ groups['all'] }}"
+      loop_control:
+        loop_var: target_host
+        label: "{{ target_host }}"
+      delegate_to: "{{ target_host }}"
+      ignore_errors: true
+
+    - name: Check if any hosts failed SSH
+      ansible.builtin.set_fact:
+        ssh_failed_hosts: >-
+          {{ (
+                ssh_test_result.results
+                | selectattr('target_host', 'defined')
+                | selectattr('failed', 'defined')
+                | selectattr('failed')
+                | map(attribute='target_host')
+                | list
+            )
+            +
+            (
+                ssh_test_result.results
+                | selectattr('target_host', 'defined')
+                | selectattr('unreachable', 'defined')
+                | selectattr('unreachable')
+                | map(attribute='target_host')
+                | list
+            )
+          | unique | list }}
+      delegate_to: localhost
+
+    - name: Display bootstrap requirement
+      ansible.builtin.debug:
+        msg: "SSH bootstrap required for hosts: {{ ssh_failed_hosts }}"
+      when: ssh_failed_hosts | length > 0
+      delegate_to: localhost
+
+    - name: Pause to allow manual SSH key bootstrap if needed
+      ansible.builtin.pause:
+        seconds: 30
+      when: ssh_failed_hosts | length > 0
+      delegate_to: localhost
+
+    - name: Display SSH key bootstrap instructions
+      ansible.builtin.debug:
+        msg: |
+          One or more hosts failed SSH connectivity.
+          Please ensure SSH keys are bootstrapped for these hosts: {{ ssh_failed_hosts }}
+          If you have just performed manual SSH key setup, wait for 30 seconds before retrying.
+      when: ssh_failed_hosts | length > 0
+      delegate_to: localhost
 
 # Pre-flight - Prepare Debian nodes
 - name: Pre-flight - Prepare Debian nodes
@@ -426,6 +493,21 @@
       run_once: true
       become: false
 
+# Deploy Kubernetes Dashboard
+- name: Deploy Kubernetes Dashboard
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster_name: "{{ kubeconfig_cluster_name | default('cloud-cluster') }}"
+    kubeconfig_path: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs/{{ cluster_name }}.kubeconfig"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  tags:
+    - dashboard
+    - k8s-dashboard
+  roles:
+    - role: k8s-dashboard
+
 # Post-validation
 - name: Cloud Cluster Deployment - Post-validation
   hosts: localhost
@@ -452,10 +534,14 @@
              - CNI networking (Calico)
              - CoreDNS
              - Metrics-server
+          2. Kubernetes Dashboard
+             - Web UI for cluster management
+             - Access via port-forward (see Dashboard deployment output)
 
           Access Points:
           - Kubernetes API: Use kubectl with generated kubeconfig
           - Kubeconfig location: See output above
+          - Dashboard UI: See Dashboard deployment output above
 
           Next Steps:
           1. Verify cluster status: kubectl get nodes

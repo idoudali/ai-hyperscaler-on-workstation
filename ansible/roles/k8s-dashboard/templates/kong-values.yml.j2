@@ -1,0 +1,66 @@
+# Kong Proxy Configuration for Kubernetes Dashboard
+# Fixes DNS resolution issues by properly configuring Kong for internal service discovery
+
+kong:
+  enabled: true
+
+  # Kong proxy ingress configuration
+  # Use internal DNS names for service resolution
+  proxy:
+    # Important: Kong uses internal Kubernetes DNS for service resolution
+    # Must use fully qualified domain names (FQDN) for reliable service discovery
+    # Format: <service>.<namespace>.svc.cluster.local
+    enableHttp: true
+    tls:
+      enabled: false  # HTTP only for port-forward access
+
+  # Kong admin API configuration
+  admin:
+    tls:
+      enabled: false
+
+  # Kong ingress controller settings
+  ingressController:
+    enabled: true
+
+    # Service routes must use FQDN to resolve through cluster DNS
+    # This prevents Kong from trying to resolve service names via external DNS
+    ingressClass: kong
+
+    # Configure Kong to use internal cluster DNS (kube-dns or CoreDNS)
+    env:
+      # Force Kong to use Kubernetes DNS resolver
+      KONG_DNS_ORDER: "LAST,SRV,A,CNAME"
+      KONG_DNS_VALID_TTL: 30
+      # Use cluster's internal DNS (typically kube-system)
+      KONG_DNS_NAMESERVER: "{{ kube_dns_service_ip | default('10.96.0.10') }}:53"  # kube-dns service IP (override with kube_dns_service_ip if your cluster uses a different service CIDR)
+
+  # Database configuration (use in-memory if no PostgreSQL)
+  postgresql:
+    enabled: false  # Use in-memory config for simpler deployment
+
+  # Resource limits to prevent memory issues
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+
+# Dashboard service routing through Kong
+# These values are used by Kong ingress controller to route traffic
+kong_routes:
+  # API service routing
+  api:
+    name: "dashboard-api"
+    service: "kubernetes-dashboard-api.{{ dashboard_namespace }}.svc.cluster.local"
+    port: 8000
+    path: "/api"
+
+  # Web service routing
+  web:
+    name: "dashboard-web"
+    service: "kubernetes-dashboard-web.{{ dashboard_namespace }}.svc.cluster.local"
+    port: 8000
+    path: "/"
