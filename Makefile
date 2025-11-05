@@ -214,20 +214,20 @@ config-render: venv-create
 	@echo "=========================================="
 	@echo "Rendering Cluster Configuration"
 	@echo "=========================================="
-	@echo "Source: config/example-multi-gpu-clusters.yaml"
+	@echo "Source: $(CLUSTER_CONFIG)"
 	@echo "Output: $(CLUSTER_RENDERED)"
 	@echo ""
-	@if [ ! -f "config/example-multi-gpu-clusters.yaml" ]; then \
-		echo "❌ Error: Source configuration not found: config/example-multi-gpu-clusters.yaml"; \
+	@if [ ! -f "$(CLUSTER_CONFIG)" ]; then \
+		echo "❌ Error: Source configuration not found: $(CLUSTER_CONFIG)"; \
 		exit 1; \
 	fi
 	@echo "🔧 Creating cluster state directory..."
 	@mkdir -p $(CLUSTER_STATE_DIR)
 	@echo "🔧 Processing configuration with variable expansion..."
-	@uv run ai-how render config/example-multi-gpu-clusters.yaml -o $(CLUSTER_RENDERED) --show-variables
+	@uv run ai-how render $(CLUSTER_CONFIG) -o $(CLUSTER_RENDERED) --show-variables
 	@echo ""
 	@echo "✅ Configuration rendered successfully!"
-	@echo "📁 Source: config/example-multi-gpu-clusters.yaml"
+	@echo "📁 Source: $(CLUSTER_CONFIG)"
 	@echo "📁 Rendered: $(CLUSTER_RENDERED)"
 	@echo ""
 	@echo "Next steps:"
@@ -240,14 +240,14 @@ config-validate: venv-create
 	@echo "=========================================="
 	@echo "Validating Cluster Configuration"
 	@echo "=========================================="
-	@echo "Source: config/example-multi-gpu-clusters.yaml"
+	@echo "Source: $(CLUSTER_CONFIG)"
 	@echo ""
-	@if [ ! -f "config/example-multi-gpu-clusters.yaml" ]; then \
-		echo "❌ Error: Configuration not found: config/example-multi-gpu-clusters.yaml"; \
+	@if [ ! -f "$(CLUSTER_CONFIG)" ]; then \
+		echo "❌ Error: Configuration not found: $(CLUSTER_CONFIG)"; \
 		exit 1; \
 	fi
 	@echo "🔍 Validating configuration syntax and variables..."
-	@uv run ai-how render config/example-multi-gpu-clusters.yaml --validate-only --show-variables
+	@uv run ai-how render $(CLUSTER_CONFIG) --validate-only --show-variables
 	@echo ""
 	@echo "✅ Configuration validation successful!"
 
@@ -279,7 +279,7 @@ hpc-cluster-inventory: config-render
 	@echo "Generating Ansible inventory for HPC cluster..."
 	@echo "Configuration: $(CLUSTER_RENDERED)"
 	@echo "Cluster: $(CLUSTER_NAME)"
-	@echo "Output: $(HPC_INVENTORY_OUTPUT)"Mo
+	@echo "Output: $(HPC_INVENTORY_OUTPUT)"
 	@echo ""
 	@echo "Checking for SSH keys from Packer build system..."
 	@if [ ! -f "$(SSH_PRIVATE_KEY)" ]; then \
@@ -381,29 +381,21 @@ cloud-cluster-stop: venv-create
 	@uv run ai-how cloud stop $(CLUSTER_CONFIG)
 	@echo "✅ Cloud cluster VMs stopped successfully"
 
-# Deploy Kubernetes to Cloud cluster (two-step approach)
+# Deploy Kubernetes to Cloud cluster (single consolidated playbook)
 cloud-cluster-deploy: cloud-cluster-inventory
 	@echo "=========================================="
-	@echo "Deploying Kubernetes to Cloud Cluster"
+	@echo "Deploying Kubernetes Cluster via Kubespray"
 	@echo "=========================================="
 	@echo "Inventory: $(CLOUD_INVENTORY_OUTPUT)"
 	@echo "Cluster Config: $(CLUSTER_CONFIG)"
 	@echo ""
-	@echo "Step 1: Preparing Kubespray environment..."
+	@echo "Deploying complete Kubernetes cluster..."
 	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
 		-v \
 		-i $(CLOUD_INVENTORY_OUTPUT) \
 		-e "cluster_config=$(CLUSTER_CONFIG)" \
 		-e "inventory_file=$(CLOUD_INVENTORY_OUTPUT)" \
-		ansible/playbooks/prepare-cloud-deployment.yml
-	@echo ""
-	@echo "Step 2: Deploying Kubernetes cluster..."
-	@ANSIBLE_CONFIG=ansible/ansible.cfg uv run ansible-playbook \
-		-v \
-		-i $(CLOUD_INVENTORY_OUTPUT) \
-		-e "cluster_config=$(CLUSTER_CONFIG)" \
-		-e "inventory_file=$(CLOUD_INVENTORY_OUTPUT)" \
-		ansible/playbooks/deploy-cloud-k8s.yml
+		ansible/playbooks/playbook-cloud-runtime.yml
 	@echo ""
 	@echo "✅ Kubernetes cluster deployment completed"
 

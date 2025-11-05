@@ -184,7 +184,7 @@ Ensure `ANSIBLE_COLLECTIONS_PATH` is set:
 
 ```bash
 export ANSIBLE_COLLECTIONS_PATH=ansible/collections
-ansible-playbook ansible/playbooks/deploy-cloud-k8s.yml -i <inventory>
+ansible-playbook ansible/playbooks/playbook-cloud-runtime.yml -i <inventory>
 ```
 
 ## References

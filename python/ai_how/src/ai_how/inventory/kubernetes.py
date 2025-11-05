@@ -188,8 +188,11 @@ class KubernetesInventoryGenerator(BaseInventoryGenerator):
             hostname = node["name"]
             ip = node["ip"]
 
+            # Get cluster name from config (fallback to cluster_name parameter)
+            cluster_display_name = self.cluster_config.get("name", self.cluster_name)
+
             # Query live IP
-            domain_name = f"{self.cluster_name}-cluster-{hostname}"
+            domain_name = f"{cluster_display_name}-{hostname}"
             live_ip, _ = self.query_live_ip(hostname, ip, domain_name)
 
             if live_ip is None:
@@ -197,10 +200,12 @@ class KubernetesInventoryGenerator(BaseInventoryGenerator):
                 print(f"ℹ️  Skipping shut-off domain: {domain_name}", file=sys.stderr)
                 continue
 
+            ansible_host = live_ip
+
             # Build host variables (Kubespray requires both ansible_host and ip)
             host_vars = {
-                "ansible_host": live_ip,
-                "ip": live_ip,
+                "ansible_host": ansible_host,
+                "ip": ansible_host,
                 "ansible_user": self.ssh_username,
                 "ansible_ssh_private_key_file": str(self.ssh_key_path),
                 "ansible_ssh_common_args": (
@@ -229,8 +234,11 @@ class KubernetesInventoryGenerator(BaseInventoryGenerator):
             hostname = node["name"]
             ip = node["ip"]
 
+            # Get cluster name from config (fallback to cluster_name parameter)
+            cluster_display_name = self.cluster_config.get("name", self.cluster_name)
+
             # Query live IP
-            domain_name = f"{self.cluster_name}-cluster-{hostname}"
+            domain_name = f"{cluster_display_name}-{hostname}"
             live_ip, _ = self.query_live_ip(hostname, ip, domain_name)
 
             if live_ip is None:
@@ -238,10 +246,12 @@ class KubernetesInventoryGenerator(BaseInventoryGenerator):
                 print(f"ℹ️  Skipping shut-off domain: {domain_name}", file=sys.stderr)
                 continue
 
+            ansible_host = live_ip
+
             # Build host variables (Kubespray requires both ansible_host and ip)
             host_vars = {
-                "ansible_host": live_ip,
-                "ip": live_ip,
+                "ansible_host": ansible_host,
+                "ip": ansible_host,
                 "ansible_user": self.ssh_username,
                 "ansible_ssh_private_key_file": str(self.ssh_key_path),
                 "ansible_ssh_common_args": (

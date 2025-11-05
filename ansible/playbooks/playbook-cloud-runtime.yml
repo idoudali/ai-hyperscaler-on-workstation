@@ -117,8 +117,7 @@
       when: ansible_os_family == 'Debian'
 
     - name: Fix ownership and permissions of /var/lib/apt directory recursively
-      ansible.builtin.command:
-        cmd: chown -R root:root /var/lib/apt && chmod -R u+rwX,go+rX /var/lib/apt
+      ansible.builtin.shell: chown -R root:root /var/lib/apt && chmod -R u+rwX,go+rX /var/lib/apt
       changed_when: false
       when: ansible_os_family == 'Debian'
 
@@ -163,8 +162,7 @@
         - apt_extended_states_verify.stat is defined
 
     - name: Test apt-mark can write to extended_states (verify fix worked)
-      ansible.builtin.command:
-        cmd: apt-mark showmanual | head -1
+      ansible.builtin.shell: apt-mark showmanual | head -1
       register: apt_mark_test
       changed_when: false
       failed_when: false
@@ -212,103 +210,6 @@
     - name: Prepare Kubespray (validate, setup venv, install collections)
       ansible.builtin.include_role:
         name: kubespray-integration
-
-# Fix APT permissions before Kubespray (critical for Debian systems)
-- name: Fix APT permissions before Kubespray
-  hosts: all
-  gather_facts: true
-  become: true
-  tags:
-    - kubespray
-    - k8s
-    - pre-kubespray
-  tasks:
-    - name: Fix APT extended_states permissions for Kubespray
-      ansible.builtin.debug:
-        msg: "Fixing APT extended_states permissions before Kubespray deployment"
-      when: ansible_os_family == 'Debian'
-
-    - name: Ensure /var/lib/apt directory exists with correct permissions
-      ansible.builtin.file:
-        path: /var/lib/apt
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-      when: ansible_os_family == 'Debian'
-
-    - name: Fix ownership and permissions of /var/lib/apt recursively
-      ansible.builtin.command:
-        cmd: chown -R root:root /var/lib/apt && chmod -R u+rwX,go+rX /var/lib/apt
-      changed_when: false
-      when: ansible_os_family == 'Debian'
-
-    - name: Ensure all subdirectories under /var/lib/apt are writable
-      ansible.builtin.command:
-        cmd: find /var/lib/apt -type d -exec chmod 755 {} \;
-      changed_when: false
-      when: ansible_os_family == 'Debian'
-
-    - name: Ensure all files under /var/lib/apt have correct permissions
-      ansible.builtin.command:
-        cmd: find /var/lib/apt -type f -exec chmod 644 {} \;
-      changed_when: false
-      when: ansible_os_family == 'Debian'
-
-    - name: Remove /var/lib/apt/extended_states if it exists
-      ansible.builtin.file:
-        path: /var/lib/apt/extended_states
-        state: absent
-      when: ansible_os_family == 'Debian'
-
-    - name: Create /var/lib/apt/extended_states with correct permissions
-      ansible.builtin.file:
-        path: /var/lib/apt/extended_states
-        state: touch
-        owner: root
-        group: root
-        mode: '0644'
-      when: ansible_os_family == 'Debian'
-
-    - name: Verify apt-mark can access extended_states
-      ansible.builtin.command:
-        cmd: apt-mark showmanual | head -1
-      register: apt_mark_verify
-      changed_when: false
-      failed_when: apt_mark_verify.rc != 0
-      when: ansible_os_family == 'Debian'
-
-    - name: Display apt-mark verification result
-      ansible.builtin.debug:
-        msg: "apt-mark verification: {{ 'SUCCESS' if apt_mark_verify.rc == 0 else 'FAILED' }}"
-      when:
-        - ansible_os_family == 'Debian'
-        - apt_mark_verify is defined
-
-    - name: Disable APT extended_states as additional safety measure
-      ansible.builtin.lineinfile:
-        path: /etc/apt/apt.conf.d/99-disable-extended-states
-        line: 'APT::Extended-States "0";'
-        create: true
-        owner: root
-        group: root
-        mode: '0644'
-      when: ansible_os_family == 'Debian'
-
-    - name: Reload APT configuration
-      ansible.builtin.command:
-        cmd: apt-config dump | grep -i extended
-      register: apt_config_check
-      changed_when: false
-      failed_when: false
-      when: ansible_os_family == 'Debian'
-
-    - name: Display APT extended_states configuration
-      ansible.builtin.debug:
-        msg: "APT extended_states config: {{ apt_config_check.stdout_lines | default(['not set']) }}"
-      when:
-        - ansible_os_family == 'Debian'
-        - apt_config_check is defined
 
 # Deploy Kubernetes cluster via Kubespray Collection
 # Note: Privilege escalation (become=true) is configured in the inventory

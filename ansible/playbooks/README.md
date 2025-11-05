@@ -51,14 +51,12 @@ Playbooks for Kubernetes cluster deployment using **Kubespray as an Ansible Coll
 
 | Playbook | Component | Purpose | Use Case |
 |----------|-----------|---------|----------|
-| **playbook-cloud-runtime.yml** | Cloud Runtime | Complete K8s deployment with pre/post config | Recommended - single playbook |
-| **prepare-cloud-deployment.yml** | Kubespray Preparation | Kubespray environment setup | Two-step approach - Step 1 |
-| **deploy-cloud-k8s.yml** | Kubernetes Deployment | Kubespray execution + post-config | Two-step approach - Step 2 |
+| **playbook-cloud-runtime.yml** | Cloud Runtime | Complete K8s deployment with pre/post config | Single consolidated playbook |
 
 **Architecture:** Uses **Kubespray as an Ansible Collection** with `import_playbook` for native integration and
 real-time output.
 
-**playbook-cloud-runtime.yml** (Complete - Single Playbook):
+**playbook-cloud-runtime.yml** (Complete Single Playbook):
 
 - **Phase 1**: Pre-validation and pre-flight setup (IPv6 disable, DNS, packages)
 - **Phase 2**: Kubespray collection build and installation
@@ -67,49 +65,20 @@ real-time output.
 - **Phase 5**: Cluster validation
 - **Phase 6**: Kubeconfig retrieval and setup
 
-**Two-Step Approach** (prepare + deploy):
-
-**Step 1**: `prepare-cloud-deployment.yml`
-
-- Pre-validation
-- Pre-flight setup (IPv6, DNS, packages)
-- Kubespray collection build and installation
-
-**Step 2**: `deploy-cloud-k8s.yml`
-
-- Kubernetes deployment via `import_playbook kubernetes_sigs.kubespray.cluster`
-- Post-deployment configuration
-- Cluster validation
-- Kubeconfig retrieval
-
 **Usage (Recommended - via Makefile):**
 
 ```bash
-# Complete two-step deployment (easiest)
+# Complete deployment (easiest)
 make cloud-cluster-deploy CLUSTER_CONFIG=config/your-cluster.yaml
 ```
 
-**Usage (Complete - Single Playbook):**
+**Usage (Direct Playbook Execution):**
 
 ```bash
 # Full deployment with all pre/post configuration
 ansible-playbook -i output/cluster-state/inventory.yml \
   -e "inventory_file=output/cluster-state/inventory.yml" \
   playbooks/playbook-cloud-runtime.yml
-```
-
-**Usage (Two-Step Manual):**
-
-```bash
-# Step 1: Preparation
-ansible-playbook -i output/cluster-state/inventory.yml \
-  -e "inventory_file=output/cluster-state/inventory.yml" \
-  playbooks/prepare-cloud-deployment.yml
-
-# Step 2: Deployment
-ansible-playbook -i output/cluster-state/inventory.yml \
-  -e "inventory_file=output/cluster-state/inventory.yml" \
-  playbooks/deploy-cloud-k8s.yml
 ```
 
 ### 3. Packer Image Build Playbooks
@@ -311,9 +280,7 @@ kubectl get pods --all-namespaces
 - All cloud deployment playbooks use the shell module with async support for reliable Kubespray execution
 - `playbook-cloud-runtime.yml` includes pre-flight setup, deployment, post-config, validation, and kubeconfig
 retrieval
-- The two-step approach (`prepare-cloud-deployment.yml` + `deploy-cloud-k8s.yml`) provides more control over the
-deployment process
-- Kubeconfig is automatically retrieved and saved to `output/cluster-state/kubeconfigs/` for all deployment methods
+- Kubeconfig is automatically retrieved and saved to `output/cluster-state/kubeconfigs/`
 
 **Advantages of Shell Module with Async:**
 
