@@ -470,8 +470,7 @@ The playbook will automatically:
 
 ## Related Documentation
 
-- [Kubernetes Basics Tutorial](./tutorials/kubernetes/01-kubernetes-basics.md) - Comprehensive guide to using
+- [Kubernetes Basics Tutorial](tutorials/kubernetes/01-kubernetes-basics.md) - Comprehensive guide to using
 Kubernetes on the cluster
-- [GitOps Workflow](./gitops-workflow.md) - Using kubectl with GitOps
-- [Cloud Cluster Deployment](../ansible/playbooks/playbook-cloud-runtime.yml) - Deployment playbook
-- [Kubernetes Configuration](../ansible/inventories/cloud-cluster/group_vars/all/cloud-cluster.yml) - Cluster config
+- [Cloud Cluster Deployment](../../ansible/playbooks/playbook-cloud-runtime.yml) - Deployment playbook
+- [Kubernetes Configuration](../../ansible/inventories/cloud-cluster/group_vars/all/cloud-cluster.yml) - Cluster config

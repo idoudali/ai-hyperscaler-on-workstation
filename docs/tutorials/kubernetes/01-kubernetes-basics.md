@@ -80,7 +80,7 @@ This is the preferred method for day-to-day Kubernetes management. You run `kube
 
 #### Prerequisites
 
-1. **kubectl installed locally** - See [kubeconfig management guide](../kubeconfig-management.md) for installation instructions
+1. **kubectl installed locally** - See [kubeconfig management guide](../../kubeconfig-management.md) for installation instructions
 2. **Cluster deployed** - The cluster must be deployed via Ansible playbooks
 3. **Kubeconfig available** - After deployment, kubeconfig files are saved in `output/cluster-state/kubeconfigs/`
 
@@ -127,7 +127,7 @@ From the project root directory:
 export KUBECONFIG=$(pwd)/output/cluster-state/kubeconfigs/cloud-cluster.kubeconfig
 ```
 
-**See [Managing Multiple Kubernetes Configs](../kubeconfig-management.md) for detailed kubeconfig management.**
+**See [Managing Multiple Kubernetes Configs](../../kubeconfig-management.md) for detailed kubeconfig management.**
 
 #### Step 3: Verify Local Access
 
@@ -1428,8 +1428,7 @@ kubectl cp <pod-name>:/path/file.txt /local/ -c <container-name>
 How to manage kubeconfigs locally
 2. **Kubernetes Official Docs:** https://kubernetes.io/docs/
 3. **kubectl Cheat Sheet:** https://kubernetes.io/docs/reference/kubectl/cheatsheet/
-4. **GitOps Workflow:** `/docs/gitops-workflow.md`
-5. **MLOps on Kubernetes:** Coming soon
+4. **MLOps on Kubernetes:** Coming soon
 
 ### Practice Exercises
 
@@ -1513,8 +1512,7 @@ You've learned the basics of working with Kubernetes on the AI-HOW cloud cluster
 ✅ Troubleshooting common issues
 ✅ Following best practices
 
-**For questions or issues, contact the cluster administrator or refer to `/docs/gitops-workflow.md` for the
-recommended GitOps deployment approach.**
+**For questions or issues, contact the cluster administrator.**
 
 ---
 

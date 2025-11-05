@@ -23,6 +23,55 @@ tools and agents.
 This project is not meant for production :). Use it at your own risk :). Yet, it can
 be a really nice playground to learn from others' mistakes.
 
+## High Level Overview
+
+This project transforms a single workstation with multiple GPUs into a complete dual-stack AI infrastructure using
+KVM virtualization, automated provisioning, and GPU passthrough.
+
+![System Architecture](architecture/architecture-diagram.drawio.png)
+
+### What It Creates
+
+The system deploys **two isolated virtual clusters** on your workstation:
+
+#### 1. HPC Cluster (Training) - Network: 192.168.100.0/24
+
+A traditional high-performance computing environment for distributed ML training:
+
+- **SLURM Controller** - Job scheduling, user management, cluster orchestration
+- **Compute Nodes** (2x) - GPU-accelerated training with PCIe passthrough (RTX 3090 Ti, RTX 4070)
+- **BeeGFS Parallel Filesystem** - High-performance distributed storage for datasets and checkpoints
+- **Container Runtime** - Docker and Apptainer for reproducible training environments
+
+#### 2. Cloud Cluster (Inference) - Network: 192.168.200.0/24
+
+A Kubernetes-based cloud platform for MLOps and model serving:
+
+- **Kubernetes Control Plane** - API server, scheduler, etcd for orchestration
+- **CPU Worker Node** - Hosts MLOps services (MinIO, MLflow, Kubeflow Pipelines)
+- **GPU Worker Node** - Inference server with RTX 4060 for model serving (KServe, vLLM)
+- **MLOps Platform** - Model registry, experiment tracking, and deployment pipelines
+
+### Automation & Orchestration
+
+The entire infrastructure is deployed and managed through:
+
+- **Packer** - Builds reproducible VM images for all node types
+- **Ansible** - Configures SLURM, Kubernetes, BeeGFS, and all services
+- **Terraform** - Provisions infrastructure as code (optional)
+- **CMake** - Orchestrates the entire build pipeline
+- **Oumi** - Unified ML orchestrator that bridges HPC training and K8s inference
+
+### Key Features
+
+- **GPU Passthrough** - Physical GPUs assigned directly to VMs for native performance
+- **Network Isolation** - Separate virtual networks for HPC and Cloud with controlled connectivity
+- **Full Automation** - End-to-end deployment from bare metal to running clusters
+- **Production-like Stack** - Real SLURM, Kubernetes, BeeGFS, not toy simulations
+- **Flexible GPU Assignment** - Move GPUs between clusters as needed for different workloads
+
+---
+
 ## Getting Started
 
 **New to the project?** Follow these guides in order:
@@ -50,172 +99,85 @@ Once installation is complete, follow these quickstart guides to deploy your clu
 
 ## Contributing to the Project
 
-The sections below are for **developers contributing to this project**. If you
-just want to use the platform, follow the [Quickstart Guides](#quickstart-guides) above.
+**For developers contributing to this project**, comprehensive development documentation is available in the
+[`development/`](development/) folder.
 
-### Development Workflow
-
-When contributing code changes, follow these steps after staging your changes:
-
-### Pre-commit Hooks
-
-This project uses the following pre-commit hooks:
-
-- **General formatting**: trailing whitespace, end-of-file, YAML/JSON/TOML/XML
-  validation
-- **Security checks**: detect private keys, large files (>10MB)
-- **Markdown linting**: with project-specific rules
-- **Shell script linting**: using shellcheck with relaxed rules
-- **Dockerfile linting**: using hadolint with common rules ignored
-- **Commit message validation**: enforcing Conventional Commits format
-
-**Running pre-commit hooks:**
+### Quick Start for Contributors
 
 ```bash
-# Run hooks on staged files
-make pre-commit-run
+# Setup development environment
+make venv-create && source .venv/bin/activate
+pre-commit install
 
-# Run hooks on all files
-make pre-commit-run-all
+# Before committing
+make pre-commit-run    # Run code quality checks
+make test-ai-how       # Run Python tests
+
+# Commit changes
+cz commit              # Interactive commit (recommended)
 ```
 
-### AI-HOW Python Package Development
+### Development Documentation
 
-The project includes a Python CLI package that can be developed using Nox-based
-workflows. Use the below targets to help with development:
+- **[Development Workflow Guide](development/development-workflow.md)** - Complete workflow, commit conventions,
+  and best practices
+- **[Code Quality & Linters](development/code-quality-linters.md)** - Pre-commit hooks, linting tools, and
+  configuration
+- **[CI/CD Pipeline](development/ci-cd-pipeline.md)** - GitHub Actions workflow and pipeline architecture
+- **[Python Dependencies Setup](development/python-dependencies-setup.md)** - Installing and troubleshooting
+  Python dependencies
+- **[GitHub Actions Guide](development/github-actions-guide.md)** - Detailed CI/CD workflow documentation
+- **[Cursor Agent Setup](development/cursor-agent-setup.md)** - AI-assisted development configuration
+
+### Essential Commands
+
+**Python Development:**
 
 ```bash
-# Run tests
-make test-ai-how
-
-# Run linting
-make lint-ai-how
-
-# Format code
-make format-ai-how
-
-# Build documentation
-make docs-ai-how
-
-# Clean build artifacts
-make clean-ai-how
+make venv-create       # Create virtual environment
+make test-ai-how       # Run tests
+make lint-ai-how       # Run linting
+make format-ai-how     # Format code
 ```
 
-### Docker Development Environment
-
-For consistent development environments:
+**Docker Development:**
 
 ```bash
-# Build the development image
-make build-docker
-
-# Start interactive shell in container
-make shell-docker
-
-# Run specific commands in container
-make run-docker COMMAND="pytest tests/"
-
-# Clean up Docker artifacts
-make clean-docker
+make build-docker      # Build development container
+make shell-docker      # Interactive shell
+make run-docker COMMAND="..."  # Run command in container
 ```
 
-### Commit Message Format
-
-This project follows [Conventional
-Commits](https://www.conventionalcommits.org/). Use the following format:
-
-```plain
-<type>(<scope>): <subject>
-```
-
-**Examples:**
-
-- `feat(ansible): add GPU node provisioning playbook`
-- `fix(terraform): resolve VPC subnet configuration issue`
-- `docs(slurm): update MIG GPU configuration guide`
-
-**Interactive commits:**
+**Code Quality:**
 
 ```bash
-cz commit  # Interactive commit message builder
+make pre-commit-run    # Run hooks on staged files
+cz commit              # Interactive commit message builder
 ```
 
-**Available types:** feat, fix, docs, style, refactor, perf, test, build, ci,
-chore, revert  
-**Available scopes:** ansible, terraform, packer, slurm, k8s, gpu, docs, ci,
-scripts
-
-For more details, please refer to the [Conventional Commits
-specification](https://www.conventionalcommits.org/) and [commitizen
-documentation](https://commitizen-tools.github.io/commitizen/).
-
-## Python CLI (ai-how)
-
-### Using the Makefile Workflow
-
-The recommended approach uses the Makefile which handles virtual environment
-creation and dependency management:
+**Testing:**
 
 ```bash
-# Create virtual environment and install dependencies
-make venv-create
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Use the CLI
-ai-how --help
+cd tests/ && make test         # Core infrastructure tests
+cd tests/ && make test-all     # Comprehensive test suite
 ```
 
-### Development Commands
+### Additional Resources
 
-```bash
-# Run via module if needed
-python -m ai_how.cli --help
+For complete development documentation including commit conventions, testing guidelines, and contributor best practices:
 
-# Run tests, linting, and formatting (via Makefile)
-make test-ai-how
-make lint-ai-how  
-make format-ai-how
-```
+**📖 See the [Development Workflow Guide](development/development-workflow.md)**
 
-## Testing Framework
+This guide covers:
 
-The project includes a comprehensive test suite for validating the entire HPC infrastructure. For complete
-documentation, see **[tests/README.md](tests/README.md)**.
+- Commit message format and conventions
+- Test suite organization and writing tests
+- Code quality standards and best practices
+- Python package development
+- Docker development environment
+- CI/CD pipeline details
 
-### Quick Start
-
-```bash
-# Run core infrastructure tests (recommended for CI/CD)
-cd tests/ && make test
-
-# Run comprehensive test suite with all phases
-cd tests/ && make test-all
-
-# Run quick validation tests
-cd tests/ && make test-quick
-
-# Run tests with verbose output
-cd tests/ && make test-verbose
-```
-
-### Test Organization
-
-The test suite is organized into three main categories:
-
-- **`foundation/`** - Prerequisite validation tests (CLI, Ansible roles, Packer images, configuration)
-- **`frameworks/`** - Unified cluster test frameworks (controller, compute, GPU passthrough)
-- **`advanced/`** - Integration suites (BeeGFS, container registry, VirtIO-FS)
-
-### For Contributors
-
-If you're writing new test frameworks or extending the test suite:
-
-- **Full documentation**: [tests/README.md](tests/README.md)
-- **Test framework standards**: See "Writing New Test Frameworks" in tests/README.md
-- **Shared utilities**: Use utilities in `tests/test-infra/utils/` for consistency
-- **Reference implementations**: Study existing frameworks in `tests/frameworks/`
+---
 
 ## Project Structure
 
