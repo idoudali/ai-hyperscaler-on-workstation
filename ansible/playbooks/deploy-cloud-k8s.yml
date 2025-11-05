@@ -1,0 +1,156 @@
+# Deploy Kubernetes Cluster via Kubespray Collection
+# This playbook deploys Kubernetes using the kubernetes_sigs.kubespray collection.
+# It runs after prepare-cloud-deployment.yml has set up the collection.
+
+# Import Kubespray cluster deployment playbook from the collection
+- name: Deploy Kubernetes Cluster
+  import_playbook: kubernetes_sigs.kubespray.cluster
+  vars:
+    # Override default Kubespray variables if needed
+    # These will be passed to the imported playbook
+    override_system_hostname: false
+    disable_swap: true
+
+# Post-Kubespray Configuration
+- name: Post-Kubespray Configuration
+  hosts: k8s_cluster
+  gather_facts: true
+  become: true
+  tags:
+    - post-config
+  tasks:
+    - name: Wait for Kubernetes API server to be ready
+      ansible.builtin.wait_for:
+        port: 6443
+        timeout: 300
+        state: started
+      when: "'kube_control_plane' in group_names"
+
+    - name: Get kubeconfig from control plane
+      ansible.builtin.slurp:
+        src: /etc/kubernetes/admin.conf
+      register: kubeconfig_content
+      when: "'kube_control_plane' in group_names"
+      run_once: true
+
+    - name: Set kubeconfig fact
+      ansible.builtin.set_fact:
+        kubeconfig_base64: "{{ kubeconfig_content.content }}"
+      when: "'kube_control_plane' in group_names"
+      run_once: true
+      delegate_to: "{{ groups['kube_control_plane'][0] }}"
+      delegate_facts: true
+
+# Validate Cluster Health
+- name: Validate Cluster Health
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  tags:
+    - validate
+  tasks:
+    - name: Check if kubectl is available
+      ansible.builtin.command: which kubectl
+      register: kubectl_check
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for all nodes to be ready
+      ansible.builtin.shell: |
+        kubectl get nodes --no-headers | awk '$2 != "Ready"' || true
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: nodes_not_ready
+      until: nodes_not_ready.stdout == ""
+      retries: 30
+      delay: 10
+      when: kubectl_check.rc == 0
+      changed_when: false
+
+    - name: Get node status
+      ansible.builtin.command: kubectl get nodes
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: node_status
+      when: kubectl_check.rc == 0
+      changed_when: false
+
+    - name: Display node status
+      ansible.builtin.debug:
+        msg: "{{ node_status.stdout_lines }}"
+      when: kubectl_check.rc == 0
+
+    - name: Get pod status in kube-system
+      ansible.builtin.command: kubectl get pods -n kube-system
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: pod_status
+      when: kubectl_check.rc == 0
+      changed_when: false
+
+    - name: Display pod status
+      ansible.builtin.debug:
+        msg: "{{ pod_status.stdout_lines }}"
+      when: kubectl_check.rc == 0
+
+# Copy kubeconfig to localhost
+- name: Copy kubeconfig to localhost
+  hosts: localhost
+  gather_facts: false
+  connection: local
+  become: false
+  tags:
+    - kubeconfig
+  tasks:
+    - name: Create output directory for kubeconfig
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs"
+        state: directory
+        mode: '0755'
+
+    - name: Get kubeconfig from control plane
+      ansible.builtin.set_fact:
+        kubeconfig_content: "{{ hostvars[groups['kube_control_plane'][0]]['kubeconfig_base64'] }}"
+
+    - name: Decode and save kubeconfig to localhost
+      ansible.builtin.copy:
+        content: "{{ kubeconfig_content | b64decode }}"
+        dest: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs/admin.conf"
+        mode: '0600'
+
+    - name: Update kubeconfig server address
+      ansible.builtin.replace:
+        path: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs/admin.conf"
+        regexp: 'https://127\.0\.0\.1:6443'
+        replace: "https://{{ hostvars[groups['kube_control_plane'][0]]['ansible_default_ipv4']['address'] }}:6443"
+
+    - name: Display kubeconfig location
+      ansible.builtin.debug:
+        msg: |
+          ================================================================
+          Kubernetes Cluster Deployment Complete!
+          ================================================================
+
+          Kubeconfig saved to:
+            {{ playbook_dir }}/../../output/cluster-state/kubeconfigs/admin.conf
+
+          To use this kubeconfig:
+            export KUBECONFIG={{ playbook_dir }}/../../output/cluster-state/kubeconfigs/admin.conf
+            kubectl get nodes
+
+          ================================================================
+
+# Deploy Kubernetes Dashboard
+- name: Deploy Kubernetes Dashboard
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cluster_name: "{{ kubeconfig_cluster_name | default('cloud-cluster') }}"
+    kubeconfig_path: "{{ playbook_dir }}/../../output/cluster-state/kubeconfigs/admin.conf"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  tags:
+    - dashboard
+    - k8s-dashboard
+  roles:
+    - role: k8s-dashboard

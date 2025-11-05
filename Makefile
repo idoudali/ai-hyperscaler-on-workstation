@@ -360,12 +360,13 @@ hpc-cluster-status: venv-create
 cloud-cluster-inventory: config-render
 	@echo "Generating Ansible inventory for Cloud cluster..."
 	@echo "Configuration: $(CLUSTER_RENDERED)"
-	@echo "Cluster: $(CLOUD_CLUSTER_NAME)"
+	@echo "Cluster key: $(CLOUD_CLUSTER_NAME)"
 	@echo "Output: $(CLOUD_INVENTORY_OUTPUT)"
 	@mkdir -p $(dir $(CLOUD_INVENTORY_OUTPUT))
 	@uv run ai-how inventory generate-k8s $(CLUSTER_RENDERED) $(CLOUD_CLUSTER_NAME) --output $(CLOUD_INVENTORY_OUTPUT)
 	@echo "✅ Cloud cluster inventory generated"
 	@echo "   File: $(CLOUD_INVENTORY_OUTPUT)"
+	@echo "⚠️  Note: If IPs are incorrect, check that the cluster name in config matches libvirt VM domain names"
 
 # Start Cloud cluster VMs
 cloud-cluster-start: venv-create clean-ssh-keys

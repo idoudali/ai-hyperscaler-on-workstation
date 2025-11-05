@@ -1,0 +1,28 @@
+# Kubernetes Dashboard Role - Default Variables
+# These can be overridden at the playbook level
+
+# Dashboard namespace
+dashboard_namespace: kubernetes-dashboard
+
+# Helm release name
+dashboard_release_name: kubernetes-dashboard
+
+# Helm chart repository
+dashboard_chart_repo: https://kubernetes.github.io/dashboard/
+
+# Helm chart name (repo/chart)
+dashboard_chart_name: kubernetes-dashboard/kubernetes-dashboard
+
+# Dashboard chart version (leave empty for latest)
+dashboard_chart_version: ""
+
+# Create namespace if it doesn't exist
+dashboard_create_namespace: true
+
+# Dashboard Helm values
+# Use default values from the official Helm chart
+# The chart includes Kong as a gateway proxy by default
+dashboard_helm_values: {}
+
+# Helm install wait timeout in seconds
+dashboard_helm_wait_timeout: 600

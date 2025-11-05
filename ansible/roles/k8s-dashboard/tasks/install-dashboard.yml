@@ -1,0 +1,177 @@
+# Install Kubernetes Dashboard using Helm
+
+- name: Check if Helm is installed
+  ansible.builtin.command: which helm
+  register: helm_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Get user home directory
+  ansible.builtin.set_fact:
+    user_home: "{{ lookup('env', 'HOME') | default(ansible_env.HOME | default('/home/' + ansible_user | default('root'))) }}"
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Install Helm if not present (to user directory)
+  block:
+    - name: Get Helm latest version
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/helm/helm/releases/latest
+        return_content: true
+      register: helm_release_info
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Extract Helm version
+      ansible.builtin.set_fact:
+        helm_version: "{{ helm_release_info.json.tag_name | regex_replace('^v', '') }}"
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Create local bin directory
+      ansible.builtin.file:
+        path: "{{ user_home }}/.local/bin"
+        state: directory
+        mode: '0755'
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Download Helm binary
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/helm-v{{ helm_version }}-linux-amd64.tar.gz"
+        dest: /tmp/helm.tar.gz
+        mode: '0644'
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Extract Helm binary
+      ansible.builtin.unarchive:
+        src: /tmp/helm.tar.gz
+        dest: /tmp
+        remote_src: true
+        creates: /tmp/linux-amd64/helm
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Install Helm to user directory
+      ansible.builtin.copy:
+        src: /tmp/linux-amd64/helm
+        dest: "{{ user_home }}/.local/bin/helm"
+        mode: '0755'
+        remote_src: true
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Verify Helm installation
+      ansible.builtin.command: "{{ user_home }}/.local/bin/helm version --short"
+      register: helm_version_check
+      changed_when: false
+      tags:
+        - dashboard
+        - dashboard-install
+
+    - name: Display Helm version
+      ansible.builtin.debug:
+        msg: "Helm installed: {{ helm_version_check.stdout }}"
+      tags:
+        - dashboard
+        - dashboard-install
+  when: helm_check.rc != 0
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Set Helm binary path
+  ansible.builtin.set_fact:
+    helm_binary_path: "{{ helm_check.stdout if helm_check.rc == 0 else user_home + '/.local/bin/helm' }}"
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Add Kubernetes Dashboard Helm repository
+  kubernetes.core.helm_repository:
+    name: kubernetes-dashboard
+    repo_url: "{{ dashboard_chart_repo }}"
+    binary_path: "{{ helm_binary_path }}"
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Update Helm repository cache
+  kubernetes.core.helm:
+    name: dummy
+    state: absent
+    release_namespace: kube-system
+    update_repo_cache: true
+    binary_path: "{{ helm_binary_path }}"
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Install Kubernetes Dashboard via Helm
+  kubernetes.core.helm:
+    name: "{{ dashboard_release_name }}"
+    chart_ref: "{{ dashboard_chart_name }}"
+    release_namespace: "{{ dashboard_namespace }}"
+    create_namespace: "{{ dashboard_create_namespace }}"
+    wait: true
+    timeout: "{{ dashboard_helm_wait_timeout }}s"
+    atomic: true
+    force: true
+    binary_path: "{{ helm_binary_path }}"
+    values: "{{ dashboard_helm_values | default({}) }}"
+  register: dashboard_install_result
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Display Dashboard installation status
+  ansible.builtin.debug:
+    msg: "Kubernetes Dashboard installed successfully in namespace {{ dashboard_namespace }}"
+  when: dashboard_install_result.changed
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Create admin service account for Dashboard access
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: admin-user
+        namespace: "{{ dashboard_namespace }}"
+  tags:
+    - dashboard
+    - dashboard-install
+
+- name: Create cluster admin role binding for service account
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: admin-user
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-admin
+      subjects:
+        - kind: ServiceAccount
+          name: admin-user
+          namespace: "{{ dashboard_namespace }}"
+  tags:
+    - dashboard
+    - dashboard-install

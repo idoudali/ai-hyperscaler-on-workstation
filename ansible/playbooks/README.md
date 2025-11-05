@@ -64,6 +64,7 @@ real-time output.
 - **Phase 4**: Post-deployment configuration
 - **Phase 5**: Cluster validation
 - **Phase 6**: Kubeconfig retrieval and setup
+- **Phase 7**: Kubernetes Dashboard deployment (automatically deployed)
 
 **Usage (Recommended - via Makefile):**
 
@@ -270,9 +271,14 @@ ansible-playbook -i inventories/cloud-cluster/inventory.ini ansible/playbooks/pl
 ansible-playbook -i inventories/cloud-cluster/inventory.ini ansible/playbooks/playbook-cloud-runtime.yml --tags kubespray
 
 # 3. Verify cluster status (kubeconfig automatically retrieved)
-export KUBECONFIG=output/cluster-state/kubeconfigs/cloud-cluster.kubeconfig
+# Note: kubeconfig filename is based on cluster name (e.g., cloud-cluster.kubeconfig)
+export KUBECONFIG=output/cluster-state/kubeconfigs/$(grep cluster_name output/cluster-state/rendered-config.yaml | head -1 | awk '{print $2}').kubeconfig
 kubectl get nodes
 kubectl get pods --all-namespaces
+
+# 4. Access Kubernetes Dashboard (automatically deployed)
+kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
+# Open https://localhost:8443 in browser
 ```
 
 **Important:**
@@ -280,7 +286,8 @@ kubectl get pods --all-namespaces
 - All cloud deployment playbooks use the shell module with async support for reliable Kubespray execution
 - `playbook-cloud-runtime.yml` includes pre-flight setup, deployment, post-config, validation, and kubeconfig
 retrieval
-- Kubeconfig is automatically retrieved and saved to `output/cluster-state/kubeconfigs/`
+- Kubeconfig is automatically retrieved and saved to `output/cluster-state/kubeconfigs/{{ cluster_name }}.kubeconfig`
+- **Kubernetes Dashboard is automatically deployed** with `playbook-cloud-runtime.yml` (see [Dashboard Access](#kubernetes-dashboard-access) section below)
 
 **Advantages of Shell Module with Async:**
 
@@ -619,6 +626,92 @@ uv pip install -r ansible/requirements.txt
 ```
 
 **Note:** Always use `uv pip install` to maintain consistency with the project's package management approach.
+
+## Kubernetes Dashboard Access
+
+The Kubernetes Dashboard is **automatically deployed** when using `playbook-cloud-runtime.yml` (included in `make cloud-cluster-deploy`). The Dashboard provides a web-based UI for managing your Kubernetes cluster.
+
+### Accessing the Dashboard
+
+1. **Set up kubeconfig:**
+
+```bash
+# Kubeconfig filename is based on cluster name (e.g., cloud-cluster.kubeconfig)
+export KUBECONFIG=/path/to/project/output/cluster-state/kubeconfigs/<cluster-name>.kubeconfig
+```
+
+2. **Start port-forward:**
+
+```bash
+kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
+```
+
+3. **Open in browser:**
+
+- URL: `https://localhost:8443`
+- Accept the self-signed certificate warning (if prompted)
+
+### Authentication
+
+The Dashboard uses Bearer Token authentication. To create a token for testing:
+
+**Option A: Create a ServiceAccount token (recommended for testing)**
+
+```bash
+# Create a ServiceAccount
+kubectl create serviceaccount admin-user -n kubernetes-dashboard
+
+# Create a ClusterRoleBinding for admin privileges
+kubectl create clusterrolebinding admin-user \
+  --clusterrole=cluster-admin \
+  --serviceaccount=kubernetes-dashboard:admin-user
+
+# Get the token
+kubectl -n kubernetes-dashboard create token admin-user
+```
+
+Then paste the token into the Dashboard login page.
+
+**Option B: Use existing admin token**
+
+```bash
+# Get the admin token from the kubeconfig
+kubectl -n kubernetes-dashboard get secret \
+  $(kubectl -n kubernetes-dashboard get sa admin-user -o jsonpath="{.secrets[0].name}") \
+  -o jsonpath="{.data.token}" | base64 -d
+```
+
+### Quick Access Command
+
+```bash
+# One-liner to start port-forward (replace <cluster-name> with your actual cluster name)
+export KUBECONFIG=/path/to/project/output/cluster-state/kubeconfigs/<cluster-name>.kubeconfig && \
+kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443
+```
+
+Then open `https://localhost:8443` in your browser.
+
+### Verification
+
+Check Dashboard deployment status:
+
+```bash
+# Check Dashboard pods
+kubectl get pods -n kubernetes-dashboard
+
+# Check Dashboard services
+kubectl get svc -n kubernetes-dashboard
+
+# Check Helm release
+helm list -n kubernetes-dashboard
+```
+
+### More Information
+
+For detailed Dashboard deployment and configuration options, see:
+
+- **[k8s-dashboard role documentation](../roles/k8s-dashboard/README.md)** - Complete role documentation
+- **[Official Kubernetes Dashboard Guide](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)** - Official documentation
 
 ## Playbook Dependencies
 
