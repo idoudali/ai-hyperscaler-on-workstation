@@ -6,6 +6,8 @@
 #
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 set -euo pipefail
 
 # Script configuration
@@ -13,31 +15,6 @@ set -euo pipefail
 SCRIPT_NAME="check-pmix-integration.sh"
 # shellcheck disable=SC2034
 TEST_NAME="SLURM PMIx Integration Validation"
-
-# Test execution function
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    echo -e "\n[TEST ${TESTS_RUN}] Running: ${test_name}"
-
-    if $test_function; then
-        log_success "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
-
-# Test configuration
-TEST_NAME="SLURM PMIx Integration Validation"
-
-log_info "Starting $TEST_NAME"
 
 # Expected PMIx configuration values
 EXPECTED_MPI_DEFAULT="pmix"
@@ -307,29 +284,8 @@ main() {
     run_test "SLURM Configuration Syntax" test_slurm_configuration_syntax
     run_test "PMIx Version Information" test_pmix_version_info
 
-    # Final results
-    echo -e "\n====================================="
-    echo -e "  Test Results Summary"
-    echo -e "====================================="
-    echo -e "Total tests run: ${TESTS_RUN}"
-    echo -e "Tests passed: ${TESTS_PASSED}"
-    echo -e "Tests failed: $((TESTS_RUN - TESTS_PASSED))"
-
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        echo -e "\nFailed tests:"
-        for test in "${FAILED_TESTS[@]}"; do
-            echo -e "  - $test"
-        done
-    fi
-
-    # Success criteria: All tests should pass
-    if [ "$TESTS_PASSED" -eq $TESTS_RUN ]; then
-        log_success "$TEST_NAME completed successfully (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
-        return 0
-    else
-        log_error "$TEST_NAME had issues (${TESTS_PASSED}/${TESTS_RUN} tests passed) - check configuration"
-        return 1
-    fi
+    # Print summary using shared function
+    print_check_summary
 }
 
 # Execute main function if script is run directly

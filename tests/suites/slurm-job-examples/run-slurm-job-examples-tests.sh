@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# SLURM Compute Test Suite Master Runner
-# Task 022 - Master Test Runner for SLURM Compute Node Validation
-# Orchestrates all SLURM compute node tests per Task 022 requirements
+# SLURM Job Examples Test Suite Master Runner
+# Validates SLURM job execution using Tutorial 08 examples (hello-world, pi-calculation, matrix-multiply)
+# Tests integration with BeeGFS shared storage across multiple nodes
 #
 
 set -euo pipefail
@@ -22,8 +22,8 @@ source "${COMMON_DIR}/suite-logging.sh"
 source "${COMMON_DIR}/suite-test-runner.sh"
 
 # Script configuration
-SCRIPT_NAME="run-slurm-compute-tests.sh"
-TEST_SUITE_NAME="SLURM Compute Node Test Suite (Task 022)"
+SCRIPT_NAME="run-slurm-job-examples-tests.sh"
+TEST_SUITE_NAME="SLURM Job Examples Test Suite (Tutorial 08)"
 SCRIPT_DIR="$SUITE_SCRIPT_DIR"
 TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
 export SCRIPT_DIR
@@ -39,12 +39,15 @@ touch "$LOG_FILE"
 init_suite_logging "$TEST_SUITE_NAME"
 init_test_runner
 
-# Test scripts for SLURM Compute validation
+# Pre-test health check script (runs before all other tests)
+HEALTH_CHECK_SCRIPT="check-cluster-health.sh"
+
+# Test scripts for SLURM job examples
 TEST_SCRIPTS=(
-    "check-compute-installation.sh"      # Task 022: Verify package installation
-    "check-compute-registration.sh"      # Task 022: Validate node registration
-    "check-multi-node-communication.sh"  # Task 022: Validate multi-node connectivity
-    "check-distributed-jobs.sh"          # Task 022: Validate job execution
+    "check-beegfs-shared-storage.sh"    # Verify BeeGFS is accessible from all nodes
+    "check-hello-world-job.sh"          # Test basic multi-node MPI job
+    "check-pi-calculation-job.sh"       # Test computational parallelism
+    "check-matrix-multiply-job.sh"      # Test memory-intensive parallel job
 )
 
 # Logging helpers
@@ -72,11 +75,11 @@ log_debug() {
 detect_cluster_mode() {
     if [ "${MAKEFILE_CLUSTER_MODE:-false}" = "true" ]; then
         log_info "Running in Makefile cluster mode"
-        log_info "Compute IPs: ${COMPUTE_IPS:-not set}"
+        log_info "Controller IP: ${CONTROLLER_IP:-not set}"
 
         # In Makefile mode, tests run via SSH
-        if [ -z "${COMPUTE_IPS:-}" ]; then
-            log_error "COMPUTE_IPS not set in Makefile cluster mode"
+        if [ -z "${CONTROLLER_IP:-}" ]; then
+            log_error "CONTROLLER_IP not set in Makefile cluster mode"
             return 1
         fi
 
@@ -91,13 +94,8 @@ detect_cluster_mode() {
         fi
 
         # Export for test scripts
-        export COMPUTE_IPS SSH_KEY_PATH SSH_USER
+        export CONTROLLER_IP SSH_KEY_PATH SSH_USER
         export TEST_MODE="remote"
-
-        # Count compute nodes
-        local compute_count
-        compute_count=$(echo "$COMPUTE_IPS" | wc -l)
-        log_info "Found $compute_count compute node(s)"
 
         log_info "✓ Makefile cluster mode configured"
         return 0
@@ -110,7 +108,7 @@ detect_cluster_mode() {
 
 # System check functions
 check_system_requirements() {
-    log_info "Checking system requirements for SLURM compute tests..."
+    log_info "Checking system requirements for SLURM job example tests..."
 
     # Detect cluster mode first
     if ! detect_cluster_mode; then
@@ -120,16 +118,12 @@ check_system_requirements() {
 
     # In Makefile cluster mode, skip local system checks
     if [ "${TEST_MODE:-local}" = "remote" ]; then
-        log_info "Remote test mode - skipping local system checks"
-        log_info "Will execute tests via SSH on compute nodes"
+        log_info "Remote test mode - will execute tests on controller: $CONTROLLER_IP"
 
-        # Test SSH connectivity to first compute node
-        local first_compute
-        first_compute=$(echo "$COMPUTE_IPS" | head -1)
-
+        # Test SSH connectivity
         if ! ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
-            "${SSH_USER}@${first_compute}" "echo 'SSH OK'" &>/dev/null; then
-            log_error "SSH connectivity test failed to compute node: $first_compute"
+            "${SSH_USER}@${CONTROLLER_IP}" "echo 'SSH OK'" &>/dev/null; then
+            log_error "SSH connectivity test failed to controller: $CONTROLLER_IP"
             return 1
         fi
 
@@ -148,8 +142,9 @@ check_system_requirements() {
 
     # Check essential commands
     local required_commands=(
-        "dpkg"
-        "systemctl"
+        "sinfo"
+        "sbatch"
+        "squeue"
         "timeout"
     )
 
@@ -169,13 +164,53 @@ check_system_requirements() {
     return 0
 }
 
+# Run cluster health check before tests
+run_cluster_health_check() {
+    local health_check_path="$TEST_SUITE_DIR/$HEALTH_CHECK_SCRIPT"
+
+    log_plain ""
+    log_plain "${BLUE}=====================================${NC}"
+    log_plain "${BLUE}  Running Cluster Health Check${NC}"
+    log_plain "${BLUE}=====================================${NC}"
+
+    # Check if health check script exists and is executable
+    if ! check_script_executable "$health_check_path"; then
+        log_error "Failed to prepare health check script"
+        return 1
+    fi
+
+    # Set up environment for health check script
+    export LOG_DIR="$LOG_DIR"
+    export SCRIPT_DIR="$SCRIPT_DIR"
+    export TEST_SUITE_DIR="$TEST_SUITE_DIR"
+
+    # Execute health check script
+    local start_time
+    start_time=$(date +%s)
+
+    if "$health_check_path"; then
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+
+        log_info "✓ Cluster health check passed (${duration}s)"
+        return 0
+    else
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+
+        log_error "✗ Cluster health check failed (${duration}s)"
+        return 1
+    fi
+}
+
 show_environment_info() {
     log_info "Test environment information:"
     log_info "- Test suite: $TEST_SUITE_NAME"
     log_info "- Log directory: $LOG_DIR"
     log_info "- Test suite directory: $TEST_SUITE_DIR"
     log_info "- Number of test scripts: ${#TEST_SCRIPTS[@]}"
-    log_info "- Current hostname: $(hostname)"
 
     # Show system info
     if command -v lsb_release >/dev/null 2>&1; then
@@ -194,7 +229,10 @@ show_environment_info() {
 # Cleanup functions
 cleanup_test_environment() {
     log_debug "Cleaning up test environment..."
-    # No specific cleanup needed for SLURM compute tests
+
+    # Optional: Clean up temporary job files on BeeGFS if needed
+    # (Most cleanup is handled by individual test scripts)
+
     log_debug "Test environment cleanup completed"
 }
 
@@ -203,6 +241,9 @@ cleanup_test_environment() {
 
 # Main execution function
 main() {
+    local start_time
+    start_time=$(date +%s)
+
     echo ""
     echo -e "${BLUE}=====================================${NC}"
     echo -e "${BLUE}  $TEST_SUITE_NAME${NC}"
@@ -215,6 +256,12 @@ main() {
     # Check system requirements
     if ! check_system_requirements; then
         log_error "System requirements check failed"
+        exit 1
+    fi
+
+    # Run cluster health check before tests
+    if ! run_cluster_health_check; then
+        log_error "Cluster health check failed - cannot proceed with tests"
         exit 1
     fi
 
@@ -255,6 +302,9 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Environment Variables:"
             echo "  LOG_DIR         Directory for test logs (default: ./logs/run-YYYY-MM-DD_HH-MM-SS)"
+            echo ""
+            echo "Pre-Test Health Check:"
+            echo "  - $HEALTH_CHECK_SCRIPT (runs automatically before all tests)"
             echo ""
             echo "Test Scripts:"
             for script in "${TEST_SCRIPTS[@]}"; do

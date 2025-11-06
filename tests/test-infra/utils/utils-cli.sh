@@ -347,10 +347,11 @@ process_command() {
             local config="$1"
             [[ -z "$config" ]] && { echo -e "${RED}Error: Config file required${NC}"; exit 1; }
             echo "Checking cluster status: $config"
-            if check_cluster_status >/dev/null 2>&1; then
-                echo -e "${GREEN}Cluster is running${NC}"
+            # Use show_cluster_status which now uses Makefile targets
+            if show_cluster_status "$config"; then
+                echo -e "${GREEN}Cluster status retrieved successfully${NC}"
             else
-                echo -e "${RED}Cluster is not running${NC}"
+                echo -e "${RED}Failed to get cluster status${NC}"
                 exit 1
             fi
             ;;

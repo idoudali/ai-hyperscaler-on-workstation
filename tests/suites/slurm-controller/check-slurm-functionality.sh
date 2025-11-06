@@ -6,6 +6,8 @@
 #
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 set -euo pipefail
 
 # Script configuration
@@ -13,49 +15,13 @@ set -euo pipefail
 SCRIPT_NAME="check-slurm-functionality.sh"
 # shellcheck disable=SC2034
 TEST_NAME="SLURM Controller Functionality Validation"
-FAILED_TESTS=()
 
 # SLURM configuration paths
 SLURM_CONFIG_DIR="/etc/slurm"
 SLURM_CONFIG_FILE="$SLURM_CONFIG_DIR/slurm.conf"
 SLURM_LOG_DIR="/var/log/slurm"
 
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Test execution functions
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    echo -e "\n${BLUE}Running Test ${TESTS_RUN}: ${test_name}${NC}"
-
-    if $test_function; then
-        log_info "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
+# Logging and test execution provided by suite-check-helpers.sh
 
 # Individual test functions
 test_slurm_directories() {
@@ -136,10 +102,14 @@ test_pmix_functionality() {
         fi
     done
 
-    # Check PMIx library availability
-    if ldconfig -p | grep -q libpmix; then
-        log_info "✓ PMIx libraries available in system"
-        pmix_tools_found=true
+    # Check PMIx library availability (if ldconfig is available)
+    if command -v ldconfig >/dev/null 2>&1; then
+        if ldconfig -p 2>/dev/null | grep -q libpmix; then
+            log_info "✓ PMIx libraries available in system"
+            pmix_tools_found=true
+        fi
+    else
+        log_debug "ldconfig not available, skipping library cache check"
     fi
 
     if [ "$pmix_tools_found" = true ]; then
@@ -238,24 +208,8 @@ main() {
     run_test "SLURM Basic Commands" test_slurm_basic_commands
     run_test "File Permissions" test_file_permissions
 
-    # Final results
-    echo -e "\n${BLUE}=====================================${NC}"
-    echo -e "${BLUE}  Test Results Summary${NC}"
-    echo -e "${BLUE}=====================================${NC}"
-
-    echo -e "Total tests run: ${TESTS_RUN}"
-    echo -e "Tests passed: ${GREEN}${TESTS_PASSED}${NC}"
-    echo -e "Tests failed: ${RED}$((TESTS_RUN - TESTS_PASSED))${NC}"
-
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        echo -e "\n${RED}Failed tests:${NC}"
-        for test in "${FAILED_TESTS[@]}"; do
-            echo -e "  - $test"
-        done
-    fi
-
-    # Success criteria: All tests should pass (only testing functionality that should be available)
-    if [ "$TESTS_PASSED" -eq $TESTS_RUN ]; then
+    # Print summary
+    if print_check_summary; then
         log_info "SLURM controller functionality validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else

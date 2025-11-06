@@ -6,6 +6,8 @@
 #
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 set -euo pipefail
 
 # Script configuration
@@ -13,6 +15,9 @@ set -euo pipefail
 SCRIPT_NAME="check-slurm-installation.sh"
 # shellcheck disable=SC2034
 TEST_NAME="SLURM Controller Installation Validation"
+
+# Initialize suite logging if SUITE_NAME is not set
+: "${SUITE_NAME:=$SCRIPT_NAME}"
 
 # Expected packages (matching Ansible role configuration)
 # Note: Only checking for packages that are actually installed by the Ansible role
@@ -46,42 +51,7 @@ SLURM_BINARIES=(
     "sacct"
 )
 
-# Logging functions
-log_info() {
-    log_suite_info "$@"
-}
-
-log_warn() {
-    log_suite_warning "$@"
-}
-
-log_error() {
-    log_suite_error "$@"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Test execution functions
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    echo -e "\n${BLUE}Running Test ${TESTS_RUN}: ${test_name}${NC}"
-
-    if $test_function; then
-        log_info "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
+# Logging and test execution provided by suite-check-helpers.sh
 
 # Individual test functions
 test_slurm_packages_installed() {
@@ -273,24 +243,8 @@ main() {
     run_test "PMIx Libraries" test_pmix_libraries
     run_test "Development Libraries" test_development_libraries
 
-    # Final results
-    echo -e "\n${BLUE}=====================================${NC}"
-    echo -e "${BLUE}  Test Results Summary${NC}"
-    echo -e "${BLUE}=====================================${NC}"
-
-    echo -e "Total tests run: ${TESTS_RUN}"
-    echo -e "Tests passed: ${GREEN}${TESTS_PASSED}${NC}"
-    echo -e "Tests failed: ${RED}$((TESTS_RUN - TESTS_PASSED))${NC}"
-
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        echo -e "\n${RED}Failed tests:${NC}"
-        for test in "${FAILED_TESTS[@]}"; do
-            echo -e "  - $test"
-        done
-    fi
-
-    # Success criteria: All tests should pass (only testing packages that should be installed)
-    if [ "$TESTS_PASSED" -eq $TESTS_RUN ]; then
+    # Print summary
+    if print_check_summary; then
         log_info "SLURM controller installation validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else

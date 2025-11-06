@@ -5,6 +5,8 @@
 # Tests MUNGE installation, configuration, key management, and authentication
 #
 
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
 set -eo pipefail
 
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
@@ -251,13 +253,13 @@ test_munge_key_validation() {
     if [ -f "$MUNGE_KEY_PATH" ]; then
         log_success "MUNGE key file exists: $MUNGE_KEY_PATH"
 
-        # Check key file permissions (should be 600)
+        # Check key file permissions (should be 600 or 400, both are acceptable)
         local key_perms
         key_perms=$(stat -c "%a" "$MUNGE_KEY_PATH")
-        if [ "$key_perms" = "600" ]; then
+        if [ "$key_perms" = "600" ] || [ "$key_perms" = "400" ]; then
             log_success "MUNGE key permissions are secure: $key_perms"
         else
-            log_error "MUNGE key permissions are incorrect: $key_perms (expected: 600)"
+            log_error "MUNGE key permissions are incorrect: $key_perms (expected: 600 or 400)"
             test_passed=false
         fi
 
@@ -284,25 +286,33 @@ test_munge_key_validation() {
         log_warning "MUNGE key file does not exist: $MUNGE_KEY_PATH"
         log_info "Attempting to generate MUNGE key..."
 
-        # Try to generate MUNGE key
-        if sudo mungekey --create 2>/dev/null; then
+        # Try to generate MUNGE key using the create-munge-key script
+        if sudo /usr/sbin/create-munge-key -f 2>/dev/null; then
             log_success "MUNGE key generated successfully"
-            # Restart MUNGE service to use new key
-            if sudo systemctl restart munge 2>/dev/null; then
-                log_success "MUNGE service restarted with new key"
-                # Re-check the key file
-                if [ -f "$MUNGE_KEY_PATH" ]; then
-                    log_success "MUNGE key file now exists: $MUNGE_KEY_PATH"
+            # Set permissions on generated key
+            if sudo chown munge:munge "$MUNGE_KEY_PATH" 2>/dev/null && \
+               sudo chmod 0400 "$MUNGE_KEY_PATH" 2>/dev/null; then
+                log_success "MUNGE key permissions set correctly"
+                # Restart MUNGE service to use new key
+                if sudo systemctl restart munge 2>/dev/null; then
+                    log_success "MUNGE service restarted with new key"
+                    # Re-check the key file
+                    if [ -f "$MUNGE_KEY_PATH" ]; then
+                        log_success "MUNGE key file now exists: $MUNGE_KEY_PATH"
+                    else
+                        log_error "MUNGE key generation failed"
+                        test_passed=false
+                    fi
                 else
-                    log_error "MUNGE key generation failed"
+                    log_error "Failed to restart MUNGE service after key generation"
                     test_passed=false
                 fi
             else
-                log_error "Failed to restart MUNGE service after key generation"
+                log_error "Failed to set permissions on MUNGE key"
                 test_passed=false
             fi
         else
-            log_error "Failed to generate MUNGE key"
+            log_error "Failed to generate MUNGE key using create-munge-key"
             test_passed=false
         fi
     fi

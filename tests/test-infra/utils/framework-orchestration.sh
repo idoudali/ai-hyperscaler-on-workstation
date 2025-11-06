@@ -50,6 +50,79 @@ export FRAMEWORK_TEST_TIMEOUT="${FRAMEWORK_TEST_TIMEOUT:-3600}"
 #
 # Returns: 0 if valid, 1 if any issues found
 #
+# =============================================================================
+# Helper Functions for Common Patterns
+# =============================================================================
+
+# Safe logging function that falls back to echo if log function not available
+_framework_log() {
+    if declare -f log &>/dev/null; then
+        log "$@"
+    else
+        echo "$@"
+    fi
+}
+
+# Safe error logging function
+_framework_log_error() {
+    if declare -f log_error &>/dev/null; then
+        log_error "$@"
+    else
+        echo "Error: $*" >&2
+    fi
+}
+
+# Safe success logging function
+_framework_log_success() {
+    if declare -f log_success &>/dev/null; then
+        log_success "$@"
+    elif declare -f log &>/dev/null; then
+        log "$@"
+    else
+        echo "$@"
+    fi
+}
+
+# Validate configuration file exists
+_framework_validate_config() {
+    local config="$1"
+    if [[ ! -f "$config" ]]; then
+        _framework_log_error "Configuration file not found: $config"
+        return 1
+    fi
+    return 0
+}
+
+# Change to project root directory
+_framework_cd_project_root() {
+    cd "${PROJECT_ROOT:-.}" || {
+        _framework_log_error "Failed to change to project root: ${PROJECT_ROOT:-.}"
+        return 1
+    }
+}
+
+# Execute Makefile target and handle result
+_framework_execute_make_target() {
+    local make_target="$1"
+    local config="$2"
+    local success_message="$3"
+    local error_message="$4"
+
+    _framework_log "Executing: make $make_target CLUSTER_CONFIG=$config"
+    if make "$make_target" CLUSTER_CONFIG="$config" 2>&1; then
+        _framework_log_success "$success_message"
+        return 0
+    else
+        local exit_code=$?
+        _framework_log_error "$error_message (exit code: $exit_code)"
+        return $exit_code
+    fi
+}
+
+# =============================================================================
+# Framework Environment Validation
+# =============================================================================
+
 validate_framework_environment() {
     local errors=0
 
@@ -119,26 +192,18 @@ validate_framework_environment() {
 framework_start_cluster() {
     local timeout="${FRAMEWORK_CLUSTER_START_TIMEOUT}"
 
-    if declare -f log &>/dev/null; then
-        log "Starting HPC cluster from configuration: $FRAMEWORK_TEST_CONFIG"
-    else
-        echo "Starting HPC cluster from configuration: $FRAMEWORK_TEST_CONFIG"
-    fi
+    _framework_log "Starting HPC cluster from configuration: $FRAMEWORK_TEST_CONFIG"
 
-    # Use ai-how to start cluster (assuming it's integrated)
-    # This is a placeholder that frameworks can override
-    if [[ -n "${FRAMEWORK_CLUSTER_NAME:-}" ]]; then
-        if ! ai-how cluster list 2>/dev/null | grep -q "$FRAMEWORK_CLUSTER_NAME"; then
-            echo "Cluster $FRAMEWORK_CLUSTER_NAME not found or not running"
-            return 1
-        fi
-    fi
+    # Validate configuration and change to project root
+    _framework_validate_config "$FRAMEWORK_TEST_CONFIG" || return 1
+    _framework_cd_project_root || return 1
 
-    if declare -f log &>/dev/null; then
-        log "Cluster started successfully"
-    fi
-
-    return 0
+    # Use Makefile target to start cluster (handles virtual environment automatically)
+    _framework_execute_make_target \
+        "hpc-cluster-start" \
+        "$FRAMEWORK_TEST_CONFIG" \
+        "Cluster started successfully" \
+        "Failed to start cluster"
 }
 
 #
@@ -153,20 +218,24 @@ framework_start_cluster() {
 # Returns: 0 if successful, 1 if failed
 #
 framework_stop_cluster() {
-    if declare -f log &>/dev/null; then
-        log "Stopping HPC cluster"
-    else
-        echo "Stopping HPC cluster"
-    fi
+    _framework_log "Stopping HPC cluster"
 
-    # Use shared cluster-utils if available
-    if declare -f stop_cluster_interactive &>/dev/null; then
+    # Validate configuration and change to project root
+    _framework_validate_config "$FRAMEWORK_TEST_CONFIG" || return 1
+    _framework_cd_project_root || return 1
+
+    # Use Makefile target to stop cluster (handles virtual environment automatically)
+    # Note: For force flag support, use shared cluster-utils if available
+    if [[ "${AI_HOW_DESTROY_FORCE:-true}" == "true" ]] && declare -f stop_cluster_interactive &>/dev/null; then
+        # Use shared cluster-utils for force flag support
         stop_cluster_interactive "$FRAMEWORK_TEST_CONFIG" "${FRAMEWORK_INTERACTIVE:-false}"
     else
-        echo "Warning: stop_cluster_interactive() not available"
+        _framework_execute_make_target \
+            "hpc-cluster-destroy" \
+            "$FRAMEWORK_TEST_CONFIG" \
+            "Cluster stopped successfully" \
+            "Failed to stop cluster"
     fi
-
-    return 0
 }
 
 #
@@ -255,22 +324,19 @@ framework_run_tests() {
 # Returns: 0 always (informational function)
 #
 framework_get_cluster_status() {
-    if declare -f log &>/dev/null; then
-        log "Cluster Status:"
-        log "Configuration: $FRAMEWORK_TEST_CONFIG"
-    else
-        echo "Cluster Status:"
-        echo "Configuration: $FRAMEWORK_TEST_CONFIG"
-    fi
+    _framework_log "Cluster Status:"
+    _framework_log "Configuration: $FRAMEWORK_TEST_CONFIG"
 
-    # Use shared utilities if available
-    if declare -f show_cluster_status &>/dev/null; then
-        show_cluster_status "$FRAMEWORK_TEST_CONFIG"
-    else
-        echo "Status: Unknown (status command not available)"
-    fi
+    # Validate configuration and change to project root
+    _framework_validate_config "$FRAMEWORK_TEST_CONFIG" || return 1
+    _framework_cd_project_root || return 1
 
-    return 0
+    # Use Makefile target to show status (handles virtual environment automatically)
+    _framework_execute_make_target \
+        "hpc-cluster-status" \
+        "$FRAMEWORK_TEST_CONFIG" \
+        "Cluster status retrieved successfully" \
+        "Failed to get cluster status"
 }
 
 #

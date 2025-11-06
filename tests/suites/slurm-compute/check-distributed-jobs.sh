@@ -5,66 +5,26 @@
 # Validates distributed job execution on compute nodes
 #
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
+
 set -euo pipefail
 
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
 # Script configuration
-SCRIPT_NAME="check-distributed-jobs.sh"
-TEST_NAME="SLURM Distributed Job Execution Validation"
+export SCRIPT_NAME="check-distributed-jobs.sh"
+export TEST_NAME="SLURM Distributed Job Execution Validation"
 
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
-
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Test execution functions
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    echo -e "\n${BLUE}Running Test ${TESTS_RUN}: ${test_name}${NC}"
-
-    if $test_function; then
-        log_info "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
+log_info "Starting $TEST_NAME ($SCRIPT_NAME)"
 
 # Individual test functions
 test_simple_job_execution() {
@@ -151,7 +111,7 @@ test_job_environment() {
         if echo "$output" | grep -q "SLURM"; then
             log_info "✓ SLURM environment variables available in jobs"
             local slurm_vars
-            slurm_vars=$(echo "$output" | grep "SLURM" | wc -l)
+            slurm_vars=$(grep -c "SLURM" <<< "$output")
             log_debug "Found $slurm_vars SLURM environment variables"
             return 0
         else
@@ -291,25 +251,8 @@ main() {
     run_test "Job Cancellation" test_job_cancellation
     run_test "Compute Node Resources" test_compute_node_resources
 
-    # Final results
-    echo -e "\n${BLUE}=====================================${NC}"
-    echo -e "${BLUE}  Test Results Summary${NC}"
-    echo -e "${BLUE}=====================================${NC}"
-
-    echo -e "Total tests run: ${TESTS_RUN}"
-    echo -e "Tests passed: ${GREEN}${TESTS_PASSED}${NC}"
-    echo -e "Tests failed: ${RED}$((TESTS_RUN - TESTS_PASSED))${NC}"
-
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        echo -e "\n${RED}Failed tests:${NC}"
-        for test in "${FAILED_TESTS[@]}"; do
-            echo -e "  - $test"
-        done
-        return 1
-    fi
-
-    log_info "Distributed job execution validation passed (${TESTS_PASSED}/${TESTS_RUN} tests)"
-    return 0
+    # Print summary using shared function
+    print_check_summary
 }
 
 # Execute main function

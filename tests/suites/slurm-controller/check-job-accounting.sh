@@ -4,14 +4,28 @@
 # This script validates SLURM job accounting functionality including
 # database connectivity, slurmdbd service, job tracking, and accounting data
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
+
 set -euo pipefail
 
-# Test configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${LOG_DIR:-${SCRIPT_DIR}/logs}"
-TEST_NAME="slurm-job-accounting"
+# Script configuration
+export SCRIPT_NAME="check-job-accounting.sh"
+export TEST_NAME="SLURM Job Accounting Validation"
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-LOG_FILE="${LOG_DIR}/${TEST_NAME}_${TIMESTAMP}.log"
+: "${LOG_DIR:=$(pwd)/logs/run-${TIMESTAMP}}"
+LOG_DIR="${LOG_DIR%/}"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.sh}.log"
+touch "$LOG_FILE"
+export LOG_DIR LOG_FILE
 
 # Test configuration
 TEST_TIMEOUT=300
@@ -22,34 +36,10 @@ MYSQL_PORT="3306"
 MYSQL_DB="slurm_acct_db"
 MYSQL_USER="slurm"
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Test counters
+# Test counters (using custom ones since this script has special test_passed/test_failed funcs)
 TESTS_PASSED=0
 TESTS_FAILED=0
 TESTS_SKIPPED=0
-
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
 
 # Test result functions
 test_passed() {
@@ -79,6 +69,7 @@ cleanup() {
 # Set up logging
 setup_logging() {
     mkdir -p "$LOG_DIR"
+    log_info "Starting $TEST_NAME ($SCRIPT_NAME)"
     log_info "Starting SLURM Job Accounting validation tests"
     log_info "Log file: $LOG_FILE"
     log_info "Test timeout: ${TEST_TIMEOUT}s"

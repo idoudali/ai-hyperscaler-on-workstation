@@ -9,12 +9,50 @@ set -euo pipefail
 
 # Source existing utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-# Source existing utilities if available
-if [[ -f "$PROJECT_ROOT/tests/test-infra/utils/log-utils.sh" ]]; then
-    source "$PROJECT_ROOT/tests/test-infra/utils/log-utils.sh"
+# Derive PROJECT_ROOT with fallback for remote VMs
+# When running locally: SCRIPT_DIR is tests/suites/common, go up 3 levels to project root
+# When running on remote VM via SCP: PROJECT_ROOT may need to be passed via environment
+PROJECT_ROOT="${PROJECT_ROOT:-}"
+if [[ -z "$PROJECT_ROOT" ]]; then
+    # Try to derive from SCRIPT_DIR (works when script is in original location)
+    PROJECT_ROOT_DERIVED="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+    if [[ -d "$PROJECT_ROOT_DERIVED/tests/test-infra/utils" ]]; then
+        PROJECT_ROOT="$PROJECT_ROOT_DERIVED"
+    fi
 fi
+
+TEST_INFRA_UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
+LOG_UTILS_FILE="$TEST_INFRA_UTILS_DIR/log-utils.sh"
+
+# Diagnostic output when DEBUG mode enabled
+if [[ "${DEBUG_SUITE_PATHS:-0}" == "1" ]]; then
+    echo "[DEBUG] Running in: $(pwd)" >&2
+    echo "[DEBUG] SCRIPT_DIR: $SCRIPT_DIR" >&2
+    echo "[DEBUG] PROJECT_ROOT: $PROJECT_ROOT" >&2
+    echo "[DEBUG] TEST_INFRA_UTILS_DIR: $TEST_INFRA_UTILS_DIR" >&2
+fi
+
+# Verify test-infra utilities are available - fail immediately if not found
+if [[ ! -d "$TEST_INFRA_UTILS_DIR" ]]; then
+    echo "FATAL: Test infrastructure utilities directory not found: $TEST_INFRA_UTILS_DIR" >&2
+    echo "FATAL: Running from directory: $(pwd)" >&2
+    echo "FATAL: SCRIPT_DIR: $SCRIPT_DIR" >&2
+    echo "FATAL: PROJECT_ROOT: $PROJECT_ROOT" >&2
+    echo "FATAL: Suite configuration requires shared utilities from tests/test-infra/utils/" >&2
+    echo "FATAL: Set PROJECT_ROOT environment variable to correct location on remote systems" >&2
+    exit 1
+fi
+
+if [[ ! -f "$LOG_UTILS_FILE" ]]; then
+    echo "FATAL: Required log utilities not found: $LOG_UTILS_FILE" >&2
+    echo "FATAL: Expected shared logging functions from tests/test-infra/utils/log-utils.sh" >&2
+    exit 1
+fi
+
+# Source log utilities - required for suite operation
+# shellcheck source=/dev/null
+source "$LOG_UTILS_FILE"
 
 # Default configuration values
 DEFAULT_SSH_USER="admin"
@@ -41,11 +79,16 @@ setup_suite_environment() {
     # Set up project root
     : "${PROJECT_ROOT:=$PROJECT_ROOT}"
 
+    # Set up test suite directory - derived from SCRIPT_DIR if not already set
+    : "${TEST_SUITE_DIR:=$(dirname "$SCRIPT_DIR")}"
+    export TEST_SUITE_DIR
+
     # Initialize logging if available
     if command -v log_info >/dev/null 2>&1; then
         log_info "Suite environment initialized: $suite_name"
         log_info "Log directory: $LOG_DIR"
         log_info "Project root: $PROJECT_ROOT"
+        log_info "Test suite directory: $TEST_SUITE_DIR"
     fi
 }
 
@@ -367,8 +410,7 @@ export -f get_config_summary
 # Export default configuration values
 export DEFAULT_SSH_USER DEFAULT_SSH_KEY_PATH DEFAULT_SSH_OPTS
 export DEFAULT_COMMAND_TIMEOUT DEFAULT_TEST_TIMEOUT DEFAULT_RETRY_COUNT DEFAULT_RETRY_DELAY
+export SCRIPT_DIR PROJECT_ROOT TEST_SUITE_DIR
 
-# Only log if log_info function is available (from log-utils.sh)
-if command -v log_info >/dev/null 2>&1; then
-    log_info "Test suite configuration utilities loaded successfully"
-fi
+# Log that configuration utilities loaded successfully
+log_info "Test suite configuration utilities loaded from: $LOG_UTILS_FILE"

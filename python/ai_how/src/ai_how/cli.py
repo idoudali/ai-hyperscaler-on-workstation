@@ -1731,12 +1731,30 @@ def _parse_cloud_cluster(cloud_config: dict) -> dict:
         cluster_info["vms"].append(control_plane_vm)
 
     # Add worker nodes
-    worker_nodes = cloud_config.get("worker_nodes", {})
-    for worker_type, nodes in worker_nodes.items():
-        for i, node_config in enumerate(nodes):
+    worker_nodes = cloud_config.get("worker_nodes", [])
+    # Handle both list and dict formats for worker_nodes
+    if isinstance(worker_nodes, dict):
+        # Old format: worker_nodes as dict with worker types as keys
+        for worker_type, nodes in worker_nodes.items():
+            for i, node_config in enumerate(nodes):
+                worker_vm = {
+                    "name": f"{cluster_info['name']}-{worker_type}-{i + 1:02d}",
+                    "type": f"worker_{worker_type}",
+                    "cpu_cores": node_config.get("cpu_cores", 0),
+                    "memory_gb": node_config.get("memory_gb", 0),
+                    "disk_gb": node_config.get("disk_gb", 0),
+                    "ip_address": node_config.get("ip", "dhcp"),
+                    "base_image": node_config.get("base_image_path", cluster_info["base_image"]),
+                    "gpu_assigned": _extract_gpu_info(node_config.get("pcie_passthrough", {})),
+                    "pcie_passthrough": node_config.get("pcie_passthrough", {}),
+                }
+                cluster_info["vms"].append(worker_vm)
+    else:
+        # New format: worker_nodes as list of node configs
+        for i, node_config in enumerate(worker_nodes):
             worker_vm = {
-                "name": f"{cluster_info['name']}-{worker_type}-{i + 1:02d}",
-                "type": f"worker_{worker_type}",
+                "name": f"{cluster_info['name']}-worker-{i + 1:02d}",
+                "type": "worker",
                 "cpu_cores": node_config.get("cpu_cores", 0),
                 "memory_gb": node_config.get("memory_gb", 0),
                 "disk_gb": node_config.get("disk_gb", 0),
@@ -2070,6 +2088,14 @@ def system_status(
             help="Path to unified cluster configuration file",
         ),
     ] = DEFAULT_CONFIG,
+    output_format: Annotated[
+        str,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Output format: text or json",
+        ),
+    ] = "text",
 ) -> None:
     """Show status of the complete ML system.
 
@@ -2081,6 +2107,10 @@ def system_status(
 
     The configuration file should contain both HPC and Cloud cluster
     definitions under the 'clusters' section.
+
+    Output formats:
+    - text: Human-readable formatted output (default)
+    - json: Machine-readable JSON output
     """
     state_path = ctx.obj["state"]
 
@@ -2094,17 +2124,19 @@ def system_status(
         cloud_data = clusters.get("cloud")
 
         if not hpc_data:
-            console.print("[red]Error:[/red] No HPC cluster configuration found in config file")
-            console.print(
-                "[yellow]Tip:[/yellow] Add an 'hpc' section under 'clusters' in your config"
-            )
+            error_msg = "No HPC cluster configuration found in config file"
+            if output_format.lower() == "json":
+                print(f'{{"error": "{error_msg}"}}', file=sys.stderr)
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(code=1)
 
         if not cloud_data:
-            console.print("[red]Error:[/red] No Cloud cluster configuration found in config file")
-            console.print(
-                "[yellow]Tip:[/yellow] Add a 'cloud' section under 'clusters' in your config"
-            )
+            error_msg = "No Cloud cluster configuration found in config file"
+            if output_format.lower() == "json":
+                print(f'{{"error": "{error_msg}"}}', file=sys.stderr)
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(code=1)
 
         # Initialize state manager
@@ -2116,20 +2148,41 @@ def system_status(
         # Get system status
         status = system_manager.get_system_status(hpc_data, cloud_data)
 
-        # Display status
-        _display_system_status(status)
+        # Display or output status based on format
+        if output_format.lower() == "json":
+            import json
+
+            print(json.dumps(status, indent=2, default=str))
+        else:
+            _display_system_status(status)
 
     except FileNotFoundError as e:
-        console.print(f"[red]Error:[/red] Configuration file not found: {e}")
+        error_msg = f"Configuration file not found: {e}"
+        if output_format.lower() == "json":
+            print(f'{{"error": "{error_msg}"}}', file=sys.stderr)
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(code=1) from None
     except SystemManagerError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        error_msg = str(e)
+        if output_format.lower() == "json":
+            print(f'{{"error": "{error_msg}"}}', file=sys.stderr)
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(code=1) from e
     except KeyError as e:
-        console.print(f"[red]Error:[/red] Missing required configuration section: {e}")
+        error_msg = f"Missing required configuration section: {e}"
+        if output_format.lower() == "json":
+            print(f'{{"error": "{error_msg}"}}', file=sys.stderr)
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(code=1) from e
     except Exception as e:
-        console.print(f"[red]Unexpected error:[/red] {e}")
+        error_msg = str(e)
+        if output_format.lower() == "json":
+            print(f'{{"error": "{error_msg}"}}', file=sys.stderr)
+        else:
+            console.print(f"[red]Unexpected error:[/red] {error_msg}")
         raise typer.Exit(code=1) from e
 
 
