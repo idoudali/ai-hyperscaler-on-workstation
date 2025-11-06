@@ -1,10 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=matrix-mult      # Job name
 #SBATCH --nodes=2                   # Number of nodes (compute-01, compute-02)
-#SBATCH --nodelist=compute-01,compute-02  # Specify compute nodes explicitly
 #SBATCH --ntasks-per-node=2         # MPI processes per node (total: 4)
 #SBATCH --cpus-per-task=1           # CPU cores per MPI process
-#SBATCH --mem=2G                    # Memory per node
 #SBATCH --time=00:10:00             # Max runtime: 10 minutes
 #SBATCH --output=slurm-%j.out       # Output file (%j = job ID)
 #SBATCH --error=slurm-%j.err        # Error file

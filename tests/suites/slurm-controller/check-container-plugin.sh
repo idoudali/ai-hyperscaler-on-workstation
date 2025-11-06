@@ -5,53 +5,24 @@
 # Validates container plugin configuration, Singularity integration, and container execution capabilities
 #
 
-set -euo pipefail
-
 # Source common test utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../../test-infra/utils/test-framework-utils.sh" 2>/dev/null || {
-    echo "Warning: test-framework-utils.sh not found, using basic logging"
-    # shellcheck disable=SC2317  # These are fallback functions used when sourcing fails
-    log_info() { echo "[INFO] $*"; }
-    # shellcheck disable=SC2317  # These are fallback functions used when sourcing fails
-    log_error() { echo "[ERROR] $*"; }
-    # shellcheck disable=SC2317  # These are fallback functions used when sourcing fails
-    log_success() { echo "[SUCCESS] $*"; }
-    # shellcheck disable=SC2317  # These are fallback functions used when sourcing fails
-    log_warn() { echo "[WARN] $*"; }
-    # shellcheck disable=SC2317  # These are fallback functions used when sourcing fails
-    log_debug() { echo "[DEBUG] $*"; }
-}
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
 
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
 
-# Test execution function
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
+set -euo pipefail
 
-    TESTS_RUN=$((TESTS_RUN + 1))
+# Script configuration
+export SCRIPT_NAME="check-container-plugin.sh"
+export TEST_NAME="SLURM Container Plugin Validation"
 
-    echo -e "\n[TEST ${TESTS_RUN}] Running: ${test_name}"
-
-    if $test_function; then
-        log_success "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
-
-# Test configuration
-TEST_NAME="SLURM Container Plugin Validation"
-
-log_info "Starting $TEST_NAME"
+log_info "Starting $TEST_NAME ($SCRIPT_NAME)"
 
 # Test 1: Verify plugin stack configuration file exists
 # shellcheck disable=SC2317  # Called indirectly via run_test function
@@ -417,24 +388,8 @@ main() {
     run_test "Container Configuration Permissions" test_container_config_permissions
     run_test "Basic Container Functionality" test_container_basic_functionality
 
-    # Summary
-    echo -e "\n=== Test Summary ==="
-    log_info "Tests run: $TESTS_RUN"
-    log_info "Tests passed: $TESTS_PASSED"
-    log_info "Tests failed: $((TESTS_RUN - TESTS_PASSED))"
-
-    if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
-        log_error "Failed tests:"
-        for test in "${FAILED_TESTS[@]}"; do
-            log_error "  - $test"
-        done
-        echo -e "\n=== Container Plugin Validation: FAILED ==="
-        exit 1
-    else
-        echo -e "\n=== Container Plugin Validation: PASSED ==="
-        log_success "All container plugin validation tests passed!"
-        exit 0
-    fi
+    # Print summary using shared function
+    print_check_summary
 }
 
 # Handle script arguments

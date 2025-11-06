@@ -102,9 +102,11 @@ test_prometheus_node_metrics() {
             # Check if query returned data
             if echo "$response" | grep -q '"status":"success"'; then
                 local result_count
-                result_count=$(echo "$response" | grep -c '"value":\[.*,"[0-9.]*"\]' || echo "0")
+                # Strip newlines and count results properly
+                result_count=$(echo "$response" | tr -d '\n' | grep -o '"result":\[' | wc -l || echo "0")
+                result_count=$((result_count))  # Ensure it's a number
                 if [ "$result_count" -gt 0 ]; then
-                    log_success "Query '$query' returned $result_count results"
+                    log_success "Query '$query' returned results"
                 else
                     log_warning "Query '$query' returned no data points"
                     failed_queries+=("$query")

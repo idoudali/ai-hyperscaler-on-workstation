@@ -6,15 +6,18 @@
 
 # Source logging and cluster utilities if available
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+
+# Define fallback logging functions first (always available)
+log() { echo "[LOG] $*"; }
+log_debug() { echo "[DEBUG] $*"; }
+log_error() { echo "[ERROR] $*" >&2; }
+log_success() { echo "[SUCCESS] $*"; }
+log_warning() { echo "[WARNING] $*"; }
+
+# Try to source enhanced logging if available
 if [[ -f "$SCRIPT_DIR/log-utils.sh" ]]; then
     # shellcheck source=./log-utils.sh
-    source "$SCRIPT_DIR/log-utils.sh"
-else
-    # Fallback logging if log-utils not available
-    log() { echo "[LOG] $*"; }
-    log_error() { echo "[ERROR] $*" >&2; }
-    log_success() { echo "[SUCCESS] $*"; }
-    log_warning() { echo "[WARNING] $*"; }
+    source "$SCRIPT_DIR/log-utils.sh" || true
 fi
 
 # Configuration variables (must be set by calling script)
@@ -24,6 +27,15 @@ fi
 # This makes the system vulnerable to man-in-the-middle attacks and should NEVER be used in production.
 # These options are acceptable ONLY in isolated test environments for automation convenience.
 : "${SSH_OPTS:=-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
+
+_build_ssh_opts() {
+    local -n _opts_ref=$1
+    _opts_ref=()
+    if [ -n "${SSH_OPTS:-}" ]; then
+        # shellcheck disable=SC2206
+        _opts_ref=($SSH_OPTS)
+    fi
+}
 
 # VM discovery and management using ai-how API
 
@@ -108,70 +120,87 @@ get_vm_ips_for_cluster() {
     VM_IPS=()
     VM_NAMES=()
 
-    # Get all running VMs matching our cluster name
-    local all_running_vms
-    all_running_vms=$(virsh list --name --state-running | grep "^${cluster_name}-" || true)
+    # Extract IPs using ai-how API
+    # Primary: Extract from cluster plan
+    log "Extracting VM IPs from cluster plan..."
 
-    # Debug: Show what VMs were found for troubleshooting
-    log_verbose "VM discovery - Cluster pattern: ^${cluster_name}-"
-    log_verbose "VM discovery - Running VMs found: '$all_running_vms'"
-    log_verbose "VM discovery - All running VMs (raw): $(virsh list --name --state-running || true)"
+    # Get VMs with IP addresses from the plan file and populate arrays
+    # Using mapfile to avoid subshell issues with array assignment
+    local -a plan_vms_array
+    mapfile -t plan_vms_array < <(jq -r ".clusters.${cluster_type}.vms[] | select(.ip_address and .ip_address != \"dhcp\") | \"\(.name):\(.ip_address)\"" "$plan_file" 2>/dev/null || true)
 
-    if [[ -z "$all_running_vms" ]]; then
-        log_error "No running VMs found for cluster: $cluster_name"
-        return 1
-    fi
+    if [[ ${#plan_vms_array[@]} -gt 0 ]]; then
+        log "Found ${#plan_vms_array[@]} VMs with IPs from cluster plan"
+        for vm_entry in "${plan_vms_array[@]}"; do
+            # Parse name:ip format
+            local vm_name="${vm_entry%%:*}"
+            local vm_ip="${vm_entry##*:}"
 
-    # Process each VM specification from the API
-    local vm_index=0
-    while [[ $vm_index -lt $vm_count ]]; do
-        local vm_spec
-        vm_spec=$(jq -r ".clusters.${cluster_type}.vms[$vm_index]" "$plan_file" 2>/dev/null)
+            # Skip empty entries
+            [[ -z "$vm_name" || -z "$vm_ip" ]] && continue
 
-        [[ -z "$vm_spec" ]] && {
-            vm_index=$((vm_index + 1))
-            continue
-        }
+            # If target_vm_name is specified, filter to VMs matching that pattern
+            # target_vm_name can be a regex pattern like "controller|compute"
+            if [[ -n "$target_vm_name" ]] && ! [[ "$vm_name" =~ $target_vm_name ]]; then
+                continue
+            fi
 
-        local vm_name vm_type
-        vm_name=$(echo "$vm_spec" | jq -r '.name' 2>/dev/null)
-        vm_type=$(echo "$vm_spec" | jq -r '.type' 2>/dev/null)
-
-        # Check if this VM is running
-        log_verbose "VM check - Verifying VM '$vm_name' is in running list: '$all_running_vms'"
-        if ! echo "$all_running_vms" | grep -q "^${vm_name}$"; then
-            log_warning "Expected VM $vm_name is not running, skipping"
-            log_verbose "VM check failed - Pattern: '^${vm_name}$', List: '$all_running_vms'"
-            vm_index=$((vm_index + 1))
-            continue
-        fi
-
-        # If target_vm_name is specified, filter to VMs matching that pattern
-        if [[ -n "$target_vm_name" ]] && [[ "$vm_name" != *"$target_vm_name"* ]]; then
-            vm_index=$((vm_index + 1))
-            continue
-        fi
-
-        log "Getting IP for VM: $vm_name (type: $vm_type)"
-
-        # Use the improved get_vm_ip function
-        local vm_ip=""
-        vm_ip=$(get_vm_ip "$vm_name")
-
-        if [[ -n "$vm_ip" ]]; then
             log_success "VM $vm_name IP: $vm_ip"
             VM_IPS+=("$vm_ip")
             VM_NAMES+=("$vm_name")
-        else
-            log_error "Failed to get IP for VM: $vm_name"
+        done
+    fi
+
+    # Fallback: Try ai-how system status if cluster plan didn't have IPs
+    if [[ ${#VM_IPS[@]} -eq 0 ]]; then
+        log "No IPs found in cluster plan, attempting ai-how system status..."
+        local status_output
+        local ai_how_dir="${PROJECT_ROOT}/python/ai_how"
+        if [[ ! -d "$ai_how_dir" ]]; then
+            ai_how_dir="$(dirname "$0")/../../python/ai_how"
+        fi
+
+        # Execute ai-how system status with JSON output
+        if ! status_output=$(cd "$ai_how_dir" && uv run ai-how system status "$config_file" --format json 2>&1); then
+            log_error "Failed to get system status from ai-how"
+            log_error "Output: $status_output"
             return 1
         fi
 
-        vm_index=$((vm_index + 1))
-    done
+        # Parse VM information from JSON status output
+        log "Parsing VM IPs from ai-how system status..."
 
+        # Extract VMs for the specific cluster type from the status
+        local -a status_vms_array
+        mapfile -t status_vms_array < <(echo "$status_output" | jq -r ".${cluster_type}_cluster.vms[]? | select(.ip_address and .ip_address != \"dhcp\") | \"\(.name):\(.ip_address)\"" 2>/dev/null || true)
+
+        if [[ ${#status_vms_array[@]} -eq 0 ]]; then
+            log_error "No VMs with valid IPs found in ai-how system status"
+            return 1
+        fi
+
+        for vm_entry in "${status_vms_array[@]}"; do
+            # Parse name:ip format
+            local vm_name="${vm_entry%%:*}"
+            local vm_ip="${vm_entry##*:}"
+
+            # Skip empty entries
+            [[ -z "$vm_name" || -z "$vm_ip" ]] && continue
+
+            # If target_vm_name is specified, filter to VMs matching that pattern
+            if [[ -n "$target_vm_name" ]] && ! [[ "$vm_name" =~ $target_vm_name ]]; then
+                continue
+            fi
+
+            log_success "VM $vm_name IP: $vm_ip (from system status)"
+            VM_IPS+=("$vm_ip")
+            VM_NAMES+=("$vm_name")
+        done
+    fi
+
+    # Verify we have VMs to test
     if [[ ${#VM_IPS[@]} -eq 0 ]]; then
-        log_error "No VM IPs obtained"
+        log_error "Failed to extract VM IPs: no VMs with valid IPs found"
         return 1
     fi
 
@@ -292,10 +321,11 @@ wait_for_vm_ssh() {
 
     local elapsed=0
     local check_interval=10
+    local -a ssh_opts
+    _build_ssh_opts ssh_opts
 
     while [[ $elapsed -lt $timeout ]]; do
-        # shellcheck disable=SC2086
-        if ssh ${SSH_OPTS} -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "echo 'SSH ready'" >/dev/null 2>&1; then
+        if ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "echo 'SSH ready'" >/dev/null 2>&1; then
             log_success "SSH ready for $vm_name ($vm_ip)"
             return 0
         fi
@@ -309,11 +339,144 @@ wait_for_vm_ssh() {
     return 1
 }
 
+# =============================================================================
+# Mounted Repository Support (Optimization)
+# =============================================================================
+
+#
+# Check if repository is mounted at the same path on remote VM
+#
+# This enables running tests directly from mounted repo without SCP copying
+# Supports virtvfio, NFS, and other mount types
+#
+# Usage: check_repo_mounted <vm_ip> <project_root>
+# Returns: 0 if mounted, 1 if not mounted
+#
+check_repo_mounted() {
+    local vm_ip="$1"
+    local project_root="$2"
+
+    [[ -z "$vm_ip" ]] && {
+        log_error "check_repo_mounted: vm_ip parameter required"
+        return 1
+    }
+    [[ -z "$project_root" ]] && {
+        log_error "check_repo_mounted: project_root parameter required"
+        return 1
+    }
+
+    local -a ssh_opts
+    _build_ssh_opts ssh_opts
+
+    # Try to access tests/test-infra directory on remote VM
+    if ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" \
+       "[[ -d '$project_root/tests/test-infra/utils' ]]" 2>/dev/null; then
+        return 0  # Repository is mounted and accessible
+    else
+        return 1  # Repository not mounted
+    fi
+}
+
+#
+# Execute script directly from mounted repository (no SCP copying)
+#
+# Faster execution when repository is mounted at same path on host and VM
+#
+# Usage: execute_script_on_mounted_vm <vm_ip> <vm_name> <script_abs_path> [extra_args]
+# Returns: 0 if success, 1 if failed
+#
+execute_script_on_mounted_vm() {
+    local vm_ip="$1"
+    local vm_name="$2"
+    local script_abs_path="$3"
+    local extra_args="${4:-}"
+
+    [[ -z "$vm_ip" ]] && {
+        log_error "execute_script_on_mounted_vm: vm_ip parameter required"
+        return 1
+    }
+    [[ -z "$vm_name" ]] && {
+        log_error "execute_script_on_mounted_vm: vm_name parameter required"
+        return 1
+    }
+    [[ -z "$script_abs_path" ]] && {
+        log_error "execute_script_on_mounted_vm: script_abs_path parameter required"
+        return 1
+    }
+
+    log "Executing script on mounted repo at $vm_name ($vm_ip): $script_abs_path"
+
+    # Derive PROJECT_ROOT from script path
+    local project_root
+    project_root="$(cd "$(dirname "$script_abs_path")/../../.." && pwd)" || return 1
+
+    local test_log
+    test_log="${LOG_DIR:-./logs}/test-results-${vm_name}-$(basename "$script_abs_path" .sh).log"
+    mkdir -p "$(dirname "$test_log")"
+
+    # Build command with PROJECT_ROOT exported
+    # Using mounted repo - PROJECT_ROOT is automatically correct
+    local cmd="PROJECT_ROOT='$project_root' MOUNTED_REPO=1 $script_abs_path"
+    if [[ -n "$extra_args" ]]; then
+        cmd+=" $extra_args"
+    fi
+
+    # Diagnostic logging for mounted execution
+    log_debug "╔════════════════════════════════════════════════════════════════╗"
+    log_debug "║      MOUNTED REPOSITORY SCRIPT EXECUTION DETAILS              ║"
+    log_debug "╚════════════════════════════════════════════════════════════════╝"
+    log_debug "Mounted repo execution: PROJECT_ROOT=$project_root"
+
+    # CRITICAL: Change to script directory before executing
+    local script_exec_dir
+    script_exec_dir=$(dirname "$script_abs_path")
+    local cmd_with_cd="cd '$script_exec_dir' && $cmd"
+
+    # Diagnostic: Log the exact command that will be executed
+    log_debug "  Script Absolute Path:     $script_abs_path"
+    log_debug "  Script Working Dir:       $script_exec_dir"
+    log_debug "  Will execute command:"
+    log_debug "  ┌─ cd '$script_exec_dir' && PROJECT_ROOT='$project_root' \\"
+    log_debug "  └─    MOUNTED_REPO=1 $script_abs_path"
+    log_debug "  Expected pwd on VM:       $script_exec_dir"
+    log_debug "  Expected SCRIPT_DIR:      $(dirname "$script_abs_path")"
+    log_debug "════════════════════════════════════════════════════════════════"
+
+    local -a ssh_opts
+    _build_ssh_opts ssh_opts
+
+    # Execute the script on the remote VM (no copying)
+    if ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$cmd_with_cd" 2>&1 | tee "$test_log"; then
+        local test_exit_code
+        test_exit_code=${PIPESTATUS[0]}
+
+        # Copy remote logs back to local system
+        log "Copying remote test logs from $vm_name..."
+        local local_remote_logs_dir
+        local_remote_logs_dir="${LOG_DIR:-./logs}/remote-logs-${vm_name}-$(basename "$script_abs_path" .sh)/"
+        if scp "${ssh_opts[@]}" -i "$SSH_KEY_PATH" -r "$SSH_USER@$vm_ip:${script_abs_path%/*}/logs/" "$local_remote_logs_dir" 2>/dev/null; then
+            log_success "Remote logs copied to $local_remote_logs_dir"
+        else
+            log_warning "Failed to copy remote logs (script may have failed early)"
+        fi
+
+        if [[ $test_exit_code -eq 0 ]]; then
+            log_success "Script execution successful on $vm_name"
+        else
+            log_error "Script execution failed on $vm_name (exit code: $test_exit_code)"
+        fi
+
+        return "$test_exit_code"
+    else
+        return 1
+    fi
+}
+
 upload_scripts_to_vm() {
     local vm_ip="$1"
     local vm_name="$2"
     local scripts_dir="$3"
-    local remote_dir="${4:-~/test-scripts}"
+    local remote_dir_arg="${4:-}"
 
     [[ -z "$vm_ip" ]] && {
         log_error "upload_scripts_to_vm: vm_ip parameter required"
@@ -328,29 +491,124 @@ upload_scripts_to_vm() {
         return 1
     }
 
+    local -a ssh_opts
+    _build_ssh_opts ssh_opts
+
+    local suite_name
+    suite_name="$(basename "$scripts_dir")"
+
+    local remote_home
+    if ! remote_home=$(ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" 'printf %s "$HOME"'); then
+        log_error "Failed to determine remote HOME directory for $vm_name"
+        return 1
+    fi
+
+    local remote_dir
+    if [[ -z "$remote_dir_arg" ]]; then
+        remote_dir="$remote_home/tests/suites/$suite_name"
+    else
+        remote_dir="$remote_dir_arg"
+        # shellcheck disable=SC2088
+        if [[ ${remote_dir:0:2} == "~/" ]]; then
+            remote_dir="$remote_home/${remote_dir:2}"
+        elif [[ "$remote_dir" != /* ]]; then
+            remote_dir="$remote_home/$remote_dir"
+        fi
+    fi
+
     log "Uploading test scripts to $vm_name ($vm_ip)..."
 
-    # Create remote test directory using user home directory
     local remote_base_dir="$remote_dir"
+    local remote_suite_parent
+    local remote_tests_root
+    local remote_common_dir
+    local remote_test_infra_dir
     local remote_log_dir
     local test_name="${TEST_NAME:-test}"
-    remote_log_dir="$remote_base_dir/logs/${test_name}-run-$(date '+%Y-%m-%d_%H-%M-%S')"
-    # shellcheck disable=SC2086
-    if ! ssh ${SSH_OPTS} -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "mkdir -p $remote_base_dir $remote_log_dir"; then
+
+    local host_project_root="$PROJECT_ROOT"
+    local suite_relative_path
+    if [[ -n "$host_project_root" && "$scripts_dir" == "$host_project_root/"* ]]; then
+        suite_relative_path="${scripts_dir#"$host_project_root"/}"
+        remote_base_dir="${host_project_root}/${suite_relative_path}"
+        remote_suite_parent="$(dirname "$remote_base_dir")"
+        remote_tests_root="${host_project_root}/tests"
+        remote_common_dir="$remote_tests_root/common"
+        remote_test_infra_dir="$remote_tests_root/test-infra"
+    else
+        remote_base_dir="$remote_dir"
+        remote_suite_parent="$(dirname "$remote_base_dir")"
+        remote_tests_root="$(dirname "$remote_suite_parent")"
+        if [[ "$remote_base_dir" != */tests/suites/* ]]; then
+            remote_tests_root="$remote_suite_parent"
+        fi
+        if [[ "$remote_tests_root" == "/" || "$remote_tests_root" == "." || "$remote_tests_root" == "$remote_suite_parent" ]]; then
+            remote_tests_root="$remote_suite_parent"
+        fi
+        remote_common_dir="$remote_suite_parent/common"
+        remote_test_infra_dir="$remote_tests_root/test-infra"
+    fi
+    remote_dir="$remote_base_dir"
+    local remote_log_timestamp
+    remote_log_timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
+    remote_log_dir="$remote_base_dir/logs/${test_name}-run-$remote_log_timestamp"
+
+    local mkdir_cmd="mkdir -p \"$remote_base_dir\" \"$remote_log_dir\" \"$remote_common_dir\" \"$remote_test_infra_dir\""
+    if ! ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$mkdir_cmd"; then
         log_error "Failed to create remote test and log directories"
         return 1
     fi
 
     # Upload all test scripts
-    # shellcheck disable=SC2086
-    if ! scp ${SSH_OPTS} -i "$SSH_KEY_PATH" "$scripts_dir"/*.sh "$SSH_USER@$vm_ip:$remote_base_dir/"; then
+    if ! scp "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$scripts_dir"/*.sh "$SSH_USER@$vm_ip:$remote_base_dir/"; then
         log_error "Failed to upload test scripts"
         return 1
     fi
 
+    # Upload common utilities if they exist in parent directory
+    # Tests use ../common relative path, so common needs to be at parent level
+    local scripts_parent_dir
+    scripts_parent_dir="$(dirname "$scripts_dir")"
+    if [[ -d "$scripts_parent_dir/common" ]]; then
+        if ! scp "${ssh_opts[@]}" -r -i "$SSH_KEY_PATH" "$scripts_parent_dir/common" "$SSH_USER@$vm_ip:$remote_suite_parent/"; then
+            log_error "Failed to upload common utilities"
+            return 1
+        fi
+    fi
+
+    # Check if test-infra utilities exist on remote VM, upload if missing
+    # Test scripts source utilities from PROJECT_ROOT/tests/test-infra/utils/
+    log "Checking for test infrastructure utilities on $vm_name..."
+
+    # Ensure test-infra utilities mirror host-relative structure on remote VM
+    local test_infra_remote_path="$remote_tests_root/test-infra/utils"
+
+    if ! ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "[[ -d '$test_infra_remote_path' ]]" 2>/dev/null; then
+        log "Test infrastructure utilities not found on remote VM, synchronizing..."
+
+        local test_infra_dir
+        test_infra_dir="$(cd "$scripts_dir/../.." && pwd)/test-infra"
+
+        if [[ -d "$test_infra_dir" ]]; then
+            log "Uploading test-infra directory from: $test_infra_dir"
+
+            if ! scp "${ssh_opts[@]}" -r -i "$SSH_KEY_PATH" "$test_infra_dir" "$SSH_USER@$vm_ip:$remote_tests_root/"; then
+                log_error "Failed to upload test-infra utilities"
+                return 1
+            fi
+
+            log_success "Test infrastructure utilities uploaded successfully to $remote_tests_root/test-infra"
+        else
+            log_warning "Could not locate test-infra directory locally at: $test_infra_dir"
+        fi
+    else
+        log "Test infrastructure utilities already present on remote VM"
+    fi
+
     # Make scripts executable
-    # shellcheck disable=SC2086
-    if ! ssh ${SSH_OPTS} -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "chmod +x $remote_base_dir/*.sh"; then
+    local chmod_cmd="chmod +x $remote_base_dir/*.sh && chmod -R +x $remote_suite_parent/common/*.sh 2>/dev/null && chmod -R +x '$remote_tests_root/test-infra/utils'/*.sh 2>/dev/null || true"
+    # shellcheck disable=SC2029
+    if ! ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$chmod_cmd"; then
         log_error "Failed to make test scripts executable"
         return 1
     fi
@@ -363,7 +621,7 @@ execute_script_on_vm() {
     local vm_ip="$1"
     local vm_name="$2"
     local script_name="$3"
-    local remote_dir="${4:-~/test-scripts}"
+    local remote_dir_arg="${4:-}"
     local extra_args="${5:-}"
 
     [[ -z "$vm_ip" ]] && {
@@ -384,42 +642,111 @@ execute_script_on_vm() {
     local test_log="${LOG_DIR:-./logs}/test-results-${vm_name}-${script_name%.sh}.log"
     mkdir -p "$(dirname "$test_log")"
 
-    local remote_script_path="$remote_dir/$script_name"
-    local remote_log_dir
-    local test_name="${TEST_NAME:-test}"
-    remote_log_dir="$remote_dir/logs/${test_name}-run-$(date '+%Y-%m-%d_%H-%M-%S')"
+    # Ensure PROJECT_ROOT, TESTS_DIR are set and exported
+    # These are critical for test scripts to source shared utilities
+    : "${PROJECT_ROOT:?ERROR: PROJECT_ROOT must be set before calling execute_script_on_vm}"
+    : "${TESTS_DIR:?ERROR: TESTS_DIR must be set before calling execute_script_on_vm}"
+    : "${SSH_KEY_PATH:?ERROR: SSH_KEY_PATH must be set before calling execute_script_on_vm}"
+    : "${SSH_USER:?ERROR: SSH_USER must be set before calling execute_script_on_vm}"
 
-    # Build command with LOG_DIR environment variable
-    local cmd="LOG_DIR='$remote_log_dir' $remote_script_path"
+    local test_name="${TEST_NAME:-test}"
+    local -a ssh_opts
+    _build_ssh_opts ssh_opts
+    local remote_home
+    if ! remote_home=$(ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" 'printf %s "$HOME"'); then
+        log_error "Failed to determine remote HOME directory for $vm_name"
+        return 1
+    fi
+
+    local remote_dir="$remote_dir_arg"
+    if [[ -z "$remote_dir" ]]; then
+        remote_dir="test-scripts"
+    fi
+    # shellcheck disable=SC2088
+    if [[ ${remote_dir:0:2} == "~/" ]]; then
+        remote_dir="$remote_home/${remote_dir:2}"
+    elif [[ "$remote_dir" != /* ]]; then
+        remote_dir="$remote_home/$remote_dir"
+    fi
+
+    local remote_log_timestamp
+    remote_log_timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
+    local remote_log_dir="$remote_dir/logs/${test_name}-run-$remote_log_timestamp"
+    local remote_suite_parent
+    local remote_tests_dir
+    local remote_project_root
+
+    remote_suite_parent="$(dirname "$remote_dir")"
+    remote_tests_dir="$(dirname "$remote_suite_parent")"
+    local has_standard_layout=true
+    if [[ "$remote_dir" != */tests/suites/* ]]; then
+        has_standard_layout=false
+        remote_tests_dir="$remote_suite_parent"
+    fi
+
+    if [[ -z "$remote_tests_dir" || "$remote_tests_dir" == "." || "$remote_tests_dir" == "/" ]]; then
+        remote_tests_dir="$remote_dir"
+    fi
+
+    if [[ "$has_standard_layout" == true ]]; then
+        remote_project_root="$(dirname "$remote_tests_dir")"
+    else
+        remote_project_root="$remote_suite_parent"
+    fi
+
+    if [[ -z "$remote_project_root" || "$remote_project_root" == "." || "$remote_project_root" == "/" ]]; then
+        remote_project_root="$remote_tests_dir"
+    fi
+
+    local cmd="cd '$remote_dir' && mkdir -p '$remote_log_dir' && LOG_DIR='$remote_log_dir' PROJECT_ROOT='$remote_project_root' TESTS_DIR='$remote_tests_dir' SSH_KEY_PATH='$SSH_KEY_PATH' SSH_USER='$SSH_USER' CONTROLLER_IP='$vm_ip' bash './$script_name'"
     if [[ -n "$extra_args" ]]; then
         cmd+=" $extra_args"
     fi
 
+    # Diagnostic logging for SCP execution
+    log_debug "╔════════════════════════════════════════════════════════════════╗"
+    log_debug "║        SCP-COPIED SCRIPT EXECUTION DETAILS                    ║"
+    log_debug "╚════════════════════════════════════════════════════════════════╝"
+    log_debug "  Script Name:              $script_name"
+    log_debug "  Remote Directory Base:    $remote_dir"
+    log_debug "  Remote Script Path:       $remote_dir/$script_name"
+    log_debug "  Script Working Dir:       $remote_dir"
+    log_debug "  Will execute command:"
+    log_debug "  ┌─ cd '$remote_dir' && \\"
+    log_debug "  │     LOG_DIR='$remote_log_dir' \\"
+    log_debug "  │     PROJECT_ROOT='$remote_project_root' TESTS_DIR='$remote_tests_dir' \\"
+    log_debug "  │     SSH_KEY_PATH='$SSH_KEY_PATH' SSH_USER='$SSH_USER' \\"
+    log_debug "  └─    CONTROLLER_IP='$vm_ip' bash ./$script_name"
+    log_debug "  Expected pwd on VM:       $remote_dir"
+    log_debug "  Target VM:                $vm_name ($vm_ip)"
+    log_debug "  PROJECT_ROOT:             $remote_project_root"
+    log_debug "  TESTS_DIR:                $remote_tests_dir"
+    log_debug "════════════════════════════════════════════════════════════════"
+
     # Execute the script on the remote VM
-    # shellcheck disable=SC2086
-    if ssh ${SSH_OPTS} -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$cmd" 2>&1 | tee "$test_log"; then
-        local test_exit_code=${PIPESTATUS[0]}
+    # Simply pass the command to SSH - no bash -c wrapper needed
+    ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$cmd" 2>&1 | tee "$test_log"
+    local test_exit_code=${PIPESTATUS[0]}
 
-        # Copy remote logs back to local system
-        log "Copying remote test logs from $vm_name..."
-        local local_remote_logs_dir="${LOG_DIR:-./logs}/remote-logs-${vm_name}-${script_name%.sh}/"
-        # shellcheck disable=SC2086
-        if scp ${SSH_OPTS} -i "$SSH_KEY_PATH" -r "$SSH_USER@$vm_ip:$remote_log_dir/" "$local_remote_logs_dir" 2>/dev/null; then
-            log_success "Remote logs copied to $local_remote_logs_dir"
-        else
-            log_warning "Failed to copy remote logs (script may have failed early)"
-        fi
-
-        if [[ "$test_exit_code" -eq 0 ]]; then
-            log_success "Script executed successfully on $vm_name: $script_name"
-            return 0
-        else
-            log_warning "Script failed on $vm_name: $script_name (exit code: $test_exit_code)"
-            return "$test_exit_code"
-        fi
+    # Copy remote logs back to local system (always, regardless of success/failure)
+    log "Copying remote test logs from $vm_name..."
+    local local_remote_logs_dir="${LOG_DIR:-./logs}/remote-logs-${vm_name}-${script_name%.sh}/"
+    mkdir -p "$local_remote_logs_dir"
+    local remote_log_scp_path="$SSH_USER@$vm_ip:'$remote_log_dir/'"
+    if scp "${ssh_opts[@]}" -i "$SSH_KEY_PATH" -r "$remote_log_scp_path" "$local_remote_logs_dir" 2>/dev/null; then
+        log_success "Remote logs copied to $local_remote_logs_dir"
     else
-        log_error "Failed to execute script on $vm_name: $script_name"
-        return 1
+        log_warning "Failed to copy remote logs from $vm_name"
+    fi
+
+    # Report results based on exit code
+    if [[ "$test_exit_code" -eq 0 ]]; then
+        log_success "Script executed successfully on $vm_name: $script_name"
+        return 0
+    else
+        log_warning "Script failed on $vm_name: $script_name (exit code: $test_exit_code)"
+        log_error "SSH command: ssh ${SSH_OPTS} -i \"$SSH_KEY_PATH\" \"$SSH_USER@$vm_ip\" \"$cmd\" "
+        return "$test_exit_code"
     fi
 }
 

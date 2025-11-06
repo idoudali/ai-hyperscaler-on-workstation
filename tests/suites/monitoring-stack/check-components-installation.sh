@@ -3,15 +3,22 @@
 # Consolidated tests for Prometheus and Node Exporter installation
 # Part of Task 015: Install Prometheus Monitoring Stack
 
-source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
 set -euo pipefail
+
+# Source utilities in correct order
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 
 # Script configuration
 # shellcheck disable=SC2034
 SCRIPT_NAME="check-components-installation.sh"
 # shellcheck disable=SC2034
 TEST_NAME="Monitoring Stack Components Installation Validation"
+
+# Initialize logging - set LOG_FILE for this script
+LOG_DIR="${LOG_DIR:-.}"
+LOG_FILE="${LOG_DIR}/components-installation-${SCRIPT_NAME%.*}.log"
+mkdir -p "$LOG_DIR"
 
 # =============================================================================
 # PROMETHEUS INSTALLATION TESTS

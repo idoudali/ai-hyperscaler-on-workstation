@@ -20,20 +20,35 @@ mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Helper function to get caller information
 _get_caller_info() {
-    local caller_source="${BASH_SOURCE[2]}"
+    local caller_source="${BASH_SOURCE[2]:-${BASH_SOURCE[1]}}"
     local caller_line="${BASH_LINENO[1]}"
     local caller_func="${FUNCNAME[2]}"
 
-    # Get just the filename, not the full path
-    local filename
-    filename=$(basename "$caller_source")
+    if [[ -n "$caller_source" ]]; then
+        if command -v realpath >/dev/null 2>&1; then
+            caller_source="$(realpath "$caller_source" 2>/dev/null || echo "$caller_source")"
+        else
+            local caller_dir
+            caller_dir="$(cd "$(dirname "$caller_source")" 2>/dev/null && pwd)"
+            if [[ -n "$caller_dir" ]]; then
+                caller_source="${caller_dir}/$(basename "$caller_source")"
+            fi
+        fi
+    fi
+
+    local display_source
+    if [[ -n "$caller_source" ]]; then
+        display_source="$(basename "$caller_source")"
+    else
+        display_source="<unknown>"
+    fi
 
     # Handle main script calls (no function name)
     if [[ "$caller_func" == "main" ]] || [[ -z "$caller_func" ]]; then
         caller_func="<main>"
     fi
 
-    echo "${filename}:${caller_line}:${caller_func}"
+    echo "${display_source}:${caller_line}:${caller_func}"
 }
 
 # Logging functions

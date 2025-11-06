@@ -9,12 +9,50 @@ set -euo pipefail
 
 # Source existing utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-# Source existing log utilities if available
-if [[ -f "$PROJECT_ROOT/tests/test-infra/utils/log-utils.sh" ]]; then
-    source "$PROJECT_ROOT/tests/test-infra/utils/log-utils.sh"
+# Derive PROJECT_ROOT with fallback for remote VMs
+# When running locally: SCRIPT_DIR is tests/suites/common, go up 3 levels to project root
+# When running on remote VM via SCP: PROJECT_ROOT may need to be passed via environment
+PROJECT_ROOT="${PROJECT_ROOT:-}"
+if [[ -z "$PROJECT_ROOT" ]]; then
+    # Try to derive from SCRIPT_DIR (works when script is in original location)
+    PROJECT_ROOT_DERIVED="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+    if [[ -d "$PROJECT_ROOT_DERIVED/tests/test-infra/utils" ]]; then
+        PROJECT_ROOT="$PROJECT_ROOT_DERIVED"
+    fi
 fi
+
+TEST_INFRA_UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
+LOG_UTILS_FILE="$TEST_INFRA_UTILS_DIR/log-utils.sh"
+
+# Diagnostic output when DEBUG mode enabled
+if [[ "${DEBUG_SUITE_PATHS:-0}" == "1" ]]; then
+    echo "[DEBUG] Running in: $(pwd)" >&2
+    echo "[DEBUG] SCRIPT_DIR: $SCRIPT_DIR" >&2
+    echo "[DEBUG] PROJECT_ROOT: $PROJECT_ROOT" >&2
+    echo "[DEBUG] TEST_INFRA_UTILS_DIR: $TEST_INFRA_UTILS_DIR" >&2
+fi
+
+# Verify test-infra utilities are available - fail immediately if not found
+if [[ ! -d "$TEST_INFRA_UTILS_DIR" ]]; then
+    echo "FATAL: Test infrastructure utilities directory not found: $TEST_INFRA_UTILS_DIR" >&2
+    echo "FATAL: Running from directory: $(pwd)" >&2
+    echo "FATAL: SCRIPT_DIR: $SCRIPT_DIR" >&2
+    echo "FATAL: PROJECT_ROOT: $PROJECT_ROOT" >&2
+    echo "FATAL: Suite logging requires shared utilities from tests/test-infra/utils/" >&2
+    echo "FATAL: Set PROJECT_ROOT environment variable to correct location on remote systems" >&2
+    exit 1
+fi
+
+if [[ ! -f "$LOG_UTILS_FILE" ]]; then
+    echo "FATAL: Required log utilities not found: $LOG_UTILS_FILE" >&2
+    echo "FATAL: Expected shared logging functions from tests/test-infra/utils/log-utils.sh" >&2
+    exit 1
+fi
+
+# Source log utilities - required for test suite operation
+# shellcheck source=/dev/null
+source "$LOG_UTILS_FILE"
 
 # Color definitions (standardized across all test suites)
 RED='\033[0;31m'
@@ -217,22 +255,38 @@ log_with_context() {
     local script_name="${SCRIPT_NAME:-$(basename "$0")}"
     local timestamp
     timestamp=$(date '+%H:%M:%S')
+    local context_label="$script_name"
+
+    if command -v _get_caller_info >/dev/null 2>&1; then
+        local caller_info
+        caller_info=$(_get_caller_info)
+        if [[ -n "$caller_info" ]]; then
+            local caller_file="${caller_info%%:*}"
+            local remainder="${caller_info#*:}"
+            local caller_line="${remainder%%:*}"
+            if [[ -n "$caller_line" && "$caller_line" != "$caller_info" ]]; then
+                context_label="${caller_file}:L${caller_line}"
+            else
+                context_label="${caller_info}"
+            fi
+        fi
+    fi
 
     case "$level" in
         "INFO")
-            echo -e "${GREEN}[INFO]${NC} ${timestamp} | ${script_name} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            echo -e "${GREEN}[INFO]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
         "WARN"|"WARNING")
-            echo -e "${YELLOW}[WARN]${NC} ${timestamp} | ${script_name} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            echo -e "${YELLOW}[WARN]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
         "ERROR")
-            echo -e "${RED}[ERROR]${NC} ${timestamp} | ${script_name} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            echo -e "${RED}[ERROR]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
         "SUCCESS")
-            echo -e "${GREEN}[SUCCESS]${NC} ${timestamp} | ${script_name} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            echo -e "${GREEN}[SUCCESS]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
         *)
-            echo -e "${BLUE}[${level}]${NC} ${timestamp} | ${script_name} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            echo -e "${BLUE}[${level}]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
     esac
 }
@@ -381,7 +435,12 @@ export -f create_log_summary
 # Export color variables
 export RED GREEN YELLOW BLUE PURPLE CYAN NC
 
-# Only log if log_info function is available (from log-utils.sh)
-if command -v log_info >/dev/null 2>&1; then
-    log_info "Test suite logging utilities loaded successfully"
+# Verify required logging functions are available from log-utils.sh
+if ! command -v log_info >/dev/null 2>&1; then
+    echo "FATAL: log_info function not available from log-utils.sh" >&2
+    echo "FATAL: Required logging function not found in: $LOG_UTILS_FILE" >&2
+    exit 1
 fi
+
+# Logging functions are now available from sourced log-utils.sh
+log_info "Test suite logging utilities loaded from: $LOG_UTILS_FILE"

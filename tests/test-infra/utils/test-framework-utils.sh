@@ -136,18 +136,18 @@ EOF
     log "Using Ansible config: $ANSIBLE_CONFIG"
 
     # Setup Ansible command using uv (consistent with ai-how usage)
-    local ansible_cmd="uv run ansible-playbook"
+    # CRITICAL: Must run from PROJECT_ROOT/python/ai_how where pyproject.toml lives
+    # IMPORTANT: Use absolute paths for playbooks since ansible_cmd changes directory
+    local ansible_cmd
+    ansible_cmd="(cd '${PROJECT_ROOT}/python/ai_how' || cd '$(dirname "$0")/../../python/ai_how') && uv run ansible-playbook"
     log "Using Ansible via uv: $ansible_cmd"
 
-    # Run controller playbook
+    # Run controller playbook (using absolute path to playbook)
     local controller_count
     controller_count=$(grep -c "controller" "$temp_inventory" || echo "0")
     if [[ "$controller_count" -gt 0 ]]; then
         log "Running HPC controller playbook..."
-        if ! "$ansible_cmd" -i "$temp_inventory" \
-            playbooks/playbook-hpc-controller.yml \
-            --limit hpc_controllers \
-            -v; then
+        if ! bash -c "$ansible_cmd -i '$temp_inventory' '${PROJECT_ROOT}/ansible/playbooks/playbook-hpc-controller.yml' --limit hpc_controllers -v"; then
             log_error "Controller playbook failed"
             playbook_result=1
         else
@@ -155,15 +155,12 @@ EOF
         fi
     fi
 
-    # Run compute playbook
+    # Run compute playbook (using absolute path to playbook)
     local compute_count
     compute_count=$(grep -c "compute" "$temp_inventory" || echo "0")
     if [[ "$compute_count" -gt 0 ]]; then
         log "Running HPC compute playbook..."
-        if ! "$ansible_cmd" -i "$temp_inventory" \
-            playbooks/playbook-hpc-compute.yml \
-            --limit hpc_compute_nodes \
-            -v; then
+        if ! bash -c "$ansible_cmd -i '$temp_inventory' '${PROJECT_ROOT}/ansible/playbooks/playbook-hpc-compute.yml' --limit hpc_compute_nodes -v"; then
             log_error "Compute playbook failed"
             playbook_result=1
         else
@@ -480,17 +477,63 @@ run_test_framework() {
                 continue
             fi
 
-            # Upload test scripts
-            if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir"; then
-                log_error "Failed to upload test scripts to $vm_name"
-                overall_success=false
-                continue
-            fi
+            # Diagnostic: Log test execution details
+            log_debug "═══════════════════════════════════════════════════════════"
+            log_debug "Test Execution Details for $vm_name"
+            log_debug "───────────────────────────────────────────────────────────"
+            log_debug "  Host PROJECT_ROOT:      $PROJECT_ROOT"
+            log_debug "  Test Scripts Dir:       $test_scripts_dir"
+            log_debug "  Master Test Script:     $master_test_script"
+            log_debug "  Suite Directory:        $(basename "$test_scripts_dir")"
+            log_debug "═══════════════════════════════════════════════════════════"
 
-            # Run tests
-            if ! execute_script_on_vm "$vm_ip" "$vm_name" "$master_test_script"; then
-                log_warning "Tests failed on $vm_name"
-                overall_success=false
+            # Check if repository is mounted at same path on VM
+            if check_repo_mounted "$vm_ip" "$PROJECT_ROOT"; then
+                log_success "✓ Repository is mounted on $vm_name at $PROJECT_ROOT"
+                log "Using DIRECT EXECUTION from mounted repository (FAST)"
+
+                # Run tests directly from mounted repository (no SCP copying needed)
+                local suite_dir
+                suite_dir=$(basename "$test_scripts_dir")
+                local mounted_script_path="$PROJECT_ROOT/tests/suites/$suite_dir/$master_test_script"
+
+                # Diagnostic: Log exact script path and working directory
+                log_debug "Mounted Execution Details:"
+                log_debug "  Mounted Script Path:    $mounted_script_path"
+                log_debug "  Script Working Dir:     $(dirname "$mounted_script_path")"
+                log_debug "  Will execute from:      $(dirname "$mounted_script_path")"
+                log_debug "  Execution Method:       Direct (no SCP)"
+
+                if ! execute_script_on_mounted_vm "$vm_ip" "$vm_name" "$mounted_script_path"; then
+                    log_error "✗ Tests failed on $vm_name (mounted repo execution)"
+                    overall_success=false
+                fi
+            else
+                log_warning "✗ Repository NOT mounted on $vm_name at $PROJECT_ROOT"
+                log "Using SCP COPY method (SLOWER - falling back to traditional method)"
+
+                local suite_remote_dir
+                # shellcheck disable=SC2088
+                suite_remote_dir="~/tests/suites/$(basename "$test_scripts_dir")"
+
+                # Diagnostic: Log SCP execution details
+                log_debug "SCP Execution Details:"
+                log_debug "  Remote Dir:             $suite_remote_dir"
+                log_debug "  Scripts will be copied to VM"
+                log_debug "  Execution Method:       SCP Copy + Execute"
+
+                # Upload test scripts (traditional SCP method)
+                if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir" "$suite_remote_dir"; then
+                    log_error "✗ Failed to upload test scripts to $vm_name"
+                    overall_success=false
+                    continue
+                fi
+
+                # Run tests
+                if ! execute_script_on_vm "$vm_ip" "$vm_name" "$master_test_script" "$suite_remote_dir"; then
+                    log_error "✗ Tests failed on $vm_name"
+                    overall_success=false
+                fi
             fi
         done
     fi

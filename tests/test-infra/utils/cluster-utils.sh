@@ -78,11 +78,11 @@ start_cluster() {
     local start_log="${LOG_DIR:-./logs}/cluster-start-${cluster_name}.log"
     mkdir -p "$(dirname "$start_log")"
 
-    # Start the cluster
-    log "Executing: uv run ai-how hpc start $resolved_config"
+    # Start the cluster using Makefile target
+    log "Executing: make hpc-cluster-start CLUSTER_CONFIG=$resolved_config"
 
-    # Execute command and capture exit code using PIPESTATUS
-    uv run ai-how hpc start "$resolved_config" 2>&1 | tee "$start_log"
+    # Execute Makefile target and capture exit code using PIPESTATUS
+    make hpc-cluster-start CLUSTER_CONFIG="$resolved_config" 2>&1 | tee "$start_log"
     local exit_code=${PIPESTATUS[0]}
 
     if [[ $exit_code -eq 0 ]]; then
@@ -122,21 +122,36 @@ destroy_cluster() {
     local destroy_log="${LOG_DIR:-./logs}/cluster-destroy-${cluster_name}.log"
     mkdir -p "$(dirname "$destroy_log")"
 
-    # Build destroy command - use --force by default for automated testing
-    # Can be overridden by setting AI_HOW_DESTROY_FORCE=false for manual runs
-    local cmd="uv run ai-how hpc destroy $resolved_config"
+    # Note: Makefile target handles virtual environment setup automatically
+    # For force flag, we need to check if Makefile supports it or use ai-how directly
+    # Currently Makefile doesn't expose force flag, so we'll use ai-how for now if force is needed
+    # Otherwise use Makefile target for consistency
+    local cmd
     if [[ "${AI_HOW_DESTROY_FORCE:-true}" == "true" ]]; then
-        cmd+=" --force"
-        log "Using --force flag for automated testing (set AI_HOW_DESTROY_FORCE=false to disable)"
+        log "Using direct ai-how command with --force flag for automated testing"
+        log "Note: Makefile target doesn't support force flag, using ai-how directly"
+        # CRITICAL: Execute from python/ai_how directory where pyproject.toml lives
+        local ai_how_dir
+        if [[ -n "${PROJECT_ROOT:-}" ]]; then
+            ai_how_dir="${PROJECT_ROOT}/python/ai_how"
+        else
+            ai_how_dir="$(dirname "$0")/../../python/ai_how"
+        fi
+        cmd="cd '$ai_how_dir' && uv run ai-how hpc destroy $resolved_config --force"
     else
-        log "Interactive mode: user confirmation may be required"
+        log "Using Makefile target for cluster destruction"
+        cmd="make hpc-cluster-destroy CLUSTER_CONFIG=$resolved_config"
     fi
 
     # Destroy the cluster
     log "Executing: $cmd"
 
     # Execute command and capture exit code using PIPESTATUS
-    bash -c "$cmd" 2>&1 | tee "$destroy_log"
+    if [[ "${AI_HOW_DESTROY_FORCE:-true}" == "true" ]]; then
+        bash -c "$cmd" 2>&1 | tee "$destroy_log"
+    else
+        make hpc-cluster-destroy CLUSTER_CONFIG="$resolved_config" 2>&1 | tee "$destroy_log"
+    fi
     local exit_code=${PIPESTATUS[0]}
 
     if [[ $exit_code -eq 0 ]]; then
@@ -395,10 +410,33 @@ get_cluster_plan_data() {
     log "Generating cluster plan using ai-how API: $resolved_config" >&2
     log "Writing plan output to: $plan_output_file" >&2
 
-    # Use ai-how plan clusters command with JSON output to file
-    # Redirect stderr to log file to avoid contaminating stdout
-    if ! uv run ai-how plan clusters "$resolved_config" --format json --output-file "$plan_output_file" 2>> "$log_directory/ai-how-plan.log"; then
+    # CRITICAL: uv must be run from PROJECT_ROOT/python/ai_how where pyproject.toml lives
+    # Execute uv command from the correct directory
+    local ai_how_dir
+    if [[ -n "${PROJECT_ROOT:-}" ]]; then
+        ai_how_dir="${PROJECT_ROOT}/python/ai_how"
+    else
+        ai_how_dir="$(dirname "$0")/../../python/ai_how"
+    fi
+
+    if ! (cd "$ai_how_dir" && uv run ai-how plan clusters "$resolved_config" --format json --output-file "$plan_output_file") 2>> "$log_directory/ai-how-plan.log"; then
         log_error "Failed to generate cluster plan using ai-how API" >&2
+        if [[ -f "$log_directory/ai-how-plan.log" ]]; then
+            log_error "ai-how error output:" >&2
+            log_error "$(head -20 "$log_directory/ai-how-plan.log")" >&2
+        fi
+        return 1
+    fi
+
+    # Validate output file exists
+    if [[ ! -f "$plan_output_file" ]]; then
+        log_error "Plan output file not created: $plan_output_file" >&2
+        return 1
+    fi
+
+    # Validate JSON is valid
+    if ! jq empty "$plan_output_file" 2>/dev/null; then
+        log_error "Invalid JSON in plan output file: $plan_output_file" >&2
         return 1
     fi
 
@@ -406,6 +444,7 @@ get_cluster_plan_data() {
     if ! jq -e ".clusters.${cluster_type}" "$plan_output_file" >/dev/null 2>&1; then
         log_error "No ${cluster_type} cluster found in generated plan" >&2
         log_error "Plan output file: $plan_output_file" >&2
+        log_error "Available clusters: $(jq -r '.clusters | keys[]' "$plan_output_file" 2>/dev/null)" >&2
         return 1
     fi
 
@@ -518,7 +557,8 @@ manual_cluster_cleanup() {
     fi
 
     # Try to destroy cluster using ai-how with force flag
-    cd "$PROJECT_ROOT" || return 1
+    # CRITICAL: Change to PROJECT_ROOT/python/ai_how where pyproject.toml lives
+    cd "${PROJECT_ROOT}/python/ai_how" || cd "$(dirname "$0")/../../python/ai_how" || return 1
     if uv run ai-how hpc destroy "$resolved_config" --force 2>/dev/null; then
         log_success "Manual cleanup completed"
     else
@@ -666,16 +706,15 @@ show_cluster_status() {
         return 1
     fi
 
-    # Use ai-how to show status (if available)
-    if command -v ai-how >/dev/null 2>&1; then
-        uv run ai-how hpc status "$resolved_config" 2>&1 || {
-            log_warning "ai-how status command failed, falling back to virsh"
-            virsh list --all
-        }
+    # Use Makefile target to show status (handles virtual environment automatically)
+    log "Executing: make hpc-cluster-status CLUSTER_CONFIG=$resolved_config"
+    if make hpc-cluster-status CLUSTER_CONFIG="$resolved_config" 2>&1; then
+        return 0
     else
-        # Fallback to virsh
-        log_warning "ai-how not found, using virsh"
+        local exit_code=$?
+        log_warning "Makefile status command failed (exit code: $exit_code), falling back to virsh"
         virsh list --all
+        return $exit_code
     fi
 }
 
