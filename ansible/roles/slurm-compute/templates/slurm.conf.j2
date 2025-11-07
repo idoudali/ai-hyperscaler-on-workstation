@@ -171,6 +171,7 @@ NodeName={{ hostvars[host].slurm_node_name | default(host) }} \
     Sockets={{ hostvars[host].slurm_node_sockets | default('1') }} \
     CoresPerSocket={{ hostvars[host].slurm_node_cores_per_socket | default('8') }} \
     ThreadsPerCore={{ hostvars[host].slurm_node_threads_per_core | default('1') }} \
+    RealMemory={{ (hostvars[host].slurm_memory_gb | default('8') | int) * 1024 }} \
     State={{ hostvars[host].slurm_node_state | default('UNKNOWN') }}
 {% endfor %}
 
@@ -181,6 +182,7 @@ NodeName={{ hostvars[controller_host].slurm_node_name | default('controller') }}
     Sockets={{ hostvars[controller_host].slurm_controller_sockets | default('1') }} \
     CoresPerSocket={{ hostvars[controller_host].slurm_controller_cores_per_socket | default('4') }} \
     ThreadsPerCore={{ hostvars[controller_host].slurm_controller_threads_per_core | default('2') }} \
+    RealMemory={{ (hostvars[controller_host].slurm_memory_gb | default('8') | int) * 1024 }} \
     State={{ hostvars[controller_host].slurm_controller_state | default('UNKNOWN') }}
 
 #=============================================================================

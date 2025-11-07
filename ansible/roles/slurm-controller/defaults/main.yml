@@ -44,8 +44,10 @@ slurm_database_user: "slurm"
 slurm_database_password: "slurm"
 
 # SLURM accounting configuration
-# Note: Override this in inventory to enable accounting: slurm_accounting_storage_type: "accounting_storage/slurmdbd"
-slurm_accounting_storage_type: "{{ 'accounting_storage/slurmdbd' if (setup_slurm_accounting | default(false)) else 'accounting_storage/none' }}"
+# Enabled by default for full cluster instrumentation
+# Note: Override this in inventory to disable accounting: setup_slurm_accounting: false
+setup_slurm_accounting: true
+slurm_accounting_storage_type: "{{ 'accounting_storage/slurmdbd' if (setup_slurm_accounting | default(true)) else 'accounting_storage/none' }}"
 slurm_accounting_storage_host: "localhost"
 slurm_accounting_storage_port: 6819
 slurm_accounting_storage_user: "slurm"
