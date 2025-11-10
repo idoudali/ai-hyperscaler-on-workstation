@@ -1,15 +1,15 @@
 # HPC SLURM Deployment - Master Task Index
 
-**Last Updated**: 2025-10-25
+**Last Updated**: 2025-11-10
 **Total Tasks**: 48 across 6 phases
 **Status**: Infrastructure Consolidation Phase - Role Consolidation In Progress
 
 ## Quick Status
 
-- **Completed**: 31 tasks (64%)
+- **Completed**: 29 tasks (60%)
 - **In Progress**: 0 tasks
-- **Recently Completed**: TASK-028.1 (BeeGFS kernel module fixed and validated)
-- **Pending**: 17 tasks (35%)
+- **Recently Completed**: TASK-046.1 (Package manager role integration)
+- **Pending**: 19 tasks (40%)
 
 ## Phase Overview
 
@@ -54,9 +54,9 @@
 - TASK-028: BeeGFS Parallel Filesystem ✅
 - TASK-028.1: Fix BeeGFS Kernel Module ✅ **COMPLETED**
 
-### 📋 Phase 4: Infrastructure Consolidation (Tasks 029-048)
+### 📋 Phase 4: Infrastructure Consolidation (Tasks 029-048, 046.1)
 
-**Status**: 73% Complete (16/22 tasks)
+**Status**: 87% Complete (20/23 tasks)
 **Priority**: HIGH
 **File**: [`hpc-slurm/pending/phase-4-consolidation.md`](hpc-slurm/pending/phase-4-consolidation.md)
 
@@ -65,7 +65,7 @@
 - TASK-029-034.1: Ansible playbook consolidation ✅ (7 tasks complete)
 - TASK-035-037: Test framework consolidation (3 tasks pending)
 - TASK-038-043: Storage consolidation ✅ (6 tasks complete)
-- TASK-044-048: Ansible role consolidation 🔄 (2/5 tasks complete)
+- TASK-044-048, 046.1: Ansible role consolidation 🔄 (4/7 tasks complete, 3 pending: 047, 047.1, 048)
 
 ### 🎯 Phase 6: Final Validation (Tasks 041-044)
 
@@ -88,9 +88,9 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 
 ## Current Focus
 
-**Recently Completed**: TASK-045 - SLURM Common Role (MUNGE, directories, user management consolidated)
-**Active Tasks**: TASK-028.1 - Fix BeeGFS Client Kernel Module
-**Next Priority**: TASK-046 - Create Shared Package Management Role (continue role consolidation)
+**Recently Completed**: TASK-046.1 - Package Manager Role Integration (BeeGFS and SLURM roles integrated)
+**Active Tasks**: None - Ready to start TASK-047
+**Next Priority**: TASK-047 - Consolidate Base Package Roles (continue role consolidation)
 
 ## Execution Principles
 

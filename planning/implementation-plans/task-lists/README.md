@@ -10,9 +10,9 @@ This directory contains detailed task lists for implementing various components 
 
 ## Overview
 
-**Total Progress:** 71% complete (100/141 tasks, 2 deprecated)  
-**Active Tasks:** 38 tasks across 3 workstreams  
-**Estimated Remaining:** ~23.5 hours + 15 days
+**Total Progress:** 69% complete (97/141 tasks, 2 deprecated)  
+**Active Tasks:** 41 tasks across 3 workstreams  
+**Estimated Remaining:** ~28 hours + 15 days
 **Major Update:** ✅ Documentation Category 1 (Quickstarts) 100% complete! 🎉
 
 ## Directory Structure
@@ -68,7 +68,7 @@ task-lists/
 
 | Task List | Progress | Active | Location |
 |-----------|----------|--------|----------|
-| **HPC SLURM Deployment** | 64% (31/48) | Phase 4 & 6 | `hpc-slurm-task-list.md` |
+| **HPC SLURM Deployment** | 60% (29/48) | Phase 4 & 6 | `hpc-slurm-task-list.md` |
 | **Documentation Structure** | 56% (27/48) | Tutorials, Ops | `documentation-task-list/` |
 
 **Focus Areas:**
@@ -201,9 +201,9 @@ defined in `docs/design-docs/project-plan.md`.
 ### Overall Progress
 
 - **Total Tasks:** 141 across 6 task lists (2 deprecated)
-- **Completed:** 100 tasks (71%)
+- **Completed:** 97 tasks (69%)
 - **In Progress:** 0 tasks
-- **Pending:** 39 tasks (28%)
+- **Pending:** 42 tasks (30%)
 
 ### This Week's Focus
 

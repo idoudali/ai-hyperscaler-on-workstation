@@ -1,10 +1,10 @@
 # Phase 4: Infrastructure Consolidation (Tasks 029-048, 046.1)
 
-**Status**: ✅ **95% COMPLETE** (22/23 tasks)
-**Last Updated**: 2025-10-28 (Test Framework Consolidation Verified Complete)
+**Status**: 🔄 **87% COMPLETE** (20/23 tasks)
+**Last Updated**: 2025-11-10
 **Priority**: HIGH
-**Tasks**: 23 total (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1, Role Consolidation: 6)
-**Remaining**: Only Task 040 (Container Registry on BeeGFS) pending
+**Tasks**: 23 total (Ansible: 8, Storage: 6, Testing: 3, Configuration: 1, Role Consolidation: 7)
+**Remaining**: 3 tasks pending (Tasks 047, 047.1, 048)
 
 ## ✅ **Progress Summary**
 
@@ -22,7 +22,7 @@
 | **037** | ✅ **COMPLETE** | 100% | Test framework consolidation complete - 42+ Makefile targets |
 | **038** | ✅ **COMPLETE** | 100% | BeeGFS Packer installation consolidated into HPC playbooks |
 | **039** | ✅ **COMPLETE** | 100% | VirtIO-FS integrated into playbook-hpc-runtime.yml |
-| **040** | ❌ **PENDING** | 0% | Registry uses /opt/containers not /mnt/beegfs |
+| **040** | ✅ **COMPLETE** | 100% | Registry defaults to BeeGFS (/mnt/beegfs/containers) |
 | **041** | ✅ **COMPLETE** | 100% | virtio_fs_mounts and beegfs_config added to cluster config schema |
 | **042** | ✅ **COMPLETE** | 100% | Configuration template rendering system implemented |
 | **043** | ✅ **COMPLETE** | 100% | BeeGFS & VirtIO-FS consolidation into runtime playbook |
@@ -30,34 +30,43 @@
 | **045** | ✅ **COMPLETE** | 100% | SLURM Common Role created (MUNGE, directories, user creation consolidated) |
 | **046** | ✅ **COMPLETE** | 100% | Shared package management role created and functional |
 | **046.1** | ✅ **COMPLETE** | 100% | Integrate package-manager into BeeGFS and SLURM roles |
-| **047** | ✅ **COMPLETE** | 100% | Base package roles consolidated into unified base-packages role |
-| **048** | ✅ **COMPLETE** | 100% | Shared utilities role created with reusable validation tasks |
+| **047** | ❌ **PENDING** | 0% | Base package roles consolidation not started |
+| **047.1** | ❌ **PENDING** | 0% | Legacy base package roles cleanup (blocked by 047) |
+| **048** | ❌ **PENDING** | 0% | Shared utilities role not created |
 
-**Completed**: Tasks 029-035, 038, 039, 041, 042, 043, 044, 045, 046, 046.1, 047, 048
-(Ansible consolidation + validation framework + BeeGFS consolidation + VirtIO-FS integration +
-storage schema + template rendering + BeeGFS common role + SLURM common role +
-package management role + base packages role + shared utilities role achieved!)  
+**Completed**: Tasks 029-046, 046.1 (20/23 tasks - 87%)
+(Ansible consolidation + test framework consolidation + BeeGFS consolidation + VirtIO-FS integration +
+storage schema + template rendering + container registry on BeeGFS + BeeGFS common role + SLURM common role +
+package management role achieved!)  
 **Phase 2 Utilities**: ✅ COMPLETED 2025-10-25 (framework-cli.sh, framework-orchestration.sh, framework-template.sh)
-**Pending**: Tasks 036-037, 040 (HPC test frameworks + Container registry)
-**Achievement**: ✅ **50% playbook reduction achieved** (14 → 7 playbooks, target: 7)  
-**New**: Phase 4.8 added 5 role consolidation tasks to eliminate duplicate code across Ansible roles (COMPLETE)
+**Pending**: Tasks 047, 047.1, 048 - Base packages consolidation and shared utilities role
+**Achievement**: ✅ **43% playbook reduction achieved** (14 → 8 playbooks)  
+**New**: Phase 4.8 added 7 role consolidation tasks (4 complete, 3 pending)
+
+**Note on Task 040**: Completed 2025-11-10 - Registry container path changed from `/opt/containers` to
+`/mnt/beegfs/containers` (BeeGFS-backed storage). This aligns with Phase 4 consolidation goals of using
+BeeGFS for persistent storage across all components.
 
 ## Overview
 
 This phase consolidates the Ansible playbook and test framework infrastructure, reducing complexity while maintaining
 all functionality. The goal is to streamline from 14 playbooks to 7 playbooks and 15+ test frameworks to 3 frameworks.
 
-## Current State (As of 2025-10-22 - Status Updated)
+## Current State (As of 2025-11-10 - 87% Complete)
 
-**Ansible Playbooks:** ✅ **5 playbooks** (down from 14 - 64% reduction achieved!)
+**Ansible Playbooks:** ✅ **8 playbooks** (down from 14 - 43% reduction achieved!)
 
 - Core HPC (3 playbooks): ✅ **CONSOLIDATED & VERIFIED**
   - `playbook-hpc-packer-controller.yml` ✅ EXISTS - Packer controller image builds
   - `playbook-hpc-packer-compute.yml` ✅ EXISTS - Packer compute image builds
   - `playbook-hpc-runtime.yml` ✅ EXISTS - Unified runtime configuration
-- Infrastructure (2 playbooks): ✅ **VERIFIED**
-  - `playbook-cloud.yml` ✅ EXISTS - Kubernetes cloud setup
-  - `playbook-container-registry.yml` ✅ EXISTS - Container registry deployment
+- Cloud Infrastructure (4 playbooks): ✅ **VERIFIED**
+  - `playbook-cloud-packer-base.yml` ✅ EXISTS - Cloud base image builds
+  - `playbook-cloud-packer-gpu-worker.yml` ✅ EXISTS - Cloud GPU worker image builds
+  - `playbook-cloud-runtime.yml` ✅ EXISTS - Cloud runtime configuration
+  - `deploy-cloud-k8s.yml` ✅ EXISTS - Kubernetes cloud deployment
+- Container Registry (1 playbook): ✅ **VERIFIED**
+  - `playbook-container-registry.yml` ✅ EXISTS - Container registry deployment (BeeGFS-backed)
 
 **Deleted Playbooks (11 files):** ❌
 
@@ -73,16 +82,16 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
 - `playbook-beegfs-runtime-config.yml`
 - `playbook-virtio-fs-runtime-config.yml`
 
-**Test Frameworks:** ⚠️ **15 OLD frameworks still exist** (Phase 2 utilities created - framework consolidation READY TO START)
+**Test Frameworks:** ✅ **3 CONSOLIDATED frameworks** (Framework consolidation COMPLETE!)
 
-- ✅ KEEP: test-{beegfs,container-registry,pcie-passthrough,virtio-fs}-framework.sh (4)
-- ❌ CONSOLIDATE: test-{cgroup-isolation,container-{integration,runtime},dcgm-monitoring}-framework.sh
-- ❌ CONSOLIDATE: test-{gpu-gres,grafana,job-scripts,monitoring-stack}-framework.sh
-- ❌ CONSOLIDATE: test-{slurm-{accounting,compute,controller}}-framework.sh (total: 11 to consolidate)
+- ✅ **Active Frameworks** in `tests/frameworks/`:
+  - `test-hpc-runtime-framework.sh` ✅ COMPLETE - Unified HPC runtime testing
+  - `test-hpc-packer-slurm-framework.sh` ✅ COMPLETE - SLURM Packer image testing
+  - `test-pcie-passthrough-framework.sh` ✅ COMPLETE - PCIe passthrough testing
 
-**Test Configs:** ⚠️ **17+ YAML files in `tests/test-infra/configs/`** (cleanup NOT started)
+**Test Configs:** ✅ **Consolidated and organized** in `tests/test-infra/configs/`
 
-**New Frameworks Required:** ⚠️ **UTILITIES CREATED - READY FOR FRAMEWORK GENERATION**
+**Framework Infrastructure:** ✅ **COMPLETE**
 
 - ✅ **Phase 4 Validation Framework** - `tests/phase-4-validation/` (Task 035 - COMPLETED)
   - Comprehensive validation framework with 5 steps
@@ -93,9 +102,9 @@ all functionality. The goal is to streamline from 14 playbooks to 7 playbooks an
   - `framework-orchestration.sh` - Cluster lifecycle & orchestration (501 lines, 15KB)
   - `framework-template.sh` - Framework creation template (411 lines, 14KB)
   - **Impact**: Foundation for creating new frameworks, eliminates 2,400+ lines of duplication
-- ⏳ test-hpc-runtime-framework.sh (replaces 6 frameworks) - READY TO START
-- ⏳ test-hpc-packer-controller-framework.sh (replaces 3 frameworks) - READY TO START
-- ⏳ test-hpc-packer-compute-framework.sh (replaces 2 frameworks) - READY TO START
+- ✅ test-hpc-runtime-framework.sh (replaces 6 frameworks) - COMPLETE
+- ✅ test-hpc-packer-slurm-framework.sh (replaces 5 frameworks) - COMPLETE
+- ✅ Old frameworks moved to `tests/legacy/` - COMPLETE
 
 **Ansible Roles:** All roles support modular task execution ✅
 
@@ -1194,8 +1203,6 @@ Current SLURM installation uses Debian Trixie repositories which are missing or 
 
 Follow the proven BeeGFS package installation pattern:
 
-<<<<<<< HEAD
-
 ```yaml
 # New installation method (uses pre-built packages)
 - name: Check if SLURM meta package exists
@@ -1220,17 +1227,6 @@ Follow the proven BeeGFS package installation pattern:
   when: slurm_meta_package.stat.exists
 ```
 
-=======
-
-1. **Check if already installed** - Skip if SLURM binaries exist
-2. **Check packages on remote host** - Look in `/tmp/slurm-packages/` (Packer provisioner copies them)
-3. **Check packages on Ansible controller** - Look in `build/packages/slurm/` (runtime deployments)
-4. **Copy packages if needed** - From controller to remote (runtime only)
-5. **Install from local packages** - Use `apt deb:` to install
-6. **Fail with clear message** - If packages not found anywhere
-
->>>>>>> 785d57b (refactor(ansible): consolidate runtime playbooks into unified structure)
-
 **Deliverables:**
 
 - `ansible/roles/slurm-controller/tasks/install.yml` - Rewritten using BeeGFS pattern
@@ -1246,28 +1242,17 @@ Follow the proven BeeGFS package installation pattern:
 **File:** `ansible/roles/slurm-controller/defaults/main.yml`
 
 ```yaml
-<<<<<<< HEAD
-# Add these variables
-slurm_version: "24.11.0"
-slurm_package_path: "{{ playbook_dir }}/../build/packages/slurm"
-slurm_install_method: "prebuilt"  # Options: prebuilt, repository
-slurm_meta_package: "slurm-smd_{{ slurm_version }}_amd64.deb"
-slurm_controller_packages:
-  - "slurm-smd_{{ slurm_version }}_amd64.deb"
-  - "slurm-smd-slurmctld_{{ slurm_version }}_amd64.deb"
-  - "slurm-smd-slurmdbd_{{ slurm_version }}_amd64.deb"
-=======
 # SLURM Package Installation Configuration
-slurm_version: "23.11.10"
+slurm_version: "24.11.0"
 slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
 slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
 
 # Required packages for controller
 slurm_controller_required_packages:
-  - "slurm-wlm_{{ slurm_version }}_amd64.deb"
-  - "slurm-wlm-basic-plugins_{{ slurm_version }}_amd64.deb"
-  - "slurmctld_{{ slurm_version }}_amd64.deb"
-  - "slurmdbd_{{ slurm_version }}_amd64.deb"
+  - "slurm-smd_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-client_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-slurmctld_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-slurmdbd_{{ slurm_version }}-1_amd64.deb"
 
 # Dependencies (from Debian repos)
 slurm_controller_dependencies:
@@ -1275,12 +1260,18 @@ slurm_controller_dependencies:
   - munge
   - libmariadb3
   - mariadb-client
+  - mariadb-server  # Database server for SLURM accounting
   - libpmix2
   - libpam0g
   - libhwloc15
   - liblua5.3-0
   - libjson-c5
->>>>>>> 785d57b (refactor(ansible): consolidate runtime playbooks into unified structure)
+  - libhdf5-310
+  - libhdf5-hl-310
+  - libfreeipmi17
+  - libipmimonitoring6
+  - libjwt2
+  - librdkafka1
 ```
 
 **2. Update slurm-compute Role Variables:**
@@ -1289,15 +1280,15 @@ slurm_controller_dependencies:
 
 ```yaml
 # SLURM Package Installation Configuration
-slurm_version: "23.11.10"
+slurm_version: "24.11.0"
 slurm_packages_path: "/tmp/slurm-packages"  # Runtime path on target nodes
 slurm_packages_source_dir: "build/packages/slurm"  # Source on Ansible controller
 
 # Required packages for compute
 slurm_compute_required_packages:
-  - "slurm-wlm_{{ slurm_version }}_amd64.deb"
-  - "slurm-wlm-basic-plugins_{{ slurm_version }}_amd64.deb"
-  - "slurmd_{{ slurm_version }}_amd64.deb"
+  - "slurm-smd_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-client_{{ slurm_version }}-1_amd64.deb"
+  - "slurm-smd-slurmd_{{ slurm_version }}-1_amd64.deb"
 
 # Dependencies (from Debian repos)
 slurm_compute_dependencies:
@@ -1308,6 +1299,13 @@ slurm_compute_dependencies:
   - libhwloc15
   - liblua5.3-0
   - libjson-c5
+  - libhdf5-310
+  - libhdf5-hl-310
+  - libfreeipmi17
+  - libipmimonitoring6
+  - libjwt2
+  - librdkafka1
+  - libmariadb3
 ```
 
 **3. Rewrite slurm-controller Installation Task (BeeGFS Pattern):**
@@ -1361,7 +1359,7 @@ slurm_compute_dependencies:
 - name: Check if packages exist on Ansible controller (for runtime deployment)
   ansible.builtin.find:
     paths: "{{ slurm_packages_source_dir }}"
-    patterns: "slurm-wlm_{{ slurm_version }}_*.deb"
+    patterns: "slurm-smd_{{ slurm_version }}-*.deb"
   register: controller_packages_check
   delegate_to: localhost
   become: false
@@ -1402,7 +1400,7 @@ slurm_compute_dependencies:
   ansible.builtin.fail:
     msg: >-
       SLURM pre-built packages not found at {{ slurm_packages_path }}.
-      Expected: slurm-wlm_{{ slurm_version }}_*.deb
+      Expected: slurm-smd_{{ slurm_version }}-*.deb
       Checked on controller: {{ slurm_packages_source_dir }}
       For Packer builds: Packages should be copied by Packer to /tmp/slurm-packages/
       For runtime: Build packages first with: cmake --build build --target build-slurm-packages
@@ -1550,7 +1548,7 @@ make run-docker COMMAND="cmake --build build --target build-slurm-packages"
 
 # 3. Verify packages were built
 ls -lh build/packages/slurm/
-# Should show: slurm-wlm_23.11.10_amd64.deb, slurmctld_23.11.10_amd64.deb, etc.
+# Should show: slurm-smd_24.11.0-1_amd64.deb, slurm-smd-slurmctld_24.11.0-1_amd64.deb, etc.
 
 # 4. Build HPC images (will use packages from step 2)
 make run-docker COMMAND="cmake --build build --target build-hpc-controller-image"
@@ -1564,7 +1562,7 @@ Debian Trixie repositories lack complete SLURM packages. We build from source to
 
 - ✅ All SLURM components available (slurmctld, slurmdbd, slurmd)
 - ✅ PMIx integration for MPI support
-- ✅ Latest stable version (23.11.10)
+- ✅ Latest stable version (24.11.0)
 - ✅ Consistent across all nodes
 
 ### Package Lifecycle
@@ -2446,25 +2444,22 @@ ssh controller "touch /mnt/host-repo/test.txt"  # Verify write access
 - **Dependencies**: None (can run independently)
 - **Estimated Time**: 1 hour
 - **Difficulty**: Junior
-- **Status**: ✅ Complete (Implemented 2025-10-27) (Verified 2025-10-20 - Registry uses /opt/containers not /mnt/beegfs)
+- **Status**: ✅ Complete (Implemented 2025-10-27, Verified 2025-11-10 - Registry defaults to BeeGFS)
 - **Priority**: MEDIUM
 
 **Description:** Configure container registry to use BeeGFS parallel filesystem instead of local
 storage, enabling automatic distribution of container images across all cluster nodes.
 
-**Current State:**
+**Implementation Status:** ✅ COMPLETE
 
-- Container registry uses local storage: `/opt/containers`
-- Requires sync script to distribute containers to compute nodes
-- Manual process, potential for inconsistency
-- Single point of failure (controller disk)
+The container registry role now defaults to BeeGFS storage backend:
 
-**Proposed State:**
-
-- Container registry on BeeGFS: `/mnt/beegfs/containers`
-- Automatic distribution to all nodes via BeeGFS client
-- No sync script needed
-- Distributed storage with redundancy
+- **Default Backend**: BeeGFS (`container_registry_storage_backend: "beegfs"`)
+- **Default Path**: `/mnt/beegfs/containers`
+- **Automatic Distribution**: All nodes access via BeeGFS client mount
+- **No Sync Required**: Files immediately visible across cluster
+- **Fallback Support**: Can use local storage (`/opt/containers`) if BeeGFS unavailable
+- **Flexible Configuration**: Supports multiple backends (beegfs, nfs, local, custom)
 
 **Deliverables:**
 
@@ -2512,12 +2507,13 @@ ansible-playbook playbooks/playbook-container-registry.yml
 
 **Validation Criteria:**
 
-- [ ] Registry created at `/mnt/beegfs/containers`
-- [ ] All nodes can access registry path
-- [ ] Containers immediately visible on all nodes
-- [ ] No sync script execution needed
-- [ ] Falls back to local storage if BeeGFS unavailable
-- [ ] Documentation updated with benefits
+- [x] Registry defaults to BeeGFS at `/mnt/beegfs/containers`
+- [x] All nodes can access registry path via BeeGFS mount
+- [x] Containers immediately visible on all nodes
+- [x] No sync script execution needed
+- [x] Falls back to local storage if BeeGFS unavailable
+- [x] Configuration supports multiple storage backends
+- [x] Storage dependencies properly validated
 
 **Test Commands:**
 
@@ -3583,10 +3579,10 @@ The package-manager role exists but is not yet used. We need to:
     package_name: "SLURM Controller"
     package_binary_path: "/usr/sbin/slurmctld"
     package_files:
-      - "slurm-wlm_{{ slurm_version }}_*.deb"
-      - "slurm-wlm-basic-plugins_{{ slurm_version }}_*.deb"
-      - "slurmctld_{{ slurm_version }}_*.deb"
-      - "slurmdbd_{{ slurm_version }}_*.deb"
+      - "slurm-smd_{{ slurm_version }}-*.deb"
+      - "slurm-smd-client_{{ slurm_version }}-*.deb"
+      - "slurm-smd-slurmctld_{{ slurm_version }}-*.deb"
+      - "slurm-smd-slurmdbd_{{ slurm_version }}-*.deb"
     package_remote_path: "/tmp/slurm-packages"
     package_source_dir: "{{ playbook_dir }}/../../build/packages/slurm"
     package_dependencies:
@@ -3594,7 +3590,12 @@ The package-manager role exists but is not yet used. We need to:
       - munge
       - libmariadb3
       - mariadb-client
+      - mariadb-server
       - libpmix2
+      - libpam0g
+      - libhwloc15
+      - liblua5.3-0
+      - libjson-c5
     component_tag: "slurm-controller"
     use_dpkg_install: true  # Better dependency resolution
   tags:
@@ -3845,9 +3846,9 @@ Many roles repeat the same patterns for:
 
 ---
 
-## Current Outcomes (As of 2025-10-23 - Status Updated with Template Rendering)
+## Current Outcomes (As of 2025-11-10 - Phase 4: 87% Complete)
 
-**✅ Phase 4 Core Consolidation Complete (Tasks 029-034.1):**
+**🔄 Phase 4: 87% COMPLETE - 20/23 Tasks Finished:**
 
 - **Playbook Consolidation Achieved:**
   - ✅ `playbook-hpc-packer-controller.yml` - EXISTS and functional
@@ -3855,7 +3856,7 @@ Many roles repeat the same patterns for:
   - ✅ `playbook-hpc-runtime.yml` - EXISTS and functional
   - ✅ 9 obsolete playbooks deleted (verified absent from codebase)
   - ✅ **Current state: 8 playbooks (down from 14 - 43% reduction)**
-  - ✅ **Target: 7 playbooks** (Task 038 complete - BeeGFS consolidation achieved)
+  - ✅ **Achievement: All consolidation targets met**
 
 - **Packer Infrastructure:**
   - ✅ Both controller and compute Packer builds functional (verification needed)
@@ -3867,35 +3868,49 @@ Many roles repeat the same patterns for:
   - ✅ All roles support modular task execution (verified)
   - ✅ Pre-built package pattern consistent across SLURM roles
 
-**📋 Remaining Work:**
+**📋 Phase 4 Status: 🔄 87% COMPLETE (20/23 tasks)**
 
-**Phase 4 - Test Framework Consolidation (Tasks 035-037): ⚠️ NOT STARTED**
+**Phase 4 Core - Playbook Consolidation (Tasks 029-034.1): ✅ COMPLETE**
 
-- ❌ **PENDING**: test-hpc-runtime-framework.sh NOT created (Task 035)
-- ❌ **PENDING**: test-hpc-packer-*-framework.sh NOT created (Task 036)
-- ❌ **PENDING**: 11 old frameworks still exist - need consolidation (Task 037)
-- ❌ **PENDING**: 10+ old test configs still exist - need removal (Task 037)
-- ❌ **PENDING**: Test Makefile NOT updated with new targets (Task 037)
-- **Status:** All 15 old test frameworks verified in codebase - NO consolidation done yet
+- ✅ **COMPLETE**: All HPC Packer playbooks created and functional (Tasks 029-030)
+- ✅ **COMPLETE**: Unified runtime playbook deployed (Task 031)
+- ✅ **COMPLETE**: Packer templates updated (Task 032)
+- ✅ **COMPLETE**: All validation passed (Task 033)
+- ✅ **COMPLETE**: 9 obsolete playbooks deleted (Task 034)
+- ✅ **COMPLETE**: SLURM uses pre-built packages (Task 034.1)
 
-**Phase 4.5 - Storage Enhancement (Tasks 038-041): ✅ MOSTLY COMPLETE**
+**Phase 4 Testing - Test Framework Consolidation (Tasks 035-037): ✅ COMPLETE**
 
-- ✅ **COMPLETE**: BeeGFS Packer installation consolidated into HPC playbooks (Task 038)
-- ✅ **COMPLETE**: VirtIO-FS integrated into playbook-hpc-runtime.yml (Task 039)
-- ❌ **PENDING**: Registry uses /opt/containers not /mnt/beegfs (Task 040)
-- ✅ **COMPLETE**: virtio_fs_mounts added to cluster config schema (Task 041)
-- **Status:** 3/4 storage tasks complete - BeeGFS consolidation, VirtIO-FS integration, and storage schema achieved
+- ✅ **COMPLETE**: test-hpc-runtime-framework.sh created (Task 035)
+- ✅ **COMPLETE**: test-hpc-packer-slurm-framework.sh created (Task 036)
+- ✅ **COMPLETE**: Old frameworks archived, Makefile updated (Task 037)
+- **Status:** 3 consolidated frameworks in tests/frameworks/
+
+**Phase 4.5 - Storage Enhancement (Tasks 038-041): ✅ COMPLETE**
+
+- ✅ **COMPLETE**: BeeGFS Packer installation consolidated (Task 038)
+- ✅ **COMPLETE**: VirtIO-FS integrated into runtime playbook (Task 039)
+- ✅ **COMPLETE**: Registry defaults to BeeGFS at /mnt/beegfs/containers (Task 040)
+- ✅ **COMPLETE**: Storage configuration schema updated (Task 041)
 
 **Phase 4.6 - Configuration Management (Task 042): ✅ COMPLETE**
 
-- ✅ **COMPLETE**: Configuration template rendering system implemented (Task 042)
-- **Status:** Template rendering with bash-compatible variable expansion fully operational
+- ✅ **COMPLETE**: Template rendering with variable expansion (Task 042)
 
-**Phase 4.7 - Storage Runtime Consolidation (Task 043): 📋 PLANNED**
+**Phase 4.7 - Storage Runtime Consolidation (Task 043): ✅ COMPLETE**
 
-- 📋 **PLANNED**: BeeGFS & VirtIO-FS runtime playbook consolidation (Task 043)
-- **Status:** Implementation plan complete, ready for development
-- **Validation:** Step 7 added to phase-4-validation framework
+- ✅ **COMPLETE**: BeeGFS & VirtIO-FS consolidated into runtime playbook (Task 043)
+
+**Phase 4.8 - Role Consolidation (Tasks 044-048, 046.1): 🔄 57% COMPLETE (4/7 tasks)**
+
+- ✅ **COMPLETE**: BeeGFS common role (Task 044)
+- ✅ **COMPLETE**: SLURM common role (Task 045)
+- ✅ **COMPLETE**: Shared package manager role (Task 046)
+- ✅ **COMPLETE**: Package manager integration (Task 046.1)
+- ❌ **PENDING**: Base packages consolidation (Task 047)
+- ❌ **PENDING**: Legacy base packages cleanup (Task 047.1)
+- ❌ **PENDING**: Shared utilities role (Task 048)
+- **Impact:** ~1,000-1,500 lines eliminated (out of projected 1,750-2,650)
 
 **Infrastructure Status:**
 
@@ -4455,11 +4470,11 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - [x] Task 034: ✅ **COMPLETE** - 9 obsolete playbooks DELETED (verified absent)
 - [x] Task 034.1: ✅ **COMPLETE** - SLURM install.yml uses pre-built packages
 
-**Phase 4.5 Storage (Tasks 038-041): ✅ MOSTLY COMPLETE (Verified 2025-10-23)**
+**Phase 4.5 Storage (Tasks 038-041): ✅ COMPLETE (Verified 2025-11-10)**
 
 - [x] Task 038: ✅ **COMPLETE** - BeeGFS Packer installation consolidated into HPC playbooks
 - [x] Task 039: ✅ **COMPLETE** - VirtIO-FS integrated into playbook-hpc-runtime.yml
-- [ ] Task 040: ❌ **NOT STARTED** - Registry uses /opt/containers (not BeeGFS)
+- [x] Task 040: ✅ **COMPLETE** - Registry defaults to BeeGFS at /mnt/beegfs/containers
 - [x] Task 041: ✅ **COMPLETE** - virtio_fs_mounts and beegfs_config added to cluster config schema
 
 **Phase 4 Testing (Tasks 035-037): ✅ COMPLETE (Verified 2025-10-28)**
@@ -4468,26 +4483,28 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - [x] Task 036: ✅ **COMPLETE** - test-hpc-packer-controller-framework.sh and test-hpc-packer-compute-framework.sh created
 - [x] Task 037: ✅ **COMPLETE** - Old frameworks archived/removed, Makefile updated with 42+ unified targets
 
-**Phase 4.8 Role Consolidation (Tasks 044-048, 046.1): 🔄 IN PROGRESS (Added 2025-10-25)**
+**Phase 4.8 Role Consolidation (Tasks 044-048, 046.1): 🔄 57% COMPLETE (4/7 tasks)**
 
 - [x] Task 044: ✅ **COMPLETE** - BeeGFS common role created and functional
 - [x] Task 045: ✅ **COMPLETE** - SLURM common role created with MUNGE, directories, and user management
 - [x] Task 046: ✅ **COMPLETE** - Shared package management role created with reusable installation logic
 - [x] Task 046.1: ✅ **COMPLETE** - Package-manager integrated into BeeGFS and SLURM roles
-- [x] Task 047: ✅ **COMPLETE** - Base package roles consolidated into unified base-packages role
-- [x] Task 048: ✅ **COMPLETE** - Shared utilities role created with reusable validation tasks
+- [ ] Task 047: ❌ **PENDING** - Base package roles consolidation not started
+- [ ] Task 047.1: ❌ **PENDING** - Legacy base package roles cleanup (blocked by 047)
+- [ ] Task 048: ❌ **PENDING** - Shared utilities role not created
 
-**Success Metrics (Updated 2025-10-25):**
+**Success Metrics (Updated 2025-11-10):**
 
 - ✅ Packer playbooks created: playbook-hpc-packer-{controller,compute}.yml
 - ✅ Runtime playbook created: playbook-hpc-runtime.yml
 - ✅ All 9 obsolete playbooks deleted (verified absent from codebase)
 - ✅ Playbook count: 8 (down from 14, 43% reduction achieved)
-- 🎯 Target: 7 playbooks (50% reduction - Task 038 COMPLETE!)
-- ❌ 3 new unified test frameworks NOT created (Tasks 035-036)
-- ❌ 11 obsolete test frameworks still exist (Task 037 not started)
-- ✅ Storage enhancements MOSTLY COMPLETE (Tasks 038-039, 041) - Task 040 pending
-- 🔄 Ansible role consolidation IN PROGRESS (Tasks 044-046, 046.1 complete, Tasks 047-048 pending)
+- ✅ Test frameworks consolidated: 3 active frameworks in tests/frameworks/
+- ✅ Old test frameworks archived to tests/legacy/
+- ✅ Storage enhancements COMPLETE (Tasks 038-041 all done)
+- ✅ Container registry defaults to BeeGFS at /mnt/beegfs/containers
+- 🔄 Ansible role consolidation 57% complete (Tasks 044-046.1 done, 047-048 pending)
+- 🔄 **20/23 PHASE 4 TASKS COMPLETE - 87% ACHIEVEMENT!**
 
 **Estimated Code Reduction from Role Consolidation (Tasks 044-048):**
 
@@ -4495,9 +4512,10 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 - ✅ Task 045 (SLURM common): ~200-300 lines eliminated - **COMPLETE**
 - ✅ Task 046 (Package manager): ~400-600 lines eliminated - **COMPLETE** (role created)
 - ✅ Task 046.1 (Package integration): ~800-1200 lines eliminated - **COMPLETE** (integrated into BeeGFS and SLURM)
-- ✅ Task 047 (Base packages): ~100-150 lines eliminated - **COMPLETE**
-- ✅ Task 048 (Shared utilities): ~150-200 lines eliminated - **COMPLETE**
-- **Total estimated reduction: ~1,750-2,650 lines of duplicate code eliminated!**
+- ❌ Task 047 (Base packages): ~100-150 lines to eliminate - **PENDING**
+- ❌ Task 047.1 (Cleanup): Removal of legacy roles - **PENDING**
+- ❌ Task 048 (Shared utilities): ~150-200 lines to eliminate - **PENDING**
+- **Total current reduction: ~1,000-1,500 lines eliminated** (out of projected 1,750-2,650)
 
 ### **Risk Assessment**
 
@@ -4517,52 +4535,37 @@ grep -r "test-slurm-compute-framework" . --exclude-dir=.git
 
 ---
 
-**Document Version:** 3.9 (Task 048 Complete - All Role Consolidation Tasks Done)
-**Last Review:** 2025-10-27
+**Document Version:** 4.1 (Phase 4: 87% Complete - 20/23 tasks)
+**Last Review:** 2025-11-10
 **Status:**
-✅ **Phase 4 Core COMPLETE (8/13 tasks)**
-✅ **Phase 4.5-4.8 COMPLETE (10/10 tasks)**
-❌ **Phase 4 Testing PENDING (0/3 tasks)**
+✅ **Phase 4 Core COMPLETE (7/7 tasks)**
+✅ **Phase 4 Testing COMPLETE (3/3 tasks)**
+✅ **Phase 4.5-4.7 COMPLETE (6/6 tasks)**
+🔄 **Phase 4.8 57% COMPLETE (4/7 tasks)**
+🔄 **20/23 PHASE 4 TASKS COMPLETE - 87%**
 
-**Verification Summary:**
-
-- ✅ 8 playbooks exist (verified in ansible/playbooks/)
-- ✅ 9 obsolete playbooks deleted (verified absent)
-- ✅ SLURM uses pre-built packages (verified in install.yml)
-- ✅ 3 new unified test frameworks created (verified in tests/frameworks/)
-- ✅ test-hpc-runtime-framework.sh exists and functional
-- ✅ test-hpc-packer-controller-framework.sh exists and functional
-- ✅ test-hpc-packer-compute-framework.sh exists and functional
-- ✅ Old test frameworks properly moved/archived
-- ✅ BeeGFS Packer consolidated into HPC playbooks (Task 038 complete)
-- ✅ VirtIO-FS integrated into runtime playbook (Task 039 complete)
-- ❌ Container registry not on BeeGFS (uses /opt/containers) - Task 040 PENDING
-- ✅ BeeGFS common role created (Task 044 complete)
-- ✅ SLURM common role created (Task 045 complete)
-- ✅ Package manager role created (Task 046 complete)
-- ✅ Package manager integrated into BeeGFS and SLURM roles (Task 046.1 complete)
-- ✅ Base package roles consolidated (Task 047 complete)
-- ✅ Shared utilities role created (Task 048 complete)
-- ✅ **ALL Phase 4.8 Role Consolidation Tasks Complete!**
-
-**Verification Summary (UPDATED 2025-10-28):**
+**Verification Summary (UPDATED 2025-11-10):**
 
 - ✅ 8 playbooks exist (verified in ansible/playbooks/)
 - ✅ 9 obsolete playbooks deleted (verified absent)
 - ✅ SLURM uses pre-built packages (verified in install.yml)
 - ✅ 3 new unified test frameworks created (verified in tests/frameworks/)
 - ✅ test-hpc-runtime-framework.sh exists and functional
-- ✅ test-hpc-packer-controller-framework.sh exists and functional
-- ✅ test-hpc-packer-compute-framework.sh exists and functional
-- ✅ Old test frameworks properly moved/archived
+- ✅ test-hpc-packer-slurm-framework.sh exists and functional
+- ✅ test-pcie-passthrough-framework.sh exists and functional
+- ✅ Old test frameworks archived to tests/legacy/
 - ✅ BeeGFS Packer consolidated into HPC playbooks (Task 038 complete)
 - ✅ VirtIO-FS integrated into runtime playbook (Task 039 complete)
-- ❌ Container registry not on BeeGFS (uses /opt/containers) - Task 040 PENDING
+- ✅ Container registry defaults to BeeGFS at /mnt/beegfs/containers (Task 040 complete)
+- ✅ Storage configuration schema updated (Task 041 complete)
+- ✅ Configuration template rendering implemented (Task 042 complete)
+- ✅ BeeGFS & VirtIO-FS runtime consolidated (Task 043 complete)
 - ✅ BeeGFS common role created (Task 044 complete)
 - ✅ SLURM common role created (Task 045 complete)
 - ✅ Package manager role created (Task 046 complete)
 - ✅ Package manager integrated into BeeGFS and SLURM roles (Task 046.1 complete)
-- ✅ Base package roles consolidated (Task 047 complete)
-- ✅ Shared utilities role created (Task 048 complete)
-- ✅ **ALL Phase 4.8 Role Consolidation Tasks Complete!**
-- ✅ **Phase 4 Test Framework Consolidation COMPLETE (Tasks 035-037)**
+- ❌ Base package roles consolidation pending (Task 047 not started)
+- ❌ Legacy base package roles cleanup pending (Task 047.1 blocked)
+- ❌ Shared utilities role pending (Task 048 not started)
+- 🔄 **20/23 PHASE 4 TASKS COMPLETE - 87%**
+- 🔄 **~1,000-1,500 lines of duplicate code eliminated** (out of projected 1,750-2,650)
