@@ -200,10 +200,10 @@ INFO:    Starting build...
 ### Step 2.3: Deploy Single Image to Cluster
 
 ```bash
-# Deploy using wrapper script (recommended for beginners)
-containers/scripts/deploy-single.sh \
-  -s \
-  -v \
+# Deploy using unified helper (recommended for beginners)
+containers/scripts/deploy-containers.sh single \
+  --sync-nodes \
+  --verify \
   build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
 
 # Or deploy using CLI directly
@@ -225,10 +225,10 @@ hpc-container-manager deploy to-cluster \
 
 ```bash
 # Deploy all built images
-containers/scripts/deploy-all.sh --sync-nodes --verify
+containers/scripts/deploy-containers.sh batch --sync-nodes --verify
 
 # Dry run first
-containers/scripts/deploy-all.sh --dry-run
+containers/scripts/deploy-containers.sh batch --dry-run
 ```
 
 ### Step 2.5: Verify Image Deployment
@@ -311,8 +311,8 @@ hpc-container-manager convert to-apptainer \
   build/containers/apptainer/my-custom-image.sif
 
 # 3. Deploy to cluster
-containers/scripts/deploy-single.sh \
-  -s -v \
+containers/scripts/deploy-containers.sh single \
+  --sync-nodes --verify \
   build/containers/apptainer/my-custom-image.sif
 
 # 4. Verify on cluster
@@ -332,8 +332,8 @@ hpc-container-manager convert to-apptainer \
   --force
 
 # 3. Redeploy to cluster (overwrites existing)
-containers/scripts/deploy-single.sh \
-  -s -v \
+containers/scripts/deploy-containers.sh single \
+  --sync-nodes --verify \
   build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif
 
 # 4. Verify update
@@ -471,7 +471,7 @@ ssh hpc-controller "srun apptainer version"
 ssh hpc-controller "rm /opt/containers/ml-frameworks/corrupted-image.sif"
 
 # Redeploy from local build
-containers/scripts/deploy-single.sh -s -v build/containers/apptainer/image.sif
+containers/scripts/deploy-containers.sh single --sync-nodes --verify build/containers/apptainer/image.sif
 
 # Verify checksum matches (optional)
 sha256sum build/containers/apptainer/image.sif

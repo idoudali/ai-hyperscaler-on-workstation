@@ -45,6 +45,15 @@ SSH_KEYS_DIR := build/shared/ssh-keys
 SSH_PRIVATE_KEY := $(SSH_KEYS_DIR)/id_rsa
 SSH_PUBLIC_KEY := $(SSH_KEYS_DIR)/id_rsa.pub
 
+# Container deployment defaults
+# Controller IP auto-detected via ai-how if not provided
+CLUSTER_CONFIG ?= config/example-multi-gpu-clusters.yaml
+CONTAINER_DEPLOY_USER ?= admin
+CONTAINER_DEPLOY_TARGET ?= /mnt/beegfs/containers
+CONTAINER_DEPLOY_SSH_KEY ?= $(SSH_PRIVATE_KEY)
+CONTAINER_DEPLOY_SYNC_NODES ?= false
+CONTAINER_DEPLOY_VERIFY ?= true
+
 #==============================================================================
 # Build Configuration Helper
 #==============================================================================
@@ -124,6 +133,8 @@ venv-mkdocs:
 venv-create: venv-mkdocs
 	@echo "Installing workspace packages in editable mode..."
 	@uv pip install --reinstall -e $(PYTHON_DIR)/ai_how
+	@echo "Installing containers dependencies..."
+	@uv pip install --reinstall -r containers/requirements.txt
 	@echo "Installing Ansible and dependencies..."
 	@uv pip install -r ansible/requirements.txt
 	@echo "Installing Ansible collections..."
@@ -251,6 +262,38 @@ config-validate: venv-create
 	@echo ""
 	@echo "✅ Configuration validation successful!"
 
+
+#==============================================================================
+# Container Build and Deployment
+#==============================================================================
+.PHONY: containers-deploy-beegfs
+containers-deploy-beegfs: venv-create
+	@echo "=========================================="
+	@echo "Building containers and deploying to BeeGFS"
+	@echo "=========================================="
+	@source .venv/bin/activate && \
+	CONTROLLER_IP=$$(ai-how --log-level error system status $(CLUSTER_CONFIG) --format json | \
+			jq -r '.hpc_cluster.vms[] | select(.name | test("controller")) | .ip_address') && \
+	echo "Detected controller IP: $$CONTROLLER_IP" && \
+	if [ -z "$$CONTROLLER_IP" ]; then \
+		echo "❌ Unable to determine controller IP from cluster configuration; ensure ai-how reports it" >&2; \
+		exit 1; \
+	fi && \
+	$(MAKE) run-docker COMMAND="cmake --build build --target build-all-containers" && \
+	$(MAKE) run-docker COMMAND="bash -lc 'set -euo pipefail; \
+		echo \"Deploying with controller IP: $$CONTROLLER_IP\"; \
+		export BEEGFS_CONTROLLER_IP=\"$$CONTROLLER_IP\"; \
+		export BEEGFS_CONTROLLER_USER=\"$(CONTAINER_DEPLOY_USER)\"; \
+		export BEEGFS_TARGET_BASE=\"$(CONTAINER_DEPLOY_TARGET)\"; \
+		export BEEGFS_SSH_KEY=\"$(CONTAINER_DEPLOY_SSH_KEY)\"; \
+		export BEEGFS_SYNC_NODES=\"$(CONTAINER_DEPLOY_SYNC_NODES)\"; \
+		export BEEGFS_VERIFY=\"$(CONTAINER_DEPLOY_VERIFY)\"; \
+		./containers/scripts/deploy-containers.sh beegfs'"
+	@echo "=========================================="
+	@echo "Containers deployed to BeeGFS successfully"
+	@echo "=========================================="
+
+
 #==============================================================================
 # Cluster Lifecycle Management
 #==============================================================================
@@ -351,6 +394,9 @@ hpc-cluster-status: venv-create
 	@echo "Checking HPC cluster status..."
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc status $(CLUSTER_CONFIG)
+
+
+
 
 #==============================================================================
 # Cloud Cluster Lifecycle Management
@@ -557,6 +603,8 @@ help:
 	@echo "  make build-docker   - Build the development Docker image."
 	@echo "  make shell-docker   - Start an interactive shell in the container."
 	@echo "  make run-docker     - Run a command in the container (use COMMAND=\"...\")."
+	@echo "  make containers-deploy-beegfs - Build all containers and deploy them to BeeGFS via hpc-container-manager."
+	@echo "      (Controller IP auto-detected via \"ai-how system status\" unless CONTAINER_DEPLOY_CONTROLLER is set.)"
 	@echo "  make clean-docker   - Remove the Docker image and old containers."
 	@echo "  make push-docker    - (Optional) Push image to a registry."
 	@echo ""
