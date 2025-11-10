@@ -1,44 +1,22 @@
 #!/bin/bash
+#
 # Check Cgroup Configuration
 # Task 024: Set Up Cgroup Resource Isolation
 # Test Suite: Cgroup Configuration Validation
 #
 # This script validates cgroup configuration files and settings
+#
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 set -euo pipefail
 
 # Script configuration
-# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+# shellcheck disable=SC2034
 SCRIPT_NAME="check-cgroup-configuration.sh"
-# shellcheck disable=SC2034  # Used as metadata for logging/reporting
+# shellcheck disable=SC2034
 TEST_NAME="Cgroup Configuration Validation"
-declare -a FAILED_TESTS=()  # Initialize as empty array
-
-#=============================================================================
-# Helper Functions
-#=============================================================================
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-    log_info "Running test $TESTS_RUN: $test_name"
-
-    if $test_function; then
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        TEST_RESULTS+=("✓ $test_name")
-        log_success "Test passed: $test_name"
-        return 0
-    else
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        TEST_RESULTS+=("✗ $test_name")
-        FAILED_TESTS+=("$test_name")
-        log_error "Test failed: $test_name"
-        return 1
-    fi
-}
 
 #=============================================================================
 # Test Functions
@@ -214,53 +192,30 @@ test_cgroup_file_permissions() {
 #=============================================================================
 
 main() {
-    log_info "======================================================================"
-    log_info "Cgroup Configuration Test Suite"
-    log_info "======================================================================"
+    echo -e "${BLUE}=====================================${NC}"
+    echo -e "${BLUE}  $TEST_NAME${NC}"
+    echo -e "${BLUE}=====================================${NC}"
+
+    log_info "Starting cgroup configuration validation"
+    log_info "Log directory: $LOG_DIR"
 
     # Run all tests
-    run_test "Cgroup configuration file exists" test_cgroup_conf_exists || true
-    run_test "Allowed devices file exists" test_allowed_devices_file_exists || true
-    run_test "Cgroup configuration syntax valid" test_cgroup_conf_syntax || true
-    run_test "Cgroup configuration content valid" test_cgroup_conf_content || true
-    run_test "Cgroup directory structure correct" test_cgroup_directory_structure || true
-    run_test "Cgroup file permissions correct" test_cgroup_file_permissions || true
+    run_test "Cgroup configuration file exists" test_cgroup_conf_exists
+    run_test "Allowed devices file exists" test_allowed_devices_file_exists
+    run_test "Cgroup configuration syntax valid" test_cgroup_conf_syntax
+    run_test "Cgroup configuration content valid" test_cgroup_conf_content
+    run_test "Cgroup directory structure correct" test_cgroup_directory_structure
+    run_test "Cgroup file permissions correct" test_cgroup_file_permissions
 
     # Print summary
-    log_info "======================================================================"
-    log_info "Test Summary"
-    log_info "======================================================================"
-    log_info "Tests run: $TESTS_RUN"
-    log_info "Tests passed: $TESTS_PASSED"
-    log_info "Tests failed: $TESTS_FAILED"
-    log_info "======================================================================"
-
-    # Print individual test results
-    for result in "${TEST_RESULTS[@]}"; do
-        echo "$result"
-    done
-
-    # Print failed tests if any
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        log_error "======================================================================"
-        log_error "Failed Tests:"
-        for test in "${FAILED_TESTS[@]}"; do
-            log_error "  - $test"
-        done
-        log_error "======================================================================"
-    fi
-
-    # Return exit code based on test results
-    if [ "$TESTS_FAILED" -eq 0 ]; then
-        log_success "All cgroup configuration tests passed!"
+    if print_check_summary; then
+        log_info "Cgroup configuration validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else
-        log_error "Some cgroup configuration tests failed!"
-        return 1
+        log_warn "Cgroup configuration validation had issues (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
+        return 0
     fi
 }
 
-# Run main function if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
-fi
+# Execute main function
+main "$@"

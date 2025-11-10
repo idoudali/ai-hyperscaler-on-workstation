@@ -1,156 +1,181 @@
 #!/bin/bash
-# DCGM Monitoring Test Suite Master Runner
+#
+# DCGM GPU Monitoring Test Suite Master Runner
 # Orchestrates all DCGM monitoring validation tests
+#
 
 set -euo pipefail
 
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Resolve script and common utility directories (preserve this script's path)
+SUITE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SUITE_SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-utils.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-logging.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-test-runner.sh"
+
 # Script configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_NAME="run-dcgm-monitoring-tests.sh"
 TEST_SUITE_NAME="DCGM GPU Monitoring Test Suite"
-LOG_DIR="${LOG_DIR:-${SCRIPT_DIR}/../../logs}"
-VERBOSE=${VERBOSE:-false}
+SCRIPT_DIR="$SUITE_SCRIPT_DIR"
+TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
+export SCRIPT_DIR
+export TEST_SUITE_DIR
 
-# Color output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Configure logging directories
+: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.sh}.log"
+touch "$LOG_FILE"
 
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $*"
-}
+# Initialize suite logging and test runner
+init_suite_logging "$TEST_SUITE_NAME"
+init_test_runner
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $*" >&2
-}
+# Test scripts for DCGM Monitoring validation
+TEST_SCRIPTS=(
+    "check-dcgm-installation.sh"         # Verify DCGM installation
+    "check-dcgm-exporter.sh"             # Validate DCGM exporter functionality
+    "check-prometheus-integration.sh"    # Validate Prometheus DCGM integration
+)
 
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $*"
-}
+# System check functions
+check_system_requirements() {
+    log_info "Checking system requirements for DCGM monitoring tests..."
 
-log_section() {
-    echo
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}$*${NC}"
-    echo -e "${BLUE}========================================${NC}"
-    echo
-}
+    # Check if DCGM is installed
+    if ! command -v dcgmi >/dev/null 2>&1; then
+        log_warn "DCGM (dcgmi) not found on system"
+    else
+        log_debug "DCGM is available"
+    fi
 
-# Test result tracking
-declare -A TEST_RESULTS
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
-SKIPPED_TESTS=0
+    # Check if nvidia-smi is available
+    if ! command -v nvidia-smi >/dev/null 2>&1; then
+        log_warn "nvidia-smi not found - GPU detection may fail"
+    else
+        log_debug "nvidia-smi is available"
+    fi
 
-# Function to run a test script
-run_test() {
-    local test_name="$1"
-    local test_script="$2"
+    # Check essential commands
+    local required_commands=(
+        "bash"
+        "timeout"
+    )
 
-    ((TOTAL_TESTS++))
+    local missing_commands=()
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_commands+=("$cmd")
+        fi
+    done
 
-    log_section "Running: $test_name"
-
-    if [[ ! -f "$test_script" ]]; then
-        log_error "Test script not found: $test_script"
-        TEST_RESULTS["$test_name"]="FAILED"
-        ((FAILED_TESTS++))
+    if [ ${#missing_commands[@]} -gt 0 ]; then
+        log_error "Missing required commands: ${missing_commands[*]}"
         return 1
     fi
 
-    # Make script executable
-    chmod +x "$test_script"
+    log_info "✓ System requirements check passed"
+    return 0
+}
 
-    # Run test with verbose flag if enabled
-    local test_cmd="$test_script"
-    if [[ "$VERBOSE" == "true" ]]; then
-        test_cmd="VERBOSE=true $test_script"
+show_environment_info() {
+    log_info "Test environment information:"
+    log_info "- Test suite: $TEST_SUITE_NAME"
+    log_info "- Log directory: $LOG_DIR"
+    log_info "- Test suite directory: $TEST_SUITE_DIR"
+    log_info "- Number of test scripts: ${#TEST_SCRIPTS[@]}"
+    log_info "- Current hostname: $(hostname)"
+
+    # Show system info
+    if command -v lsb_release >/dev/null 2>&1; then
+        local os_info
+        os_info=$(lsb_release -d | cut -f2-)
+        log_info "- Operating System: $os_info"
     fi
 
-    # Capture both stdout and stderr
-    local test_output
-    local test_exit_code
-
-    if test_output=$(bash -c "$test_cmd" 2>&1); then
-        test_exit_code=0
-    else
-        test_exit_code=$?
+    if [ -f /proc/version ]; then
+        local kernel_info
+        kernel_info=$(cut -d' ' -f1-3 < /proc/version)
+        log_info "- Kernel: $kernel_info"
     fi
 
-    # Always show the test output
-    echo "$test_output"
-
-    if [[ $test_exit_code -eq 0 ]]; then
-        log_info "✓ $test_name: PASSED"
-        TEST_RESULTS["$test_name"]="PASSED"
-        ((PASSED_TESTS++))
-        return 0
-    else
-        log_error "✗ $test_name: FAILED (exit code: $test_exit_code)"
-        TEST_RESULTS["$test_name"]="FAILED"
-        ((FAILED_TESTS++))
-        return 1
+    # Show GPU info
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        local gpu_count
+        gpu_count=$(nvidia-smi --list-gpus 2>/dev/null | wc -l || echo "0")
+        log_info "- GPUs detected: $gpu_count"
     fi
 }
 
-# Function to display usage
-usage() {
-    cat << EOF
-Usage: $(basename "$0") [OPTIONS]
-
-Run comprehensive DCGM GPU monitoring validation tests.
-
-OPTIONS:
-    -h, --help              Show this help message
-    -v, --verbose           Enable verbose output
-    -t, --test TEST_NAME    Run specific test only
-    -l, --list              List available tests
-    --log-dir DIR           Specify log directory (default: $LOG_DIR)
-    --skip-installation     Skip DCGM installation tests
-    --skip-exporter         Skip DCGM exporter tests
-    --skip-integration      Skip Prometheus integration tests
-
-AVAILABLE TESTS:
-    installation    - DCGM installation and configuration
-    exporter        - DCGM exporter functionality
-    integration     - Prometheus DCGM integration
-
-EXAMPLES:
-    # Run all tests
-    $0
-
-    # Run with verbose output
-    $0 --verbose
-
-    # Run specific test
-    $0 --test installation
-
-    # Skip integration tests
-    $0 --skip-integration
-
-EOF
-    exit 0
+# Cleanup functions
+cleanup_test_environment() {
+    log_debug "Cleaning up test environment..."
+    # No specific cleanup needed for DCGM monitoring tests
+    log_debug "Test environment cleanup completed"
 }
+
+# Main execution function
+main() {
+    echo ""
+    echo -e "${BLUE}=====================================${NC}"
+    echo -e "${BLUE}  $TEST_SUITE_NAME${NC}"
+    echo -e "${BLUE}=====================================${NC}"
+    echo ""
+
+    # Show environment info
+    show_environment_info
+
+    # Check system requirements
+    if ! check_system_requirements; then
+        log_error "System requirements check failed"
+        exit 1
+    fi
+
+    # Run each test script
+    for script in "${TEST_SCRIPTS[@]}"; do
+        run_test_script "$script"
+    done
+
+    # Cleanup
+    cleanup_test_environment
+
+    # Print test summary
+    print_test_summary
+    local test_result=$?
+
+    # Exit with result from summary
+    exit $test_result
+}
+
+# Handle script interruption
+trap cleanup_test_environment EXIT
 
 # Parse command line arguments
+VERBOSE=false
+# shellcheck disable=SC2034
 SPECIFIC_TEST=""
+# shellcheck disable=SC2034
 SKIP_INSTALLATION=false
+# shellcheck disable=SC2034
 SKIP_EXPORTER=false
+# shellcheck disable=SC2034
 SKIP_INTEGRATION=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -h|--help)
-            usage
-            ;;
         -v|--verbose)
             VERBOSE=true
             shift
             ;;
         -t|--test)
+            # shellcheck disable=SC2034
             SPECIFIC_TEST="$2"
             shift 2
             ;;
@@ -161,115 +186,55 @@ while [[ $# -gt 0 ]]; do
             echo "  - integration"
             exit 0
             ;;
-        --log-dir)
-            LOG_DIR="$2"
-            shift 2
-            ;;
         --skip-installation)
+            # shellcheck disable=SC2034
             SKIP_INSTALLATION=true
             shift
             ;;
         --skip-exporter)
+            # shellcheck disable=SC2034
             SKIP_EXPORTER=true
             shift
             ;;
         --skip-integration)
+            # shellcheck disable=SC2034
             SKIP_INTEGRATION=true
             shift
             ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -v, --verbose              Enable verbose output"
+            echo "  -t, --test TEST_NAME       Run specific test only (installation|exporter|integration)"
+            echo "  -l, --list                 List available tests"
+            echo "  --skip-installation        Skip DCGM installation tests"
+            echo "  --skip-exporter            Skip DCGM exporter tests"
+            echo "  --skip-integration         Skip Prometheus integration tests"
+            echo "  -h, --help                 Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  LOG_DIR                    Directory for test logs (default: ./logs/run-YYYY-MM-DD_HH-MM-SS)"
+            echo ""
+            echo "Test Scripts:"
+            for script in "${TEST_SCRIPTS[@]}"; do
+                echo "  - $script"
+            done
+            exit 0
+            ;;
         *)
             log_error "Unknown option: $1"
-            usage
+            echo "Use --help for usage information"
+            exit 1
             ;;
     esac
 done
 
-# Create log directory
-mkdir -p "$LOG_DIR"
-
-# Main test execution
-main() {
-    local start_time
-    start_time=$(date +%s)
-
-    log_section "$TEST_SUITE_NAME"
-    log_info "Test suite started at $(date)"
-    log_info "Verbose mode: $VERBOSE"
-    log_info "Log directory: $LOG_DIR"
-    echo
-
-    # Run tests based on configuration
-    if [[ -z "$SPECIFIC_TEST" ]]; then
-        # Run all tests (unless skipped)
-        if [[ "$SKIP_INSTALLATION" == "false" ]]; then
-            run_test "DCGM Installation" "${SCRIPT_DIR}/check-dcgm-installation.sh" || true
-        fi
-
-        if [[ "$SKIP_EXPORTER" == "false" ]]; then
-            run_test "DCGM Exporter" "${SCRIPT_DIR}/check-dcgm-exporter.sh" || true
-        fi
-
-        if [[ "$SKIP_INTEGRATION" == "false" ]]; then
-            run_test "Prometheus Integration" "${SCRIPT_DIR}/check-prometheus-integration.sh" || true
-        fi
-    else
-        # Run specific test
-        case "$SPECIFIC_TEST" in
-            installation)
-                run_test "DCGM Installation" "${SCRIPT_DIR}/check-dcgm-installation.sh"
-                ;;
-            exporter)
-                run_test "DCGM Exporter" "${SCRIPT_DIR}/check-dcgm-exporter.sh"
-                ;;
-            integration)
-                run_test "Prometheus Integration" "${SCRIPT_DIR}/check-prometheus-integration.sh"
-                ;;
-            *)
-                log_error "Unknown test: $SPECIFIC_TEST"
-                log_info "Available tests: installation, exporter, integration"
-                exit 1
-                ;;
-        esac
-    fi
-
-    # Display test summary
-    local end_time
-    end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-
-    log_section "Test Summary"
-
-    echo "Test Results:"
-    for test_name in "${!TEST_RESULTS[@]}"; do
-        local result="${TEST_RESULTS[$test_name]}"
-        if [[ "$result" == "PASSED" ]]; then
-            echo -e "  ${GREEN}✓${NC} $test_name: $result"
-        elif [[ "$result" == "FAILED" ]]; then
-            echo -e "  ${RED}✗${NC} $test_name: $result"
-        else
-            echo -e "  ${YELLOW}○${NC} $test_name: $result"
-        fi
-    done
-
-    echo
-    log_info "Total Tests: $TOTAL_TESTS"
-    log_info "Passed: ${GREEN}$PASSED_TESTS${NC}"
-    log_info "Failed: ${RED}$FAILED_TESTS${NC}"
-    log_info "Skipped: ${YELLOW}$SKIPPED_TESTS${NC}"
-    log_info "Duration: ${duration}s"
-    log_info "Test suite completed at $(date)"
-
-    # Exit with appropriate code
-    if [[ $FAILED_TESTS -eq 0 ]]; then
-        log_section "All Tests Passed! ✓"
-        return 0
-    else
-        log_section "Some Tests Failed! ✗"
-        return 1
-    fi
-}
+# Enable verbose mode if requested
+if [ "$VERBOSE" = true ]; then
+    set -x
+    log_debug "Verbose mode enabled"
+fi
 
 # Execute main function
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
+main "$@"

@@ -1,61 +1,23 @@
 #!/bin/bash
+#
 # DCGM Installation Validation Test Script
 # Tests DCGM package installation, service status, and basic functionality
+#
 
-set -uo pipefail
+set -euo pipefail
 
-# Function to handle errors gracefully
-handle_error() {
-    local exit_code=$?
-    echo "Error occurred in test script at line $1" >&2
-    echo "Exit code: $exit_code" >&2
-    # Don't exit immediately, let the test framework handle it
-    return $exit_code
-}
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Source shared utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 
 # Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="check-dcgm-installation.sh"
+# shellcheck disable=SC2034
 TEST_NAME="DCGM Installation Validation"
-VERBOSE=${VERBOSE:-false}
-
-# Color output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $*"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $*" >&2
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $*"
-}
-
-log_verbose() {
-    if [[ "$VERBOSE" == "true" ]]; then
-        echo -e "${YELLOW}[VERBOSE]${NC} $*"
-    fi
-}
-
-# Test counter
-TESTS_PASSED=${TESTS_PASSED:-0}
-TESTS_FAILED=${TESTS_FAILED:-0}
-
-# Test functions
-test_pass() {
-    ((TESTS_PASSED++))
-    log_info "✓ $1"
-}
-
-test_fail() {
-    ((TESTS_FAILED++))
-    log_error "✗ $1"
-}
 
 # Test 1: Check if NVIDIA GPUs are present
 test_gpu_detection() {
