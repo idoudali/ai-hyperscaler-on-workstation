@@ -1,22 +1,55 @@
 #!/bin/bash
+#
 # Container Integration Test Suite Master Runner
-# Runs all container integration validation tests
+# Orchestrates all container integration validation tests
+#
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
-# Source test framework utilities (save SCRIPT_DIR first as utils will overwrite it)
+# Resolve script and common utility directories (preserve this script's path)
+SUITE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SUITE_SCRIPT_DIR/../common" && pwd)"
+PROJECT_ROOT="$(cd "$SUITE_SCRIPT_DIR/../../.." && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-utils.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-logging.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-test-runner.sh"
+
+# Also source test-infra utilities for VM discovery
 UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
-SUITE_SCRIPT_DIR="$SCRIPT_DIR"
-# shellcheck source=../../test-infra/utils/log-utils.sh
-source "$UTILS_DIR/log-utils.sh"
-# shellcheck source=../../test-infra/utils/vm-utils.sh
-source "$UTILS_DIR/vm-utils.sh"
-# Restore SCRIPT_DIR to point to this suite directory
+if [ -f "$UTILS_DIR/log-utils.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$UTILS_DIR/log-utils.sh"
+fi
+if [ -f "$UTILS_DIR/vm-utils.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$UTILS_DIR/vm-utils.sh"
+fi
+
+# Script configuration
+SCRIPT_NAME="run-container-integration-tests.sh"
+TEST_SUITE_NAME="Container Integration Test Suite"
 SCRIPT_DIR="$SUITE_SCRIPT_DIR"
+TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
+export SCRIPT_DIR
+export TEST_SUITE_DIR
+export PROJECT_ROOT
+
+# Configure logging directories
+: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.sh}.log"
+touch "$LOG_FILE"
+
+# Initialize suite logging and test runner
+init_suite_logging "$TEST_SUITE_NAME"
+init_test_runner
 
 # Test configuration
 TEST_CONFIG="${TEST_CONFIG:-$PROJECT_ROOT/tests/test-infra/configs/test-container-integration.yaml}"
@@ -28,34 +61,42 @@ SSH_USER="${SSH_USER:-admin}"
 export CONTAINER_IMAGE="${CONTAINER_IMAGE:-/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif}"
 export CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-apptainer}"
 
-# Discover and validate controller, generating Ansible inventory
-# Parameters: test_config, inventory_file
+# Test scripts for Container Integration validation
+TEST_SCRIPTS=(
+    "check-container-functionality.sh"
+    "check-pytorch-cuda-integration.sh"
+    "check-mpi-communication.sh"
+    "check-distributed-training.sh"
+    "check-container-slurm-integration.sh"
+)
+
+# Discover and validate controller
 discover_and_validate_controller() {
     local test_config="$1"
     local inventory_file="$2"
 
-    [[ -z "$test_config" ]] && echo -e "${RED}ERROR: test_config parameter required${NC}" && return 1
-    [[ -z "$inventory_file" ]] && echo -e "${RED}ERROR: inventory_file parameter required${NC}" && return 1
+    [[ -z "$test_config" ]] && log_error "test_config parameter required" && return 1
+    [[ -z "$inventory_file" ]] && log_error "inventory_file parameter required" && return 1
 
-    echo "Extracting controller information from: $test_config"
+    log_info "Extracting controller information from: $test_config"
 
     # Extract controller IP from YAML config using yq
     local controller_ip
     if ! controller_ip=$(yq eval '.clusters.hpc.controller.ip_address' "$test_config" 2>/dev/null); then
-        echo -e "${RED}ERROR: Failed to extract controller IP from config${NC}"
+        log_error "Failed to extract controller IP from config"
         return 1
     fi
 
     if [[ -z "$controller_ip" || "$controller_ip" == "null" ]]; then
-        echo -e "${RED}ERROR: Controller IP not found in config${NC}"
+        log_error "Controller IP not found in config"
         return 1
     fi
 
-    echo "Controller IP from config: $controller_ip"
+    log_info "Controller IP from config: $controller_ip"
 
     # Validate SSH connectivity
-    if ! wait_for_vm_ssh "$controller_ip" "controller" "30"; then
-        echo -e "${RED}ERROR: SSH connectivity failed to controller: $controller_ip${NC}"
+    if ! wait_for_node_ssh "$controller_ip"; then
+        log_error "SSH connectivity failed to controller: $controller_ip"
         return 1
     fi
 
@@ -64,7 +105,7 @@ discover_and_validate_controller() {
     export TEST_CONTROLLER
     export SSH_KEY_PATH
 
-    echo -e "${GREEN}✓ Controller validated: $controller_ip${NC}"
+    log_success "✓ Controller validated: $controller_ip"
 
     # Generate Ansible inventory file
     mkdir -p "$(dirname "$inventory_file")"
@@ -78,232 +119,176 @@ ansible_ssh_private_key_file=${SSH_KEY_PATH}
 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 EOF
 
-    echo -e "${GREEN}✓ Ansible inventory created: $inventory_file${NC}"
+    log_success "✓ Ansible inventory created: $inventory_file"
     return 0
 }
 
-# Test scripts in order
-TEST_SCRIPTS=(
-  "check-container-functionality.sh"
-  "check-pytorch-cuda-integration.sh"
-  "check-mpi-communication.sh"
-  "check-distributed-training.sh"
-  "check-container-slurm-integration.sh"
-)
+# Check container image availability
+check_container_availability() {
+    log_info "Checking container image availability..."
+    local ssh_opts=(-o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes)
 
-# Counters
-TESTS_EXECUTED=0
-TESTS_PASSED=0
-TESTS_FAILED=0
-declare -a FAILED_TESTS=()
-
-# Main execution
-main() {
-  echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-  echo -e "${BLUE}  Container Integration Test Suite${NC}"
-  echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-  echo ""
-
-  # Pre-flight checks before running tests
-  echo -e "${BLUE}Pre-flight Checks:${NC}"
-  echo ""
-
-  # Discover and validate controller (generates inventory file)
-  echo "• Discovering controller and generating Ansible inventory..."
-  if ! discover_and_validate_controller "$TEST_CONFIG" "$ANSIBLE_INVENTORY"; then
-    echo -e "${RED}ERROR: Failed to discover or validate controller${NC}"
-    echo ""
-    echo "Please ensure:"
-    echo "  1. Test config exists: $TEST_CONFIG"
-    echo "  2. Cluster VMs are running and accessible"
-    echo "  3. Controller IP is correctly configured in: $TEST_CONFIG"
-    echo ""
-    echo "Required infrastructure must be deployed:"
-    echo "  - TASK-019: PyTorch Container built"
-    echo "  - TASK-020: Container converted to Apptainer"
-    echo "  - TASK-021: Container Registry deployed"
-    echo "  - TASK-022: SLURM Compute Nodes installed"
-    echo "  - TASK-023: GPU GRES configured"
-    echo "  - TASK-024: Cgroup isolation active"
-    exit 1
-  fi
-  echo ""
-
-  echo "Test Controller: $TEST_CONTROLLER"
-  echo "Container Image: $CONTAINER_IMAGE"
-  echo "Container Runtime: $CONTAINER_RUNTIME"
-  echo "Ansible Inventory: $ANSIBLE_INVENTORY"
-  echo "Test Scripts: ${#TEST_SCRIPTS[@]}"
-  echo ""
-
-  # Check if container image exists
-  echo "• Checking container image availability..."
-  local ssh_opts=(-o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes)
-
-  if [[ -f "$SSH_KEY_PATH" ]]; then
-    if ssh -i "$SSH_KEY_PATH" "${ssh_opts[@]}" "$TEST_CONTROLLER" "[ -f '$CONTAINER_IMAGE' ]" 2>/dev/null; then
-      echo -e "  ${GREEN}✓${NC} Container image exists: $CONTAINER_IMAGE"
+    if [[ -f "$SSH_KEY_PATH" ]]; then
+        if ssh -i "$SSH_KEY_PATH" "${ssh_opts[@]}" "$TEST_CONTROLLER" "[ -f '$CONTAINER_IMAGE' ]" 2>/dev/null; then
+            log_success "✓ Container image exists: $CONTAINER_IMAGE"
+            return 0
+        else
+            log_error "✗ Container image not found: $CONTAINER_IMAGE"
+            log_error ""
+            log_error "Container image must be deployed before running integration tests"
+            log_error ""
+            log_info "Quick deployment (recommended):"
+            log_info "  cd tests && make test-container-registry-deploy"
+            return 1
+        fi
     else
-      echo -e "  ${RED}✗${NC} Container image not found: $CONTAINER_IMAGE"
-      echo ""
-      echo -e "${RED}ERROR: Container image must be deployed before running integration tests${NC}"
-      echo ""
-      echo "Quick deployment (recommended):"
-      echo "  cd tests && make test-container-registry-deploy"
-      echo ""
-      echo "This will automatically:"
-      echo "  1. Build Docker container images"
-      echo "  2. Convert to Apptainer SIF format"
-      echo "  3. Deploy to cluster via SSH/rsync"
-      echo ""
-      echo "Manual deployment workflow (if needed):"
-      echo "  1. Build: make run-docker COMMAND='cmake --build build --target build-docker-pytorch-cuda12.1-mpi4.1'"
-      echo "  2. Convert: make run-docker COMMAND='cmake --build build --target convert-to-apptainer-pytorch-cuda12.1-mpi4.1'"
-      echo "  3. Deploy: rsync -avz build/containers/apptainer/*.sif admin@192.168.220.10:/opt/containers/ml-frameworks/"
-      echo ""
-      exit 1
+        log_error "✗ SSH key not found: $SSH_KEY_PATH"
+        return 1
     fi
-  else
-    echo -e "  ${RED}✗${NC} SSH key not found: $SSH_KEY_PATH"
-    exit 1
-  fi
-
-  # Check if SLURM is running
-  echo "• Checking SLURM availability..."
-  if ssh -i "$SSH_KEY_PATH" "${ssh_opts[@]}" "$TEST_CONTROLLER" "sinfo --version >/dev/null 2>&1" 2>/dev/null; then
-    echo -e "  ${GREEN}✓${NC} SLURM is running"
-  else
-    echo -e "  ${RED}✗${NC} SLURM is not running or not accessible"
-    echo ""
-    echo -e "${YELLOW}WARNING: Some integration tests may fail without SLURM${NC}"
-    echo "SLURM deployment:"
-    echo "  1. Deploy controller: cd tests && make test-slurm-controller-deploy"
-    echo "  2. Deploy compute nodes: cd tests && make test-slurm-compute-deploy"
-    echo ""
-    echo "Continuing with tests (some may be skipped)..."
-  fi
-
-  echo ""
-  echo -e "${GREEN}Pre-flight checks complete. Starting tests...${NC}"
-  echo ""
-
-  # Run each test script
-  for script in "${TEST_SCRIPTS[@]}"; do
-    local script_path="$SCRIPT_DIR/$script"
-
-    if [[ ! -f "$script_path" ]]; then
-      echo -e "${RED}ERROR: Test script not found: $script${NC}"
-      continue
-    fi
-
-    if [[ ! -x "$script_path" ]]; then
-      chmod +x "$script_path"
-    fi
-
-    echo -e "${BLUE}───────────────────────────────────────────────────────────${NC}"
-    echo -e "${BLUE}Running: $script${NC}"
-    echo -e "${BLUE}───────────────────────────────────────────────────────────${NC}"
-    echo ""
-
-    TESTS_EXECUTED=$((TESTS_EXECUTED + 1))
-
-    # Create a temporary file to capture output
-    local temp_output
-    temp_output=$(mktemp)
-
-    # Export required environment variables for test scripts
-    export TEST_CONTROLLER
-    export SSH_KEY_PATH
-    export CONTAINER_IMAGE
-    export CONTAINER_RUNTIME
-
-    # Run test and capture output
-    set +e
-    if bash "$script_path" > "$temp_output" 2>&1; then
-      local exit_code=0
-    else
-      local exit_code=$?
-    fi
-    set -e
-
-    # Display output
-    cat "$temp_output"
-
-    # Check if output was empty (indicates early failure)
-    if [[ ! -s "$temp_output" ]]; then
-      echo -e "${RED}ERROR: Test script produced no output (possible early failure)${NC}"
-      echo "This usually means:"
-      echo "  1. SSH command failed silently"
-      echo "  2. Script syntax error"
-      echo "  3. Missing environment variable"
-      echo ""
-      echo "Debug information:"
-      echo "  Script: $script_path"
-      echo "  Controller: $TEST_CONTROLLER"
-      echo "  SSH Key: ${SSH_KEY_PATH:-not set}"
-      echo ""
-      exit_code=1
-    fi
-
-    rm -f "$temp_output"
-
-    echo ""
-
-    # Record result
-    if [[ $exit_code -eq 0 ]]; then
-      TESTS_PASSED=$((TESTS_PASSED + 1))
-      echo -e "${GREEN}✓ $script PASSED${NC}"
-    else
-      TESTS_FAILED=$((TESTS_FAILED + 1))
-      FAILED_TESTS+=("$script (exit code: $exit_code)")
-      echo -e "${RED}✗ $script FAILED (exit code: $exit_code)${NC}"
-    fi
-
-    echo ""
-  done
-
-  # Final summary
-  echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-  echo -e "${BLUE}  Final Summary: Container Integration Test Suite${NC}"
-  echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-  echo ""
-  echo "Total Test Scripts: $TESTS_EXECUTED"
-  echo -e "Passed:             ${GREEN}$TESTS_PASSED${NC}"
-
-  if [[ $TESTS_FAILED -gt 0 ]]; then
-    echo -e "Failed:             ${RED}$TESTS_FAILED${NC}"
-    echo ""
-    echo -e "${RED}Failed Tests:${NC}"
-    for test in "${FAILED_TESTS[@]}"; do
-      echo -e "  ${RED}✗ $test${NC}"
-    done
-    echo ""
-    echo "Common issues:"
-    echo "  - Container image not deployed"
-    echo "  - SLURM not running or misconfigured"
-    echo "  - GPU GRES not configured"
-    echo "  - Cgroup isolation not active"
-    echo "  - Network connectivity issues"
-  else
-    echo "Failed:             $TESTS_FAILED"
-  fi
-
-  echo ""
-
-  if [[ $TESTS_FAILED -eq 0 ]]; then
-    echo -e "${GREEN}✓✓✓ All container integration tests passed ✓✓✓${NC}"
-    echo ""
-    echo "Container integration validation complete:"
-    echo "  ✓ Container functionality validated"
-    echo "  ✓ PyTorch + CUDA integration confirmed"
-    echo "  ✓ MPI communication functional"
-    echo "  ✓ Distributed training environment ready"
-    echo "  ✓ SLURM + container integration validated"
-    exit 0
-  else
-    echo -e "${RED}✗✗✗ Some container integration tests failed ✗✗✗${NC}"
-    exit 1
-  fi
 }
 
+# Check SLURM availability
+check_slurm_availability() {
+    log_info "Checking SLURM availability..."
+    local ssh_opts=(-o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes)
+
+    if ssh -i "$SSH_KEY_PATH" "${ssh_opts[@]}" "$TEST_CONTROLLER" "sinfo --version >/dev/null 2>&1" 2>/dev/null; then
+        log_success "✓ SLURM is running"
+        return 0
+    else
+        log_warn "✗ SLURM is not running or not accessible"
+        log_info ""
+        log_warn "WARNING: Some integration tests may fail without SLURM"
+        log_info "SLURM deployment:"
+        log_info "  1. Deploy controller: cd tests && make test-slurm-controller-deploy"
+        log_info "  2. Deploy compute nodes: cd tests && make test-slurm-compute-deploy"
+        log_info ""
+        log_info "Continuing with tests (some may be skipped)..."
+        return 0  # Don't fail - continue with tests
+    fi
+}
+
+# Cleanup functions
+cleanup_test_environment() {
+    log_debug "Cleaning up test environment..."
+    # No specific cleanup needed for container integration tests
+    log_debug "Test environment cleanup completed"
+}
+
+# Main execution function
+main() {
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  $TEST_SUITE_NAME${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    log_info "Pre-flight Checks:"
+    echo ""
+
+    # Discover and validate controller (generates inventory file)
+    log_info "• Discovering controller and generating Ansible inventory..."
+    if ! discover_and_validate_controller "$TEST_CONFIG" "$ANSIBLE_INVENTORY"; then
+        log_error "ERROR: Failed to discover or validate controller"
+        echo ""
+        log_info "Please ensure:"
+        log_info "  1. Test config exists: $TEST_CONFIG"
+        log_info "  2. Cluster VMs are running and accessible"
+        log_info "  3. Controller IP is correctly configured in: $TEST_CONFIG"
+        echo ""
+        log_info "Required infrastructure must be deployed:"
+        log_info "  - TASK-019: PyTorch Container built"
+        log_info "  - TASK-020: Container converted to Apptainer"
+        log_info "  - TASK-021: Container Registry deployed"
+        log_info "  - TASK-022: SLURM Compute Nodes installed"
+        log_info "  - TASK-023: GPU GRES configured"
+        log_info "  - TASK-024: Cgroup isolation active"
+        exit 1
+    fi
+    echo ""
+
+    log_info "Test Controller: $TEST_CONTROLLER"
+    log_info "Container Image: $CONTAINER_IMAGE"
+    log_info "Container Runtime: $CONTAINER_RUNTIME"
+    log_info "Ansible Inventory: $ANSIBLE_INVENTORY"
+    log_info "Test Scripts: ${#TEST_SCRIPTS[@]}"
+    echo ""
+
+    # Check if container image exists
+    if ! check_container_availability; then
+        exit 1
+    fi
+    echo ""
+
+    # Check if SLURM is running
+    check_slurm_availability
+    echo ""
+
+    log_success "Pre-flight checks complete. Starting tests..."
+    echo ""
+
+    # Run each test script
+    for script in "${TEST_SCRIPTS[@]}"; do
+        run_test_script "$script"
+    done
+
+    # Cleanup
+    cleanup_test_environment
+
+    # Print test summary
+    print_test_summary
+    local test_result=$?
+
+    # Exit with result from summary
+    exit $test_result
+}
+
+# Handle script interruption
+trap cleanup_test_environment EXIT
+
+# Parse command line arguments
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -v, --verbose    Enable verbose output"
+            echo "  -h, --help       Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  LOG_DIR                    Directory for test logs (default: ./logs/run-YYYY-MM-DD_HH-MM-SS)"
+            echo "  TEST_CONFIG                Path to test configuration file"
+            echo "  SSH_KEY_PATH               Path to SSH key (default: build/shared/ssh-keys/id_rsa)"
+            echo "  SSH_USER                   SSH user (default: admin)"
+            echo "  CONTAINER_IMAGE            Path to container image"
+            echo "  CONTAINER_RUNTIME          Container runtime (default: apptainer)"
+            echo ""
+            echo "Test Scripts:"
+            for script in "${TEST_SCRIPTS[@]}"; do
+                echo "  - $script"
+            done
+            exit 0
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Enable verbose mode if requested
+if [ "$VERBOSE" = true ]; then
+    set -x
+    log_debug "Verbose mode enabled"
+fi
+
+# Execute main function
 main "$@"

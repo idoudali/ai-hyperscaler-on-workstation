@@ -1,125 +1,186 @@
 #!/bin/bash
-# Run Cgroup Isolation Tests
-# Task 024: Set Up Cgroup Resource Isolation
-# Master Test Runner for Cgroup Isolation Test Suite
 #
-# This script orchestrates all cgroup isolation tests
+# Cgroup Isolation Test Suite Master Runner
+# Task 024 - Master Test Runner for Cgroup Isolation Validation
+# Orchestrates all cgroup isolation tests per Task 024 requirements
+#
 
-source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
 set -euo pipefail
 
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Resolve script and common utility directories (preserve this script's path)
+SUITE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SUITE_SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-utils.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-logging.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-test-runner.sh"
+
 # Script configuration
-# shellcheck disable=SC2034
 SCRIPT_NAME="run-cgroup-isolation-tests.sh"
-# shellcheck disable=SC2034
-TEST_NAME="Cgroup Isolation Test Suite Runner"
-TOTAL_SUITES=0
-PASSED_SUITES=0
-FAILED_SUITES=0
+TEST_SUITE_NAME="Cgroup Isolation Test Suite (Task 024)"
+SCRIPT_DIR="$SUITE_SCRIPT_DIR"
+TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
+export SCRIPT_DIR
+export TEST_SUITE_DIR
 
-# Test suite results
-declare -a SUITE_RESULTS
-declare -a FAILED_SUITES_LIST=()
+# Configure logging directories
+: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.sh}.log"
+touch "$LOG_FILE"
 
-#=============================================================================
-# Helper Functions
-#=============================================================================
+# Initialize suite logging and test runner
+init_suite_logging "$TEST_SUITE_NAME"
+init_test_runner
 
-run_test_suite() {
-    local suite_name="$1"
-    local suite_script="$2"
+# Test scripts for Cgroup Isolation validation
+TEST_SCRIPTS=(
+    "check-cgroup-configuration.sh"      # Task 024: Verify cgroup configuration
+    "check-device-isolation.sh"          # Task 024: Validate device isolation
+    "check-resource-isolation.sh"        # Task 024: Validate resource isolation
+)
 
-    TOTAL_SUITES=$((TOTAL_SUITES + 1))
+# System check functions
+check_system_requirements() {
+    log_info "Checking system requirements for cgroup isolation tests..."
 
-    log_info "======================================================================"
-    log_info "Running test suite: $suite_name"
-    log_info "======================================================================"
-
-    if [ ! -f "$suite_script" ]; then
-        log_error "Test suite script not found: $suite_script"
-        FAILED_SUITES=$((FAILED_SUITES + 1))
-        SUITE_RESULTS+=("✗ $suite_name (script not found)")
-        FAILED_SUITES_LIST+=("$suite_name")
-        return 1
-    fi
-
-    if [ ! -x "$suite_script" ]; then
-        log_error "Test suite script not executable: $suite_script"
-        FAILED_SUITES=$((FAILED_SUITES + 1))
-        SUITE_RESULTS+=("✗ $suite_name (not executable)")
-        FAILED_SUITES_LIST+=("$suite_name")
-        return 1
-    fi
-
-    if "$suite_script"; then
-        PASSED_SUITES=$((PASSED_SUITES + 1))
-        SUITE_RESULTS+=("✓ $suite_name")
-        log_success "Test suite passed: $suite_name"
-        return 0
+    # Check if running as root or with sudo access
+    if [ "$EUID" -eq 0 ]; then
+        log_debug "Running as root - full system access available"
+    elif sudo -n true 2>/dev/null; then
+        log_debug "Sudo access available for privileged operations"
     else
-        FAILED_SUITES=$((FAILED_SUITES + 1))
-        SUITE_RESULTS+=("✗ $suite_name")
-        FAILED_SUITES_LIST+=("$suite_name")
-        log_error "Test suite failed: $suite_name"
-        return 1
+        log_warn "Limited permissions - some tests may be skipped"
     fi
-}
 
-#=============================================================================
-# Main Test Execution
-#=============================================================================
+    # Check essential commands
+    local required_commands=(
+        "cgroup-ls"
+        "systemctl"
+        "timeout"
+    )
 
-main() {
-    log_info "======================================================================"
-    log_info "Cgroup Isolation Test Suite Runner"
-    log_info "======================================================================"
-    log_info "Test suite directory: $SCRIPT_DIR"
-    log_info "Start time: $(date '+%Y-%m-%d %H:%M:%S')"
-    log_info "======================================================================"
-
-    # Run all test suites
-    run_test_suite "Cgroup Configuration" "$SCRIPT_DIR/check-cgroup-configuration.sh" || true
-    run_test_suite "Resource Isolation" "$SCRIPT_DIR/check-resource-isolation.sh" || true
-    run_test_suite "Device Isolation" "$SCRIPT_DIR/check-device-isolation.sh" || true
-
-    # Print overall summary
-    log_info "======================================================================"
-    log_info "Test Suite Summary"
-    log_info "======================================================================"
-    log_info "Total test suites: $TOTAL_SUITES"
-    log_info "Passed test suites: $PASSED_SUITES"
-    log_info "Failed test suites: $FAILED_SUITES"
-    log_info "======================================================================"
-
-    # Print individual suite results
-    for result in "${SUITE_RESULTS[@]}"; do
-        echo "$result"
+    # shellcheck disable=SC2034
+    local missing_commands=()
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            log_warn "Optional command not found: $cmd"
+        fi
     done
 
-    # Print failed suites if any
-    if [ ${#FAILED_SUITES_LIST[@]} -gt 0 ]; then
-        log_error "======================================================================"
-        log_error "Failed Test Suites:"
-        for suite in "${FAILED_SUITES_LIST[@]}"; do
-            log_error "  - $suite"
-        done
-        log_error "======================================================================"
+    log_info "✓ System requirements check passed"
+    return 0
+}
+
+show_environment_info() {
+    log_info "Test environment information:"
+    log_info "- Test suite: $TEST_SUITE_NAME"
+    log_info "- Log directory: $LOG_DIR"
+    log_info "- Test suite directory: $TEST_SUITE_DIR"
+    log_info "- Number of test scripts: ${#TEST_SCRIPTS[@]}"
+    log_info "- Current hostname: $(hostname)"
+
+    # Show system info
+    if command -v lsb_release >/dev/null 2>&1; then
+        local os_info
+        os_info=$(lsb_release -d | cut -f2-)
+        log_info "- Operating System: $os_info"
     fi
 
-    log_info "End time: $(date '+%Y-%m-%d %H:%M:%S')"
-    log_info "======================================================================"
-
-    # Return exit code based on results
-    if [ $FAILED_SUITES -eq 0 ]; then
-        log_success "All cgroup isolation test suites passed!"
-        return 0
-    else
-        log_error "Some cgroup isolation test suites failed!"
-        return 1
+    if [ -f /proc/version ]; then
+        local kernel_info
+        kernel_info=$(cut -d' ' -f1-3 < /proc/version)
+        log_info "- Kernel: $kernel_info"
     fi
 }
 
-# Run main function if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
+# Cleanup functions
+cleanup_test_environment() {
+    log_debug "Cleaning up test environment..."
+    # No specific cleanup needed for cgroup isolation tests
+    log_debug "Test environment cleanup completed"
+}
+
+# Main execution function
+main() {
+    echo ""
+    echo -e "${BLUE}=====================================${NC}"
+    echo -e "${BLUE}  $TEST_SUITE_NAME${NC}"
+    echo -e "${BLUE}=====================================${NC}"
+    echo ""
+
+    # Show environment info
+    show_environment_info
+
+    # Check system requirements
+    if ! check_system_requirements; then
+        log_error "System requirements check failed"
+        exit 1
+    fi
+
+    # Run each test script
+    for script in "${TEST_SCRIPTS[@]}"; do
+        run_test_script "$script"
+    done
+
+    # Cleanup
+    cleanup_test_environment
+
+    # Print test summary
+    print_test_summary
+    local test_result=$?
+
+    # Exit with result from summary
+    exit $test_result
+}
+
+# Handle script interruption
+trap cleanup_test_environment EXIT
+
+# Parse command line arguments
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -v, --verbose    Enable verbose output"
+            echo "  -h, --help       Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  LOG_DIR         Directory for test logs (default: ./logs/run-YYYY-MM-DD_HH-MM-SS)"
+            echo ""
+            echo "Test Scripts:"
+            for script in "${TEST_SCRIPTS[@]}"; do
+                echo "  - $script"
+            done
+            exit 0
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Enable verbose mode if requested
+if [ "$VERBOSE" = true ]; then
+    set -x
+    log_debug "Verbose mode enabled"
 fi
+
+# Execute main function
+main "$@"

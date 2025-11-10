@@ -9,92 +9,95 @@ set -euo pipefail
 
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
+# Resolve script and common utility directories (preserve this script's path)
+SUITE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SUITE_SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-utils.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-logging.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-test-runner.sh"
+
 # Script configuration
 SCRIPT_NAME="run-job-scripts-tests.sh"
-SUITE_NAME="SLURM Job Scripts Test Suite"
+TEST_SUITE_NAME="SLURM Job Scripts Test Suite (Task 025)"
+SCRIPT_DIR="$SUITE_SCRIPT_DIR"
+TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
+export SCRIPT_DIR
+export TEST_SUITE_DIR
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Use LOG_DIR from environment or default
+# Configure logging directories
 : "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
 mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.sh}.log"
+touch "$LOG_FILE"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Initialize suite logging and test runner
+init_suite_logging "$TEST_SUITE_NAME"
+init_test_runner
 
-# Suite tracking
-SUITES_RUN=0
-SUITES_PASSED=0
-FAILED_SUITES=()
-
-# Test scripts to run (in order)
+# Test scripts for Job Scripts validation
 TEST_SCRIPTS=(
-    "check-epilog-prolog.sh"
-    "check-failure-detection.sh"
-    "check-debug-collection.sh"
+    "check-epilog-prolog.sh"             # Task 025: Validate epilog/prolog functionality
+    "check-failure-detection.sh"         # Task 025: Validate job failure detection
+    "check-debug-collection.sh"          # Task 025: Validate debug log collection
 )
 
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
+# System check functions
+check_system_requirements() {
+    log_info "Checking system requirements for job scripts tests..."
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Function to run a test script
-run_test_script() {
-    local script_name="$1"
-    local script_path="$SCRIPT_DIR/$script_name"
-
-    SUITES_RUN=$((SUITES_RUN + 1))
-
-    echo ""
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}Running Test Suite ${SUITES_RUN}: ${script_name}${NC}"
-    echo -e "${BLUE}========================================${NC}"
-
-    if [ ! -f "$script_path" ]; then
-        log_error "Test script not found: $script_path"
-        FAILED_SUITES+=("$script_name (not found)")
-        return 1
-    fi
-
-    if [ ! -x "$script_path" ]; then
-        log_error "Test script not executable: $script_path"
-        chmod +x "$script_path" || {
-            log_error "Failed to make script executable"
-            FAILED_SUITES+=("$script_name (not executable)")
-            return 1
-        }
-    fi
-
-    # Export LOG_DIR for test script
-    export LOG_DIR
-
-    # Run the test script
-    if "$script_path"; then
-        log_info "✓ Test suite passed: $script_name"
-        SUITES_PASSED=$((SUITES_PASSED + 1))
-        return 0
+    # Check if SLURM is installed
+    if ! command -v sinfo >/dev/null 2>&1; then
+        log_warn "SLURM not found on system"
     else
-        log_error "✗ Test suite failed: $script_name"
-        FAILED_SUITES+=("$script_name")
+        log_debug "SLURM is available"
+    fi
+
+    # Check essential commands
+    local required_commands=(
+        "bash"
+        "timeout"
+    )
+
+    local missing_commands=()
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_commands+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_commands[@]} -gt 0 ]; then
+        log_error "Missing required commands: ${missing_commands[*]}"
         return 1
+    fi
+
+    log_info "✓ System requirements check passed"
+    return 0
+}
+
+show_environment_info() {
+    log_info "Test environment information:"
+    log_info "- Test suite: $TEST_SUITE_NAME"
+    log_info "- Log directory: $LOG_DIR"
+    log_info "- Test suite directory: $TEST_SUITE_DIR"
+    log_info "- Number of test scripts: ${#TEST_SCRIPTS[@]}"
+    log_info "- Current hostname: $(hostname)"
+
+    # Show system info
+    if command -v lsb_release >/dev/null 2>&1; then
+        local os_info
+        os_info=$(lsb_release -d | cut -f2-)
+        log_info "- Operating System: $os_info"
+    fi
+
+    if [ -f /proc/version ]; then
+        local kernel_info
+        kernel_info=$(cut -d' ' -f1-3 < /proc/version)
+        log_info "- Kernel: $kernel_info"
     fi
 }
 
@@ -146,7 +149,7 @@ setup_test_environment() {
 
 # Teardown test environment
 teardown_test_environment() {
-    log_info "Cleaning up local test environment..."
+    log_debug "Cleaning up test environment..."
 
     local teardown_script="$SCRIPT_DIR/teardown-local-test-env.sh"
 
@@ -171,100 +174,93 @@ teardown_test_environment() {
     return 0
 }
 
-# Main execution
+# Cleanup functions
+cleanup_test_environment() {
+    log_debug "Cleaning up after tests..."
+    teardown_test_environment
+    log_debug "Cleanup completed"
+}
+
+# Main execution function
 main() {
-    local start_time
-    start_time=$(date +%s)
-
     echo ""
-    echo -e "${BLUE}==========================================${NC}"
-    echo -e "${BLUE}  $SUITE_NAME${NC}"
-    echo -e "${BLUE}==========================================${NC}"
+    echo -e "${BLUE}=====================================${NC}"
+    echo -e "${BLUE}  $TEST_SUITE_NAME${NC}"
+    echo -e "${BLUE}=====================================${NC}"
     echo ""
 
-    log_info "Starting job scripts test suite"
-    log_info "Test directory: $SCRIPT_DIR"
-    log_info "Log directory: $LOG_DIR"
-    log_info "Test scripts: ${#TEST_SCRIPTS[@]}"
-    echo ""
+    # Show environment info
+    show_environment_info
 
-    # Setup local test environment
+    # Check system requirements
+    if ! check_system_requirements; then
+        log_error "System requirements check failed"
+        exit 1
+    fi
+
+    # Setup test environment
     if ! setup_test_environment; then
         log_error "Failed to set up test environment"
         exit 1
     fi
-    echo ""
 
-    # Verify all test scripts exist
-    local missing_scripts=()
+    # Run each test script
     for script in "${TEST_SCRIPTS[@]}"; do
-        if [ ! -f "$SCRIPT_DIR/$script" ]; then
-            missing_scripts+=("$script")
-        fi
+        run_test_script "$script"
     done
 
-    if [ ${#missing_scripts[@]} -gt 0 ]; then
-        log_error "Missing test scripts:"
-        for script in "${missing_scripts[@]}"; do
-            log_error "  - $script"
-        done
-        echo ""
-        echo -e "${RED}Cannot proceed with missing test scripts${NC}"
-        exit 1
-    fi
+    # Cleanup
+    cleanup_test_environment
 
-    # Run all test scripts
-    for script in "${TEST_SCRIPTS[@]}"; do
-        run_test_script "$script" || true  # Continue even if a suite fails
-    done
+    # Print test summary
+    print_test_summary
+    local test_result=$?
 
-    # Calculate execution time
-    local end_time
-    end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-
-    # Final results
-    echo ""
-    echo -e "${BLUE}==========================================${NC}"
-    echo -e "${BLUE}  Test Suite Results Summary${NC}"
-    echo -e "${BLUE}==========================================${NC}"
-
-    echo -e "Total test suites run: ${SUITES_RUN}"
-    echo -e "Test suites passed: ${GREEN}${SUITES_PASSED}${NC}"
-    echo -e "Test suites failed: ${RED}$((SUITES_RUN - SUITES_PASSED))${NC}"
-    echo -e "Total execution time: ${duration}s"
-    echo ""
-
-    if [ ${#FAILED_SUITES[@]} -gt 0 ]; then
-        echo -e "${RED}Failed test suites:${NC}"
-        for suite in "${FAILED_SUITES[@]}"; do
-            echo -e "  - $suite"
-        done
-        echo ""
-    fi
-
-    # Teardown test environment
-    echo ""
-    teardown_test_environment
-
-    if [ $SUITES_PASSED -eq $SUITES_RUN ]; then
-        echo ""
-        echo -e "${GREEN}==========================================${NC}"
-        echo -e "${GREEN}  ALL JOB SCRIPTS TESTS PASSED${NC}"
-        echo -e "${GREEN}==========================================${NC}"
-        echo ""
-        log_info "Job scripts test suite completed successfully (${SUITES_PASSED}/${SUITES_RUN} suites, ${duration}s)"
-        exit 0
-    else
-        echo ""
-        echo -e "${RED}==========================================${NC}"
-        echo -e "${RED}  SOME JOB SCRIPTS TESTS FAILED${NC}"
-        echo -e "${RED}==========================================${NC}"
-        echo ""
-        log_error "Job scripts test suite failed (${SUITES_PASSED}/${SUITES_RUN} suites passed, ${duration}s)"
-        exit 1
-    fi
+    # Exit with result from summary
+    exit $test_result
 }
+
+# Handle script interruption
+trap cleanup_test_environment EXIT
+
+# Parse command line arguments
+VERBOSE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -v, --verbose    Enable verbose output"
+            echo "  -h, --help       Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  LOG_DIR         Directory for test logs (default: ./logs/run-YYYY-MM-DD_HH-MM-SS)"
+            echo ""
+            echo "Test Scripts:"
+            for script in "${TEST_SCRIPTS[@]}"; do
+                echo "  - $script"
+            done
+            exit 0
+            ;;
+        *)
+            log_error "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Enable verbose mode if requested
+if [ "$VERBOSE" = true ]; then
+    set -x
+    log_debug "Verbose mode enabled"
+fi
 
 # Execute main function
 main "$@"

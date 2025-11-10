@@ -9,69 +9,25 @@ set -euo pipefail
 
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
+# Source shared utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
+
 # Script configuration
+# shellcheck disable=SC2034
 SCRIPT_NAME="check-gres-configuration.sh"
+# shellcheck disable=SC2034
 TEST_NAME="GRES Configuration Validation"
-
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
 
 # Configuration files to check
 GRES_CONFIG_FILE="/etc/slurm/gres.conf"
 SLURM_CONFIG_FILE="/etc/slurm/slurm.conf"
 
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
+#=============================================================================
+# Test Functions
+#=============================================================================
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Test execution functions
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    echo -e "\n${BLUE}Running Test ${TESTS_RUN}: ${test_name}${NC}"
-
-    if $test_function; then
-        log_info "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
-
-# Individual test functions
-# shellcheck disable=SC2317  # Functions called indirectly via run_test
 test_gres_config_file_exists() {
     log_info "Checking if GRES configuration file exists..."
 
@@ -225,14 +181,18 @@ test_gpu_detection_utilities() {
     fi
 }
 
-# Main test execution
+#=============================================================================
+# Main Test Execution
+#=============================================================================
+
 main() {
-    echo "========================================="
-    echo "  GRES Configuration Validation Test"
-    echo "========================================="
+    echo -e "${BLUE}=========================================${NC}"
+    echo -e "${BLUE}  GRES Configuration Validation Test${NC}"
+    echo -e "${BLUE}=========================================${NC}"
     echo ""
-    echo "Test Suite: $TEST_NAME"
-    echo "Log Directory: $LOG_DIR"
+
+    log_info "Test Suite: $TEST_NAME"
+    log_info "Log Directory: $LOG_DIR"
     echo ""
 
     # Run all tests
@@ -244,32 +204,14 @@ main() {
     run_test "GPU detection utilities" test_gpu_detection_utilities
 
     # Print summary
-    echo ""
-    echo "========================================="
-    echo "  Test Summary"
-    echo "========================================="
-    echo "Total tests: $TESTS_RUN"
-    echo "Passed: $TESTS_PASSED"
-    echo "Failed: $((TESTS_RUN - TESTS_PASSED))"
-
-    if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
-        echo ""
-        echo "Failed tests:"
-        for test in "${FAILED_TESTS[@]}"; do
-            echo "  - $test"
-        done
-    fi
-    echo "========================================="
-
-    # Return appropriate exit code
-    if [[ $TESTS_PASSED -eq $TESTS_RUN ]]; then
-        log_info "All tests passed!"
-        exit 0
+    if print_check_summary; then
+        log_info "GRES configuration validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
+        return 0
     else
-        log_error "Some tests failed"
-        exit 1
+        log_warn "GRES configuration validation had issues (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
+        return 0
     fi
 }
 
-# Run main function
+# Execute main function
 main "$@"

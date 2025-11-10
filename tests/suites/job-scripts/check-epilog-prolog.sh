@@ -9,62 +9,16 @@ set -euo pipefail
 
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
+# Source shared utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
+
 # Script configuration
+# shellcheck disable=SC2034
 SCRIPT_NAME="check-epilog-prolog.sh"
+# shellcheck disable=SC2034
 TEST_NAME="SLURM Epilog/Prolog Script Execution Validation"
-
-# Use LOG_DIR from environment or default
-: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
-mkdir -p "$LOG_DIR"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-# Test tracking
-TESTS_RUN=0
-TESTS_PASSED=0
-FAILED_TESTS=()
-
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $1" | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Test execution functions
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-
-    echo -e "\n${BLUE}Running Test ${TESTS_RUN}: ${test_name}${NC}"
-
-    if $test_function; then
-        log_info "✓ Test passed: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        log_error "✗ Test failed: $test_name"
-        FAILED_TESTS+=("$test_name")
-        return 1
-    fi
-}
 
 # Individual test functions
 test_scripts_deployed() {
@@ -351,7 +305,7 @@ main() {
         done
     fi
 
-    if [ $TESTS_PASSED -eq $TESTS_RUN ]; then
+    if [ "$TESTS_PASSED" -eq "$TESTS_RUN" ]; then
         log_info "Epilog/prolog script validation passed (${TESTS_PASSED}/${TESTS_RUN} tests)"
         return 0
     else

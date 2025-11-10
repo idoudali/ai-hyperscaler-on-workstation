@@ -136,7 +136,23 @@ run_tests_against_existing_cluster() {
 
         # Upload test scripts
         local suite_remote_dir
-        suite_remote_dir="$PROJECT_ROOT/tests/suites/$(basename "$test_scripts_dir")"
+        local suite_relative_path
+        local project_relative_root
+
+        if [[ "$test_scripts_dir" == "$PROJECT_ROOT/"* ]]; then
+            suite_relative_path="${test_scripts_dir#"$PROJECT_ROOT"/}"
+        else
+            suite_relative_path="tests/suites/$(basename "$test_scripts_dir")"
+        fi
+
+        if [[ -n "$HOME" && "$PROJECT_ROOT" == "$HOME/"* ]]; then
+            project_relative_root="${PROJECT_ROOT#"$HOME"/}"
+        else
+            project_relative_root="$(basename "$PROJECT_ROOT")"
+        fi
+
+        # shellcheck disable=SC2088
+        suite_remote_dir="~/${project_relative_root}/${suite_relative_path}"
 
         if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir" "$suite_remote_dir"; then
             log_error "Failed to upload test scripts to $vm_name"

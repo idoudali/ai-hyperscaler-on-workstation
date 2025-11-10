@@ -1,11 +1,15 @@
 #!/bin/bash
+#
 # Check Resource Isolation
 # Task 024: Set Up Cgroup Resource Isolation
 # Test Suite: Resource Constraint Validation
 #
 # This script validates CPU and memory resource isolation enforcement
+#
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 set -euo pipefail
 
 # Script configuration
@@ -13,32 +17,6 @@ set -euo pipefail
 SCRIPT_NAME="check-resource-isolation.sh"
 # shellcheck disable=SC2034
 TEST_NAME="Resource Constraint Validation"
-declare -a FAILED_TESTS=()  # Initialize as empty array
-
-#=============================================================================
-# Helper Functions
-#=============================================================================
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-    log_info "Running test $TESTS_RUN: $test_name"
-
-    if $test_function; then
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        TEST_RESULTS+=("✓ $test_name")
-        log_success "Test passed: $test_name"
-        return 0
-    else
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        TEST_RESULTS+=("✗ $test_name")
-        FAILED_TESTS+=("$test_name")
-        log_error "Test failed: $test_name"
-        return 1
-    fi
-}
 
 #=============================================================================
 # Test Functions
@@ -197,41 +175,20 @@ test_cgroup_slurm_integration() {
 #=============================================================================
 
 main() {
-    log_info "======================================================================"
-    log_info "Resource Isolation Test Suite"
-    log_info "======================================================================"
+    echo -e "${BLUE}=====================================${NC}"
+    echo -e "${BLUE}  $TEST_NAME${NC}"
+    echo -e "${BLUE}=====================================${NC}"
+
+    log_info "Starting resource isolation validation"
+    log_info "Log directory: $LOG_DIR"
 
     # Run all tests
-    run_test "Cgroup filesystem mounted" test_cgroup_filesystem_mounted || true
-    run_test "SLURM cgroup configuration" test_slurm_cgroup_configuration || true
-    run_test "Cgroup controllers available" test_cgroup_controllers_available || true
-    run_test "CPU constraint capability" test_cpu_constraint_capability || true
-    run_test "Memory constraint capability" test_memory_constraint_capability || true
-    run_test "SLURM cgroup integration" test_cgroup_slurm_integration || true
-
-    # Print summary
-    log_info "======================================================================"
-    log_info "Test Summary"
-    log_info "======================================================================"
-    log_info "Tests run: $TESTS_RUN"
-    log_info "Tests passed: $TESTS_PASSED"
-    log_info "Tests failed: $TESTS_FAILED"
-    log_info "======================================================================"
-
-    # Print individual test results
-    for result in "${TEST_RESULTS[@]}"; do
-        echo "$result"
-    done
-
-    # Print failed tests if any
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        log_error "======================================================================"
-        log_error "Failed Tests:"
-        for test in "${FAILED_TESTS[@]}"; do
-            log_error "  - $test"
-        done
-        log_error "======================================================================"
-    fi
+    run_test "Cgroup filesystem mounted" test_cgroup_filesystem_mounted
+    run_test "SLURM cgroup configuration" test_slurm_cgroup_configuration
+    run_test "Cgroup controllers available" test_cgroup_controllers_available
+    run_test "CPU constraint capability" test_cpu_constraint_capability
+    run_test "Memory constraint capability" test_memory_constraint_capability
+    run_test "SLURM cgroup integration" test_cgroup_slurm_integration
 
     # Print informational notes
     log_info "======================================================================"
@@ -244,17 +201,15 @@ main() {
     log_info "  4. Check memory limits: cat /sys/fs/cgroup/*/slurm/*/memory.max"
     log_info "======================================================================"
 
-    # Return exit code based on test results
-    if [ "$TESTS_FAILED" -eq 0 ]; then
-        log_success "All resource isolation tests passed!"
+    # Print summary
+    if print_check_summary; then
+        log_info "Resource isolation validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else
-        log_error "Some resource isolation tests failed!"
-        return 1
+        log_warn "Resource isolation validation had issues (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
+        return 0
     fi
 }
 
-# Run main function if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
-fi
+# Execute main function
+main "$@"

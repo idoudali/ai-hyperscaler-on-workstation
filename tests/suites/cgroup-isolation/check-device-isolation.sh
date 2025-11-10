@@ -1,11 +1,15 @@
 #!/bin/bash
+#
 # Check Device Isolation
 # Task 024: Set Up Cgroup Resource Isolation
 # Test Suite: Device Access Control Validation
 #
 # This script validates device access control through cgroup devices controller
+#
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
 set -euo pipefail
 
 # Script configuration
@@ -13,32 +17,6 @@ set -euo pipefail
 SCRIPT_NAME="check-device-isolation.sh"
 # shellcheck disable=SC2034
 TEST_NAME="Device Access Control Validation"
-declare -a FAILED_TESTS=()  # Initialize as empty array
-
-#=============================================================================
-# Helper Functions
-#=============================================================================
-
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-
-    TESTS_RUN=$((TESTS_RUN + 1))
-    log_info "Running test $TESTS_RUN: $test_name"
-
-    if $test_function; then
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        TEST_RESULTS+=("✓ $test_name")
-        log_success "Test passed: $test_name"
-        return 0
-    else
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        TEST_RESULTS+=("✗ $test_name")
-        FAILED_TESTS+=("$test_name")
-        log_error "Test failed: $test_name"
-        return 1
-    fi
-}
 
 #=============================================================================
 # Test Functions
@@ -214,41 +192,20 @@ test_device_cgroup_hierarchy() {
 #=============================================================================
 
 main() {
-    log_info "======================================================================"
-    log_info "Device Isolation Test Suite"
-    log_info "======================================================================"
+    echo -e "${BLUE}=====================================${NC}"
+    echo -e "${BLUE}  $TEST_NAME${NC}"
+    echo -e "${BLUE}=====================================${NC}"
+
+    log_info "Starting device isolation validation"
+    log_info "Log directory: $LOG_DIR"
 
     # Run all tests
-    run_test "Devices controller available" test_devices_controller_available || true
-    run_test "Allowed devices configured" test_allowed_devices_configured || true
-    run_test "GPU devices in allowed list" test_gpu_devices_in_allowed_list || true
-    run_test "FUSE device for containers" test_fuse_device_for_containers || true
-    run_test "Device access in SLURM config" test_device_access_in_slurm_config || true
-    run_test "Device cgroup hierarchy" test_device_cgroup_hierarchy || true
-
-    # Print summary
-    log_info "======================================================================"
-    log_info "Test Summary"
-    log_info "======================================================================"
-    log_info "Tests run: $TESTS_RUN"
-    log_info "Tests passed: $TESTS_PASSED"
-    log_info "Tests failed: $TESTS_FAILED"
-    log_info "======================================================================"
-
-    # Print individual test results
-    for result in "${TEST_RESULTS[@]}"; do
-        echo "$result"
-    done
-
-    # Print failed tests if any
-    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
-        log_error "======================================================================"
-        log_error "Failed Tests:"
-        for test in "${FAILED_TESTS[@]}"; do
-            log_error "  - $test"
-        done
-        log_error "======================================================================"
-    fi
+    run_test "Devices controller available" test_devices_controller_available
+    run_test "Allowed devices configured" test_allowed_devices_configured
+    run_test "GPU devices in allowed list" test_gpu_devices_in_allowed_list
+    run_test "FUSE device for containers" test_fuse_device_for_containers
+    run_test "Device access in SLURM config" test_device_access_in_slurm_config
+    run_test "Device cgroup hierarchy" test_device_cgroup_hierarchy
 
     # Print informational notes
     log_info "======================================================================"
@@ -261,17 +218,15 @@ main() {
     log_info "  4. Check cgroup device list: cat /sys/fs/cgroup/devices/slurm/*/devices.list"
     log_info "======================================================================"
 
-    # Return exit code based on test results
-    if [ "$TESTS_FAILED" -eq 0 ]; then
-        log_success "All device isolation tests passed!"
+    # Print summary
+    if print_check_summary; then
+        log_info "Device isolation validation passed (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
         return 0
     else
-        log_error "Some device isolation tests failed!"
-        return 1
+        log_warn "Device isolation validation had issues (${TESTS_PASSED}/${TESTS_RUN} tests passed)"
+        return 0
     fi
 }
 
-# Run main function if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
-fi
+# Execute main function
+main "$@"

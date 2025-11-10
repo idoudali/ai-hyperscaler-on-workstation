@@ -1,12 +1,26 @@
 #!/bin/bash
+#
 # Test Suite: Container Integration Tests
 # Test: Check MPI Communication
 # Validates MPI functionality and multi-process communication within containers
+#
 
 set -euo pipefail
 
-# Test configuration
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+# Source shared utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-logging.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-check-helpers.sh"
+
+# Script configuration
+# shellcheck disable=SC2034
+SCRIPT_NAME="check-mpi-communication.sh"
+# shellcheck disable=SC2034
 TEST_NAME="MPI Communication"
+
+# Test configuration
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif}"
 CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-apptainer}"
 
@@ -21,33 +35,8 @@ else
   SSH_CMD="ssh $SSH_OPTS"
 fi
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Test counters
-TESTS_RUN=0
-TESTS_PASSED=0
-TESTS_FAILED=0
-
-# Logging functions
-log_test() {
-  echo -e "${YELLOW}[TEST]${NC} $*"
-}
-
-log_pass() {
-  ((TESTS_PASSED++))
-  echo -e "${GREEN}[PASS]${NC} $*"
-}
-
-log_fail() {
-  ((TESTS_FAILED++))
-  echo -e "${RED}[FAIL]${NC} $*"
-}
-
-log_info() {
+# Note: Logging functions provided by suite-logging.sh
+log_info_mpi() {
   echo -e "[INFO] $*"
 }
 
