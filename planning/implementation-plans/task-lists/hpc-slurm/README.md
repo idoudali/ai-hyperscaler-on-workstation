@@ -102,21 +102,23 @@ hpc-slurm/
 
 ### Pending Phases (2 files)
 
-**Phase 4: Consolidation** (Tasks 029-048)
+**Phase 4: Consolidation** (Tasks 029-048, 046.1)
 
 - File: `pending/phase-4-consolidation.md`
-- Status: ✅ **95% COMPLETE** (22/23 tasks complete)
+- Status: 🔄 **87% COMPLETE** (20/23 tasks complete)
+- Updated: 2025-11-10
 - Content: Ansible playbook and test framework consolidation
-- **Remaining**: Task 040 (Container Registry on BeeGFS) - 0% complete
-  _Note: Completion of Task 040 is required before Phase 4 can be considered complete and before Phase 6 can begin._
-- **Achievement**: 64% playbook reduction (14 → 5 playbooks), role consolidation complete
+- **Achievement**: 43% playbook reduction (14 → 8 playbooks)
+- **Completed**: Ansible consolidation, test framework consolidation, storage integration, partial role consolidation
+- **Remaining**: 3 tasks (047, 047.1, 048) - Base packages consolidation and shared utilities role
 
-**Phase 6: Validation** (Tasks 041-044)
+**Phase 6: Validation** (Tasks 049-052)
 
 - File: `pending/phase-6-validation.md`
-- Status: Not started (0/4 tasks) - **BLOCKED by Phase 4**
+- Status: ⏳ **BLOCKED** (0/4 tasks) - Waiting for Phase 4 completion
+- Updated: 2025-11-10
 - Content: Final integration testing and validation with consolidated infrastructure
-- **Dependencies**: Phase 4 consolidation must be complete before proceeding
+- **Blocked by**: Phase 4 tasks 047, 047.1, 048 must be completed first
 
 ### Reference Documentation (3 files)
 
@@ -177,21 +179,18 @@ The original `hpc-slurm-task-list.md` (6,823 lines) has been split into:
 
 ## Overall Status Summary
 
-**Completed**: 29 tasks (60% of total tasks)
+**Completed**: 49 tasks (88% of total tasks)
 
 - ✅ Phase 0: Test Infrastructure (6 tasks)
 - ✅ Phase 1: Core Infrastructure (12 tasks)
 - ✅ Phase 2: Containers & Compute (8 tasks)
 - ✅ Phase 3: Storage (3 tasks - code complete, validation pending)
+- 🔄 Phase 4: Consolidation (20/23 tasks - 87% complete)
 
-**In Progress**: 22 tasks (46% of remaining work)
+**Pending**: 7 tasks (12% of remaining work)
 
-- 🔧 Phase 4: Consolidation (22/23 tasks complete - 95%)
-
-**Pending**: 4 tasks (8% of remaining work)
-
-- ⏳ Phase 4: Consolidation (1 task remaining - Task 040)
-- ⏳ Phase 6: Validation (4 tasks - blocked by Phase 4)
+- ⏳ Phase 4: Consolidation (3 tasks remaining - Tasks 047, 047.1, 048)
+- ⏳ Phase 6: Validation (4 tasks - ready to start after Phase 4)
 
 ## Quick Links
 

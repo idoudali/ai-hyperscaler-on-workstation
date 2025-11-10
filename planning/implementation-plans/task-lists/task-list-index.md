@@ -1,9 +1,9 @@
 # Task List Index - AI-HOW Project
 
-**Last Updated:** 2025-10-30  
+**Last Updated:** 2025-11-10  
 **Total Task Lists:** 5 active lists  
-**Overall Progress:** 76% complete (94/124, excluding 2 deprecated). Includes completed streams.  
-**Active Work Progress:** 54% complete (37/68, excluding 2 deprecated). Excludes completed streams.
+**Overall Progress:** 73.4% complete (91/124, excluding 2 deprecated). Includes completed streams.  
+**Active Work Progress:** 50% complete (34/68, excluding 2 deprecated). Excludes completed streams.
 
 ## Overview
 
@@ -113,15 +113,15 @@ project, categorized by completion status and organized for efficient project ma
 
 | Task List | Total Tasks | Completed | In Progress | Pending | Completion % | Status |
 |-----------|-------------|-----------|-------------|---------|--------------|--------|
-| **HPC SLURM Deployment** | 48 | 31 | 0 | 17 | 64% | 🟡 Active |
+| **HPC SLURM Deployment** | 48 | 29 | 0 | 19 | 60.4% | 🟡 Active |
 | **Documentation Structure** | 31 | 31 | 0 | 0 | 100% | ✅ Complete |
 | **Test Consolidation** | 15 | 15 | 0 | 0 | 100% | ✅ Complete |
 | **MLOps Validation** | 10 | 0 | 0 | 10 | 0% | 🔵 Not Started |
 | **Remove Pharos References** | 10 (2 deprecated) | 8 | 0 | 2 | 80% | 🟢 Low Priority |
 | **Active Workstreams** | 10 | 10 | 0 | 0 | 100% | ✅ Complete |
-| **TOTAL** | **124** (2 deprecated) | **94** | **0** | **29** | **76%** | 🟡 In Progress |
+| **TOTAL** | **124** (2 deprecated) | **91** | **0** | **32** | **73.4%** | 🟡 In Progress |
 
-**Adjusted Total (excluding completed streams):** 68 tasks (2 deprecated), 37 complete (54%)
+**Adjusted Total (excluding completed streams):** 68 tasks (2 deprecated), 34 complete (50%)
 
 ---
 
@@ -152,33 +152,33 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 ---
 
-#### HPC SLURM Deployment (17 tasks remaining)
+#### HPC SLURM Deployment (19 tasks remaining)
 
 **Current Focus:** Complete Phase 4 consolidation, then Phase 6 validation
 
-**Recent Completion:** ✅ TASK-028.1 - BeeGFS Kernel Module Fix (UNBLOCKED all MLOps work)
+**Recent Status:** Phase 4 is 87% complete (20/23 tasks) - 3 tasks pending
 
 | Task ID | Description | Priority | Duration | Dependencies | Status |
 |---------|-------------|----------|----------|--------------|--------|
 | TASK-035 | HPC Runtime Framework Integration | HIGH | 2 hrs | TASK-028.1 ✅ | Pending |
 | TASK-036 | HPC Packer Test Frameworks | HIGH | 5 hrs | TASK-035 | Pending |
 | TASK-037 | Update Makefile & Delete Obsolete Tests | HIGH | 2 hrs | TASK-036 | Pending |
+| TASK-047 | Consolidate Base Package Roles | LOW | 2 hrs | TASK-046 ✅ | Pending |
+| TASK-047.1 | Cleanup Legacy Base Package Roles | LOW | 0.5 hrs | TASK-047 | Pending |
+| TASK-048 | Create Shared Utilities Role | MEDIUM | 2 hrs | TASK-047 | Pending |
 | TASK-040 | Container Registry on BeeGFS | HIGH | 1 hr | TASK-048 | Pending |
 | TASK-041 | BeeGFS Performance Testing | HIGH | 2 hrs | TASK-040 | Pending |
 | TASK-042 | SLURM Integration Testing | HIGH | 2 hrs | TASK-041 | Pending |
 | TASK-043 | Container Workflow Validation | HIGH | 2 hrs | TASK-042 | Pending |
 | TASK-044 | Full-Stack Integration Testing | HIGH | 3 hrs | TASK-043 | Pending |
-| TASK-046 | Shared Package Management Role (Debian/Ubuntu scope) | LOW | 2 hrs | TASK-045 | Pending |
-| TASK-047.1 | Cleanup Legacy Base Package Roles | LOW | 0.5 hrs | TASK-047 | Pending |
-| TASK-048 | Create Shared Utilities Role | MEDIUM | 2 hrs | TASK-047 | Pending |
 
-**Estimated Time to Complete:** 23.5 hours (TASK-028.1 complete)
+**Estimated Time to Complete:** 28 hours
 
 **Reference:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
 
 **Next Actions:**
 
-1. Complete Phase 4: TASK-046, 047.1, 048 (4.5 hours)
+1. Complete Phase 4: TASK-047, 047.1, 048 (4.5 hours)
 2. Execute Phase 6 validation: TASK-040-044 (10 hours)
 
 ---
@@ -288,7 +288,7 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 
 | Task List | Progress | Active Tasks | Next Priority |
 |-----------|----------|--------------|---------------|
-| HPC SLURM Deployment | 64% (31/48) | Phase 4 & 6 | Complete consolidation & validation |
+| HPC SLURM Deployment | 60% (29/48) | Phase 4 & 6 | Complete consolidation & validation |
 | Documentation Structure | 56% (27/48) | Tutorials, Ops | Create tutorial content |
 
 **Current Blockers:** None - ✅ TASK-028.1 complete
@@ -298,7 +298,7 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 **HPC:**
 
 - ✅ Phase 3 storage fixes complete (TASK-028.1 done)
-- Complete Phase 4 role consolidation (3 tasks remaining: 046, 047.1, 048)
+- Complete Phase 4 role consolidation (3 tasks remaining: 047, 047.1, 048)
 - Execute Phase 6 validation (4 tasks: 040-044)
 - Start MLOps validation (Category 1)
 
@@ -327,9 +327,9 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 
 **HPC SLURM Deployment** - HPC cluster infrastructure  
 
-- **Status:** 64% complete (31/48 tasks) - ✅ TASK-028.1 complete
+- **Status:** 60% complete (29/48 tasks) - ✅ TASK-028.1 complete
 - **Location:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
-- **Phases:** 6 phases (0-6), currently in Phases 3, 4, and 6
+- **Phases:** 6 phases (0-6), currently in Phases 4 and 6
 - **Focus:** SLURM cluster, BeeGFS storage, GPU scheduling, container integration
 
 **Key Phases:**
@@ -338,8 +338,8 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 - ✅ Phase 1: Core Infrastructure (12/12 complete)
 - ✅ Phase 2: Containers & Compute (8/8 complete)
 - ✅ Phase 3: Infrastructure Enhancements (3/3 complete) - **TASK-028.1 COMPLETE**
-- 🟡 Phase 4: Infrastructure Consolidation (18/22 complete) - 3 tasks remaining
-- 🔵 Phase 6: Final Validation (0/4 complete) - Ready to start
+- 🟡 Phase 4: Infrastructure Consolidation (20/23 complete) - 3 tasks remaining (047, 047.1, 048)
+- 🔵 Phase 6: Final Validation (0/4 complete) - Blocked by Phase 4
 
 ---
 
@@ -508,16 +508,16 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 | Metric | Value |
 |--------|-------|
 | Total tasks defined | 124 (2 deprecated) |
-| Tasks completed | 94 (76%) |
+| Tasks completed | 91 (74%) |
 | Tasks in progress | 0 (0%) |
-| Tasks pending | 29 (23%) |
-| Estimated remaining time | ~23.5 hours + 15 days |
+| Tasks pending | 32 (26%) |
+| Estimated remaining time | ~28 hours + 15 days |
 
 ### Infrastructure Status
 
 | Component | Status | Tasks Remaining |
 |-----------|--------|-----------------|
-| HPC SLURM Cluster | 🟡 92% - Phase 3 Complete | 17 tasks |
+| HPC SLURM Cluster | 🟡 60% - Phase 3 Complete | 19 tasks |
 | Test Infrastructure | ✅ Complete | 0 tasks |
 | Documentation Structure | 🟡 56% - Quickstarts Complete | 21 tasks |
 | MLOps Validation | 🟢 Ready to Start | 10 tasks |

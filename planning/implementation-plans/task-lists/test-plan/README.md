@@ -25,23 +25,25 @@ Language Model (LLM) context consumption.
 - framework-template.sh (419 lines) - Framework template for new frameworks
 
 **Phase 3**: ✅ COMPLETE (2025-10-27) - 3 unified frameworks created
-**Phase 4**: ✅ COMPLETE (2025-10-27) - 4 standalone frameworks refactored
+**Phase 4**: ✅ COMPLETE (2025-10-27) - 3 standalone frameworks refactored
 **Phase 5**: ✅ COMPLETE (2025-10-27) - Validation and cleanup complete
+**Phase 6**: ✅ COMPLETE (2025-10-27) - Directory reorganization complete
 
 **Final Results**:
 
 - **11 deprecated frameworks deleted**
-- **7 frameworks consolidated and refactored**
+- **6 frameworks consolidated and refactored** (3 in `frameworks/`, 3 in `advanced/`)
 - **42 new Makefile targets added**
 - **~2000-3000 lines of duplicated code eliminated**
 - **Consistent CLI patterns across all frameworks**
+- **Directory structure reorganized** (`foundation/`, `frameworks/`, `advanced/`, `legacy/`, `utilities/`, `e2e-system-setup/`)
 
-**Phase 6**: 📝 PLANNED - Directory reorganization (see [07-directory-reorganization.md](07-directory-reorganization.md))
+**Next Phase**: 📝 PLANNED - Test Suite Refactoring (see [09-test-suite-refactoring-plan.md](09-test-suite-refactoring-plan.md))
 
-- Reorganize tests/ into logical subdirectories (foundation, frameworks, advanced, utilities, legacy)
-- Update Makefile paths (no symlinks)
-- Improve discoverability and maintainability
-- Estimated time: 2-3 hours
+- Eliminate code duplication in `tests/suites/` scripts (~2000-3000 lines)
+- Create shared suite utilities in `tests/suites/common/`
+- Refactor 80+ suite scripts across 20 directories
+- Estimated time: 14 hours (3 phases)
 
 ## Structure
 
@@ -58,7 +60,7 @@ This test plan is organized into focused, manageable documents:
 | `04-implementation-phases.md` | Step-by-step implementation plan with tasks | ~600 lines | ✅ Complete |
 | `05-validation-checklist.md` | Validation criteria and acceptance tests | ~400 lines | ✅ Complete |
 | `06-test-dependencies-matrix.md` | Per-test dependencies and cluster configuration requirements | ~900 lines | ✅ Complete |
-| `07-directory-reorganization.md` | Directory reorganization implementation task | ~600 lines | 📝 Planned |
+| `07-directory-reorganization.md` | Directory reorganization implementation task | ~600 lines | ✅ Complete |
 | `08-cloud-cluster-testing.md` | Cloud cluster testing requirements and frameworks | ~1200 lines | 📝 New |
 | `09-test-suite-refactoring-plan.md` | Test suite scripts refactoring to eliminate code duplication | ~600 lines | 📝 New |
 | `cloud-testing-tasks.md` | Cloud testing task breakdown and implementation checklist | ~500 lines | 📝 New |
@@ -109,29 +111,34 @@ All files are kept under 1000 lines for easy LLM consumption:
 
 ### Three-Tier Architecture
 
-1. **Tier 1: End-to-End Validation** (`tests/phase-4-validation/`)
-   - Comprehensive 10-step validation framework
+1. **Tier 1: End-to-End Validation** (`tests/e2e-system-setup/`)
+   - Comprehensive step-by-step validation framework
    - **Kept as-is** (golden standard for release validation)
-   - Self-contained with `lib-common.sh` (~411 lines)
+   - Self-contained validation orchestration
    - Status: ✅ Complete and automated
-   - **Not part of Phase 4 consolidation target**
+   - **Not part of framework consolidation**
 
-2. **Tier 2: Test Frameworks** (`tests/test-*-framework.sh`)
+2. **Tier 2: Test Frameworks** (`tests/frameworks/` and `tests/advanced/`)
    - Orchestrate cluster lifecycle and test execution
-   - **CONSOLIDATION TARGET**: Reduce from 15 to 7 frameworks
-   - Standardize CLI patterns and shared utilities
+   - **CONSOLIDATION COMPLETE**: ✅ Reduced from 15+ to 6 frameworks
+   - Standardized CLI patterns and shared utilities implemented
+   - **Current frameworks**:
+     - `frameworks/`: HPC Packer SLURM, HPC Runtime, PCIe Passthrough (3 frameworks)
+     - `advanced/`: BeeGFS, Container Registry, VirtIO-FS (3 frameworks)
 
 3. **Tier 3: Component Test Suites** (`tests/suites/*/`)
    - Actual test logic and validation scripts
-   - **PRESERVED**: No changes to existing test suites
+   - **20 suite directories** with 80+ test scripts
+   - **NEXT TARGET**: Suite refactoring to eliminate code duplication (~2000-3000 lines)
    - Well-organized, focused, and proven
 
-### Consolidation Strategy
+### Consolidation Strategy (Complete)
 
-- **Combine**: 11 frameworks → 3 unified frameworks
-- **Refactor**: 4 standalone frameworks to use shared utilities
-- **Eliminate**: ~2000-3000 lines of duplicated code
-- **Standardize**: Consistent CLI patterns across all frameworks
+- **Combine**: ✅ 11 frameworks → 3 unified frameworks (in `frameworks/`)
+- **Refactor**: ✅ 3 standalone frameworks to use shared utilities (in `advanced/`)
+- **Eliminate**: ✅ ~2000-3000 lines of duplicated code in frameworks
+- **Standardize**: ✅ Consistent CLI patterns across all 6 frameworks
+- **Reorganize**: ✅ Directory structure implemented (`foundation/`, `frameworks/`, `advanced/`, `legacy/`, `utilities/`)
 
 ### Key Decision: phase-4-validation vs test-infra Utilities
 
@@ -159,10 +166,10 @@ All files are kept under 1000 lines for easy LLM consumption:
 
 ### Related Documentation
 
-- **Test Frameworks**: `tests/README.md`
-- **End-to-End Validation**: `tests/phase-4-validation/README.md`
-- **Phase 4 Consolidation**: `task-lists/hpc-slurm/pending/phase-4-consolidation.md`
-- **Design Documents**: `docs/design-docs/`
+- **Test Frameworks**: `tests/README.md` - Current test execution guide
+- **End-to-End Validation**: `tests/e2e-system-setup/README.md` - Step-by-step validation framework
+- **Phase 4 Consolidation**: `task-lists/hpc-slurm/pending/phase-4-consolidation.md` - Ansible consolidation tasks
+- **Design Documents**: `docs/design-docs/` - Architecture and design documentation
 
 ### Existing Utilities (Leverage in Consolidation)
 
@@ -176,36 +183,41 @@ The `tests/test-infra/utils/` directory contains **5 comprehensive utility modul
 
 **See [Test Inventory](00-test-inventory.md#shared-utilities) for comprehensive utility documentation.**
 
-### New Utilities (To Be Created)
+### Framework Utilities (Created)
 
-- **`framework-cli.sh`** (NEW) - Standardized CLI parsing and command dispatch
-- **`framework-orchestration.sh`** (NEW) - High-level workflow orchestration
-- **`framework-template.sh`** (NEW) - Base template for new frameworks
+- **`framework-cli.sh`** ✅ (~459 lines) - Standardized CLI parsing and command dispatch
+- **`framework-orchestration.sh`** ✅ (~504 lines) - High-level workflow orchestration
+- **`framework-template.sh`** ✅ (~419 lines) - Base template for new frameworks
+
+All located in `tests/test-infra/utils/` and used by all 6 frameworks.
 
 ## Timeline
 
-**Total Estimated Effort**: 15.5 hours
+**Framework Consolidation**: ✅ COMPLETE (15.5 hours)
 
 | Phase | Duration | Status |
 |-------|----------|--------|
-| Phase 1: Test Plan Documentation | 2 hours | ✅ COMPLETE |
+| Phase 1: Test Plan Documentation | 2 hours | ✅ COMPLETE (2025-10-24) |
 | Phase 2: Extract Common Patterns | 2.5 hours | ✅ COMPLETE (2025-10-25) |
 | Phase 3: Create Unified Frameworks | 6 hours | ✅ COMPLETE (2025-10-27) |
 | Phase 4: Refactor Standalone Frameworks | 2.5 hours | ✅ COMPLETE (2025-10-27) |
 | Phase 5: Validation and Testing | 2.5 hours | ✅ COMPLETE (2025-10-27) |
+| Phase 6: Directory Reorganization | 2-3 hours | ✅ COMPLETE (2025-10-27) |
+
+**Next Initiative**: Test Suite Refactoring (14 hours, 3 phases) - See [09-test-suite-refactoring-plan.md](09-test-suite-refactoring-plan.md)
 
 ## Quick Links
 
-### HPC SLURM Testing (Complete)
+### HPC SLURM Testing (Complete ✅)
 
 - [Test Inventory](00-test-inventory.md) - What tests exist today
-- [Consolidation Plan](01-consolidation-plan.md) - How we'll consolidate
-- [Component Matrix](02-component-matrix.md) - What each test validates
+- [Consolidation Plan](01-consolidation-plan.md) - Consolidation strategy and execution
+- [Component Matrix](02-component-matrix.md) - Test coverage by component
 - [Framework Specifications](03-framework-specifications.md) - Detailed framework specs
-- [Implementation Phases](04-implementation-phases.md) - Step-by-step execution
-- [Validation Checklist](05-validation-checklist.md) - Quality assurance
+- [Implementation Phases](04-implementation-phases.md) - Step-by-step execution record
+- [Validation Checklist](05-validation-checklist.md) - Quality assurance criteria
 - [Test Dependencies Matrix](06-test-dependencies-matrix.md) - Per-test requirements and cluster configuration
-- [Directory Reorganization](07-directory-reorganization.md) - Directory structure reorganization task
+- [Directory Reorganization](07-directory-reorganization.md) - Directory structure reorganization (COMPLETE)
 
 ### Cloud Cluster Testing (New)
 
@@ -231,5 +243,5 @@ When adding or modifying tests:
 For questions about the test plan, refer to:
 
 - `tests/README.md` for execution guidance
-- `tests/phase-4-validation/README.md` for end-to-end validation
+- `tests/e2e-system-setup/README.md` for end-to-end validation
 - This test plan for strategic decisions and consolidation approach
