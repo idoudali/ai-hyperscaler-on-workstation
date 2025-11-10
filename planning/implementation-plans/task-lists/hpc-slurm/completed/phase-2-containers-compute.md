@@ -537,8 +537,7 @@ enhanced security and performance for HPC environments.
 **Deployment Tools:**
 
 - `containers/tools/docker_wrapper/cluster_deploy.py` - Cluster deployment module (in HPCDockerImage)
-- `containers/scripts/deploy-single.sh` - Single image deployment script
-- `containers/scripts/deploy-all.sh` - Batch deployment script
+- `containers/scripts/deploy-containers.sh` - Unified container deployment helper (`single`, `batch`, `beegfs` subcommands)
 
 **Test Framework:**
 
@@ -824,8 +823,7 @@ tests/suites/container-e2e/test-multi-image-deploy.sh
 
 **Deployment Scripts:**
 
-- ✅ `containers/scripts/deploy-single.sh` - Single image deployment (8.2KB)
-- ✅ `containers/scripts/deploy-all.sh` - Batch deployment (11KB)
+- ✅ `containers/scripts/deploy-containers.sh` - Unified container deployment helper (single, batch, BeeGFS flows)
 - ✅ `containers/tools/hpc_extensions/cluster_deploy.py` - Cluster deployment module (already in Task 019)
 
 **Test Suite 1: Ansible Infrastructure Tests:**

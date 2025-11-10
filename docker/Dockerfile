@@ -47,6 +47,7 @@ RUN apt-get update && \
     python3-dev \
     python3-pip \
     python3-venv \
+    rsync \
     qemu-system-x86 \
     qemu-utils \
     screen \

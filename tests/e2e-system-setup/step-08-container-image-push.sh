@@ -26,58 +26,28 @@ VALIDATION_TARGETS=(
 # ========================================
 
 validate_container_image_push() {
-    log_info "Pushing container images to validated storage system..."
+    log_info "Building and deploying container images to BeeGFS..."
 
-    # 1. Check if container images exist from Step 3
-    log_info "Checking for container images from Step 3..."
-    if [[ ! -d "build/containers" ]]; then
-        log_error "Container images directory not found - run Step 3 first"
+    local controller_ip controller_user target_base ssh_key sync_nodes verify
+    controller_ip="${CONTAINER_DEPLOY_CONTROLLER:-192.168.100.10}"
+    controller_user="${CONTAINER_DEPLOY_USER:-admin}"
+    target_base="${CONTAINER_DEPLOY_TARGET:-/mnt/beegfs/containers}"
+    ssh_key="${CONTAINER_DEPLOY_SSH_KEY:-${PROJECT_ROOT}/build/shared/ssh-keys/id_rsa}"
+    sync_nodes="${CONTAINER_DEPLOY_SYNC_NODES:-false}"
+    verify="${CONTAINER_DEPLOY_VERIFY:-true}"
+
+    if ! CONTAINER_DEPLOY_CONTROLLER="${controller_ip}" \
+           CONTAINER_DEPLOY_USER="${controller_user}" \
+           CONTAINER_DEPLOY_TARGET="${target_base}" \
+           CONTAINER_DEPLOY_SSH_KEY="${ssh_key}" \
+           CONTAINER_DEPLOY_SYNC_NODES="${sync_nodes}" \
+           CONTAINER_DEPLOY_VERIFY="${verify}" \
+           make -C "${PROJECT_ROOT}" containers-deploy-beegfs; then
+        log_error "Failed to build and deploy container images to BeeGFS"
         return 1
     fi
 
-    # 2. Find container images to push
-    log_info "Finding container images to push..."
-    local container_images
-    container_images=$(find build/containers -name "*.sif" -type f)
-    if [[ -z "$container_images" ]]; then
-        log_error "No container images found to push"
-        return 1
-    fi
-
-    # 3. Push container images to BeeGFS storage
-    log_info "Pushing container images to BeeGFS storage..."
-
-    # Create base containers directory if it doesn't exist
-    log_info "Creating container registry directories..."
-    if ! run_in_target "admin@192.168.100.10" "mkdir -p /mnt/beegfs/containers"; then
-        log_error "Failed to create /mnt/beegfs/containers directory"
-        return 1
-    fi
-
-    for container in $container_images; do
-        local container_name
-        container_name=$(basename "$container")
-        local container_category
-        container_category=$(basename "$(dirname "$container")")
-
-        log_info "Pushing $container_name from $container_category..."
-
-        # Create category directory if it doesn't exist
-        if ! run_in_target "admin@192.168.100.10" "mkdir -p /mnt/beegfs/containers/$container_category"; then
-            log_error "Failed to create /mnt/beegfs/containers/$container_category directory"
-            return 1
-        fi
-
-        # Push to BeeGFS container registry
-        if ! scp_to_target "$container" "admin@192.168.100.10:/mnt/beegfs/containers/$container_category/"; then
-            log_error "Failed to push $container_name to BeeGFS storage"
-            return 1
-        fi
-
-        log_success "Successfully pushed $container_name"
-    done
-
-    log_success "Container image push completed"
+    log_success "Container images built and deployed to BeeGFS"
 }
 
 validate_container_registry_validation() {
