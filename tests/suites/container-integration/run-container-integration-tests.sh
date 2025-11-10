@@ -41,7 +41,8 @@ init_suite_logging "$TEST_SUITE_NAME"
 init_test_runner
 
 # Container configuration (can be overridden by framework via environment variables)
-export CONTAINER_IMAGE="${CONTAINER_IMAGE:-/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif}"
+# Containers are deployed to BeeGFS for cluster-wide availability
+export CONTAINER_IMAGE="${CONTAINER_IMAGE:-/mnt/beegfs/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif}"
 export CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-apptainer}"
 
 # Test scripts for Container Integration validation
@@ -65,7 +66,13 @@ check_container_availability() {
         log_error ""
         log_error "Container image must be deployed before running integration tests"
         log_error ""
-        log_info "Please ensure the container image is deployed to this node"
+        log_info "To deploy containers to BeeGFS (cluster-wide), run:"
+        log_info "  make containers-deploy-beegfs"
+        log_info ""
+        log_info "Or to deploy to a local registry, run:"
+        log_info "  make containers-deploy-single <path-to-sif-image>"
+        log_info ""
+        log_info "Expected container path: $CONTAINER_IMAGE"
         return 1
     fi
 }

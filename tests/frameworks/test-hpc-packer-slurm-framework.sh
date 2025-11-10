@@ -134,38 +134,29 @@ run_tests_against_existing_cluster() {
             continue
         fi
 
-        # Upload test scripts
-        local suite_remote_dir
-        local suite_relative_path
-        local project_relative_root
-
-        if [[ "$test_scripts_dir" == "$PROJECT_ROOT/"* ]]; then
-            suite_relative_path="${test_scripts_dir#"$PROJECT_ROOT"/}"
-        else
-            suite_relative_path="tests/suites/$(basename "$test_scripts_dir")"
-        fi
-
-        if [[ -n "$HOME" && "$PROJECT_ROOT" == "$HOME/"* ]]; then
-            project_relative_root="${PROJECT_ROOT#"$HOME"/}"
-        else
-            project_relative_root="$(basename "$PROJECT_ROOT")"
-        fi
-
+        # Calculate intended remote directory (maintain project structure)
+        local project_basename
+        project_basename="$(basename "$PROJECT_ROOT")"
+        local suite_relative
+        suite_relative="${test_scripts_dir#"$PROJECT_ROOT"/}"
         # shellcheck disable=SC2088
-        suite_remote_dir="~/${project_relative_root}/${suite_relative_path}"
+        local intended_remote_dir="~/$project_basename/$suite_relative"
 
-        if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir" "$suite_remote_dir"; then
+        # Upload test scripts (will fallback to /tmp if permissions fail)
+        if ! upload_scripts_to_vm "$vm_ip" "$vm_name" "$test_scripts_dir" "$intended_remote_dir"; then
             log_error "Failed to upload test scripts to $vm_name"
             overall_success=false
             continue
         fi
 
-        # Run tests
-        # Extract just the script filename (not the full path)
-        # Scripts are uploaded to $suite_remote_dir on the VM, so we need to pass just the basename
+        # Get actual directory used (might be /tmp fallback)
+        local actual_suite_dir="$ACTUAL_REMOTE_DIR"
+        log "  Scripts uploaded to: $actual_suite_dir"
+
+        # Run tests - execute script in actual directory
         local script_basename
         script_basename=$(basename "$master_script")
-        if ! execute_script_on_vm "$vm_ip" "$vm_name" "$script_basename" "$suite_remote_dir"; then
+        if ! execute_script_on_vm "$vm_ip" "$vm_name" "$script_basename" "$actual_suite_dir"; then
             log_warning "Tests failed on $vm_name"
             overall_success=false
         fi

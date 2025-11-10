@@ -503,6 +503,7 @@ upload_scripts_to_vm() {
         return 1
     fi
 
+    # Use caller-provided directory or default
     local remote_dir
     if [[ -z "$remote_dir_arg" ]]; then
         remote_dir="$remote_home/tests/suites/$suite_name"
@@ -526,37 +527,66 @@ upload_scripts_to_vm() {
     local remote_log_dir
     local test_name="${TEST_NAME:-test}"
 
-    local host_project_root="$PROJECT_ROOT"
-    local suite_relative_path
-    if [[ -n "$host_project_root" && "$scripts_dir" == "$host_project_root/"* ]]; then
-        suite_relative_path="${scripts_dir#"$host_project_root"/}"
-        remote_base_dir="${host_project_root}/${suite_relative_path}"
-        remote_suite_parent="$(dirname "$remote_base_dir")"
-        remote_tests_root="${host_project_root}/tests"
-        remote_common_dir="$remote_tests_root/common"
-        remote_test_infra_dir="$remote_tests_root/test-infra"
-    else
-        remote_base_dir="$remote_dir"
-        remote_suite_parent="$(dirname "$remote_base_dir")"
-        remote_tests_root="$(dirname "$remote_suite_parent")"
-        if [[ "$remote_base_dir" != */tests/suites/* ]]; then
-            remote_tests_root="$remote_suite_parent"
-        fi
-        if [[ "$remote_tests_root" == "/" || "$remote_tests_root" == "." || "$remote_tests_root" == "$remote_suite_parent" ]]; then
-            remote_tests_root="$remote_suite_parent"
-        fi
-        remote_common_dir="$remote_suite_parent/common"
-        remote_test_infra_dir="$remote_tests_root/test-infra"
+    # Calculate directory structure based on the already-calculated remote_dir
+    # Don't use host PROJECT_ROOT as remote path - use the remote_dir that was passed in
+    remote_suite_parent="$(dirname "$remote_base_dir")"
+    remote_tests_root="$(dirname "$remote_suite_parent")"
+    if [[ "$remote_base_dir" != */tests/suites/* ]]; then
+        remote_tests_root="$remote_suite_parent"
     fi
+    if [[ "$remote_tests_root" == "/" || "$remote_tests_root" == "." || "$remote_tests_root" == "$remote_suite_parent" ]]; then
+        remote_tests_root="$remote_suite_parent"
+    fi
+    remote_common_dir="$remote_suite_parent/common"
+    remote_test_infra_dir="$remote_tests_root/test-infra"
+
     remote_dir="$remote_base_dir"
     local remote_log_timestamp
     remote_log_timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
     remote_log_dir="$remote_base_dir/logs/${test_name}-run-$remote_log_timestamp"
 
+    # Log detailed path information for debugging
+    log "Remote path resolution:"
+    log "  - Remote home: $remote_home"
+    log "  - Remote base dir: $remote_base_dir"
+    log "  - Remote log dir: $remote_log_dir"
+    log "  - Remote common dir: $remote_common_dir"
+    log "  - Remote test infra dir: $remote_test_infra_dir"
+
     local mkdir_cmd="mkdir -p \"$remote_base_dir\" \"$remote_log_dir\" \"$remote_common_dir\" \"$remote_test_infra_dir\""
-    if ! ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$mkdir_cmd"; then
-        log_error "Failed to create remote test and log directories"
-        return 1
+    log "Executing mkdir command on $vm_name:"
+    log "  ssh $SSH_USER@$vm_ip '$mkdir_cmd'"
+
+    if ! ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$mkdir_cmd" 2>/dev/null; then
+        log_warning "Failed to create directories at planned location, falling back to /tmp"
+        log "Command that failed: $mkdir_cmd"
+
+        # Fallback: use /tmp with a unique directory structure
+        local tmp_test_dir
+        tmp_test_dir="/tmp/hpc-tests-$(date +%s)-$$"
+        local tmp_suite_name
+        tmp_suite_name="$(basename "$scripts_dir")"
+
+        remote_base_dir="$tmp_test_dir/suites/$tmp_suite_name"
+        remote_log_dir="$tmp_test_dir/logs/${test_name}-run-$remote_log_timestamp"
+        remote_common_dir="$tmp_test_dir/common"
+        remote_test_infra_dir="$tmp_test_dir/test-infra"
+        remote_dir="$remote_base_dir"
+        remote_suite_parent="$tmp_test_dir/suites"
+
+        log "Fallback paths:"
+        log "  - Remote base dir: $remote_base_dir"
+        log "  - Remote log dir: $remote_log_dir"
+        log "  - Remote common dir: $remote_common_dir"
+        log "  - Remote test infra dir: $remote_test_infra_dir"
+
+        mkdir_cmd="mkdir -p \"$remote_base_dir\" \"$remote_log_dir\" \"$remote_common_dir\" \"$remote_test_infra_dir\""
+        if ! ssh "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$SSH_USER@$vm_ip" "$mkdir_cmd"; then
+            log_error "Failed to create directories even in /tmp fallback location"
+            log_error "Command that failed: $mkdir_cmd"
+            return 1
+        fi
+        log_success "Created directories in /tmp fallback location"
     fi
 
     # Upload all test scripts
@@ -614,6 +644,11 @@ upload_scripts_to_vm() {
     fi
 
     log_success "Test scripts uploaded successfully to $remote_base_dir"
+
+    # Export the actual remote directory used (might be /tmp fallback)
+    # Caller can use this to execute scripts in the correct location
+    export ACTUAL_REMOTE_DIR="$remote_base_dir"
+
     return 0
 }
 
