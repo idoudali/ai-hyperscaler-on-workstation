@@ -29,6 +29,8 @@ TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
 export SCRIPT_DIR
 export TEST_SUITE_DIR
 export PROJECT_ROOT
+# Export SSH agent variables if available (for test scripts that need SSH)
+export SSH_AUTH_SOCK SSH_AGENT_PID
 
 # Configure logging directories
 : "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
@@ -40,19 +42,51 @@ touch "$LOG_FILE"
 init_suite_logging "$TEST_SUITE_NAME"
 init_test_runner
 
+# Per-script results tracking
+declare -A SCRIPT_RESULTS
+declare -a EXECUTED_SCRIPTS
+
 # Container configuration (can be overridden by framework via environment variables)
 # Containers are deployed to BeeGFS for cluster-wide availability
 export CONTAINER_IMAGE="${CONTAINER_IMAGE:-/mnt/beegfs/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif}"
 export CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-apptainer}"
 
-# Test scripts for Container Integration validation
+# Test Controller configuration
+# TEST_CONTROLLER defaults to localhost if not already set by framework
+export TEST_CONTROLLER="${TEST_CONTROLLER:-localhost}"
+
+# Test scripts categorized by execution context
+# CONTROLLER_TESTS: Run on controller - orchestrate jobs via SLURM
+# shellcheck disable=SC2034
+declare -a CONTROLLER_TESTS=(
+    "check-container-slurm-integration.sh"      # SLURM job submission, GPU GRES, batch jobs
+)
+
+# GPU_COMPUTE_TESTS: Run on compute node with GPU - direct GPU interaction
+# shellcheck disable=SC2034
+declare -a GPU_COMPUTE_TESTS=(
+    "check-pytorch-cuda-integration.sh"         # GPU tensor operations, CUDA device access
+)
+
+# SHARED_FS_TESTS: Run once (container on shared BeeGFS) - any node OK
+# shellcheck disable=SC2034
+declare -a SHARED_FS_TESTS=(
+    "check-mpi-communication.sh"                 # MPI within container
+    "check-distributed-training.sh"             # Distributed training setup
+)
+
+# Legacy: all tests (for backwards compatibility)
+# Note: Basic container functionality tests moved to container-runtime suite
 TEST_SCRIPTS=(
-    "check-container-functionality.sh"
     "check-pytorch-cuda-integration.sh"
     "check-mpi-communication.sh"
     "check-distributed-training.sh"
     "check-container-slurm-integration.sh"
 )
+
+# Test execution mode (can be overridden by framework)
+# Values: "all" (legacy), "smart" (recommended), "controller-only", "gpu-node-only"
+export TEST_EXECUTION_MODE="${TEST_EXECUTION_MODE:-smart}"
 
 # Check container image availability (LOCAL check - runs ON target VM)
 check_container_availability() {
@@ -94,6 +128,72 @@ check_slurm_availability() {
     fi
 }
 
+# Parse script results from log
+parse_script_results() {
+    local script_name="$1"
+    local log_file="$LOG_DIR/${script_name%.sh}.log"
+
+    local tests_run=0
+    local tests_passed=0
+    local tests_failed=0
+
+    if [[ -f "$log_file" ]]; then
+        tests_run=$(grep -E "^Tests Run:" "$log_file" 2>/dev/null | tail -1 | awk '{print $NF}') || tests_run=0
+        tests_passed=$(grep -E "^Tests Passed:" "$log_file" 2>/dev/null | tail -1 | awk '{print $NF}') || tests_passed=0
+        tests_failed=$(grep -E "^Tests Failed:" "$log_file" 2>/dev/null | tail -1 | awk '{print $NF}') || tests_failed=0
+    fi
+
+    SCRIPT_RESULTS["${script_name}_run"]=$tests_run
+    SCRIPT_RESULTS["${script_name}_passed"]=$tests_passed
+    SCRIPT_RESULTS["${script_name}_failed"]=$tests_failed
+    EXECUTED_SCRIPTS+=("$script_name")
+}
+
+# Print per-script summary table
+print_scripts_summary() {
+    if [[ ${#EXECUTED_SCRIPTS[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    echo ""
+    echo "─────────────────────────────────────────────────────────────"
+    echo "Per-Script Test Results Summary"
+    echo "─────────────────────────────────────────────────────────────"
+    echo ""
+    echo "Script Name                            | Run | Pass | Fail | Status"
+    echo "──────────────────────────────────────┼─────┼──────┼──────┼────────"
+
+    local total_run=0
+    local total_passed=0
+    local total_failed=0
+
+    for script in "${EXECUTED_SCRIPTS[@]}"; do
+        local run=${SCRIPT_RESULTS["${script}_run"]:-0}
+        local passed=${SCRIPT_RESULTS["${script}_passed"]:-0}
+        local failed=${SCRIPT_RESULTS["${script}_failed"]:-0}
+
+        total_run=$((total_run + run))
+        total_passed=$((total_passed + passed))
+        total_failed=$((total_failed + failed))
+
+        local status="⚠️  UNKNOWN"
+        if [[ $failed -gt 0 ]]; then
+            status="❌ FAILED"
+        elif [[ $run -eq 0 ]]; then
+            status="⊘  SKIPPED"
+        elif [[ $passed -eq $run ]]; then
+            status="✅ PASSED"
+        fi
+
+        local display_name="${script:0:36}"
+        printf "%-37s | %3d | %4d | %4d | %s\n" "$display_name" "$run" "$passed" "$failed" "$status"
+    done
+
+    echo "──────────────────────────────────────┼─────┼──────┼──────┼────────"
+    printf "%-37s | %3d | %4d | %4d | %s\n" "TOTAL" "$total_run" "$total_passed" "$total_failed" "═══════"
+    echo ""
+}
+
 # Cleanup functions
 cleanup_test_environment() {
     log_debug "Cleaning up test environment..."
@@ -111,6 +211,7 @@ main() {
 
     log_info "Environment Information:"
     log_info "- Hostname: $(hostname)"
+    log_info "- Test Controller: $TEST_CONTROLLER"
     log_info "- Container Image: $CONTAINER_IMAGE"
     log_info "- Container Runtime: $CONTAINER_RUNTIME"
     log_info "- Test Scripts: ${#TEST_SCRIPTS[@]}"
@@ -133,15 +234,19 @@ main() {
     log_success "Pre-flight checks complete. Starting tests..."
     echo ""
 
-    # Run each test script
+    # Run each test script and capture results
     for script in "${TEST_SCRIPTS[@]}"; do
-        run_test_script "$script"
+        run_test_script "$script" || true
+        parse_script_results "$script"
     done
 
     # Cleanup
     cleanup_test_environment
 
-    # Print test summary
+    # Print per-script summary
+    print_scripts_summary
+
+    # Print overall test summary
     print_test_summary
     local test_result=$?
 

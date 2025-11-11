@@ -22,6 +22,13 @@ FRAMEWORK_TARGET_VM_PATTERN="controller"
 FRAMEWORK_MASTER_TEST_SCRIPT="run-container-registry-tests.sh"
 export FRAMEWORK_NAME FRAMEWORK_DESCRIPTION FRAMEWORK_TEST_CONFIG FRAMEWORK_TEST_SCRIPTS_DIR FRAMEWORK_TARGET_VM_PATTERN
 
+# Container registry test suites (run from controller, check infrastructure)
+# All suites execute FROM controller node via SSH to validate registry infrastructure
+declare -a REGISTRY_TEST_SUITES=(
+    "container-registry"     # Registry structure, permissions, access, sync setup
+    "container-deployment"   # Image deployment, multi-node sync, integrity checks
+)
+
 # Source utilities
 # shellcheck disable=SC1090
 for util in log-utils.sh cluster-utils.sh vm-utils.sh ansible-utils.sh test-framework-utils.sh framework-cli.sh framework-orchestration.sh; do
@@ -106,58 +113,98 @@ deploy_container_images() {
     return 0
 }
 
-# Container registry test execution
+# Container registry test execution - runs both registry and deployment suites
 run_container_registry_tests() {
-    log "Running container registry test suite..."
+    log "Running container registry test suites..."
+    log "Suites: ${REGISTRY_TEST_SUITES[*]}"
+    log ""
 
     # Get controller IP
-    if ! get_vm_ips_for_cluster "$FRAMEWORK_TEST_CONFIG" "$FRAMEWORK_TARGET_VM_PATTERN"; then
+    if ! get_vm_ips_for_cluster "$FRAMEWORK_TEST_CONFIG" "hpc" "$FRAMEWORK_TARGET_VM_PATTERN"; then
         log_error "Failed to get VM IPs from cluster"
         return 1
     fi
 
     if [[ ${#VM_IPS[@]} -eq 0 ]]; then
-        log_error "No VMs found in cluster"
+        log_error "No controller found in cluster"
         return 1
     fi
 
     local controller_ip="${VM_IPS[0]}"
-    log "Testing container registry on: ${VM_NAMES[0]:-unknown} ($controller_ip)"
+    local controller_name="${VM_NAMES[0]:-unknown}"
+    log "Controller: $controller_name ($controller_ip)"
+    log ""
 
-    # Run master test script
-    local master_test="$FRAMEWORK_TEST_SCRIPTS_DIR/$FRAMEWORK_MASTER_TEST_SCRIPT"
-
-    if [[ ! -f "$master_test" ]]; then
-        log_error "Master test script not found: $master_test"
+    # Wait for SSH connectivity
+    if ! wait_for_vm_ssh "$controller_ip" "$controller_name"; then
+        log_error "SSH connectivity failed to controller"
         return 1
     fi
 
-    # Make executable if needed
-    if [[ ! -x "$master_test" ]]; then
-        chmod +x "$master_test" || {
-            log_error "Failed to make test script executable: $master_test"
-            return 1
-        }
-    fi
+    local failed=0
+    local passed=0
 
-    log "Executing container registry tests..."
+    # Run each registry test suite FROM controller
+    for suite in "${REGISTRY_TEST_SUITES[@]}"; do
+        local suite_dir="$TESTS_DIR/suites/$suite"
 
-    # Build test arguments
-    local test_args=(
-        --controller "$controller_ip"
-    )
+        if [[ ! -d "$suite_dir" ]]; then
+            log_warning "Suite not found: $suite"
+            ((failed++))
+            continue
+        fi
 
-    # Add verbose flag if enabled
-    [[ "${FRAMEWORK_VERBOSE:-false}" == "true" ]] && test_args+=(--verbose)
+        log "═══════════════════════════════════════════════════════════"
+        log "Running suite: $suite"
+        log "═══════════════════════════════════════════════════════════"
 
-    # Execute test suite
-    if ! "$master_test" "${test_args[@]}"; then
-        log_error "Container registry tests failed"
+        local master_script="run-${suite}-tests.sh"
+        local master_test="$suite_dir/$master_script"
+
+        if [[ ! -f "$master_test" ]]; then
+            log_error "Master test script not found: $master_test"
+            ((failed++))
+            continue
+        fi
+
+        # Check if project directory exists on controller (shared filesystem)
+        if ssh -o BatchMode=yes -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" \
+            "$SSH_USER@$controller_ip" "test -d '$PROJECT_ROOT'" 2>/dev/null; then
+            log "Executing from shared filesystem on controller..."
+
+            # Execute test suite FROM controller
+            if ssh -o BatchMode=yes -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" \
+                "$SSH_USER@$controller_ip" "cd '$PROJECT_ROOT' && bash tests/suites/$suite/$master_script" 2>&1; then
+                log_success "Suite passed: $suite"
+                ((passed++))
+            else
+                log_warning "Suite failed: $suite"
+                ((failed++))
+            fi
+        else
+            log_error "Project directory not available on controller: $PROJECT_ROOT"
+            log_error "Container registry tests require shared filesystem access"
+            ((failed++))
+        fi
+
+        log ""
+    done
+
+    log "═══════════════════════════════════════════════════════════"
+    log "Container Registry Test Summary"
+    log "═══════════════════════════════════════════════════════════"
+    log "Total suites: ${#REGISTRY_TEST_SUITES[@]}"
+    log "Passed: $passed"
+    log "Failed: $failed"
+    log ""
+
+    if [[ $failed -eq 0 ]]; then
+        log_success "All container registry tests completed successfully"
+        return 0
+    else
+        log_error "Some container registry tests failed"
         return 1
     fi
-
-    log_success "Container registry tests completed successfully"
-    return 0
 }
 
 # Framework-specific tests (override)

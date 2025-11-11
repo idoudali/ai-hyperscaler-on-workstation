@@ -85,13 +85,16 @@ The test directory is organized into logical categories by purpose and execution
       job scripts, DCGM, and container workloads
     - VMs: 1 controller + 2 GPU-capable compute nodes
     - Config: `tests/test-infra/configs/test-slurm-compute.yaml`
-    - Suites:
-      - `suites/slurm-compute/run-slurm-compute-tests.sh`
-      - `suites/cgroup-isolation/run-cgroup-isolation-tests.sh`
-      - `suites/gpu-gres/run-gpu-gres-tests.sh`
-      - `suites/job-scripts/run-job-scripts-tests.sh`
-      - `suites/dcgm-monitoring/run-dcgm-monitoring-tests.sh`
-      - `suites/container-integration/run-container-integration-tests.sh`
+    - Suites (Compute Node):
+      - `suites/slurm-compute/run-slurm-compute-tests.sh` (on compute nodes)
+      - `suites/cgroup-isolation/run-cgroup-isolation-tests.sh` (on compute nodes)
+      - `suites/gpu-gres/run-gpu-gres-tests.sh` (on compute nodes)
+      - `suites/container-runtime/run-container-runtime-tests.sh` (on compute nodes)
+    - Suites (Controller via SLURM):
+      - `suites/job-scripts/run-job-scripts-tests.sh` (via SLURM jobs)
+      - `suites/dcgm-monitoring/run-dcgm-monitoring-tests.sh` (via SLURM)
+      - `suites/container-integration/run-container-integration-tests.sh` (via SLURM)
+      - `suites/container-e2e/run-container-e2e-tests.sh` (via SLURM)
   - `test-pcie-passthrough-framework.sh`
     - Purpose: Verifies PCIe GPU passthrough and workload execution
     - VMs: 1 controller + 1 GPU passthrough compute
@@ -160,13 +163,16 @@ The test directory is organized into logical categories by purpose and execution
   - Suites (job examples, optional):
     - `suites/slurm-job-examples`
 - `frameworks/test-hpc-runtime-framework.sh`
-  - Suites:
+  - Suites (Compute Node):
     - `suites/slurm-compute`
     - `suites/cgroup-isolation`
     - `suites/gpu-gres`
+    - `suites/container-runtime`
+  - Suites (Controller via SLURM):
     - `suites/job-scripts`
     - `suites/dcgm-monitoring`
     - `suites/container-integration`
+    - `suites/container-e2e`
 - `frameworks/test-pcie-passthrough-framework.sh`
   - Suites:
     - `suites/gpu-validation`
@@ -186,8 +192,7 @@ All other foundation scripts are self-contained and do not execute suites.
 
 The following suites exist but are not currently used by any framework:
 
-- `container-deployment`
-- `container-e2e`
+- `container-deployment` (used by container registry framework, but can run standalone)
 
 Refer to the "Recommended Test Execution Sequence" section below for guidance on running the test directories in order.
 

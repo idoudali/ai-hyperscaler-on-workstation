@@ -33,14 +33,21 @@ Validates:
 
 ### 2. Runtime Framework (`test-hpc-runtime-framework.sh`)
 
-Validates:
+Validates compute node services and orchestration:
+
+**Compute Node Services** (executed directly on compute nodes):
 
 - **SLURM Compute Services** - Node registration and job execution
-- **Container Runtime** - Docker/Podman integration
-- **GPU GRES** - GPU resource scheduling
+- **Container Runtime** - Singularity/Apptainer installation and execution
+- **GPU GRES** - GPU resource scheduling and configuration
 - **Cgroup Isolation** - Resource isolation and limits
+
+**Cluster Orchestration via SLURM** (executed from controller via SLURM job submission):
+
 - **Job Scripts** - SLURM batch script execution
 - **DCGM Monitoring** - GPU telemetry and health
+- **Container Integration** - Containers with GPU and MPI support
+- **End-to-End ML Workflows** - PyTorch, TensorFlow deployments
 
 **Cluster Configuration**: Uses `tests/test-infra/configs/test-slurm-compute.yaml`
 
@@ -187,14 +194,21 @@ Run with `--help` for detailed usage. Supports standard framework commands inclu
 
 ### Test Suites
 
-The runtime framework executes 6 consolidated test suites:
+The runtime framework executes test suites in two execution contexts:
+
+### Compute Node Suites (executed ON compute nodes):
 
 1. **SLURM Compute** (`suites/slurm-compute`) - Node registration and job execution
 2. **Cgroup Isolation** (`suites/cgroup-isolation`) - Resource isolation validation
-3. **GPU GRES** (`suites/gpu-gres`) - GPU resource scheduling
-4. **Job Scripts** (`suites/job-scripts`) - Batch script execution
-5. **DCGM Monitoring** (`suites/dcgm-monitoring`) - GPU telemetry
-6. **Container Integration** (`suites/container-integration`) - Container workloads
+3. **GPU GRES** (`suites/gpu-gres`) - GPU resource scheduling and MIG configuration
+4. **Container Runtime** (`suites/container-runtime`) - Singularity/Apptainer installation
+
+### Controller Suites (executed FROM controller via SLURM):
+
+1. **Job Scripts** (`suites/job-scripts`) - Batch script execution and prolog/epilog
+2. **DCGM Monitoring** (`suites/dcgm-monitoring`) - GPU telemetry and health monitoring
+3. **Container Integration** (`suites/container-integration`) - SLURM + GPU + MPI + containers
+4. **Container End-to-End** (`suites/container-e2e`) - ML framework deployments (PyTorch, TensorFlow)
 
 ### Configuration
 

@@ -25,11 +25,16 @@ This directory contains comprehensive test suites for validating the AI-HPC-on-W
 
 ### Container Platform
 
-- **[container-runtime/](./container-runtime/)** - Singularity/Apptainer installation and execution
-- **[container-registry/](./container-registry/)** - Container registry infrastructure and synchronization
-- **[container-deployment/](./container-deployment/)** - Image deployment and SLURM container integration
-- **[container-integration/](./container-integration/)** - Container functionality with GPU and MPI
-- **[container-e2e/](./container-e2e/)** - End-to-end ML framework deployment tests
+#### Runtime Framework Suites
+
+- **[container-runtime/](./container-runtime/)** - Singularity/Apptainer installation and execution (on compute nodes)
+- **[container-integration/](./container-integration/)** - SLURM + container + GPU + MPI (via SLURM from controller)
+- **[container-e2e/](./container-e2e/)** - End-to-end ML framework deployments via SLURM (PyTorch, TensorFlow)
+
+#### Registry Framework Suites
+
+- **[container-registry/](./container-registry/)** - Container registry infrastructure and synchronization (via controller)
+- **[container-deployment/](./container-deployment/)** - Image deployment and multi-node sync (via controller)
 
 ### Monitoring Stack
 
