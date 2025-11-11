@@ -248,7 +248,7 @@ calculate_suite_duration() {
 
 # Enhanced logging with context
 
-# Log with script context
+# Log with script context - skip wrapper layers to get actual caller
 log_with_context() {
     local level="$1"
     local message="$2"
@@ -257,18 +257,20 @@ log_with_context() {
     timestamp=$(date '+%H:%M:%S')
     local context_label="$script_name"
 
-    if command -v _get_caller_info >/dev/null 2>&1; then
-        local caller_info
-        caller_info=$(_get_caller_info)
-        if [[ -n "$caller_info" ]]; then
-            local caller_file="${caller_info%%:*}"
-            local remainder="${caller_info#*:}"
-            local caller_line="${remainder%%:*}"
-            if [[ -n "$caller_line" && "$caller_line" != "$caller_info" ]]; then
-                context_label="${caller_file}:L${caller_line}"
-            else
-                context_label="${caller_info}"
-            fi
+    # Get caller info, skipping wrapper functions in suite-check-helpers.sh
+    # BASH_SOURCE[0] = suite-logging.sh (this file)
+    # BASH_SOURCE[1] = suite-check-helpers.sh (wrapper like log_test, log_pass, log_fail)
+    # BASH_SOURCE[2] = actual caller (the test script)
+    local caller_source="${BASH_SOURCE[2]:-${BASH_SOURCE[1]}}"
+    local caller_line="${BASH_LINENO[1]}"
+
+    if [[ -n "$caller_source" ]]; then
+        local display_source
+        display_source="$(basename "$caller_source")"
+        if [[ -n "$caller_line" ]]; then
+            context_label="${display_source}:L${caller_line}"
+        else
+            context_label="${display_source}"
         fi
     fi
 
@@ -282,8 +284,14 @@ log_with_context() {
         "ERROR")
             echo -e "${RED}[ERROR]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
-        "SUCCESS")
-            echo -e "${GREEN}[SUCCESS]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+        "SUCCESS"|"PASS")
+            echo -e "${GREEN}[${level}]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            ;;
+        "FAIL")
+            echo -e "${RED}[${level}]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+            ;;
+        "TEST")
+            echo -e "${CYAN}[${level}]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
             ;;
         *)
             echo -e "${BLUE}[${level}]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"

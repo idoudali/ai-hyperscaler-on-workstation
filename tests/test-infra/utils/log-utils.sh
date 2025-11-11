@@ -51,49 +51,82 @@ _get_caller_info() {
     echo "${display_source}:${caller_line}:${caller_func}"
 }
 
-# Logging functions
+# Logging functions - All output to stderr to avoid contaminating stdout with log messages
+# This ensures functions that return values via echo/stdout are not affected by logging output
+
 log() {
     local caller_info
     caller_info=$(_get_caller_info)
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}]${NC} $*" | tee -a "$LOG_DIR/framework.log"
+    {
+        echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}]${NC} $*"
+        echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] $*" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 log_success() {
     local caller_info
     caller_info=$(_get_caller_info)
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ✓${NC} $*" | tee -a "$LOG_DIR/framework.log"
+    {
+        echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ✓${NC} $*"
+        echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ✓ $*" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 log_warning() {
     local caller_info
     caller_info=$(_get_caller_info)
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ⚠${NC} $*" | tee -a "$LOG_DIR/framework.log"
+    {
+        echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ⚠${NC} $*"
+        echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ⚠ $*" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 log_error() {
     local caller_info
     caller_info=$(_get_caller_info)
-    echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ✗${NC} $*" | tee -a "$LOG_DIR/framework.log"
+    {
+        echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ✗${NC} $*"
+        echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] [${caller_info}] ✗ $*" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 log_info() {
     local caller_info
     caller_info=$(_get_caller_info)
-    echo -e "${GREEN}[INFO] [${caller_info}]${NC} $1" | tee -a "$LOG_DIR/framework.log"
+    {
+        echo -e "${GREEN}[INFO] [${caller_info}]${NC} $1"
+        echo -e "[INFO] [${caller_info}] $1" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 log_warn() {
     local caller_info
     caller_info=$(_get_caller_info)
-    echo -e "${YELLOW}[WARN] [${caller_info}]${NC} $1" | tee -a "$LOG_DIR/framework.log"
+    {
+        echo -e "${YELLOW}[WARN] [${caller_info}]${NC} $1"
+        echo -e "[WARN] [${caller_info}] $1" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 log_verbose() {
     if [[ "${VERBOSE_MODE:-false}" == "true" ]]; then
         local caller_info
         caller_info=$(_get_caller_info)
-        echo -e "${GREEN}[VERBOSE] [${caller_info}]${NC} $1" | tee -a "$LOG_DIR/framework.log"
+        {
+            echo -e "${GREEN}[VERBOSE] [${caller_info}]${NC} $1"
+            echo -e "[VERBOSE] [${caller_info}] $1" >> "$LOG_DIR/framework.log"
+        } >&2
     fi
+}
+
+# Debug logging - always goes to stderr
+log_debug() {
+    local caller_info
+    caller_info=$(_get_caller_info)
+    {
+        echo -e "${BLUE}[DEBUG] [${caller_info}]${NC} $*"
+        echo -e "[DEBUG] [${caller_info}] $*" >> "$LOG_DIR/framework.log"
+    } >&2
 }
 
 # Initialize log directory and basic logging
@@ -270,6 +303,6 @@ configure_logging_level() {
 
 # Export functions for use in other scripts
 export -f _get_caller_info
-export -f log log_success log_warning log_error log_info log_warn log_verbose
+export -f log log_success log_warning log_error log_info log_warn log_verbose log_debug
 export -f init_logging log_command log_test_result create_log_summary
 export -f configure_logging_level

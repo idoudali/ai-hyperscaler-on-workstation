@@ -23,6 +23,7 @@ if [ -z "${RED:-}" ]; then
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
     NC='\033[0m'
 fi
 
@@ -83,6 +84,62 @@ log_success() {
     fi
 }
 
+# Specialized logging functions for test results
+
+log_pass() {
+    local message="$1"
+    if command -v log_with_context >/dev/null 2>&1; then
+        # Call with caller info - we need to get one level up from here
+        local caller_source="${BASH_SOURCE[1]}"
+        local caller_line="${BASH_LINENO[0]}"
+        local timestamp
+        timestamp=$(date '+%H:%M:%S')
+        local display_source
+        display_source="$(basename "$caller_source")"
+        local context_label="${display_source}:L${caller_line}"
+        local script_name="${SCRIPT_NAME:-$(basename "$0")}"
+        echo -e "${GREEN}[PASS]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+    else
+        echo -e "${GREEN}[PASS]${NC} $message"
+    fi
+}
+
+log_fail() {
+    local message="$1"
+    if command -v log_with_context >/dev/null 2>&1; then
+        # Call with caller info - we need to get one level up from here
+        local caller_source="${BASH_SOURCE[1]}"
+        local caller_line="${BASH_LINENO[0]}"
+        local timestamp
+        timestamp=$(date '+%H:%M:%S')
+        local display_source
+        display_source="$(basename "$caller_source")"
+        local context_label="${display_source}:L${caller_line}"
+        local script_name="${SCRIPT_NAME:-$(basename "$0")}"
+        echo -e "${RED}[FAIL]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+    else
+        echo -e "${RED}[FAIL]${NC} $message"
+    fi
+}
+
+log_test() {
+    local message="$1"
+    if command -v log_with_context >/dev/null 2>&1; then
+        # Call with caller info - we need to get one level up from here
+        local caller_source="${BASH_SOURCE[1]}"
+        local caller_line="${BASH_LINENO[0]}"
+        local timestamp
+        timestamp=$(date '+%H:%M:%S')
+        local display_source
+        display_source="$(basename "$caller_source")"
+        local context_label="${display_source}:L${caller_line}"
+        local script_name="${SCRIPT_NAME:-$(basename "$0")}"
+        echo -e "${CYAN}[TEST]${NC} ${timestamp} | ${context_label} | $message" | tee -a "$LOG_DIR/${script_name}.log"
+    else
+        echo -e "${CYAN}[TEST]${NC} $message"
+    fi
+}
+
 # =============================================================================
 # Test Execution Functions
 # =============================================================================
@@ -91,7 +148,24 @@ log_success() {
 init_check_tests() {
     export TESTS_RUN=${TESTS_RUN:-0}
     export TESTS_PASSED=${TESTS_PASSED:-0}
+    export TESTS_FAILED=${TESTS_FAILED:-0}
     export FAILED_TESTS=()
+}
+
+# Record a test pass
+# Usage: test_pass "message"
+test_pass() {
+    local message="$1"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+    log_success "✓ $message"
+}
+
+# Record a test failure
+# Usage: test_fail "message"
+test_fail() {
+    local message="$1"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    log_error "✗ $message"
 }
 
 # Run a single test with standardized tracking
@@ -113,6 +187,7 @@ run_test() {
         return 0
     else
         log_error "✗ Test failed: $test_name"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         FAILED_TESTS+=("$test_name")
         return 1
     fi
@@ -120,7 +195,7 @@ run_test() {
 
 # Print test summary (standardized format)
 print_check_summary() {
-    local failed_count=$((TESTS_RUN - TESTS_PASSED))
+    local failed_count=${TESTS_FAILED:-$((TESTS_RUN - TESTS_PASSED))}
 
     echo ""
     echo -e "${BLUE}=====================================${NC}"
@@ -130,10 +205,10 @@ print_check_summary() {
     echo -e "Tests passed: ${GREEN}${TESTS_PASSED}${NC}"
     echo -e "Tests failed: ${RED}${failed_count}${NC}"
 
-    if [ $failed_count -gt 0 ]; then
+    if [ "$failed_count" -gt 0 ]; then
         echo ""
         echo -e "${RED}Failed tests:${NC}"
-        for test in "${FAILED_TESTS[@]}"; do
+        for test in "${FAILED_TESTS[@]:-}"; do
             echo -e "  - ${RED}$test${NC}"
         done
         return 1

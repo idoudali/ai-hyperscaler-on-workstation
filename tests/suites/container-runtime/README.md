@@ -1,6 +1,12 @@
 # Container Runtime Test Suite
 
-Tests Singularity/Apptainer installation, configuration, and container execution.
+Tests Singularity/Apptainer installation, configuration, and container execution on compute nodes.
+
+## Execution Context
+
+**Location**: Executed ON compute nodes (not from controller)  
+**Framework**: HPC Runtime Framework  
+**Mode**: Compute node validation
 
 ## Test Scripts
 
@@ -12,14 +18,15 @@ Tests Singularity/Apptainer installation, configuration, and container execution
 
 ## Purpose
 
-Ensures Singularity/Apptainer is properly installed and can execute containers with
-appropriate security settings and resource access.
+Validates that Singularity/Apptainer is properly installed on compute nodes and can execute
+containers with appropriate security settings and resource access. Tests container runtime
+locally on each compute node before attempting SLURM orchestration.
 
 ## Prerequisites
 
 - Basic infrastructure tests passing
+- Compute nodes provisioned and accessible
 - Singularity/Apptainer installed on compute nodes
-- Test container images available
 
 ## Usage
 
@@ -27,6 +34,12 @@ appropriate security settings and resource access.
 ./run-container-runtime-tests.sh
 ```
 
+## Related Suites
+
+- **container-integration** - Tests container execution via SLURM (requires this suite passing)
+- **container-e2e** - Tests ML frameworks via SLURM containers (requires this suite passing)
+
 ## Dependencies
 
 - basic-infrastructure
+- slurm-compute (SLURM must be running on compute nodes)

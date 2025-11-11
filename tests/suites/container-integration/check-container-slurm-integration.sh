@@ -24,16 +24,6 @@ TEST_NAME="Container SLURM Integration"
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif}"
 CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-apptainer}"
 
-# SSH configuration
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa}"
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=10"
-
-# Build SSH command with key if available
-if [[ -f "$SSH_KEY_PATH" ]]; then
-  SSH_CMD="ssh -i $SSH_KEY_PATH $SSH_OPTS"
-else
-  SSH_CMD="ssh $SSH_OPTS"
-fi
 
 # Note: Logging functions provided by suite-logging.sh
 log_info_slurm() {
@@ -44,6 +34,12 @@ log_debug() {
   if [[ "${DEBUG:-0}" == "1" ]]; then
     echo -e "[DEBUG] $*" >&2
   fi
+}
+
+# Log command execution for debugging
+log_command() {
+  local cmd="$1"
+  log_debug "Executing: $cmd"
 }
 
 # Execute command with timeout and debugging
@@ -71,9 +67,11 @@ run_with_timeout() {
 test_slurm_available() {
   ((TESTS_RUN++))
   log_test "Checking SLURM availability"
+  log_command "sinfo --version"
 
   local slurm_check
-  slurm_check=$($SSH_CMD "${TEST_CONTROLLER}" "sinfo --version 2>&1" || echo "NOT_AVAILABLE")
+  # Run sinfo directly
+  slurm_check=$(sinfo --version 2>&1 || echo "NOT_AVAILABLE")
 
   if [[ "$slurm_check" != *"NOT_AVAILABLE"* ]] && [[ "$slurm_check" != *"command not found"* ]]; then
     log_pass "SLURM available: $slurm_check"
@@ -88,9 +86,11 @@ test_slurm_available() {
 test_compute_nodes_available() {
   ((TESTS_RUN++))
   log_test "Checking compute nodes availability"
+  log_command "sinfo -N -h -o '%N %T'"
 
   local nodes_output
-  nodes_output=$($SSH_CMD "${TEST_CONTROLLER}" "sinfo -N -h -o '%N %T' 2>&1" || echo "FAILED")
+  # Run sinfo directly
+  nodes_output=$(sinfo -N -h -o '%N %T' 2>&1 || echo "FAILED")
 
   if [[ "$nodes_output" != *"FAILED"* ]] && [[ "$nodes_output" != *"Unable to contact"* ]]; then
     local node_count
@@ -113,34 +113,34 @@ test_slurm_container_execution() {
   ((TESTS_RUN++))
   log_test "Testing container execution via srun"
 
-  # Create test script
-  local test_script="/tmp/slurm_container_test_$RANDOM.sh"
+  # Create test script in BeeGFS (shared across nodes)
+  local test_script="/mnt/beegfs/slurm_container_test_$RANDOM.sh"
 
-  log_debug "Creating test script: $test_script"
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOF'
+  log_command "Creating test script: $test_script"
+  cat > $test_script << 'EOF'
 #!/bin/bash
 set -x
-echo \"[DEBUG] Starting container execution test\"
-echo \"[DEBUG] Container runtime: $CONTAINER_RUNTIME\"
-echo \"[DEBUG] Container image: $CONTAINER_IMAGE\"
-echo \"[DEBUG] Hostname: \$(hostname)\"
-echo \"[DEBUG] PWD: \$(pwd)\"
-$CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 -c 'print(\"Container executed via SLURM\")'
-echo \"[DEBUG] Container execution completed with exit code: \$?\"
+echo "[DEBUG] Starting container execution test"
+echo "[DEBUG] Container runtime: $CONTAINER_RUNTIME"
+echo "[DEBUG] Container image: $CONTAINER_IMAGE"
+echo "[DEBUG] Hostname: $(hostname)"
+echo "[DEBUG] PWD: $(pwd)"
+$CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 -c 'print("Container executed via SLURM")'
+echo "[DEBUG] Container execution completed with exit code: $?"
 EOF
-chmod +x $test_script"
+chmod +x $test_script
 
   log_debug "Test script created, checking file..."
-  $SSH_CMD "${TEST_CONTROLLER}" "ls -lh $test_script"
+  ls -lh $test_script
 
   # Run via srun with enhanced debugging
-  log_debug "Executing: srun --ntasks=1 bash $test_script"
+  log_command "srun --ntasks=1 bash $test_script"
   log_info "Running srun (timeout: 30s)..."
   local srun_result
   local srun_exit_code=0
   set +e
   # shellcheck disable=SC2086
-  srun_result=$(timeout 30 $SSH_CMD "${TEST_CONTROLLER}" "srun --ntasks=1 bash $test_script 2>&1")
+  srun_result=$(timeout 30 srun --ntasks=1 bash $test_script 2>&1)
   srun_exit_code=$?
   set -e
 
@@ -149,7 +149,7 @@ chmod +x $test_script"
   log_debug "srun output (first 500 chars): ${srun_result:0:500}"
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   if [[ "$srun_result" == *"Container executed via SLURM"* ]]; then
     log_pass "Container execution via srun successful"
@@ -173,44 +173,44 @@ test_slurm_batch_job() {
   ((TESTS_RUN++))
   log_test "Testing container execution via sbatch"
 
-  # Create batch script
-  local batch_script="/tmp/slurm_batch_$RANDOM.sh"
+  # Create batch script in BeeGFS (shared across nodes)
+  local batch_script="/mnt/beegfs/slurm_batch_$RANDOM.sh"
 
-  log_debug "Creating batch script: $batch_script"
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $batch_script << 'EOF'
+  log_command "Creating batch script: $batch_script"
+  cat > $batch_script << 'EOF'
 #!/bin/bash
 #SBATCH --job-name=container_test
 #SBATCH --ntasks=1
 #SBATCH --time=00:01:00
-#SBATCH --output=/tmp/container_test_%j.out
+#SBATCH --output=/mnt/beegfs/container_test_%j.out
 
 set -x
-echo \"[DEBUG] Starting batch job\"
-echo \"[DEBUG] Job ID: \$SLURM_JOB_ID\"
-echo \"[DEBUG] Node: \$SLURMD_NODENAME\"
-echo \"[DEBUG] Container runtime: $CONTAINER_RUNTIME\"
-echo \"[DEBUG] Container image: $CONTAINER_IMAGE\"
+echo "[DEBUG] Starting batch job"
+echo "[DEBUG] Job ID: $SLURM_JOB_ID"
+echo "[DEBUG] Node: $SLURMD_NODENAME"
+echo "[DEBUG] Container runtime: $CONTAINER_RUNTIME"
+echo "[DEBUG] Container image: $CONTAINER_IMAGE"
 
 $CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 << PYEOF
 import sys
-print(f\"Python version: {sys.version}\")
-print(\"Container batch job completed successfully\")
+print(f"Python version: {sys.version}")
+print("Container batch job completed successfully")
 PYEOF
 
-echo \"[DEBUG] Container execution completed with exit code: \$?\"
-EOF"
+echo "[DEBUG] Container execution completed with exit code: $?"
+EOF
 
   log_debug "Batch script created, verifying..."
-  $SSH_CMD "${TEST_CONTROLLER}" "ls -lh $batch_script && head -n 5 $batch_script"
+  ls -lh $batch_script && head -n 5 $batch_script
 
   # Submit batch job
-  log_debug "Submitting batch job: sbatch $batch_script"
+  log_command "sbatch $batch_script"
   log_info "Submitting batch job (timeout: 30s)..."
   local job_submit
   local submit_exit_code=0
   set +e
   # shellcheck disable=SC2086
-  job_submit=$(timeout 30 $SSH_CMD "${TEST_CONTROLLER}" "sbatch $batch_script 2>&1")
+  job_submit=$(timeout 30 sbatch $batch_script 2>&1)
   submit_exit_code=$?
   set -e
 
@@ -236,7 +236,7 @@ EOF"
       log_debug "Checking job state (elapsed: ${wait_time}s)..."
       set +e
       # shellcheck disable=SC2086
-      job_state=$(timeout 10 $SSH_CMD "${TEST_CONTROLLER}" "squeue -j $job_id -h -o '%T' 2>/dev/null")
+      job_state=$(timeout 10 squeue -j $job_id -h -o '%T' 2>/dev/null)
       local squeue_exit=$?
       set -e
 
@@ -269,23 +269,23 @@ EOF"
     fi
 
     # Check job output
-    local output_file="/tmp/container_test_${job_id}.out"
+    local output_file="/mnt/beegfs/container_test_${job_id}.out"
     log_debug "Looking for job output file: $output_file"
 
     # First check if file exists
     local file_exists
-    file_exists=$($SSH_CMD "${TEST_CONTROLLER}" "[ -f $output_file ] && echo 'YES' || echo 'NO'")
+    file_exists=$([ -f "$output_file" ] && echo 'YES' || echo 'NO')
     log_debug "Output file exists: $file_exists"
 
     if [[ "$file_exists" == "YES" ]]; then
       log_debug "Reading job output..."
       local job_output
-      job_output=$($SSH_CMD "${TEST_CONTROLLER}" "cat $output_file 2>&1")
+      job_output=$(cat "$output_file" 2>&1)
       log_debug "Output length: ${#job_output} characters"
     else
-      log_debug "Output file not found, checking slurm logs directory..."
+      log_debug "Output file not found, checking beegfs logs directory..."
       local slurm_logs
-      slurm_logs=$($SSH_CMD "${TEST_CONTROLLER}" "ls -la /tmp/container_test_*.out 2>/dev/null || echo 'No slurm output files found'")
+      slurm_logs=$(ls -la /mnt/beegfs/container_test_*.out 2>/dev/null || echo 'No slurm output files found')
       log_info "Slurm output files:"
       echo "$slurm_logs" | while IFS= read -r line; do
         echo "       $line"
@@ -294,7 +294,7 @@ EOF"
     fi
 
     # Clean up
-    $SSH_CMD "${TEST_CONTROLLER}" "rm -f $batch_script $output_file"
+    rm -f "$batch_script" "$output_file"
 
     if [[ "$job_output" == *"Container batch job completed successfully"* ]]; then
       log_pass "Container batch job executed successfully"
@@ -312,7 +312,7 @@ EOF"
   else
     log_fail "Failed to submit batch job"
     log_info "Output: $job_submit"
-    $SSH_CMD "${TEST_CONTROLLER}" "rm -f $batch_script"
+    rm -f "$batch_script"
     return 1
   fi
 }
@@ -323,7 +323,7 @@ test_gpu_gres_allocation() {
 
   # Check if GPUs are configured
   local gres_check
-  gres_check=$($SSH_CMD "${TEST_CONTROLLER}" "sinfo -o '%n %G' 2>&1" || echo "FAILED")
+  gres_check=$(sinfo -o '%n %G' 2>&1 || echo "FAILED")
 
   if [[ "$gres_check" == *"FAILED"* ]] || [[ "$gres_check" == *"Unable to contact"* ]]; then
     log_info "Cannot check GRES configuration"
@@ -352,7 +352,7 @@ test_multi_node_container_job() {
 
   # Check if we have multiple nodes
   local node_count
-  node_count=$($SSH_CMD "${TEST_CONTROLLER}" "sinfo -N -h | wc -l" || echo "0")
+  node_count=$(sinfo -N -h | wc -l || echo "0")
 
   if [[ "$node_count" -lt 2 ]]; then
     log_info "Less than 2 compute nodes available, skipping multi-node test"
@@ -360,28 +360,28 @@ test_multi_node_container_job() {
     return 0
   fi
 
-  # Create multi-node test script
-  local test_script="/tmp/multinode_container_$RANDOM.sh"
+  # Create multi-node test script in BeeGFS (shared across nodes)
+  local test_script="/mnt/beegfs/multinode_container_$RANDOM.sh"
 
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOF'
+  cat > $test_script << 'EOF'
 #!/bin/bash
 $CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 << PYEOF
 import socket
 import os
-print(f\"Node: {socket.gethostname()}, Task ID: {os.getenv('SLURM_PROCID', 'N/A')}\")
+print(f"Node: {socket.gethostname()}, Task ID: {os.getenv('SLURM_PROCID', 'N/A')}")
 PYEOF
 EOF
-chmod +x $test_script"
+chmod +x $test_script
 
   # Run multi-node job
   log_debug "Executing multi-node: srun --ntasks=2 --nodes=2 bash $test_script"
   local multinode_result
   # shellcheck disable=SC2086
-  multinode_result=$(timeout 45 $SSH_CMD "${TEST_CONTROLLER}" "srun --ntasks=2 --nodes=2 bash $test_script 2>&1" || echo "FAILED")
+  multinode_result=$(timeout 45 srun --ntasks=2 --nodes=2 bash $test_script 2>&1 || echo "FAILED")
   log_debug "Multi-node srun completed"
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   if [[ "$multinode_result" != *"FAILED"* ]]; then
     local task_count
@@ -410,37 +410,37 @@ test_resource_isolation() {
   ((TESTS_RUN++))
   log_test "Testing resource isolation in container jobs"
 
-  # Create resource test script
-  local test_script="/tmp/resource_test_$RANDOM.sh"
+  # Create resource test script in BeeGFS (shared across nodes)
+  local test_script="/mnt/beegfs/resource_test_$RANDOM.sh"
 
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOF'
+  cat > $test_script << 'EOF'
 #!/bin/bash
 $CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 << PYEOF
 import os
 import psutil
 
 # Get process info
-print(f\"CPU count: {psutil.cpu_count()}\")
-print(f\"Memory available: {psutil.virtual_memory().available / (1024**3):.2f} GB\")
+print(f"CPU count: {psutil.cpu_count()}")
+print(f"Memory available: {psutil.virtual_memory().available / (1024**3):.2f} GB")
 
 # Check cgroup constraints
-if os.path.exists(\"/sys/fs/cgroup/memory/memory.limit_in_bytes\"):
-    with open(\"/sys/fs/cgroup/memory/memory.limit_in_bytes\") as f:
+if os.path.exists("/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+    with open("/sys/fs/cgroup/memory/memory.limit_in_bytes") as f:
         limit = int(f.read().strip())
-        print(f\"Cgroup memory limit: {limit / (1024**3):.2f} GB\")
+        print(f"Cgroup memory limit: {limit / (1024**3):.2f} GB")
 PYEOF
 EOF
-chmod +x $test_script"
+chmod +x $test_script
 
   # Run with resource constraints
   log_debug "Executing resource-constrained: srun --ntasks=1 --mem=1G bash $test_script"
   local resource_result
   # shellcheck disable=SC2086
-  resource_result=$(timeout 30 $SSH_CMD "${TEST_CONTROLLER}" "srun --ntasks=1 --mem=1G bash $test_script 2>&1" || echo "FAILED")
+  resource_result=$(timeout 30 srun --ntasks=1 --mem=1G bash $test_script 2>&1 || echo "FAILED")
   log_debug "Resource-constrained srun completed"
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   if [[ "$resource_result" == *"CPU count:"* ]] || [[ "$resource_result" == *"Memory available:"* ]]; then
     log_pass "Resource isolation test completed"
@@ -460,26 +460,26 @@ test_container_mpi_slurm() {
   ((TESTS_RUN++))
   log_test "Testing MPI with containers via SLURM"
 
-  # Create MPI test script
-  local test_script="/tmp/mpi_slurm_$RANDOM.py"
+  # Create MPI test script in BeeGFS (shared across nodes)
+  local test_script="/mnt/beegfs/mpi_slurm_$RANDOM.py"
 
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOFMPI'
+  cat > $test_script << 'EOFMPI'
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-print(f\"MPI Rank {rank}/{size} via SLURM\")
-EOFMPI"
+print(f"MPI Rank {rank}/{size} via SLURM")
+EOFMPI
 
   # Run MPI job via SLURM
   log_debug "Executing MPI: srun --ntasks=4 $CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 $test_script"
   local mpi_result
   # shellcheck disable=SC2086
-  mpi_result=$(timeout 60 $SSH_CMD "${TEST_CONTROLLER}" "srun --ntasks=4 $CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 $test_script 2>&1" || echo "FAILED")
+  mpi_result=$(timeout 60 srun --ntasks=4 $CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 $test_script 2>&1 || echo "FAILED")
   log_debug "MPI srun completed with output length: ${#mpi_result}"
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   # Count MPI ranks
   local rank_count
@@ -510,13 +510,6 @@ main() {
   echo "═══════════════════════════════════════════════════════════"
   echo ""
 
-  # Validate environment
-  if [[ -z "${TEST_CONTROLLER:-}" ]]; then
-    echo -e "${RED}ERROR: TEST_CONTROLLER environment variable not set${NC}"
-    exit 1
-  fi
-
-  log_info "Testing controller: $TEST_CONTROLLER"
   log_info "Container image: $CONTAINER_IMAGE"
   log_info "Container runtime: $CONTAINER_RUNTIME"
 
@@ -529,42 +522,35 @@ main() {
   # Always enable DEBUG for better troubleshooting
   export DEBUG=1
   log_info "Enhanced debugging enabled for SLURM integration tests"
-  log_debug "SSH_KEY_PATH: ${SSH_KEY_PATH:-not set}"
-  log_debug "SSH command: $SSH_CMD"
-
-  # Test basic SSH connectivity
-  log_debug "Testing SSH connectivity to controller..."
-  if $SSH_CMD "${TEST_CONTROLLER}" "echo 'SSH test OK'" 2>&1 | grep -q "SSH test OK"; then
-    log_debug "SSH connectivity confirmed"
-  else
-    log_info "WARNING: SSH connectivity test failed - tests may fail"
-  fi
   echo ""
 
   # Run tests with progress indicators
+  # NOTE: Tests run directly on compute node (not via SSH)
+  # Failures are fatal - not masked by || true
+
   echo "[1/8] Testing SLURM availability..."
-  test_slurm_available || true
+  test_slurm_available || exit 1
 
   echo "[2/8] Testing compute nodes availability..."
-  test_compute_nodes_available || true
+  test_compute_nodes_available || exit 1
 
   echo "[3/8] Testing container execution via srun..."
-  test_slurm_container_execution || true
+  test_slurm_container_execution || exit 1
 
   echo "[4/8] Testing container execution via sbatch..."
-  test_slurm_batch_job || true
+  test_slurm_batch_job || exit 1
 
   echo "[5/8] Testing GPU GRES allocation..."
-  test_gpu_gres_allocation || true
+  test_gpu_gres_allocation || exit 1
 
   echo "[6/8] Testing multi-node container job..."
-  test_multi_node_container_job || true
+  test_multi_node_container_job || exit 1
 
   echo "[7/8] Testing resource isolation..."
-  test_resource_isolation || true
+  test_resource_isolation || exit 1
 
   echo "[8/8] Testing MPI with containers via SLURM..."
-  test_container_mpi_slurm || true
+  test_container_mpi_slurm || exit 1
 
   # Summary
   echo ""

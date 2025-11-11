@@ -21,6 +21,7 @@ set -euo pipefail
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
 # Script configuration
+# shellcheck disable=SC2034
 SCRIPT_NAME="check-compute-registration.sh"
 TEST_NAME="SLURM Compute Node Registration Validation"
 
@@ -33,14 +34,9 @@ test_slurmd_service_running() {
         return 0
     fi
 
-    # Check if slurmd is installed first
-    if ! command -v slurmd >/dev/null 2>&1; then
-        log_warn "slurmd binary not found - SLURM may not be installed"
-        return 0
-    fi
-
+    # Check if slurmd service is active (most reliable check)
     if systemctl is-active --quiet slurmd; then
-        log_info "✓ slurmd service is running"
+        log_info "✓ slurmd service is active and running"
 
         # Get service status details
         local service_status
@@ -48,9 +44,27 @@ test_slurmd_service_running() {
         log_debug "slurmd service status: $(echo "$service_status" | grep -E 'Active:|Main PID:' | tr '\n' ' ')"
 
         return 0
+    fi
+
+    # If service is not active, check if binary exists at standard locations
+    local slurmd_locations=("/usr/sbin/slurmd" "/usr/bin/slurmd" "/usr/local/sbin/slurmd" "/opt/slurm/bin/slurmd")
+    local slurmd_found=false
+
+    for location in "${slurmd_locations[@]}"; do
+        if [ -f "$location" ] && [ -x "$location" ]; then
+            log_info "✓ slurmd binary found at: $location"
+            slurmd_found=true
+            break
+        fi
+    done
+
+    if [ "$slurmd_found" = true ]; then
+        log_warn "slurmd binary found but service is not active"
+        log_debug "Service may not be started or enabled. Use: systemctl start slurmd"
+        return 0
     else
-        log_warn "slurmd service is not running"
-        systemctl status slurmd --no-pager --lines=10 2>&1 | tee -a "$LOG_DIR/$SCRIPT_NAME.log" || true
+        log_warn "slurmd service not active and binary not found in standard locations"
+        log_debug "Checked locations: ${slurmd_locations[*]}"
         return 0
     fi
 }

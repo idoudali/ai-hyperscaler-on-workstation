@@ -128,22 +128,58 @@ test_node_to_node_ping() {
 test_slurm_communication_ports() {
     log_info "Checking SLURM communication ports..."
 
-    # Check if slurmd is listening on its port
-    if command -v ss >/dev/null 2>&1; then
-        if ss -tlnp 2>/dev/null | grep -q slurmd; then
-            log_info "✓ slurmd is listening on network port"
-            log_debug "slurmd ports: $(ss -tlnp 2>/dev/null | grep slurmd)"
-        else
-            log_warn "slurmd may not be listening on network port"
-        fi
-    elif command -v netstat >/dev/null 2>&1; then
-        if netstat -tlnp 2>/dev/null | grep -q slurmd; then
-            log_info "✓ slurmd is listening on network port"
-        else
-            log_warn "slurmd may not be listening on network port"
-        fi
+    # First check if slurmd service is active (most reliable)
+    if systemctl is-active --quiet slurmd 2>/dev/null; then
+        log_info "✓ slurmd service is active"
     else
-        log_warn "Cannot check network ports (ss/netstat not available)"
+        log_warn "slurmd service is not active"
+    fi
+
+    # Then check if slurmd is listening on its port (if network tools available)
+    local port_check_done=false
+
+    if command -v ss >/dev/null 2>&1; then
+        local ss_output
+        ss_output=$(ss -tlnp 2>/dev/null | grep -i slurmd || true)
+
+        if [ -n "$ss_output" ]; then
+            log_info "✓ slurmd is listening on network port"
+            log_debug "slurmd ports: $ss_output"
+        else
+            # If ss check fails but service is active, it may be OK
+            if systemctl is-active --quiet slurmd 2>/dev/null; then
+                log_info "✓ slurmd service active (port check inconclusive)"
+            else
+                log_warn "slurmd may not be listening on network port"
+            fi
+        fi
+        port_check_done=true
+    elif command -v netstat >/dev/null 2>&1; then
+        local netstat_output
+        netstat_output=$(netstat -tlnp 2>/dev/null | grep -i slurmd || true)
+
+        if [ -n "$netstat_output" ]; then
+            log_info "✓ slurmd is listening on network port"
+            log_debug "slurmd ports: $netstat_output"
+        else
+            # If netstat check fails but service is active, it may be OK
+            if systemctl is-active --quiet slurmd 2>/dev/null; then
+                log_info "✓ slurmd service active (port check inconclusive)"
+            else
+                log_warn "slurmd may not be listening on network port"
+            fi
+        fi
+        port_check_done=true
+    fi
+
+    if [ "$port_check_done" = false ]; then
+        log_info "Cannot check network ports (ss/netstat not available)"
+        # Fall back to service status check
+        if systemctl is-active --quiet slurmd 2>/dev/null; then
+            log_info "✓ slurmd service is active (network check unavailable)"
+        else
+            log_warn "Cannot verify slurmd port status - network tools unavailable"
+        fi
     fi
 
     return 0

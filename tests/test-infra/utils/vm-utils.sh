@@ -8,11 +8,12 @@
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 
 # Define fallback logging functions first (always available)
-log() { echo "[LOG] $*"; }
-log_debug() { echo "[DEBUG] $*"; }
+# All logging functions output to stderr to avoid contaminating stdout
+log() { echo "[LOG] $*" >&2; }
+log_debug() { echo "[DEBUG] $*" >&2; }
 log_error() { echo "[ERROR] $*" >&2; }
-log_success() { echo "[SUCCESS] $*"; }
-log_warning() { echo "[WARNING] $*"; }
+log_success() { echo "[SUCCESS] $*" >&2; }
+log_warning() { echo "[WARNING] $*" >&2; }
 
 # Try to source enhanced logging if available
 if [[ -f "$SCRIPT_DIR/log-utils.sh" ]]; then
@@ -26,7 +27,8 @@ fi
 # WARNING: The following SSH options disable host key checking and ignore the known hosts file.
 # This makes the system vulnerable to man-in-the-middle attacks and should NEVER be used in production.
 # These options are acceptable ONLY in isolated test environments for automation convenience.
-: "${SSH_OPTS:=-o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
+# Added -A flag for SSH agent forwarding to allow remote VMs to SSH to other VMs
+: "${SSH_OPTS:=-A -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
 
 _build_ssh_opts() {
     local -n _opts_ref=$1
@@ -74,6 +76,7 @@ get_vm_ip() {
     # Return empty if no IP found
     return 1
 }
+
 get_vm_ips_for_cluster() {
     local config_file="$1"
     local cluster_type="${2:-hpc}"

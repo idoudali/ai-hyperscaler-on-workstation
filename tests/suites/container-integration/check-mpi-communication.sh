@@ -24,29 +24,28 @@ TEST_NAME="MPI Communication"
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-/opt/containers/ml-frameworks/pytorch-cuda12.1-mpi4.1.sif}"
 CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-apptainer}"
 
-# SSH configuration
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa}"
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=10"
-
-# Build SSH command with key if available
-if [[ -f "$SSH_KEY_PATH" ]]; then
-  SSH_CMD="ssh -i $SSH_KEY_PATH $SSH_OPTS"
-else
-  SSH_CMD="ssh $SSH_OPTS"
-fi
 
 # Note: Logging functions provided by suite-logging.sh
 log_info_mpi() {
   echo -e "[INFO] $*"
 }
 
+# Log command execution for debugging - uses framework's log_debug when available
+log_command() {
+  local cmd="$1"
+  if command -v log_debug >/dev/null 2>&1; then
+    log_debug "Executing: $cmd"
+  fi
+}
+
 # Test functions
 test_mpi_available() {
   ((TESTS_RUN++))
   log_test "Checking MPI availability"
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE which mpirun"
 
   local mpi_check
-  mpi_check=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE which mpirun 2>&1" || echo "NOT_FOUND")
+  mpi_check=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" which mpirun 2>&1 || echo "NOT_FOUND")
 
   if [[ "$mpi_check" != *"NOT_FOUND"* ]] && [[ "$mpi_check" != *"no mpirun"* ]]; then
     log_pass "MPI available: $mpi_check"
@@ -61,9 +60,10 @@ test_mpi_available() {
 test_mpi_version() {
   ((TESTS_RUN++))
   log_test "Checking MPI version"
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun --version"
 
   local mpi_version
-  mpi_version=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun --version 2>&1 | head -n 1" || echo "FAILED")
+  mpi_version=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" mpirun --version 2>&1 | head -n 1 || echo "FAILED")
 
   if [[ "$mpi_version" != *"FAILED"* ]]; then
     log_pass "MPI version: $mpi_version"
@@ -78,9 +78,10 @@ test_mpi_version() {
 test_mpi4py_import() {
   ((TESTS_RUN++))
   log_test "Testing mpi4py import"
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 -c 'from mpi4py import MPI; print(f\"mpi4py version: {MPI.Get_version()}\")'"
 
   local mpi4py_test
-  mpi4py_test=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 -c 'from mpi4py import MPI; print(f\"mpi4py version: {MPI.Get_version()}\")' 2>&1" || echo "IMPORT_FAILED")
+  mpi4py_test=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" python3 -c 'from mpi4py import MPI; print(f"mpi4py version: {MPI.Get_version()}")' 2>&1 || echo "IMPORT_FAILED")
 
   if [[ "$mpi4py_test" != *"IMPORT_FAILED"* ]] && [[ "$mpi4py_test" != *"ModuleNotFoundError"* ]]; then
     log_pass "mpi4py imports successfully: $mpi4py_test"
@@ -97,21 +98,22 @@ test_mpi_hello_world() {
   log_test "Testing MPI Hello World (single process)"
 
   local test_script="/tmp/mpi_hello_$RANDOM.py"
+  log_command "Creating test script: $test_script"
 
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOFPY'
+  cat > $test_script << 'EOFPY'
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-print(f\"Hello from rank {rank} of {size}\")
+print(f"Hello from rank {rank} of {size}")
 EOFPY
-"
 
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 $test_script"
   local mpi_result
-  mpi_result=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE python3 $test_script 2>&1" || echo "FAILED")
+  mpi_result=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" python3 "$test_script" 2>&1 || echo "FAILED")
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   if [[ "$mpi_result" == *"Hello from rank 0 of 1"* ]]; then
     log_pass "MPI Hello World successful"
@@ -127,30 +129,26 @@ test_mpi_multiprocess() {
   ((TESTS_RUN++))
   log_test "Testing MPI multi-process execution (4 processes)"
 
-  # Create test script on controller
+  # Create test script locally
   local test_script="/tmp/mpi_test_$RANDOM.py"
+  log_command "Creating test script: $test_script"
 
-  local mpi_mp_script='
+  cat > $test_script << 'EOFMPI'
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 processor_name = MPI.Get_processor_name()
 print(f"Process {rank}/{size} on {processor_name}")
-'
-
-  # Write script to controller
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOFMPI'
-$mpi_mp_script
 EOFMPI
-"
 
   # Run with mpirun
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun -np 4 python3 $test_script"
   local mpi_mp_result
-  mpi_mp_result=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun -np 4 python3 $test_script 2>&1" || echo "FAILED")
+  mpi_mp_result=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" mpirun -np 4 python3 "$test_script" 2>&1 || echo "FAILED")
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   # Count number of process outputs
   local process_count
@@ -176,8 +174,9 @@ test_mpi_point_to_point() {
   log_test "Testing MPI point-to-point communication"
 
   local test_script="/tmp/mpi_p2p_$RANDOM.py"
+  log_command "Creating test script: $test_script"
 
-  local p2p_script='
+  cat > $test_script << 'EOFMPI'
 from mpi4py import MPI
 import numpy as np
 
@@ -196,20 +195,15 @@ if rank == 0:
 elif rank == 1:
     data = comm.recv(source=0, tag=11)
     print(f"Rank 1 received data: {data.tolist()}")
-'
-
-  # Write script to controller
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOFMPI'
-$p2p_script
 EOFMPI
-"
 
   # Run with mpirun
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun -np 2 python3 $test_script"
   local p2p_result
-  p2p_result=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun -np 2 python3 $test_script 2>&1" || echo "FAILED")
+  p2p_result=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" mpirun -np 2 python3 "$test_script" 2>&1 || echo "FAILED")
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   if [[ "$p2p_result" == *"sent data"* ]] && [[ "$p2p_result" == *"received data"* ]]; then
     log_pass "MPI point-to-point communication successful"
@@ -230,8 +224,9 @@ test_mpi_collective() {
   log_test "Testing MPI collective operations (broadcast)"
 
   local test_script="/tmp/mpi_collective_$RANDOM.py"
+  log_command "Creating test script: $test_script"
 
-  local collective_script='
+  cat > $test_script << 'EOFMPI'
 from mpi4py import MPI
 import numpy as np
 
@@ -246,20 +241,15 @@ else:
 
 data = comm.bcast(data, root=0)
 print(f"Rank {rank} received broadcast: {data.tolist()}")
-'
-
-  # Write script to controller
-  $SSH_CMD "${TEST_CONTROLLER}" "cat > $test_script << 'EOFMPI'
-$collective_script
 EOFMPI
-"
 
   # Run with mpirun
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun -np 4 python3 $test_script"
   local collective_result
-  collective_result=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun -np 4 python3 $test_script 2>&1" || echo "FAILED")
+  collective_result=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" mpirun -np 4 python3 "$test_script" 2>&1 || echo "FAILED")
 
   # Clean up
-  $SSH_CMD "${TEST_CONTROLLER}" "rm -f $test_script"
+  rm -f "$test_script"
 
   # Count successful broadcasts
   local broadcast_count
@@ -283,9 +273,10 @@ EOFMPI
 test_pmix_support() {
   ((TESTS_RUN++))
   log_test "Checking PMIx support"
+  log_command "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun --help | grep -i pmix"
 
   local pmix_check
-  pmix_check=$($SSH_CMD "${TEST_CONTROLLER}" "$CONTAINER_RUNTIME exec $CONTAINER_IMAGE mpirun --help 2>&1 | grep -i pmix || echo 'PMIX_NOT_FOUND'")
+  pmix_check=$($CONTAINER_RUNTIME exec "$CONTAINER_IMAGE" mpirun --help 2>&1 | grep -i pmix || echo 'PMIX_NOT_FOUND')
 
   if [[ "$pmix_check" != *"PMIX_NOT_FOUND"* ]]; then
     log_pass "PMIx support detected"
@@ -306,26 +297,21 @@ main() {
   echo "═══════════════════════════════════════════════════════════"
   echo ""
 
-  # Validate environment
-  if [[ -z "${TEST_CONTROLLER:-}" ]]; then
-    echo -e "${RED}ERROR: TEST_CONTROLLER environment variable not set${NC}"
-    exit 1
-  fi
-
-  log_info "Testing controller: $TEST_CONTROLLER"
   log_info "Container image: $CONTAINER_IMAGE"
   log_info "Container runtime: $CONTAINER_RUNTIME"
   echo ""
 
   # Run tests
-  test_mpi_available || true
-  test_mpi_version || true
-  test_mpi4py_import || true
-  test_mpi_hello_world || true
-  test_mpi_multiprocess || true
-  test_mpi_point_to_point || true
-  test_mpi_collective || true
-  test_pmix_support || true
+  # NOTE: All tests run to completion; failures are captured but don't stop execution
+  # Each test failure increments TESTS_FAILED counter
+  test_mpi_available || ((TESTS_FAILED+=1))
+  test_mpi_version || ((TESTS_FAILED+=1))
+  test_mpi4py_import || ((TESTS_FAILED+=1))
+  test_mpi_hello_world || ((TESTS_FAILED+=1))
+  test_mpi_multiprocess || ((TESTS_FAILED+=1))
+  test_mpi_point_to_point || ((TESTS_FAILED+=1))
+  test_mpi_collective || ((TESTS_FAILED+=1))
+  test_pmix_support || ((TESTS_FAILED+=1))
 
   # Summary
   echo ""

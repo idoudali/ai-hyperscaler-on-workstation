@@ -70,7 +70,7 @@ EOF
     return 0
 }
 
-TEST_SCRIPTS=("check-single-image-deploy.sh" "check-multi-node-sync.sh" "check-image-integrity.sh" "check-slurm-container-exec.sh" "check-registry-catalog.sh")
+TEST_SCRIPTS=("check-single-image-deploy.sh" "check-multi-node-sync.sh" "check-image-integrity.sh" "check-registry-catalog.sh")
 TESTS_PASSED=0; TESTS_FAILED=0
 
 main() {

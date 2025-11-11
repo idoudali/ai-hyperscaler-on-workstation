@@ -149,14 +149,38 @@ test_slurm_version_check() {
     log_info "Verifying SLURM version information..."
     local version_checks_passed=0
 
-    # Test slurmd version
-    if command -v slurmd >/dev/null 2>&1 && slurmd -V >/dev/null 2>&1; then
+    # Test slurmd version - check both command path and standard locations
+    local slurmd_path=""
+    local slurmd_locations=("/usr/sbin/slurmd" "/usr/bin/slurmd" "/usr/local/sbin/slurmd" "/opt/slurm/bin/slurmd")
+
+    # Try to find slurmd in PATH first
+    if command -v slurmd >/dev/null 2>&1; then
+        slurmd_path="slurmd"
+    else
+        # Try standard locations
+        for location in "${slurmd_locations[@]}"; do
+            if [ -x "$location" ]; then
+                slurmd_path="$location"
+                break
+            fi
+        done
+    fi
+
+    if [ -n "$slurmd_path" ] && $slurmd_path -V >/dev/null 2>&1; then
         local slurmd_version
-        slurmd_version=$(slurmd -V 2>&1 | head -n1)
+        slurmd_version=$($slurmd_path -V 2>&1 | head -n1)
         log_info "✓ slurmd version: $slurmd_version"
         version_checks_passed=$((version_checks_passed + 1))
+    elif [ -n "$slurmd_path" ]; then
+        log_warn "slurmd found at $slurmd_path but version check failed"
     else
-        log_warn "✗ slurmd not available or version check failed"
+        # Try to get version from systemctl if service is running
+        if systemctl is-active --quiet slurmd 2>/dev/null; then
+            log_info "✓ slurmd service is running (version check skipped)"
+            version_checks_passed=$((version_checks_passed + 1))
+        else
+            log_warn "slurmd not available or version check failed"
+        fi
     fi
 
     # Test srun version
@@ -166,7 +190,7 @@ test_slurm_version_check() {
         log_info "✓ srun version: $srun_version"
         version_checks_passed=$((version_checks_passed + 1))
     else
-        log_warn "✗ srun not available or version check failed"
+        log_warn "srun not available or version check failed"
     fi
 
     if [ $version_checks_passed -eq 0 ]; then

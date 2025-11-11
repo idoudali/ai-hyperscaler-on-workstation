@@ -10,238 +10,264 @@ set -euo pipefail
 
 PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
-# Script configuration
-SCRIPT_NAME="run-container-runtime-tests.sh"
-TEST_SUITE_NAME="Container Runtime Test Suite (Task 008)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve script and common utility directories (preserve this script's path)
+SUITE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SUITE_SCRIPT_DIR/../common" && pwd)"
+PROJECT_ROOT="$(cd "$SUITE_SCRIPT_DIR/../../.." && pwd)"
 
 # Source shared utilities
-source "$SCRIPT_DIR/../common/suite-config.sh"
-source "$SCRIPT_DIR/../common/suite-logging.sh"
-source "$SCRIPT_DIR/../common/suite-utils.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-utils.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-logging.sh"
+# shellcheck source=/dev/null
+source "${COMMON_DIR}/suite-test-runner.sh"
 
-# Initialize suite
+# Script configuration
+SCRIPT_NAME="run-container-runtime-tests.sh"
+TEST_SUITE_NAME="Container Runtime Test Suite"
+SCRIPT_DIR="$SUITE_SCRIPT_DIR"
+TEST_SUITE_DIR="$SUITE_SCRIPT_DIR"
+export SCRIPT_DIR
+export TEST_SUITE_DIR
+export PROJECT_ROOT
+
+# Configure logging directories
+: "${LOG_DIR:=$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/${SCRIPT_NAME%.sh}.log"
+touch "$LOG_FILE"
+
+# Initialize suite logging and test runner
 init_suite_logging "$TEST_SUITE_NAME"
-setup_suite_environment "$SCRIPT_NAME"
+init_test_runner
 
-# Streamlined test scripts per Task 008 and Task 009 specification
-# Reduced redundancy while maintaining comprehensive coverage
-TEST_SCRIPTS=(
+# Per-script results tracking
+declare -A SCRIPT_RESULTS
+declare -a EXECUTED_SCRIPTS
+
+# Test scripts categorized by execution context
+# BASIC_TESTS: Run on any node - container runtime installation and setup
+# shellcheck disable=SC2034
+declare -a BASIC_TESTS=(
     "check-singularity-install.sh"           # Task 008: Verify installation and version
-    "check-container-execution.sh"           # Task 008: Test container pull and execution
-    "check-comprehensive-security.sh"        # Task 009: Comprehensive security validation
-                                             # Consolidates: privilege escalation, filesystem isolation,
-                                             #               security policies, and container security tests
 )
 
-# Test tracking
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
-PARTIAL_TESTS=0
-FAILED_SCRIPTS=()
+# EXECUTION_TESTS: Run on any node - container execution capabilities
+# shellcheck disable=SC2034
+declare -a EXECUTION_TESTS=(
+    "check-container-execution.sh"           # Task 008: Test container pull and execution
+)
 
-# Function to run individual test script and track results
-run_test_script() {
-    local test_script="$1"
-    local test_name="$2"
+# SECURITY_TESTS: Run on any node - security validation
+# shellcheck disable=SC2034
+declare -a SECURITY_TESTS=(
+    "check-comprehensive-security.sh"        # Task 009: Comprehensive security validation
+)
 
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    echo "=================================================="  | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    log_suite_info "Running: $test_name"
-    log_suite_info "Script: $test_script"
-    echo "=================================================="  | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+# Legacy: all tests (for backwards compatibility)
+TEST_SCRIPTS=(
+    "check-singularity-install.sh"
+    "check-container-execution.sh"
+    "check-comprehensive-security.sh"
+)
 
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+# Pre-flight check functions
+check_container_runtime_availability() {
+    log_info "Checking container runtime availability..."
 
-    # Check if test script exists
-    if [[ ! -f "$SCRIPT_DIR/$test_script" ]]; then
-        log_suite_error "Test script not found: $SCRIPT_DIR/$test_script"
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-        FAILED_SCRIPTS+=("$test_script")
+    if command -v apptainer >/dev/null 2>&1; then
+        log_success "✓ Container runtime (apptainer) is available"
+        return 0
+    else
+        log_error "✗ Container runtime (apptainer) not found"
         return 1
     fi
+}
 
-    # Make script executable
-    chmod +x "$SCRIPT_DIR/$test_script"
+# Parse script results from log
+parse_script_results() {
+    local script_name="$1"
+    local log_file="$LOG_DIR/${script_name%.sh}.log"
 
-    # Export LOG_DIR for the test script
-    export LOG_DIR
+    # Initialize defaults
+    local tests_run=0
+    local tests_passed=0
+    local tests_failed=0
 
-    # Run the test script and capture output
-    if cd "$SCRIPT_DIR" && "./$test_script" 2>&1; then
-        local exit_code=${PIPESTATUS[0]}
+    # Debug output
+    log_debug "Parsing results for: $script_name"
+    log_debug "Log file path: $log_file"
+
+    # Extract test counters from log if available
+    if [[ -f "$log_file" ]]; then
+        log_debug "Log file found, size: $(wc -c < "$log_file") bytes"
+
+        # Look for test summary lines - match both formats:
+        # "Tests Run:    $TESTS_RUN" and "Tests Run: $TESTS_RUN"
+        tests_run=$(grep -E "^Tests Run:" "$log_file" 2>/dev/null | tail -1 | grep -oE '[0-9]+$') || tests_run=0
+        tests_passed=$(grep -E "^Tests Passed:" "$log_file" 2>/dev/null | tail -1 | grep -oE '[0-9]+$') || tests_passed=0
+        tests_failed=$(grep -E "^Tests Failed:" "$log_file" 2>/dev/null | tail -1 | grep -oE '[0-9]+$') || tests_failed=0
+
+        log_debug "Initial parse: Run=$tests_run, Passed=$tests_passed, Failed=$tests_failed"
+
+        # Fallback: count [PASS] and [FAIL] markers if summary not found
+        if [[ $tests_run -eq 0 ]]; then
+            log_debug "Summary lines not found, trying marker count fallback"
+            local pass_count
+            pass_count=$(grep -c "\\[PASS\\]" "$log_file" 2>/dev/null) || pass_count=0
+            local fail_count
+            fail_count=$(grep -c "\\[FAIL\\]" "$log_file" 2>/dev/null) || fail_count=0
+
+            log_debug "Marker counts: Pass markers=$pass_count, Fail markers=$fail_count"
+
+            if [[ $pass_count -gt 0 ]] || [[ $fail_count -gt 0 ]]; then
+                tests_run=$((pass_count + fail_count))
+                tests_passed=$pass_count
+                tests_failed=$fail_count
+                log_debug "Using fallback counts: Run=$tests_run, Passed=$tests_passed, Failed=$tests_failed"
+            fi
+        fi
     else
-        local exit_code=$?
+        log_warn "Log file not found: $log_file"
+        log_debug "Expected log file at: $log_file"
     fi
 
-    case $exit_code in
-        0)
-            log_suite_success "✅ $test_name: PASSED"
-            PASSED_TESTS=$((PASSED_TESTS + 1))
-            ;;
-        1)
-            log_suite_error "❌ $test_name: FAILED"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
-            FAILED_SCRIPTS+=("$test_script")
-            ;;
-        *)
-            log_suite_warning "⚠ $test_name: PARTIAL/UNKNOWN (exit code: $exit_code)"
-            PARTIAL_TESTS=$((PARTIAL_TESTS + 1))
-            ;;
-    esac
+    # Ensure we have valid numbers
+    tests_run=${tests_run:-0}
+    tests_passed=${tests_passed:-0}
+    tests_failed=${tests_failed:-0}
 
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    return "$exit_code"
+    # Store results in associative array
+    SCRIPT_RESULTS["${script_name}_run"]=$tests_run
+    SCRIPT_RESULTS["${script_name}_passed"]=$tests_passed
+    SCRIPT_RESULTS["${script_name}_failed"]=$tests_failed
+
+    # Track executed scripts
+    EXECUTED_SCRIPTS+=("$script_name")
+
+    log_debug "Final stored results: Run=${SCRIPT_RESULTS["${script_name}_run"]}, Passed=${SCRIPT_RESULTS["${script_name}_passed"]}, Failed=${SCRIPT_RESULTS["${script_name}_failed"]}"
 }
 
-# System information collection
-collect_system_info() {
-    log "Collecting system information..."
-
-    {
-        echo "=== System Information ==="
-        echo "Timestamp: $(date)"
-        echo "Hostname: $(hostname)"
-        echo "User: $(whoami)"
-        echo "Working Directory: $(pwd)"
-        echo "Test Suite Directory: $TEST_SUITE_DIR"
-        echo "Log Directory: $LOG_DIR"
-        echo ""
-        echo "Operating System:"
-        if [[ -f /etc/os-release ]]; then
-            grep PRETTY_NAME /etc/os-release | cut -d'"' -f2
-        else
-            echo "Unknown"
-        fi
-        echo "Kernel: $(uname -r)"
-        echo "Architecture: $(uname -m)"
-        echo ""
-        if command -v free >/dev/null 2>&1; then
-            echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
-        fi
-        if command -v nproc >/dev/null 2>&1; then
-            echo "CPU cores: $(nproc)"
-        fi
-        echo ""
-        echo "Container Runtime Information:"
-        if command -v apptainer >/dev/null 2>&1; then
-            echo "Apptainer version: $(apptainer --version 2>/dev/null || echo 'Version detection failed')"
-        else
-            echo "Apptainer: Not found"
-        fi
-        if command -v singularity >/dev/null 2>&1; then
-            echo "Singularity version: $(singularity --version 2>/dev/null || echo 'Version detection failed')"
-        else
-            echo "Singularity: Not found"
-        fi
-        echo ""
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-}
-
-# Main test execution - streamlined for reduced redundancy
-run_all_tests() {
-    log "Starting Container Runtime Test Suite execution (streamlined)..."
-
-    # Run streamlined test scripts with comprehensive coverage
-    run_test_script "check-singularity-install.sh" "Installation and Version Verification (Task 008)"
-    run_test_script "check-container-execution.sh" "Container Execution Capabilities (Task 008)"
-    run_test_script "check-comprehensive-security.sh" "Comprehensive Security Validation (Task 009)"
-}
-
-# Comprehensive summary report
-print_final_summary() {
-    echo | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    echo "=================================================="  | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-    log "$TEST_SUITE_NAME - FINAL RESULTS"
-    echo "=================================================="  | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-
-    {
-        echo "Test Execution Summary:"
-        echo "  Total test scripts: $TOTAL_TESTS"
-        echo "  Passed: $PASSED_TESTS"
-        echo "  Failed: $FAILED_TESTS"
-        echo "  Partial/Warning: $PARTIAL_TESTS"
-        echo ""
-        echo "Log Directory: $LOG_DIR"
-        echo "Available log files:"
-        find "$LOG_DIR" -name "*.log" -type f 2>/dev/null | sort | while read -r logfile; do
-            local filename
-            local size
-            filename=$(basename "$logfile")
-            size=$(stat -c%s "$logfile" 2>/dev/null || echo "0")
-            echo "  - $filename (${size} bytes)"
-        done || echo "  (No log files found)"
-        echo ""
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-
-    # Determine overall result
-    if [[ $FAILED_TESTS -eq 0 ]] && [[ $PASSED_TESTS -gt 0 ]]; then
-        if [[ $PARTIAL_TESTS -eq 0 ]]; then
-            {
-                echo "🎉 OVERALL STATUS: ALL TESTS PASSED"
-                echo "   Container runtime is working correctly per Task 008 and Task 009 requirements"
-                echo ""
-                echo "TASK 008 VALIDATION CRITERIA VERIFIED:"
-                echo "  ✅ Apptainer binary installed and functional"
-                echo "  ✅ All dependencies installed (fuse, squashfs-tools, uidmap, libfuse2, libseccomp2)"
-                echo "  ✅ Container can execute simple commands"
-                echo "  ✅ Version check returns expected output (>= 1.4.2)"
-                echo "  ✅ Security configuration properly applied"
-                echo ""
-                echo "TASK 009 VALIDATION CRITERIA VERIFIED:"
-                echo "  ✅ Privilege escalation prevention working"
-                echo "  ✅ Host filesystem access restrictions enforced"
-                echo "  ✅ Security policies properly configured"
-                echo "  ✅ SUID execution prevention active"
-                echo "  ✅ Container isolation functional"
-                echo ""
-                echo "ADDITIONAL VALIDATIONS COMPLETED:"
-                echo "  ✅ Container pull and execution functionality"
-                echo "  ✅ Bind mount capabilities"
-                echo "  ✅ Filesystem isolation"
-                echo "  ✅ User namespace isolation"
-                echo "  ✅ Security policy enforcement"
-            } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-            exit_status=0
-        else
-            {
-                echo "⚠  OVERALL STATUS: MOSTLY WORKING"
-                echo "   Container runtime is functional with some warnings per Task 008"
-            } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-            exit_status=0
-        fi
-    elif [[ $PASSED_TESTS -gt 0 ]] || [[ $PARTIAL_TESTS -gt 0 ]]; then
-        {
-            echo "⚠  OVERALL STATUS: PARTIAL FUNCTIONALITY"
-            echo "   Some components working, others may need configuration"
-            echo ""
-            if [[ ${#FAILED_SCRIPTS[@]} -gt 0 ]]; then
-                echo "Failed test scripts:"
-                printf '  ❌ %s\n' "${FAILED_SCRIPTS[@]}"
-            fi
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-        exit_status=1
-    else
-        {
-            echo "❌ OVERALL STATUS: TESTS FAILED"
-            echo "   Container runtime is not working correctly per Task 008 requirements"
-            echo ""
-            if [[ ${#FAILED_SCRIPTS[@]} -gt 0 ]]; then
-                echo "Failed test scripts:"
-                printf '  ❌ %s\n' "${FAILED_SCRIPTS[@]}"
-            fi
-        } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-        exit_status=1
+# Print per-script summary table
+print_scripts_summary() {
+    if [[ ${#EXECUTED_SCRIPTS[@]} -eq 0 ]]; then
+        return 0
     fi
 
-    {
-        echo "=================================================="
-        echo "Test Suite completed at: $(date)"
-        echo "=================================================="
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
+    echo ""
+    echo "─────────────────────────────────────────────────────────────"
+    echo "Per-Script Test Results Summary"
+    echo "─────────────────────────────────────────────────────────────"
+    echo ""
+    echo "Script Name                            | Run | Pass | Fail | Status"
+    echo "──────────────────────────────────────┼─────┼──────┼──────┼────────"
 
-    return $exit_status
+    local total_run=0
+    local total_passed=0
+    local total_failed=0
+
+    for script in "${EXECUTED_SCRIPTS[@]}"; do
+        local run=${SCRIPT_RESULTS["${script}_run"]:-0}
+        local passed=${SCRIPT_RESULTS["${script}_passed"]:-0}
+        local failed=${SCRIPT_RESULTS["${script}_failed"]:-0}
+
+        # Accumulate totals
+        total_run=$((total_run + run))
+        total_passed=$((total_passed + passed))
+        total_failed=$((total_failed + failed))
+
+        # Determine status
+        local status="⚠️  UNKNOWN"
+        if [[ $failed -gt 0 ]]; then
+            status="❌ FAILED"
+        elif [[ $run -eq 0 ]]; then
+            status="⊘  SKIPPED"
+        elif [[ $passed -eq $run ]]; then
+            status="✅ PASSED"
+        fi
+
+        # Format output (truncate script name if too long)
+        local display_name="${script:0:36}"
+        printf "%-37s | %3d | %4d | %4d | %s\n" "$display_name" "$run" "$passed" "$failed" "$status"
+    done
+
+    echo "──────────────────────────────────────┼─────┼──────┼──────┼────────"
+    printf "%-37s | %3d | %4d | %4d | %s\n" "TOTAL" "$total_run" "$total_passed" "$total_failed" "═══════"
+    echo ""
+}
+
+# Cleanup functions
+cleanup_test_environment() {
+    log_debug "Cleaning up test environment..."
+    # No specific cleanup needed for container runtime tests
+    log_debug "Test environment cleanup completed"
+}
+
+# Main execution function
+main() {
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}  $TEST_SUITE_NAME${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    log_info "Environment Information:"
+    log_info "- Hostname: $(hostname)"
+    log_info "- Container Runtime: apptainer"
+    log_info "- Test Suite: Container Runtime Validation (Task 008 & 009)"
+    log_info "- Test Scripts: ${#TEST_SCRIPTS[@]}"
+    echo ""
+
+    log_info "Pre-flight Checks:"
+    echo ""
+
+    # Check if container runtime is available (LOCAL check)
+    if ! check_container_runtime_availability; then
+        log_error "ERROR: Pre-flight check failed"
+        exit 1
+    fi
+    echo ""
+
+    log_success "Pre-flight checks complete. Starting tests..."
+    echo ""
+
+    # Run each test script and capture results
+    for script in "${TEST_SCRIPTS[@]}"; do
+        log_info ""
+        log_info "Executing: $script"
+        log_info "Log output: $LOG_DIR/${script%.sh}.log"
+
+        # Run test script with output redirected to log file
+        if "$TEST_SUITE_DIR/$script" > "$LOG_DIR/${script%.sh}.log" 2>&1; then
+            log_success "✓ Test script completed: $script"
+        else
+            local exit_code=$?
+            log_warn "⚠ Test script exit code: $exit_code for $script"
+        fi
+
+        # Parse results from this script's log
+        parse_script_results "$script"
+
+        # Show parsed results
+        local run=${SCRIPT_RESULTS["${script}_run"]:-0}
+        local passed=${SCRIPT_RESULTS["${script}_passed"]:-0}
+        local failed=${SCRIPT_RESULTS["${script}_failed"]:-0}
+        log_info "Parsed results: Run=$run, Passed=$passed, Failed=$failed"
+    done
+
+    # Cleanup
+    cleanup_test_environment
+
+    # Print per-script summary
+    print_scripts_summary
+
+    # Print overall test summary
+    print_test_summary
+    local test_result=$?
+
+    # Exit with result from summary
+    exit $test_result
 }
 
 # Help and usage information
@@ -253,34 +279,31 @@ USAGE:
     $0 [OPTIONS]
 
 DESCRIPTION:
-    Streamlined master test runner that executes all container runtime validation tests
-    as specified in Task 008 and Task 009. Tests are run in sequence with reduced
-    redundancy while maintaining comprehensive validation coverage.
+    Master test runner that executes all container runtime validation tests
+    as specified in Task 008 and Task 009 requirements.
 
-    This streamlined test suite validates:
+    This test suite validates:
     • Container runtime installation and version compliance (Task 008)
     • Container execution capabilities (pull, run, bind mounts) (Task 008)
     • Comprehensive security validation and enforcement (Task 009)
     • All required dependencies and security policies
 
 OPTIONS:
-    --help, -h          Show this help message
-    --verbose, -v       Enable verbose output
-    --list-tests        List available test scripts
-    --test-only SCRIPT  Run only specific test script
+    -v, --verbose       Enable verbose output
+    -h, --help          Show this help message
 
 ENVIRONMENT VARIABLES:
-    LOG_DIR            Directory for log files (default: ./logs/run-TIMESTAMP)
+    LOG_DIR             Directory for test logs (default: ./logs/run-YYYY-MM-DD_HH-MM-SS)
 
 TEST SCRIPTS INCLUDED:
 EOF
     for script in "${TEST_SCRIPTS[@]}"; do
-        echo "  • $script"
+        echo "  - $script"
     done
     cat << EOF
 
 LOG FILES:
-    All test results are saved to timestamped directories under LOG_DIR:
+    All test results saved to timestamped directories under LOG_DIR:
     • run-container-runtime-tests.log: Master runner output
     • check-singularity-install.log: Installation validation (Task 008)
     • check-container-execution.log: Execution capabilities (Task 008)
@@ -297,42 +320,24 @@ EXAMPLES:
     # Run with verbose output
     $0 --verbose
 
-    # List available tests
-    $0 --list-tests
-
-    # Run specific test only
-    $0 --test-only check-singularity-install.sh
+    # Show help
+    $0 --help
 
 EOF
 }
 
-# Command line argument parsing
-VERBOSE_MODE=false
-LIST_TESTS=false
-TEST_ONLY=""
+# Parse command line arguments
+VERBOSE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --help|-h)
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -h|--help)
             show_usage
             exit 0
-            ;;
-        --verbose|-v)
-            VERBOSE_MODE=true
-            export VERBOSE_MODE
-            log "Verbose mode enabled"
-            ;;
-        --list-tests)
-            LIST_TESTS=true
-            ;;
-        --test-only)
-            shift
-            if [[ $# -gt 0 ]]; then
-                TEST_ONLY="$1"
-            else
-                log_error "--test-only requires a script name"
-                exit 1
-            fi
             ;;
         *)
             log_error "Unknown option: $1"
@@ -340,64 +345,16 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
     esac
-    shift
 done
 
-# Handle list tests option
-if [[ "$LIST_TESTS" == "true" ]]; then
-    echo "Available test scripts:"
-    for script in "${TEST_SCRIPTS[@]}"; do
-        echo "  • $script"
-        if [[ -f "$TEST_SUITE_DIR/$script" ]]; then
-            echo "    Status: Available"
-        else
-            echo "    Status: Missing"
-        fi
-    done
-    exit 0
+# Handle script interruption
+trap cleanup_test_environment EXIT
+
+# Enable verbose mode if requested
+if [ "$VERBOSE" = true ]; then
+    set -x
+    log_debug "Verbose mode enabled"
 fi
 
-# Main execution
-main() {
-    {
-        echo "========================================"
-        echo "$TEST_SUITE_NAME"
-        echo "========================================"
-        echo "Master Runner: $SCRIPT_NAME"
-        echo "Started: $(date)"
-        echo "Test Suite Directory: $TEST_SUITE_DIR"
-        echo "Log Directory: $LOG_DIR"
-        echo ""
-    } | tee -a "$LOG_DIR/$SCRIPT_NAME.log"
-
-    # Collect system information
-    collect_system_info
-
-    # Handle single test execution
-    if [[ -n "$TEST_ONLY" ]]; then
-        log "Running single test: $TEST_ONLY"
-        if run_test_script "$TEST_ONLY" "Single Test: $TEST_ONLY"; then
-            log_success "Single test completed successfully"
-            exit 0
-        else
-            log_error "Single test failed"
-            exit 1
-        fi
-    fi
-
-    # Run all tests
-    log "=== Running Container Runtime Test Suite ==="
-    run_all_tests
-
-    # Generate final summary and exit with appropriate code
-    if print_final_summary; then
-        exit 0
-    else
-        exit 1
-    fi
-}
-
-# Execute main function if script is run directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
+# Execute main function
+main "$@"
