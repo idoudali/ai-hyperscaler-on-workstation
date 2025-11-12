@@ -16,7 +16,7 @@ This phase performs final validation of the consolidated infrastructure and comp
 documentation. All Phase 4 consolidation work (23 tasks) is complete, providing a solid foundation for final
 validation and production deployment.
 
-## Current Status (2025-11-10)
+## Current Status (2025-11-12)
 
 **✅ UNBLOCKED**: Phase 4 consolidation is 100% complete!
 
@@ -27,13 +27,50 @@ validation and production deployment.
 - ✅ **Tasks 038-043**: Storage infrastructure enhancement (6/6 complete)
 - ✅ **Tasks 044-048, 046.1**: Ansible role consolidation (7/7 complete)
 
+**Test Framework Consolidation Status:**
+
+- ✅ **6 operational frameworks** (down from 15+) - 60% reduction
+  - `tests/frameworks/` (3 frameworks):
+    - `test-hpc-packer-slurm-framework.sh` - SLURM controller & compute validation
+    - `test-hpc-runtime-framework.sh` - Runtime components (cgroup, GPU, DCGM, containers)
+    - `test-pcie-passthrough-framework.sh` - GPU passthrough validation
+  - `tests/advanced/` (3 frameworks):
+    - `test-beegfs-framework.sh` - BeeGFS distributed filesystem
+    - `test-virtio-fs-framework.sh` - VirtIO-FS host sharing
+    - `test-container-registry-framework.sh` - Container registry deployment
+- ✅ **Shared utilities created** in `tests/test-infra/utils/`:
+  - `framework-cli.sh` (459 lines) - Standardized CLI parser
+  - `framework-orchestration.sh` (504 lines) - Cluster lifecycle management
+  - `framework-template.sh` (419 lines) - Framework template
+- ✅ **42+ Makefile targets** added for framework operations
+- ✅ **~2,000-3,000 lines** of duplicate framework code eliminated
+- ✅ **Standardized CLI patterns** across all frameworks (e2e, start-cluster, stop-cluster, etc.)
+- ✅ **11 deprecated frameworks** deleted, archived to tests/legacy/
+
+**Test Suite Refactoring Status (NEW):**
+
+- ✅ **Suite utilities created** in `tests/suites/common/`:
+  - `suite-config.sh` - Common configuration
+  - `suite-logging.sh` - Standardized logging
+  - `suite-test-runner.sh` - Test execution framework
+  - `suite-check-helpers.sh` - Helper functions
+  - `suite-utils.sh` - General utilities
+- 🟡 **35 of 80+ test scripts refactored** (~44% complete)
+  - Refactored suites: container-integration, container-runtime, container-e2e, dcgm-monitoring,
+    gpu-gres, job-scripts, cgroup-isolation, slurm-controller, monitoring-stack, grafana,
+    beegfs, basic-infrastructure
+  - Remaining suites: slurm-compute, slurm-accounting, slurm-job-examples, container-deployment,
+    container-registry, gpu-validation, virtio-fs
+- 🎯 **Estimated ~1,000-1,500 additional lines** to be eliminated when refactoring completes
+
 **Ready for Phase 6:**
 
-- ✅ All consolidated test frameworks operational (3 frameworks in tests/frameworks/)
+- ✅ All 6 consolidated test frameworks operational
 - ✅ Storage enhancements complete (BeeGFS + VirtIO-FS integration)
 - ✅ Container registry on BeeGFS by default
 - ✅ 8 consolidated playbooks (down from 14)
-- ✅ 1,750-2,650 lines of duplicate code eliminated
+- ✅ 1,750-2,650 lines of duplicate code eliminated (frameworks + playbooks)
+- 🟡 Test suite refactoring in progress (44% complete)
 
 ---
 
@@ -44,6 +81,12 @@ validation and production deployment.
 **Objective:** Validate consolidated infrastructure and ensure production readiness
 
 **Estimated Duration:** 1-2 weeks
+
+**Note on Test Suite Refactoring:** Test suite refactoring is 44% complete (35 of 80+ scripts refactored).
+This can proceed in parallel with Phase 6 validation or as a follow-up activity (Phase 6.1). The refactored
+scripts are fully functional and don't block Phase 6 validation. Completing the remaining 56% would eliminate
+an additional 1,000-1,500 lines of duplicate code.
+See `planning/implementation-plans/task-lists/test-plan/09-test-suite-refactoring-plan.md` for details.
 
 ### Integration Testing with Consolidated Structure
 
@@ -63,9 +106,15 @@ work together correctly with simplified structure.
 
 **Deliverables:**
 
-- Run `test-hpc-packer-slurm` framework successfully
-- Run `test-hpc-runtime` framework successfully  
-- Run `test-pcie-passthrough` framework successfully (if applicable)
+- Run all 6 consolidated frameworks successfully:
+  - **Core frameworks** (tests/frameworks/):
+    - `test-hpc-packer-slurm-framework.sh` - SLURM controller & compute
+    - `test-hpc-runtime-framework.sh` - Runtime components
+    - `test-pcie-passthrough-framework.sh` - GPU passthrough (if applicable)
+  - **Advanced frameworks** (tests/advanced/):
+    - `test-beegfs-framework.sh` - BeeGFS distributed filesystem
+    - `test-virtio-fs-framework.sh` - VirtIO-FS host sharing
+    - `test-container-registry-framework.sh` - Container registry
 - Validate all test suites pass
 - Verify BeeGFS and VirtIO-FS storage integration
 - Validate container registry on BeeGFS
@@ -75,49 +124,82 @@ work together correctly with simplified structure.
 **Validation Workflow:**
 
 ```bash
+# Test core HPC frameworks
 cd tests/frameworks
 
-# Test SLURM Packer image builds (controller + compute)
-echo "Testing SLURM Packer builds..."
+echo "=== Testing Core HPC Frameworks ==="
+echo "Testing SLURM Packer builds (controller + compute)..."
 ./test-hpc-packer-slurm-framework.sh e2e
 
-# Test runtime configuration (all HPC components)
-echo "Testing HPC runtime configuration..."
+echo "Testing HPC runtime configuration (cgroup, GPU, DCGM, containers)..."
 ./test-hpc-runtime-framework.sh e2e
 
-# Test PCIe passthrough (if applicable)
-echo "Testing PCIe passthrough..."
+echo "Testing PCIe passthrough (if applicable)..."
 ./test-pcie-passthrough-framework.sh e2e
+
+# Test advanced integration frameworks
+cd ../advanced
+
+echo "=== Testing Advanced Integration Frameworks ==="
+echo "Testing BeeGFS distributed filesystem..."
+./test-beegfs-framework.sh e2e
+
+echo "Testing VirtIO-FS host sharing..."
+./test-virtio-fs-framework.sh e2e
+
+echo "Testing container registry deployment..."
+./test-container-registry-framework.sh e2e
 
 # Alternative: Use Makefile targets
 cd ..
-make test-frameworks
+make test-frameworks        # Run all frameworks
+make test-core-frameworks   # Run only core frameworks
+make test-advanced-frameworks # Run only advanced frameworks
 ```
 
 **Validation Criteria:**
 
+**Core Frameworks:**
+
 - [ ] SLURM Packer framework tests pass (controller + compute)
-- [ ] HPC runtime framework tests pass (all components)
-- [ ] PCIe passthrough tests pass (if applicable)
+- [ ] HPC runtime framework tests pass (all components: cgroup, GPU, DCGM, containers)
+- [ ] PCIe passthrough tests pass (if GPUs available)
+
+**Advanced Integration Frameworks:**
+
+- [ ] BeeGFS framework tests pass (distributed filesystem)
+- [ ] VirtIO-FS framework tests pass (host directory sharing)
+- [ ] Container registry framework tests pass (registry deployment)
+
+**System Integration:**
+
 - [ ] All test suites execute without errors
 - [ ] SLURM cluster fully functional
-- [ ] BeeGFS storage operational and accessible
-- [ ] VirtIO-FS mounts working (controller)
-- [ ] Container registry on BeeGFS functional
-- [ ] Container workloads execute correctly
+- [ ] BeeGFS storage operational and accessible from all nodes
+- [ ] VirtIO-FS mounts working on controller
+- [ ] Container registry on BeeGFS functional and accessible
+- [ ] Container workloads execute correctly via SLURM
 - [ ] GPU GRES works (if GPUs present)
-- [ ] Monitoring stack operational
+- [ ] Monitoring stack operational (Prometheus, Grafana, DCGM)
 - [ ] No regressions from consolidation
-- [ ] 8 playbooks all functional
+- [ ] All 8 playbooks functional
+
+**Test Suite Refactoring:**
+
+- [ ] Suite utilities in tests/suites/common/ working correctly
+- [ ] Refactored test scripts (35+) execute properly
+- [ ] Remaining test scripts (45+) still functional
+- [ ] No test coverage lost during refactoring
 
 **Success Criteria:**
 
-- All frameworks execute successfully
-- Complete HPC cluster deploys correctly
+- All 6 frameworks execute successfully (3 core + 3 advanced)
+- Complete HPC cluster deploys correctly with all storage integration
 - All original functionality preserved
 - No errors in consolidated playbooks
 - Test execution time reasonable
 - Clear, actionable error messages
+- Test suite refactoring maintains 100% functionality
 
 ---
 
@@ -138,11 +220,19 @@ coverage and production readiness.
 **Deliverables:**
 
 - Run `make test-all` successfully
-- Validate all 3 consolidated frameworks operate correctly:
-  - `test-hpc-runtime-framework.sh`
-  - `test-hpc-packer-slurm-framework.sh`
-  - `test-pcie-passthrough-framework.sh`
-- Confirm all test suites in `suites/` execute properly
+- Validate all 6 consolidated frameworks operate correctly:
+  - **Core frameworks** (tests/frameworks/):
+    - `test-hpc-packer-slurm-framework.sh`
+    - `test-hpc-runtime-framework.sh`
+    - `test-pcie-passthrough-framework.sh`
+  - **Advanced frameworks** (tests/advanced/):
+    - `test-beegfs-framework.sh`
+    - `test-virtio-fs-framework.sh`
+    - `test-container-registry-framework.sh`
+- Confirm all test suites in `suites/` execute properly:
+  - Validate 35+ refactored scripts work correctly
+  - Verify remaining 45+ scripts still functional
+  - Test suite utilities in tests/suites/common/ operational
 - Validate all 8 consolidated playbooks work correctly
 - Verify storage integration (BeeGFS + VirtIO-FS)
 - Generate comprehensive validation report
@@ -189,13 +279,17 @@ grep -i "fail\|error" validation-report.log
 **Validation Criteria:**
 
 - [ ] `make test-all` completes without errors
-- [ ] All 3 consolidated frameworks functional
-- [ ] All test suites in `suites/` execute correctly
+- [ ] All 6 consolidated frameworks functional (3 core + 3 advanced)
+- [ ] All test suites in `suites/` execute correctly:
+  - [ ] 35+ refactored scripts using suite utilities
+  - [ ] 45+ remaining scripts still functional
+  - [ ] Suite utilities in tests/suites/common/ working
 - [ ] Packer builds produce working images
 - [ ] Runtime configuration deploys successfully
-- [ ] No missing test coverage
-- [ ] Performance acceptable
+- [ ] No missing test coverage from consolidation or refactoring
+- [ ] Performance acceptable (no significant degradation)
 - [ ] All validation criteria from individual tests met
+- [ ] Test suite refactoring maintains 100% functionality
 
 **Success Criteria:**
 
@@ -231,11 +325,17 @@ production deployment, providing clear guidance and operational procedures.
    - Explain storage backend configuration (BeeGFS/VirtIO-FS)
 
 2. `tests/README.md`
-   - Document 3 consolidated test frameworks
+   - Document 6 consolidated test frameworks
+   - Explain directory structure:
+     - `tests/frameworks/` - 3 core HPC frameworks
+     - `tests/advanced/` - 3 advanced integration frameworks
+     - `tests/suites/` - Component test suites (80+ scripts)
+     - `tests/suites/common/` - Shared suite utilities
    - Confirm no references to deleted frameworks remain
    - Update test execution examples
    - Document framework CLI patterns
-   - Explain framework organization in tests/frameworks/
+   - Document test suite refactoring status (44% complete)
+   - Document suite utilities in tests/suites/common/
 
 3. `docs/ANSIBLE-PLAYBOOK-GUIDE.md` (create if needed)
    - Comprehensive playbook documentation
@@ -282,8 +382,15 @@ production deployment, providing clear guidance and operational procedures.
 **Infrastructure Overview:**
 
 - 8 consolidated playbooks (43% reduction from 14)
-- 3 consolidated test frameworks (80% reduction from 15+)
-- 1,750-2,650 lines of duplicate code eliminated
+- 6 consolidated test frameworks (60% reduction from 15+)
+  - 3 core frameworks in tests/frameworks/
+  - 3 advanced frameworks in tests/advanced/
+- Test suite refactoring in progress:
+  - 35 of 80+ scripts refactored (44% complete)
+  - Shared utilities in tests/suites/common/
+  - Estimated 1,000-1,500 additional lines to be eliminated
+- 2,000-3,000 lines of duplicate framework code eliminated
+- 1,750-2,650 lines of duplicate playbook code eliminated
 - BeeGFS + VirtIO-FS storage integration
 - Container registry on BeeGFS by default
 
@@ -298,9 +405,15 @@ production deployment, providing clear guidance and operational procedures.
 
 **Test Frameworks:**
 
-- 3 frameworks in tests/frameworks/ directory
+- 6 frameworks total (60% reduction from 15+):
+  - 3 core frameworks in tests/frameworks/ (SLURM, runtime, PCIe)
+  - 3 advanced frameworks in tests/advanced/ (BeeGFS, VirtIO-FS, registry)
 - Standard CLI pattern (e2e, start-cluster, deploy-ansible, run-tests, etc.)
+- Shared utilities in tests/test-infra/utils/ (framework-cli.sh, framework-orchestration.sh, framework-template.sh)
+- Test suite utilities in tests/suites/common/ (suite-config.sh, suite-logging.sh, suite-utils.sh, etc.)
 - Test suite orchestration explained
+- 80+ test scripts across 20 test suites
+- 35+ scripts refactored (44% complete)
 - 42+ Makefile targets available
 - Legacy frameworks archived to tests/legacy/
 
@@ -364,15 +477,34 @@ echo "Building compute image with playbook-hpc-packer-compute.yml..."
 packer build hpc-compute.pkr.hcl
 
 # Step 2: Test images with consolidated frameworks
-cd ../../tests/frameworks
+cd ../../tests
+
+echo "=== Testing Core Frameworks ==="
+cd frameworks
 echo "Testing SLURM Packer builds..."
 ./test-hpc-packer-slurm-framework.sh e2e
 
-# Step 3: Deploy cluster and test runtime configuration
 echo "Testing HPC runtime configuration..."
 ./test-hpc-runtime-framework.sh e2e
 
-# Step 4: Validate storage integration
+echo "Testing PCIe passthrough (if applicable)..."
+./test-pcie-passthrough-framework.sh e2e
+
+echo "=== Testing Advanced Integration Frameworks ==="
+cd ../advanced
+echo "Testing BeeGFS distributed filesystem..."
+./test-beegfs-framework.sh e2e
+
+echo "Testing VirtIO-FS host sharing..."
+./test-virtio-fs-framework.sh e2e
+
+echo "Testing container registry deployment..."
+./test-container-registry-framework.sh e2e
+
+cd ..
+
+# Step 3: Validate storage integration
+echo "=== Validating Storage Integration ==="
 echo "Verifying BeeGFS storage..."
 ssh controller "beegfs-ctl --listnodes --nodetype=all"
 ssh controller "beegfs-df"
@@ -383,12 +515,12 @@ ssh controller "mount | grep virtiofs"
 echo "Verifying container registry on BeeGFS..."
 ssh controller "ls -la /mnt/beegfs/containers/"
 
-# Step 5: Run complete test suite
-cd ..
-echo "Running complete test suite..."
+# Step 4: Run complete test suite
+echo "=== Running Complete Test Suite ==="
 make test-all
 
-# Step 6: Validate production readiness
+# Step 5: Validate production readiness
+echo "=== Validating Production Readiness ==="
 echo "Checking production documentation..."
 ls -la docs/PRODUCTION-DEPLOYMENT.md
 ls -la docs/OPERATIONAL-RUNBOOK.md
@@ -410,10 +542,33 @@ ls -la docs/OPERATIONAL-RUNBOOK.md
 
 **Validation Criteria:**
 
+**Packer Image Builds:**
+
 - [ ] Controller Packer build succeeds with playbook-hpc-packer-controller.yml
 - [ ] Compute Packer build succeeds with playbook-hpc-packer-compute.yml
 - [ ] Images are functionally complete with all components
-- [ ] All 3 consolidated test frameworks pass
+
+**Core Framework Tests:**
+
+- [ ] SLURM Packer framework tests pass (controller + compute)
+- [ ] HPC runtime framework tests pass (cgroup, GPU, DCGM, containers)
+- [ ] PCIe passthrough framework tests pass (if GPUs available)
+
+**Advanced Integration Tests:**
+
+- [ ] BeeGFS framework tests pass (distributed filesystem)
+- [ ] VirtIO-FS framework tests pass (host directory sharing)
+- [ ] Container registry framework tests pass (registry deployment)
+
+**Test Suite Refactoring:**
+
+- [ ] Suite utilities in tests/suites/common/ operational
+- [ ] 35+ refactored scripts execute correctly
+- [ ] 45+ remaining scripts still functional
+- [ ] No test coverage lost during refactoring
+
+**System Integration:**
+
 - [ ] Complete HPC cluster deploys correctly
 - [ ] SLURM controller and compute communicate properly
 - [ ] BeeGFS storage operational on all nodes
@@ -422,30 +577,36 @@ ls -la docs/OPERATIONAL-RUNBOOK.md
 - [ ] Container workloads execute on SLURM
 - [ ] GPU GRES functions properly (if GPUs available)
 - [ ] Monitoring stack operational (Prometheus, Grafana, DCGM)
+
+**Documentation and Readiness:**
+
 - [ ] Production documentation complete and accurate
 - [ ] Operational runbooks created and tested
 - [ ] No regressions from consolidation
 - [ ] All original functionality preserved
-- [ ] 8 playbooks all validated and working
+- [ ] All 8 playbooks validated and working
 
 **Success Criteria:**
 
 - All Packer builds complete successfully
-- All 3 test frameworks pass validation
+- All 6 test frameworks pass validation (3 core + 3 advanced)
 - Complete HPC cluster fully operational
 - BeeGFS and VirtIO-FS storage integration working
 - Container registry on BeeGFS operational
 - Container workloads execute without errors
 - GPU GRES scheduling works (if applicable)
 - Monitoring metrics collected correctly
+- Test suite refactoring maintains 100% functionality
 - Production documentation complete
 - Operational runbooks validated
 - Documentation matches implementation
 - System ready for production use
 - Consolidation goals achieved:
   - 43% reduction in playbooks (14 → 8)
-  - 80% reduction in frameworks (15+ → 3)
-  - 1,750-2,650 lines of duplicate code eliminated
+  - 60% reduction in frameworks (15+ → 6)
+  - 2,000-3,000 lines of duplicate framework code eliminated
+  - 1,750-2,650 lines of duplicate playbook code eliminated
+  - Test suite refactoring 44% complete (additional 1,000-1,500 lines to be eliminated)
   - No deprecated code remaining
   - Clean, maintainable structure
 
@@ -458,17 +619,39 @@ ls -la docs/OPERATIONAL-RUNBOOK.md
 ### Consolidation Goals Achieved (from Phase 4)
 
 - ✅ 43% reduction in playbooks (14 → 8)
-- ✅ 80% reduction in frameworks (15+ → 3)
-- ✅ 1,750-2,650 lines of duplicate code eliminated
-- ✅ No deprecated code remaining
+- ✅ 60% reduction in frameworks (15+ → 6)
+  - 3 core frameworks in tests/frameworks/
+  - 3 advanced frameworks in tests/advanced/
+- ✅ 2,000-3,000 lines of duplicate framework code eliminated
+- ✅ 1,750-2,650 lines of duplicate playbook code eliminated
+- 🟡 Test suite refactoring 44% complete (35 of 80+ scripts)
+  - Additional 1,000-1,500 lines to be eliminated
+- ✅ No deprecated framework code remaining (archived to tests/legacy/)
 - ✅ Clean, maintainable structure
 - ✅ BeeGFS + VirtIO-FS storage integration complete
 - ✅ Container registry on BeeGFS by default
 
 ### System Validation (Phase 6 Objectives)
 
+**Packer Builds:**
+
 - [ ] All Packer builds complete successfully
-- [ ] All 3 test frameworks pass validation
+
+**Framework Tests:**
+
+- [ ] All 6 test frameworks pass validation:
+  - [ ] Core frameworks (3): SLURM, runtime, PCIe passthrough
+  - [ ] Advanced frameworks (3): BeeGFS, VirtIO-FS, container registry
+
+**Test Suite Validation:**
+
+- [ ] Suite utilities in tests/suites/common/ operational
+- [ ] 35+ refactored scripts execute correctly
+- [ ] 45+ remaining scripts still functional
+- [ ] Complete test suite refactoring (remaining 56% - optional)
+
+**System Integration:**
+
 - [ ] Complete HPC cluster fully operational
 - [ ] BeeGFS storage working on all nodes
 - [ ] VirtIO-FS mounts working on controller
@@ -476,6 +659,9 @@ ls -la docs/OPERATIONAL-RUNBOOK.md
 - [ ] Container workloads execute without errors
 - [ ] GPU GRES scheduling works (if applicable)
 - [ ] Monitoring metrics collected correctly
+
+**Documentation and Certification:**
+
 - [ ] Production documentation complete
 - [ ] Operational runbooks created and validated
 - [ ] Documentation matches implementation
