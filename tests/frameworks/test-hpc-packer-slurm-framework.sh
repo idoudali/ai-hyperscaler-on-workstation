@@ -77,6 +77,7 @@ apply_log_level() {
 }
 
 # Parse framework options from CLI arguments
+# Skips commands (e2e, run-tests, etc.) and only parses options
 parse_slurm_mode() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -92,6 +93,10 @@ parse_slurm_mode() {
                 LOG_LEVEL="$2"
                 shift 2
                 ;;
+            # Skip known commands (they're handled separately)
+            e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|status|list-tests|help)
+                shift
+                ;;
             *)
                 shift
                 ;;
@@ -101,6 +106,7 @@ parse_slurm_mode() {
 
 # Run tests against an existing (already deployed) cluster
 # This function assumes the cluster is already running and just dispatches test suites
+# CRITICAL: This function does NOT start or stop VMs - it only runs tests against existing VMs
 run_tests_against_existing_cluster() {
     local test_config="$1"
     local test_scripts_dir="$2"
@@ -111,10 +117,12 @@ run_tests_against_existing_cluster() {
     log "Configuration: $test_config"
     log "Test Scripts: $test_scripts_dir"
     log "Target VM Pattern: $target_pattern"
+    log "NOTE: This command does NOT start or stop VMs - it only runs tests against existing VMs"
 
-    # Get VM IPs from existing cluster
+    # Get VM IPs from existing cluster (does NOT start VMs - only queries existing VMs)
     if ! get_vm_ips_for_cluster "$test_config" "hpc" "$target_pattern"; then
         log_error "Failed to get VM IP addresses from existing cluster"
+        log_error "VMs may not be running. Use 'start-cluster' command to start VMs first."
         return 1
     fi
 
@@ -231,10 +239,13 @@ build_job_examples() {
 }
 
 # Run all test suites based on mode (against existing cluster)
+# CRITICAL: This function does NOT start or stop VMs - it only runs tests against existing VMs
+# Use 'start-cluster' command separately to start VMs before running tests
 run_framework_specific_tests() {
     log "Running ${FRAMEWORK_NAME}..."
     log "Test mode: $TEST_MODE"
     log "Note: Running against EXISTING CLUSTER (no cluster startup/teardown)"
+    log "IMPORTANT: This command does NOT start or stop VMs - ensure VMs are running before use"
     log ""
 
     local failed=0 passed=0
@@ -367,26 +378,44 @@ show_framework_help() {
 }
 
 # Main execution
-# Extract command from first argument (before parsing options)
-COMMAND="${1:-}"
+# Extract command from arguments - look for commands anywhere (not just first position)
+# Valid commands: e2e, end-to-end, start-cluster, stop-cluster, deploy-ansible, run-tests, status, list-tests, help, --help
+COMMAND=""
+declare -a ARGS=("$@")
 
-# If first arg looks like a command (not an option), shift it before parsing options
-if [[ -n "$COMMAND" ]] && [[ ! "$COMMAND" =~ ^- ]]; then
-    shift || true
+# First, look for command in arguments (commands don't start with -)
+for arg in "${ARGS[@]}"; do
+    case "$arg" in
+        e2e|end-to-end|start-cluster|stop-cluster|deploy-ansible|run-tests|status|list-tests|help|--help)
+            COMMAND="$arg"
+            break
+            ;;
+    esac
+done
+
+# If no command found, try framework-cli (for backward compatibility)
+if [[ -z "$COMMAND" ]]; then
+    COMMAND=$(get_framework_command 2>/dev/null || echo "")
 fi
 
-# Parse remaining framework-specific options
+# If still no command, default to e2e (but only if no command was explicitly provided)
+if [[ -z "$COMMAND" ]]; then
+    # Check if first arg is an option (starts with -) - if so, user probably forgot command
+    if [[ -n "${1:-}" ]] && [[ "${1}" =~ ^- ]]; then
+        log_error "No command specified. Use 'run-tests', 'e2e', 'start-cluster', etc."
+        log_error "Run '$0 --help' for usage information"
+        exit 1
+    fi
+    COMMAND="e2e"  # Default fallback
+fi
+
+# Parse framework-specific options (this will skip the command if it's in the args)
 parse_slurm_mode "$@"
 
 # Apply logging level from CLI (after parsing)
 if ! apply_log_level "$LOG_LEVEL"; then
     log_error "Failed to set log level"
     exit 1
-fi
-
-# Get the command via framework-cli if not already set
-if [[ -z "$COMMAND" ]] || [[ "$COMMAND" =~ ^- ]]; then
-    COMMAND=$(get_framework_command)
 fi
 
 # Track exit code for test commands that should complete even on failure
@@ -397,7 +426,11 @@ case "$COMMAND" in
     "start-cluster") framework_start_cluster ;;
     "stop-cluster") framework_stop_cluster ;;
     "deploy-ansible") framework_deploy_ansible "$FRAMEWORK_TARGET_VM_PATTERN" ;;
-    "run-tests") run_framework_specific_tests || exit_code=$? ;;
+    "run-tests")
+        # CRITICAL: run-tests ONLY runs tests - it does NOT start or stop VMs
+        # This command assumes VMs are already running and only executes test suites
+        run_framework_specific_tests || exit_code=$?
+        ;;
     "status") framework_get_cluster_status ;;
     "list-tests") find "$TESTS_DIR/suites" -name "run-*.sh" -o -name "check-*.sh" | head -30 ;;
     "help"|"--help") show_framework_help ;;
