@@ -27,6 +27,11 @@ SCRIPT_NAME="run-beegfs-tests.sh"
 # shellcheck disable=SC2034  # Used as metadata for logging/reporting
 TEST_NAME="BeeGFS Master Test Runner"
 
+# Override SCRIPT_DIR to point to the beegfs suite directory (not common)
+# This ensures test scripts can be found in the same directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SCRIPT_DIR
+
 # Default configuration
 CONTROLLER_IP="${CONTROLLER_IP:-}"
 COMPUTE_IPS="${COMPUTE_IPS:-}"

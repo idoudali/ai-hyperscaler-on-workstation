@@ -108,7 +108,7 @@ The test directory is organized into logical categories by purpose and execution
     - VMs: 1 controller + 2 compute
     - Config: `tests/test-infra/configs/test-container-registry.yaml`
     - Suites:
-      - `suites/container-registry/run-ansible-infrastructure-tests.sh`
+      - `suites/container-registry/run-container-registry-tests.sh`
   - `test-beegfs-framework.sh`
     - Purpose: Provisions BeeGFS services and exercises distributed filesystem performance
     - VMs: 1 controller + 3 BeeGFS/compute nodes

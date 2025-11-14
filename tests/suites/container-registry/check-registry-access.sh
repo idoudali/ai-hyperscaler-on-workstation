@@ -3,31 +3,25 @@
 
 set -euo pipefail
 
-# SSH configuration
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa}"
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=10"
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
-# Build SSH command with key if available
-if [[ -f "$SSH_KEY_PATH" ]]; then
-  SSH_CMD="ssh -i $SSH_KEY_PATH $SSH_OPTS"
-else
-  SSH_CMD="ssh $SSH_OPTS"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
 
 TEST_NAME="Container Registry Cross-Node Access"
-REGISTRY_BASE_PATH="${REGISTRY_BASE_PATH:-/opt/containers}"
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-TESTS_RUN=0; TESTS_PASSED=0; TESTS_FAILED=0
-
-log_test() { echo -e "${YELLOW}[TEST]${NC} $*"; }
-log_pass() { ((TESTS_PASSED++)); echo -e "${GREEN}[PASS]${NC} $*"; }
-log_fail() { ((TESTS_FAILED++)); echo -e "${RED}[FAIL]${NC} $*"; }
-log_info() { echo -e "[INFO] $*"; }
+REGISTRY_BASE_PATH="${REGISTRY_BASE_PATH:-/mnt/beegfs/containers}"
 
 test_controller_access() {
-  ((TESTS_RUN++))
   log_test "Checking controller access to registry"
-  if $SSH_CMD "${TEST_CONTROLLER}" "ls -la $REGISTRY_BASE_PATH" >/dev/null 2>&1; then
+  if exec_on_node "${TEST_CONTROLLER}" "ls -la $REGISTRY_BASE_PATH" >/dev/null 2>&1; then
     log_pass "Controller can access registry"
     return 0
   else
@@ -37,11 +31,10 @@ test_controller_access() {
 }
 
 test_compute_nodes_access() {
-  ((TESTS_RUN++))
   log_test "Checking compute nodes access to registry"
 
   local nodes
-  mapfile -t nodes < <($SSH_CMD "${TEST_CONTROLLER}" "sinfo -N -h -o '%N'" 2>/dev/null || echo "")
+  mapfile -t nodes < <(exec_on_node "${TEST_CONTROLLER}" "sinfo -N -h -o '%N'" 2>/dev/null || echo "")
 
   if [[ ${#nodes[@]} -eq 0 ]]; then
     log_info "No compute nodes detected, skipping"
@@ -50,7 +43,7 @@ test_compute_nodes_access() {
 
   local failed=0
   for node in "${nodes[@]}"; do
-    if $SSH_CMD "${TEST_CONTROLLER}" "ssh $node 'ls -la $REGISTRY_BASE_PATH' 2>/dev/null" >/dev/null; then
+    if exec_on_node "${TEST_CONTROLLER}" "ssh $node 'ls -la $REGISTRY_BASE_PATH' 2>/dev/null" >/dev/null; then
       log_info "  ✓ $node can access registry"
     else
       log_fail "  ✗ $node cannot access registry"
@@ -63,11 +56,10 @@ test_compute_nodes_access() {
 }
 
 test_ssh_connectivity() {
-  ((TESTS_RUN++))
   log_test "Checking SSH connectivity between nodes"
 
   local nodes
-  mapfile -t nodes < <($SSH_CMD "${TEST_CONTROLLER}" "sinfo -N -h -o '%N'" 2>/dev/null || echo "")
+  mapfile -t nodes < <(exec_on_node "${TEST_CONTROLLER}" "sinfo -N -h -o '%N'" 2>/dev/null || echo "")
 
   if [[ ${#nodes[@]} -eq 0 ]]; then
     log_info "No compute nodes, skipping"; return 0
@@ -75,7 +67,7 @@ test_ssh_connectivity() {
 
   local failed=0
   for node in "${nodes[@]}"; do
-    if $SSH_CMD "${TEST_CONTROLLER}" "ssh -o ConnectTimeout=5 -o BatchMode=yes $node hostname 2>/dev/null" >/dev/null; then
+    if exec_on_node "${TEST_CONTROLLER}" "ssh -o ConnectTimeout=5 -o BatchMode=yes $node hostname 2>/dev/null" >/dev/null; then
       log_info "  ✓ SSH to $node working"
     else
       log_fail "  ✗ SSH to $node failed"
@@ -88,24 +80,19 @@ test_ssh_connectivity() {
 }
 
 main() {
-  echo ""; echo "═══════════════════════════════════════════════════════════"
-  echo "  $TEST_NAME"; echo "═══════════════════════════════════════════════════════════"; echo ""
-  [[ -z "${TEST_CONTROLLER:-}" ]] && echo -e "${RED}ERROR: TEST_CONTROLLER not set${NC}" && exit 1
+  init_suite_logging "$TEST_NAME"
 
-  test_controller_access || true
-  test_compute_nodes_access || true
-  test_ssh_connectivity || true
-
-  echo ""; echo "═══════════════════════════════════════════════════════════"
-  echo "  Test Summary"; echo "═══════════════════════════════════════════════════════════"; echo ""
-  echo "Tests Run: $TESTS_RUN"; echo -e "Passed: ${GREEN}$TESTS_PASSED${NC}"; echo -e "Failed: ${RED}$TESTS_FAILED${NC}"; echo ""
-  if [[ $TESTS_FAILED -eq 0 ]]; then
-    echo -e "${GREEN}✓ All tests passed${NC}"
-    exit 0
-  else
-    echo -e "${RED}✗ Tests failed${NC}"
+  if [[ -z "${TEST_CONTROLLER:-}" ]]; then
+    log_error "TEST_CONTROLLER environment variable not set"
     exit 1
   fi
+
+  run_test "Controller Access" test_controller_access
+  run_test "Compute Nodes Access" test_compute_nodes_access
+  run_test "SSH Connectivity" test_ssh_connectivity
+
+  print_test_summary "$TEST_NAME"
+  exit_with_test_results
 }
 
 main "$@"

@@ -1,13 +1,12 @@
 #!/bin/bash
-#
 # Setup Local Test Environment
 # Creates a local test-run directory with all necessary files for testing
 # without requiring sudo or system-level directories
-#
 
 set -euo pipefail
 
-# Get script directory and project root
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 

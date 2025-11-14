@@ -5,37 +5,30 @@
 
 set -euo pipefail
 
-# SSH configuration
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa}"
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=10"
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
-# Build SSH command with key if available
-if [[ -f "$SSH_KEY_PATH" ]]; then
-  SSH_CMD="ssh -i $SSH_KEY_PATH $SSH_OPTS"
-else
-  SSH_CMD="ssh $SSH_OPTS"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
 
 TEST_NAME="Container Registry Permissions"
-REGISTRY_BASE_PATH="${REGISTRY_BASE_PATH:-/opt/containers}"
+REGISTRY_BASE_PATH="${REGISTRY_BASE_PATH:-/mnt/beegfs/containers}"
 EXPECTED_MODE="${EXPECTED_MODE:-775}"
 EXPECTED_OWNER="${EXPECTED_OWNER:-root}"
 EXPECTED_GROUP="${EXPECTED_GROUP:-slurm}"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-TESTS_RUN=0; TESTS_PASSED=0; TESTS_FAILED=0
-
-log_test() { echo -e "${YELLOW}[TEST]${NC} $*"; }
-log_pass() { ((TESTS_PASSED++)); echo -e "${GREEN}[PASS]${NC} $*"; }
-log_fail() { ((TESTS_FAILED++)); echo -e "${RED}[FAIL]${NC} $*"; }
-log_info() { echo -e "[INFO] $*"; }
-
 test_directory_permissions() {
-  ((TESTS_RUN++))
   log_test "Checking directory permissions"
 
   local stat_output
-  stat_output=$($SSH_CMD "${TEST_CONTROLLER}" "stat -c '%a %U %G' $REGISTRY_BASE_PATH")
+  stat_output=$(exec_on_node "${TEST_CONTROLLER}" "stat -c '%a %U %G' $REGISTRY_BASE_PATH")
   read -r mode owner group <<< "$stat_output"
 
   local failed=0
@@ -65,7 +58,6 @@ test_directory_permissions() {
 }
 
 test_subdirectory_permissions() {
-  ((TESTS_RUN++))
   log_test "Checking subdirectory permissions"
 
   local subdirs=("ml-frameworks" "custom-images" "base-images" ".registry")
@@ -73,7 +65,7 @@ test_subdirectory_permissions() {
 
   for subdir in "${subdirs[@]}"; do
     local stat_output
-    stat_output=$($SSH_CMD "${TEST_CONTROLLER}" "stat -c '%a %U %G' $REGISTRY_BASE_PATH/$subdir" 2>/dev/null || echo "000 none none")
+    stat_output=$(exec_on_node "${TEST_CONTROLLER}" "stat -c '%a %U %G' $REGISTRY_BASE_PATH/$subdir" 2>/dev/null || echo "000 none none")
     read -r mode owner group <<< "$stat_output"
 
     if [[ "$mode" == "$EXPECTED_MODE" && "$owner" == "$EXPECTED_OWNER" && "$group" == "$EXPECTED_GROUP" ]]; then
@@ -89,10 +81,9 @@ test_subdirectory_permissions() {
 }
 
 test_slurm_group_exists() {
-  ((TESTS_RUN++))
   log_test "Checking SLURM group exists"
 
-  if $SSH_CMD "${TEST_CONTROLLER}" "getent group $EXPECTED_GROUP >/dev/null"; then
+  if exec_on_node "${TEST_CONTROLLER}" "getent group $EXPECTED_GROUP >/dev/null"; then
     log_pass "SLURM group exists: $EXPECTED_GROUP"
     return 0
   else
@@ -102,11 +93,10 @@ test_slurm_group_exists() {
 }
 
 test_slurm_user_access() {
-  ((TESTS_RUN++))
   log_test "Checking SLURM user access to registry"
 
   local test_user="slurm"
-  if $SSH_CMD "${TEST_CONTROLLER}" "sudo -u $test_user test -r $REGISTRY_BASE_PATH && test -x $REGISTRY_BASE_PATH" 2>/dev/null; then
+  if exec_on_node "${TEST_CONTROLLER}" "sudo -u $test_user test -r $REGISTRY_BASE_PATH && test -x $REGISTRY_BASE_PATH" 2>/dev/null; then
     log_pass "SLURM user can access registry"
     return 0
   else
@@ -116,27 +106,24 @@ test_slurm_user_access() {
 }
 
 main() {
-  echo ""; echo "═══════════════════════════════════════════════════════════"
-  echo "  $TEST_NAME"; echo "═══════════════════════════════════════════════════════════"; echo ""
+  init_suite_logging "$TEST_NAME"
 
-  [[ -z "${TEST_CONTROLLER:-}" ]] && echo -e "${RED}ERROR: TEST_CONTROLLER not set${NC}" && exit 1
+  if [[ -z "${TEST_CONTROLLER:-}" ]]; then
+    log_error "TEST_CONTROLLER environment variable not set"
+    exit 1
+  fi
 
   log_info "Testing controller: $TEST_CONTROLLER"
-  log_info "Expected permissions: $EXPECTED_MODE $EXPECTED_OWNER:$EXPECTED_GROUP"; echo ""
-
-  test_directory_permissions || true
-  test_subdirectory_permissions || true
-  test_slurm_group_exists || true
-  test_slurm_user_access || true
-
-  echo ""; echo "═══════════════════════════════════════════════════════════"
-  echo "  Test Summary: $TEST_NAME"; echo "═══════════════════════════════════════════════════════════"; echo ""
-  echo "Tests Run:    $TESTS_RUN"; echo -e "Tests Passed: ${GREEN}$TESTS_PASSED${NC}"
-  [[ $TESTS_FAILED -gt 0 ]] && echo -e "Tests Failed: ${RED}$TESTS_FAILED${NC}" || echo "Tests Failed: $TESTS_FAILED"
+  log_info "Expected permissions: $EXPECTED_MODE $EXPECTED_OWNER:$EXPECTED_GROUP"
   echo ""
 
-  [[ $TESTS_FAILED -eq 0 ]] && echo -e "${GREEN}✓ All tests passed${NC}" && exit 0
-  echo -e "${RED}✗ Some tests failed${NC}" && exit 1
+  run_test "Directory Permissions" test_directory_permissions
+  run_test "Subdirectory Permissions" test_subdirectory_permissions
+  run_test "SLURM Group Exists" test_slurm_group_exists
+  run_test "SLURM User Access" test_slurm_user_access
+
+  print_test_summary "$TEST_NAME"
+  exit_with_test_results
 }
 
 main "$@"

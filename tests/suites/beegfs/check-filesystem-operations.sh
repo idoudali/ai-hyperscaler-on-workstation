@@ -19,7 +19,10 @@
 #   --help                  Show this help message
 
 source "$(dirname "${BASH_SOURCE[0]}")/../common/suite-utils.sh"
-set -euo pipefail
+# Disable 'set -e' from suite-utils.sh so we can continue running tests even if individual checks fail
+set +e
+set -uo pipefail
+# Note: We don't use 'set -e' because we want to continue running tests even if individual checks fail
 
 # Script configuration
 # shellcheck disable=SC2034  # Used as metadata for logging/reporting
@@ -35,6 +38,15 @@ VERBOSE="${VERBOSE:-false}"
 
 # SSH configuration
 SSH_USER="${SSH_USER:-admin}"
+# Use REMOTE_SSH_KEY_PATH if set (for inter-node SSH from controller), otherwise use SSH_KEY_PATH
+if [[ -n "${REMOTE_SSH_KEY_PATH:-}" ]]; then
+  SSH_KEY_PATH="$REMOTE_SSH_KEY_PATH"
+fi
+# Use provided SSH key path if it exists, otherwise fall back to default
+if [[ -n "${SSH_KEY_PATH:-}" ]] && [[ ! -f "$SSH_KEY_PATH" ]]; then
+  # SSH key path doesn't exist (likely running on VM with host path), use default
+  SSH_KEY_PATH="$HOME/.ssh/id_rsa"
+fi
 SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa}"
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 TEST_DIR="beegfs-test-$(date +%Y%m%d-%H%M%S)"
@@ -112,8 +124,15 @@ exec_on_node() {
     info "Executing on $node_ip: $cmd"
   fi
 
-  # shellcheck disable=SC2086
-  ssh $SSH_OPTS -i "$SSH_KEY_PATH" "$SSH_USER@$node_ip" "$cmd" 2>&1
+  # Use SSH key if it exists, otherwise rely on passwordless SSH or default key
+  if [[ -f "$SSH_KEY_PATH" ]]; then
+    # shellcheck disable=SC2086,SC2029
+    ssh $SSH_OPTS -i "$SSH_KEY_PATH" "$SSH_USER@$node_ip" "$cmd" 2>&1
+  else
+    # No SSH key file, try without -i option (use default key or passwordless)
+    # shellcheck disable=SC2086,SC2029
+    ssh $SSH_OPTS "$SSH_USER@$node_ip" "$cmd" 2>&1
+  fi
 }
 
 #######################################
@@ -139,11 +158,17 @@ test_mount_point() {
   fi
 
   # Check if mount point is a BeeGFS mount
-  if exec_on_node "$CONTROLLER_IP" "mount | grep -q '$BEEGFS_MOUNT_POINT.*beegfs'"; then
+  if exec_on_node "$CONTROLLER_IP" "mount | grep '$BEEGFS_MOUNT_POINT' | grep -q beegfs" >/dev/null 2>&1; then
     success "Mount point $BEEGFS_MOUNT_POINT is a BeeGFS filesystem"
     ((TESTS_PASSED++))
   else
     error "Mount point $BEEGFS_MOUNT_POINT is not a BeeGFS filesystem"
+    if [[ "$VERBOSE" == "true" ]]; then
+      local mount_info
+      mount_info=$(exec_on_node "$CONTROLLER_IP" "mount | grep '$BEEGFS_MOUNT_POINT'" 2>/dev/null || echo "Mount info unavailable")
+      warning "Mount information:"
+      while IFS= read -r line; do echo "  $line"; done <<< "$mount_info"
+    fi
     ((TESTS_FAILED++))
   fi
 

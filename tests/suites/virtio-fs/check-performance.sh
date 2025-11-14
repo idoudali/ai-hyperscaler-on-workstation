@@ -4,37 +4,29 @@
 
 set -euo pipefail
 
-# Initialize logging and colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
+
+TEST_NAME="Virtio-FS Performance Validation"
 LOG_FILE="${LOG_DIR:-/tmp}/virtio-fs-performance-test.log"
 
 # Performance thresholds (in MB/s)
 MIN_READ_SPEED=100
 MIN_WRITE_SPEED=100
 
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
+# Override log functions to also write to test-specific log
 log_perf() {
-    echo -e "${BLUE}[PERF]${NC} $1" | tee -a "$LOG_FILE"
+    echo -e "${BLUE}[PERF]${NC} $*" | tee -a "$LOG_FILE"
 }
 
 # =============================================================================
@@ -58,7 +50,7 @@ test_sequential_read_performance() {
 
     log_info "Creating $test_size_mb MB test file..."
     if ! dd if=/dev/zero of="$test_file" bs=1M count=$test_size_mb conv=fsync >/dev/null 2>&1; then
-        log_warning "Failed to create test file, skipping read performance test"
+        log_warn "Failed to create test file, skipping read performance test"
         return 1
     fi
 
@@ -79,9 +71,9 @@ test_sequential_read_performance() {
         log_perf "Sequential read: ${read_speed} MB/s"
 
         if (( $(echo "$read_speed >= $MIN_READ_SPEED" | bc -l) )); then
-            log_success "Read performance meets threshold (>= ${MIN_READ_SPEED} MB/s)"
+            log_pass "Read performance meets threshold (>= ${MIN_READ_SPEED} MB/s)"
         else
-            log_warning "Read performance below threshold (${MIN_READ_SPEED} MB/s)"
+            log_warn "Read performance below threshold (${MIN_READ_SPEED} MB/s)"
         fi
     else
         log_error "Failed to measure read performance"
@@ -107,7 +99,7 @@ test_sequential_write_performance() {
 
     # Check write permission
     if [ ! -w "$mount_point" ]; then
-        log_warning "$mount_point is not writable, skipping write performance test"
+        log_warn "$mount_point is not writable, skipping write performance test"
         return 0
     fi
 
@@ -127,9 +119,9 @@ test_sequential_write_performance() {
         log_perf "Sequential write: ${write_speed} MB/s"
 
         if (( $(echo "$write_speed >= $MIN_WRITE_SPEED" | bc -l) )); then
-            log_success "Write performance meets threshold (>= ${MIN_WRITE_SPEED} MB/s)"
+            log_pass "Write performance meets threshold (>= ${MIN_WRITE_SPEED} MB/s)"
         else
-            log_warning "Write performance below threshold (${MIN_WRITE_SPEED} MB/s)"
+            log_warn "Write performance below threshold (${MIN_WRITE_SPEED} MB/s)"
         fi
     else
         log_error "Failed to measure write performance"
@@ -155,7 +147,7 @@ test_random_io_performance() {
 
     # Check if fio is available
     if ! command -v fio >/dev/null 2>&1; then
-        log_warning "fio not available, skipping random I/O test"
+        log_warn "fio not available, skipping random I/O test"
         return 0
     fi
 
@@ -177,7 +169,7 @@ test_random_io_performance() {
         --output-format=json 2>/dev/null || echo "")
 
     if [ -n "$fio_output" ]; then
-        log_success "fio test completed"
+        log_pass "fio test completed"
         # Parse and display key metrics if jq is available
         if command -v jq >/dev/null 2>&1; then
             local read_iops write_iops
@@ -187,7 +179,7 @@ test_random_io_performance() {
             log_perf "Random write IOPS: $write_iops"
         fi
     else
-        log_warning "fio test failed or produced no output"
+        log_warn "fio test failed or produced no output"
     fi
 
     # Cleanup
@@ -211,7 +203,7 @@ test_metadata_performance() {
 
     # Create test directory
     if ! mkdir -p "$test_dir" 2>/dev/null; then
-        log_warning "Cannot create test directory, skipping metadata test"
+        log_warn "Cannot create test directory, skipping metadata test"
         return 0
     fi
 
@@ -256,7 +248,7 @@ test_metadata_performance() {
 
     log_perf "File deletion: ${ops_per_sec} ops/sec"
 
-    log_success "Metadata operations test completed"
+    log_pass "Metadata operations test completed"
     return 0
 }
 
@@ -277,7 +269,7 @@ test_small_file_performance() {
 
     # Create test directory
     if ! mkdir -p "$test_dir" 2>/dev/null; then
-        log_warning "Cannot create test directory, skipping small file test"
+        log_warn "Cannot create test directory, skipping small file test"
         return 0
     fi
 
@@ -314,7 +306,7 @@ test_small_file_performance() {
 
     # Cleanup
     rm -rf "$test_dir"
-    log_success "Small file I/O test completed"
+    log_pass "Small file I/O test completed"
     return 0
 }
 
@@ -367,7 +359,7 @@ test_latency() {
 
     # Cleanup
     rm -f "$test_file"
-    log_success "Latency test completed"
+    log_pass "Latency test completed"
     return 0
 }
 
@@ -376,7 +368,8 @@ test_latency() {
 # =============================================================================
 
 main() {
-    log_info "=== Starting Virtio-FS Performance Tests ==="
+    init_suite_logging "$TEST_NAME"
+
     log_info "Log file: $LOG_FILE"
 
     # Check for required tools
@@ -415,12 +408,12 @@ main() {
     log_info ""
     log_info "=== PERFORMANCE TEST SUMMARY ==="
     if [ ${#failed_tests[@]} -eq 0 ]; then
-        log_success "All virtio-fs performance tests completed!"
+        log_pass "All virtio-fs performance tests completed!"
         log_info "Review performance metrics above to assess I/O performance"
         exit 0
     else
-        log_warning "Some tests failed: ${failed_tests[*]}"
-        log_warning "Check the log file for details: $LOG_FILE"
+        log_warn "Some tests failed: ${failed_tests[*]}"
+        log_warn "Check the log file for details: $LOG_FILE"
         exit 1
     fi
 }

@@ -70,7 +70,7 @@ check_system_requirements() {
     local missing_commands=()
     for cmd in "${required_commands[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            log_warn "Optional command not found: $cmd"
+            log_error "Optional command not found: $cmd"
         fi
     done
 

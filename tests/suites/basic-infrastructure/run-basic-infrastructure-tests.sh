@@ -1,17 +1,26 @@
 #!/bin/bash
-
 # Basic Infrastructure Test Suite Master Script
 # This script orchestrates all basic infrastructure tests for Task 005 validation
 
 set -euo pipefail
 
-# Script configuration
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
 
 # Set PROJECT_ROOT if not already set
 if [[ -z "${PROJECT_ROOT:-}" ]]; then
     PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 fi
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+
+TEST_NAME="Basic Infrastructure Test Suite"
 
 # Logging configuration
 if [[ -z "${LOG_DIR:-}" ]]; then
@@ -25,19 +34,6 @@ export PROJECT_ROOT
 export SSH_KEY_PATH="${SSH_KEY_PATH:-$PROJECT_ROOT/build/shared/ssh-keys/id_rsa}"
 export SSH_USER="${SSH_USER:-admin}"
 export SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=10 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR}"
-
-# Logging functions
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_DIR}/master-test.log"
-}
-
-log_success() {
-    echo -e "\033[0;32m[$(date '+%Y-%m-%d %H:%M:%S')] ✓\033[0m $*" | tee -a "${LOG_DIR}/master-test.log"
-}
-
-log_error() {
-    echo -e "\033[0;31m[$(date '+%Y-%m-%d %H:%M:%S')] ✗\033[0m $*" | tee -a "${LOG_DIR}/master-test.log"
-}
 
 # Test configuration
 TESTS_DIR="${SCRIPT_DIR}"
@@ -53,12 +49,12 @@ declare -A TEST_RESULTS
 OVERALL_SUCCESS=true
 
 # Function to run individual test
-run_test() {
+run_suite_test() {
     local test_script="$1"
     local test_name="${test_script%.sh}"
     local test_log="${LOG_DIR}/${test_name}.log"
 
-    log "Starting test: ${test_name}"
+    log_info "Starting test: ${test_name}"
 
     if [[ ! -f "${TESTS_DIR}/${test_script}" ]]; then
         log_error "Test script not found: ${test_script}"
@@ -66,28 +62,27 @@ run_test() {
         return 1
     fi
 
-    # Make script executable
     chmod +x "${TESTS_DIR}/${test_script}"
 
-    # Run the test and capture output with tee for real-time visibility
-
+    set +e
     if "${TESTS_DIR}/${test_script}" 2>&1 | tee "${test_log}"; then
-        log_success "Test passed: ${test_name}"
+        log_pass "Test passed: ${test_name}"
         TEST_RESULTS["${test_name}"]="PASSED"
         return 0
     else
         local exit_code=$?
-        log_error "Test failed: ${test_name} (exit code: ${exit_code})"
+        log_fail "Test failed: ${test_name} (exit code: ${exit_code})"
         TEST_RESULTS["${test_name}"]="FAILED"
         return 1
     fi
+    set -e
 }
 
 # Function to generate test summary
 generate_summary() {
     local summary_file="${LOG_DIR}/test-summary.txt"
 
-    log "Generating test summary..."
+    log_info "Generating test summary..."
 
     {
         echo "Basic Infrastructure Test Suite Summary"
@@ -134,20 +129,20 @@ generate_summary() {
 
     } > "${summary_file}"
 
-    log "Test summary saved to: ${summary_file}"
+    log_info "Test summary saved to: ${summary_file}"
 }
 
-# Main execution
 main() {
-    log "Starting Basic Infrastructure Test Suite"
-    log "Test directory: ${TESTS_DIR}"
-    log "Log directory: ${LOG_DIR}"
-    log "Number of tests: ${#TEST_SCRIPTS[@]}"
+    init_suite_logging "$TEST_NAME"
+
+    log_info "Test directory: ${TESTS_DIR}"
+    log_info "Log directory: ${LOG_DIR}"
+    log_info "Number of tests: ${#TEST_SCRIPTS[@]}"
     echo ""
 
     # Run all tests
     for test_script in "${TEST_SCRIPTS[@]}"; do
-        if ! run_test "${test_script}"; then
+        if ! run_suite_test "${test_script}"; then
             OVERALL_SUCCESS=false
         fi
         echo ""
@@ -159,14 +154,13 @@ main() {
     # Final result
     echo "=================================================="
     if [[ "${OVERALL_SUCCESS}" == "true" ]]; then
-        log_success "All basic infrastructure tests passed!"
+        log_pass "All basic infrastructure tests passed!"
         exit 0
     else
-        log_error "Some basic infrastructure tests failed!"
-        log "Check individual test logs in: ${LOG_DIR}"
+        log_fail "Some basic infrastructure tests failed!"
+        log_info "Check individual test logs in: ${LOG_DIR}"
         exit 1
     fi
 }
 
-# Run main function
 main "$@"

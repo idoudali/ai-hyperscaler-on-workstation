@@ -4,22 +4,27 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
 
-# Source test framework utilities (save SCRIPT_DIR first as utils will overwrite it)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
+
+# Also source test framework utilities for cluster management
 UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
-SUITE_SCRIPT_DIR="$SCRIPT_DIR"
-# shellcheck source=../../test-infra/utils/log-utils.sh
-source "$UTILS_DIR/log-utils.sh"
 # shellcheck source=../../test-infra/utils/vm-utils.sh
 source "$UTILS_DIR/vm-utils.sh"
-# Restore SCRIPT_DIR to point to this suite directory
-SCRIPT_DIR="$SUITE_SCRIPT_DIR"
 
 # Test configuration
-TEST_CONFIG="${TEST_CONFIG:-$PROJECT_ROOT/tests/test-infra/configs/test-container-registry.yaml}"
+TEST_CONFIG="${TEST_CONFIG:-$PROJECT_ROOT/config/example-multi-gpu-clusters.yaml}"
 ANSIBLE_INVENTORY="$PROJECT_ROOT/tests/test-infra/inventory/suite1-infrastructure-inventory.ini"
 SSH_KEY_PATH="${SSH_KEY_PATH:-$PROJECT_ROOT/build/shared/ssh-keys/id_rsa}"
 SSH_USER="${SSH_USER:-admin}"
@@ -121,19 +126,29 @@ main() {
   echo "Test Scripts: ${#TEST_SCRIPTS[@]}"
   echo ""
 
-  # Check if registry base exists
-  echo "• Checking registry base directory..."
-  local registry_base="${REGISTRY_BASE_PATH:-/opt/containers}"
+  # Check if BeeGFS is mounted and registry exists
+  echo "• Checking BeeGFS mount and container registry..."
+  local beegfs_mount="/mnt/beegfs"
+  local registry_base="${REGISTRY_BASE_PATH:-/mnt/beegfs/containers}"
   local ssh_opts="-o ConnectTimeout=5 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes"
 
   if [[ -f "$SSH_KEY_PATH" ]]; then
-    if ssh -i "$SSH_KEY_PATH" "$ssh_opts" "$TEST_CONTROLLER" "[ -d '$registry_base' ]" 2>/dev/null; then
-      echo -e "  ${GREEN}✓${NC} Registry base directory exists: $registry_base"
+    # Check BeeGFS mount
+    if ssh -i "$SSH_KEY_PATH" "$ssh_opts" "$TEST_CONTROLLER" "mount | grep -q beegfs" 2>/dev/null; then
+      echo -e "  ${GREEN}✓${NC} BeeGFS is mounted"
+
+      # Check registry directory
+      if ssh -i "$SSH_KEY_PATH" "$ssh_opts" "$TEST_CONTROLLER" "[ -d '$registry_base' ]" 2>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} Container registry directory exists: $registry_base"
+      else
+        echo -e "  ${YELLOW}⚠${NC} Container registry directory not found: $registry_base"
+        echo "  It will be created automatically during tests if needed"
+      fi
     else
-      echo -e "  ${RED}✗${NC} Registry base directory not found: $registry_base"
+      echo -e "  ${RED}✗${NC} BeeGFS is not mounted at $beegfs_mount"
       echo ""
-      echo -e "${RED}WARNING: Container registry may not be deployed${NC}"
-      echo "Deploy first with: ./test-container-registry-framework.sh deploy-ansible"
+      echo -e "${RED}WARNING: BeeGFS must be deployed before container registry tests${NC}"
+      echo "Deploy BeeGFS first with: ./test-beegfs-framework.sh deploy-ansible"
       echo ""
       echo "Continuing with tests (some may fail)..."
     fi

@@ -93,8 +93,8 @@ test_nvidia_devices() {
         log_info "✓ Found ${#nvidia_devices[@]} NVIDIA device file(s)"
         return 0
     else
-        log_warn "No NVIDIA device files found (/dev/nvidia*)"
-        log_warn "This is expected if NVIDIA drivers are not installed"
+        log_error "No NVIDIA device files found (/dev/nvidia*)"
+        log_error "This is expected if NVIDIA drivers are not installed"
         return 0  # Not a hard failure
     fi
 }
@@ -116,12 +116,12 @@ test_nvidia_smi() {
 
             return 0
         else
-            log_warn "nvidia-smi failed to execute (drivers may not be loaded)"
+            log_error "nvidia-smi failed to execute (drivers may not be loaded)"
             return 0  # Not a hard failure
         fi
     else
-        log_warn "nvidia-smi not available"
-        log_warn "This is expected if NVIDIA drivers are not installed"
+        log_error "nvidia-smi not available"
+        log_error "This is expected if NVIDIA drivers are not installed"
         return 0  # Not a hard failure
     fi
 }
@@ -130,7 +130,7 @@ test_slurmd_gpu_detection() {
     log_info "Checking slurmd GPU detection..."
 
     if ! command -v slurmd >/dev/null 2>&1; then
-        log_warn "slurmd command not available"
+        log_error "slurmd command not available"
         return 0
     fi
 
@@ -163,7 +163,7 @@ test_gres_devices_file() {
     local gres_file="/etc/slurm/gres.conf"
 
     if [[ ! -f "$gres_file" ]]; then
-        log_warn "GRES configuration file not found: $gres_file"
+        log_error "GRES configuration file not found: $gres_file"
         return 0
     fi
 
@@ -203,7 +203,7 @@ test_gres_autodetect_capability() {
     local gres_file="/etc/slurm/gres.conf"
 
     if [[ ! -f "$gres_file" ]]; then
-        log_warn "GRES configuration file not found"
+        log_error "GRES configuration file not found"
         return 0
     fi
 
