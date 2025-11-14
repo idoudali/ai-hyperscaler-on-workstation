@@ -13,6 +13,7 @@
       - tmux
       - htop
       - vim
+      - bc
       - curl
       - wget
       - net-tools

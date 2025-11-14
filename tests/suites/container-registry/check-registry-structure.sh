@@ -5,59 +5,30 @@
 
 set -euo pipefail
 
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
+
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-check-helpers.sh"
+
 # Test configuration
 TEST_NAME="Container Registry Structure"
-REGISTRY_BASE_PATH="${REGISTRY_BASE_PATH:-/opt/containers}"
+REGISTRY_BASE_PATH="${REGISTRY_BASE_PATH:-/mnt/beegfs/containers}"
 EXPECTED_SUBDIRS=("ml-frameworks" "custom-images" "base-images" ".registry")
 EXPECTED_FILES=("README.md" ".registry/config.yaml" ".registry/catalog.yaml")
 
-# SSH configuration
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_rsa}"
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes -o ConnectTimeout=10"
-
-# Build SSH command with key if available
-if [[ -f "$SSH_KEY_PATH" ]]; then
-  SSH_CMD="ssh -i $SSH_KEY_PATH $SSH_OPTS"
-else
-  SSH_CMD="ssh $SSH_OPTS"
-fi
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# Test counters
-TESTS_RUN=0
-TESTS_PASSED=0
-TESTS_FAILED=0
-
-# Logging functions
-log_test() {
-  echo -e "${YELLOW}[TEST]${NC} $*"
-}
-
-log_pass() {
-  ((TESTS_PASSED++))
-  echo -e "${GREEN}[PASS]${NC} $*"
-}
-
-log_fail() {
-  ((TESTS_FAILED++))
-  echo -e "${RED}[FAIL]${NC} $*"
-}
-
-log_info() {
-  echo -e "[INFO] $*"
-}
-
 # Test functions
 test_base_directory_exists() {
-  ((TESTS_RUN++))
   log_test "Checking registry base directory exists: $REGISTRY_BASE_PATH"
 
-  if $SSH_CMD "${TEST_CONTROLLER}" "[ -d '$REGISTRY_BASE_PATH' ]"; then
+  if exec_on_node "${TEST_CONTROLLER}" "[ -d '$REGISTRY_BASE_PATH' ]"; then
     log_pass "Registry base directory exists"
     return 0
   else
@@ -67,13 +38,12 @@ test_base_directory_exists() {
 }
 
 test_subdirectories_exist() {
-  ((TESTS_RUN++))
   log_test "Checking required subdirectories exist"
 
   local failed=0
   for subdir in "${EXPECTED_SUBDIRS[@]}"; do
     local full_path="${REGISTRY_BASE_PATH}/${subdir}"
-    if $SSH_CMD "${TEST_CONTROLLER}" "[ -d '$full_path' ]"; then
+    if exec_on_node "${TEST_CONTROLLER}" "[ -d '$full_path' ]"; then
       log_info "  ✓ $subdir exists"
     else
       log_fail "  ✗ $subdir does not exist"
@@ -91,13 +61,12 @@ test_subdirectories_exist() {
 }
 
 test_required_files_exist() {
-  ((TESTS_RUN++))
   log_test "Checking required files exist"
 
   local failed=0
   for file in "${EXPECTED_FILES[@]}"; do
     local full_path="${REGISTRY_BASE_PATH}/${file}"
-    if $SSH_CMD "${TEST_CONTROLLER}" "[ -f '$full_path' ]"; then
+    if exec_on_node "${TEST_CONTROLLER}" "[ -f '$full_path' ]"; then
       log_info "  ✓ $file exists"
     else
       log_fail "  ✗ $file does not exist"
@@ -115,12 +84,11 @@ test_required_files_exist() {
 }
 
 test_structure_on_compute_nodes() {
-  ((TESTS_RUN++))
   log_test "Checking registry structure exists on compute nodes"
 
   # Check if SLURM is available
   local slurm_check
-  slurm_check=$($SSH_CMD "${TEST_CONTROLLER}" "sinfo --version 2>/dev/null || echo 'NOT_AVAILABLE'")
+  slurm_check=$(exec_on_node "${TEST_CONTROLLER}" "sinfo --version 2>/dev/null || echo 'NOT_AVAILABLE'")
 
   if [[ "$slurm_check" == "NOT_AVAILABLE" ]]; then
     log_info "SLURM not available, skipping compute node check"
@@ -130,7 +98,7 @@ test_structure_on_compute_nodes() {
 
   # Get compute nodes from SLURM
   local compute_nodes_output
-  compute_nodes_output=$($SSH_CMD "${TEST_CONTROLLER}" "sinfo -N -h -o '%N' 2>&1")
+  compute_nodes_output=$(exec_on_node "${TEST_CONTROLLER}" "sinfo -N -h -o '%N' 2>&1")
   local cmd_exit_code=$?
 
   # Check if command succeeded
@@ -158,7 +126,7 @@ test_structure_on_compute_nodes() {
     [[ -z "$node" ]] && continue  # Skip empty nodes
 
     log_info "Checking node: $node"
-    if $SSH_CMD "${TEST_CONTROLLER}" "$SSH_CMD $node '[ -d $REGISTRY_BASE_PATH ]'" 2>/dev/null; then
+    if exec_on_node "${TEST_CONTROLLER}" "$SSH_CMD $node '[ -d $REGISTRY_BASE_PATH ]'" 2>/dev/null; then
       log_info "  ✓ $node has registry structure"
     else
       log_fail "  ✗ $node missing registry structure"
@@ -176,11 +144,10 @@ test_structure_on_compute_nodes() {
 }
 
 test_directory_hierarchy() {
-  ((TESTS_RUN++))
   log_test "Validating directory hierarchy"
 
   local tree_output
-  tree_output=$($SSH_CMD "${TEST_CONTROLLER}" "tree -L 2 -d $REGISTRY_BASE_PATH 2>/dev/null || find $REGISTRY_BASE_PATH -type d -maxdepth 2 | sort")
+  tree_output=$(exec_on_node "${TEST_CONTROLLER}" "tree -L 2 -d $REGISTRY_BASE_PATH 2>/dev/null || find $REGISTRY_BASE_PATH -type d -maxdepth 2 | sort")
 
   log_info "Directory structure:"
   # Add leading spaces to each line
@@ -192,15 +159,10 @@ test_directory_hierarchy() {
 
 # Main execution
 main() {
-  echo ""
-  echo "═══════════════════════════════════════════════════════════"
-  echo "  $TEST_NAME"
-  echo "═══════════════════════════════════════════════════════════"
-  echo ""
+  init_suite_logging "$TEST_NAME"
 
-  # Validate environment
   if [[ -z "${TEST_CONTROLLER:-}" ]]; then
-    echo -e "${RED}ERROR: TEST_CONTROLLER environment variable not set${NC}"
+    log_error "TEST_CONTROLLER environment variable not set"
     exit 1
   fi
 
@@ -208,36 +170,14 @@ main() {
   log_info "Registry base path: $REGISTRY_BASE_PATH"
   echo ""
 
-  # Run tests
-  test_base_directory_exists || true
-  test_subdirectories_exist || true
-  test_required_files_exist || true
-  test_structure_on_compute_nodes || true
-  test_directory_hierarchy || true
+  run_test "Base Directory Exists" test_base_directory_exists
+  run_test "Subdirectories Exist" test_subdirectories_exist
+  run_test "Required Files Exist" test_required_files_exist
+  run_test "Structure on Compute Nodes" test_structure_on_compute_nodes
+  run_test "Directory Hierarchy" test_directory_hierarchy
 
-  # Summary
-  echo ""
-  echo "═══════════════════════════════════════════════════════════"
-  echo "  Test Summary: $TEST_NAME"
-  echo "═══════════════════════════════════════════════════════════"
-  echo ""
-  echo "Tests Run:    $TESTS_RUN"
-  echo -e "Tests Passed: ${GREEN}$TESTS_PASSED${NC}"
-  if [[ $TESTS_FAILED -gt 0 ]]; then
-    echo -e "Tests Failed: ${RED}$TESTS_FAILED${NC}"
-  else
-    echo -e "Tests Failed: $TESTS_FAILED"
-  fi
-  echo ""
-
-  if [[ $TESTS_FAILED -eq 0 ]]; then
-    echo -e "${GREEN}✓ All tests passed${NC}"
-    exit 0
-  else
-    echo -e "${RED}✗ Some tests failed${NC}"
-    exit 1
-  fi
+  print_test_summary "$TEST_NAME"
+  exit_with_test_results
 }
 
-# Run main function
 main "$@"

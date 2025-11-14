@@ -164,6 +164,13 @@
         msg: "Configuring HPC controller: {{ inventory_hostname }} -> {{ slurm_node_name | default('controller') }}"
 
   tasks:
+    - name: Install base packages
+      import_role:
+        name: base-packages
+      tags:
+        - packages
+        - setup
+
     # Parse VirtIO-FS mounts from JSON string (if provided as string)
     - name: Parse VirtIO-FS mounts configuration
       set_fact:
@@ -343,6 +350,13 @@
           - Container runtime: {{ slurm_container_enabled | default(true) }}
 
   tasks:
+    - name: Install base packages
+      import_role:
+        name: base-packages
+      tags:
+        - packages
+        - setup
+
     - name: Configure SLURM compute services
       import_role:
         name: slurm-compute

@@ -41,8 +41,8 @@ test_gres_config_file_exists() {
 
         return 0
     else
-        log_warn "✗ GRES configuration file not found: $GRES_CONFIG_FILE"
-        log_warn "This may be expected if GRES is not enabled"
+        log_error "✗ GRES configuration file not found: $GRES_CONFIG_FILE"
+        log_error "This may be expected if GRES is not enabled"
         return 0  # Not a hard failure
     fi
 }
@@ -51,7 +51,7 @@ test_gres_config_syntax() {
     log_info "Validating GRES configuration syntax..."
 
     if [[ ! -f "$GRES_CONFIG_FILE" ]]; then
-        log_warn "GRES configuration file not found, skipping syntax check"
+        log_error "GRES configuration file not found, skipping syntax check"
         return 0
     fi
 
@@ -82,7 +82,7 @@ test_gres_config_content() {
     log_info "Checking GRES configuration content..."
 
     if [[ ! -f "$GRES_CONFIG_FILE" ]]; then
-        log_warn "GRES configuration file not found, skipping content check"
+        log_error "GRES configuration file not found, skipping content check"
         return 0
     fi
 
@@ -167,7 +167,7 @@ test_gpu_detection_utilities() {
         if command -v "$util" >/dev/null 2>&1; then
             log_debug "✓ Utility available: $util"
         else
-            log_warn "✗ Missing utility: $util"
+            log_error "✗ Missing utility: $util"
             missing_utils+=("$util")
         fi
     done
@@ -176,7 +176,7 @@ test_gpu_detection_utilities() {
         log_info "✓ All GPU detection utilities available"
         return 0
     else
-        log_warn "Some utilities missing: ${missing_utils[*]}"
+        log_error "Some utilities missing: ${missing_utils[*]}"
         return 0  # Not a hard failure
     fi
 }

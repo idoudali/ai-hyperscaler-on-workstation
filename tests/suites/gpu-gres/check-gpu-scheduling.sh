@@ -82,13 +82,13 @@ test_sinfo_gres_display() {
         if echo "$gres_info" | grep -qi "gpu"; then
             log_info "✓ GPU resources visible in sinfo"
         else
-            log_warn "No GPU resources visible in sinfo"
-            log_warn "This may be expected if GPUs are not configured"
+            log_error "No GPU resources visible in sinfo"
+            log_error "This may be expected if GPUs are not configured"
         fi
 
         return 0
     else
-        log_warn "Failed to retrieve GRES information from sinfo"
+        log_error "Failed to retrieve GRES information from sinfo"
         return 0  # Not a hard failure
     fi
 }
@@ -183,12 +183,12 @@ test_gres_configuration_consistency() {
     # Check if both files exist
     local files_exist=true
     if [[ ! -f "$gres_conf" ]]; then
-        log_warn "GRES configuration file not found: $gres_conf"
+        log_error "GRES configuration file not found: $gres_conf"
         files_exist=false
     fi
 
     if [[ ! -f "$slurm_conf" ]]; then
-        log_warn "SLURM configuration file not found: $slurm_conf"
+        log_error "SLURM configuration file not found: $slurm_conf"
         files_exist=false
     fi
 

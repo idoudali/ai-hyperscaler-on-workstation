@@ -1,19 +1,26 @@
 #!/bin/bash
 # Test Suite 2 Master Runner: Image Deployment Tests
+
 set -euo pipefail
+
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
+COMMON_DIR="$(cd "$SCRIPT_DIR/../common" && pwd)"
 
-# Source test framework utilities (save SCRIPT_DIR first as utils will overwrite it)
+# Source shared utilities
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-utils.sh"
+# shellcheck source=/dev/null
+source "$COMMON_DIR/suite-logging.sh"
+
+# Source test framework utilities (for orchestration)
 UTILS_DIR="$PROJECT_ROOT/tests/test-infra/utils"
-SUITE_SCRIPT_DIR="$SCRIPT_DIR"
 # shellcheck source=../../test-infra/utils/log-utils.sh
 source "$UTILS_DIR/log-utils.sh"
 # shellcheck source=../../test-infra/utils/vm-utils.sh
 source "$UTILS_DIR/vm-utils.sh"
-# Restore SCRIPT_DIR to point to this suite directory
-SCRIPT_DIR="$SUITE_SCRIPT_DIR"
 
 # Test configuration
 TEST_CONFIG="${TEST_CONFIG:-$PROJECT_ROOT/tests/test-infra/configs/test-container-registry.yaml}"

@@ -14,7 +14,7 @@ Tests container image deployment, registry catalog management, and multi-node sy
 - **check-multi-node-sync.sh** - Validates image synchronization and availability across nodes
 - **check-image-integrity.sh** - Tests container image integrity and checksums
 - **check-registry-catalog.sh** - Validates registry catalog, permissions, and metadata
-- **run-image-deployment-tests.sh** - Main test runner for deployment tests
+- **run-container-deployment-tests.sh** - Main test runner for deployment tests
 
 **Note:** SLURM container execution is tested in:
 
@@ -39,7 +39,7 @@ Verifies that:
 ## Usage
 
 ```bash
-./run-image-deployment-tests.sh
+./run-container-deployment-tests.sh
 ```
 
 ## Related Suites

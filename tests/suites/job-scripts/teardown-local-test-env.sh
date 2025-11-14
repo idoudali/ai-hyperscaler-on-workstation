@@ -1,12 +1,11 @@
 #!/bin/bash
-#
 # Teardown Local Test Environment
 # Cleans up the local test-run directory
-#
 
 set -euo pipefail
 
-# Get script directory
+PS4='+ [$(basename ${BASH_SOURCE[0]}):L${LINENO}] ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Local test environment directory

@@ -126,7 +126,7 @@ test_slurm_binaries_available() {
             log_debug "✓ Binary available: $binary"
             available_binaries+=("$binary")
         else
-            log_warn "✗ Missing binary: $binary"
+            log_error "✗ Missing binary: $binary"
             missing_binaries+=("$binary")
         fi
     done
@@ -134,13 +134,13 @@ test_slurm_binaries_available() {
     log_info "Available binaries: ${#available_binaries[@]}/${#SLURM_BINARIES[@]}"
 
     if [ ${#available_binaries[@]} -eq 0 ]; then
-        log_warn "No SLURM binaries found"
+        log_error "No SLURM binaries found"
         return 0
     elif [ ${#missing_binaries[@]} -eq 0 ]; then
         log_info "All required SLURM binaries are available"
         return 0
     else
-        log_warn "Some binaries missing: ${missing_binaries[*]}"
+        log_error "Some binaries missing: ${missing_binaries[*]}"
         return 0
     fi
 }
@@ -227,7 +227,7 @@ test_munge_installation() {
     log_info "Checking MUNGE authentication system..."
 
     if ! command -v mungekey >/dev/null 2>&1; then
-        log_warn "mungekey command not found"
+        log_error "mungekey command not found"
         return 0
     fi
 

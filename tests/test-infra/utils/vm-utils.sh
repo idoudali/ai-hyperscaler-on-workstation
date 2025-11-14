@@ -736,7 +736,9 @@ execute_script_on_vm() {
         remote_project_root="$remote_tests_dir"
     fi
 
-    local cmd="cd '$remote_dir' && mkdir -p '$remote_log_dir' && LOG_DIR='$remote_log_dir' PROJECT_ROOT='$remote_project_root' TESTS_DIR='$remote_tests_dir' SSH_KEY_PATH='$SSH_KEY_PATH' SSH_USER='$SSH_USER' CONTROLLER_IP='$vm_ip' bash './$script_name'"
+    # Use REMOTE_SSH_KEY_PATH if set (for inter-node SSH), otherwise use SSH_KEY_PATH
+    local ssh_key_for_script="${REMOTE_SSH_KEY_PATH:-$SSH_KEY_PATH}"
+    local cmd="cd '$remote_dir' && mkdir -p '$remote_log_dir' && LOG_DIR='$remote_log_dir' PROJECT_ROOT='$remote_project_root' TESTS_DIR='$remote_tests_dir' SSH_KEY_PATH='$ssh_key_for_script' SSH_USER='$SSH_USER' CONTROLLER_IP='$vm_ip' bash './$script_name'"
     if [[ -n "$extra_args" ]]; then
         cmd+=" $extra_args"
     fi

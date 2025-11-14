@@ -20,6 +20,18 @@ base_packages_common:
   - iputils-ping
   - dnsutils
   - netcat-openbsd
+  - bc # Calculator for performance tests and calculations
+  - coreutils # Enhanced GNU core utilities (stat, date, etc.)
+  - util-linux # Additional utilities (mount, lsblk, etc.)
+  - procps # Process utilities (ps, top, etc.)
+  - gawk # GNU awk for text processing
+  - sed # Stream editor (usually included but explicit)
+  - grep # Pattern matching (usually included but explicit)
+  - findutils # find, locate, xargs
+  - less # Pager for viewing files
+  - sudo # Privilege escalation (if not already installed)
+  - ca-certificates # SSL certificate authorities
+  - openssh-client # SSH client utilities
 
 # HPC-specific packages (installed when package_profile=hpc)
 base_packages_hpc: []

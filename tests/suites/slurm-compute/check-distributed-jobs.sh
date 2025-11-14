@@ -115,7 +115,7 @@ test_job_environment() {
             log_debug "Found $slurm_vars SLURM environment variables"
             return 0
         else
-            log_warn "No SLURM environment variables found in job"
+            log_error "No SLURM environment variables found in job"
             return 0
         fi
     else
