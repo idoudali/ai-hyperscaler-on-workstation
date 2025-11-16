@@ -34,24 +34,29 @@
     # Kernel Headers Installation Strategy
     # This approach handles the common issue where kernel header packages don't exactly match
     # the running kernel version. We try multiple package name variations in order of preference:
-    # 1. Exact kernel version (e.g., linux-headers-6.12.38+deb13)
-    # 2. Kernel version without suffix (e.g., linux-headers-6.12.38)
-    # 3. Generic headers (e.g., linux-headers-generic)
-    # The until/retries logic ensures we try each option until one succeeds.
+    # 1. Exact kernel version (e.g., linux-headers-6.12.48+deb13-cloud-amd64)
+    # 2. Kernel version without suffix (e.g., linux-headers-6.12.48)
+    # 3. Cloud kernel headers (e.g., linux-headers-cloud-amd64)
+    # 4. Generic headers (e.g., linux-headers-generic)
+    # This is a 4-tier kernel headers installation strategy
 
-    - name: Find available kernel header packages
-      ansible.builtin.package_facts:
-        manager: apt
-      register: package_facts
+    - name: Install build tools and DKMS (required for NVIDIA kernel module build)
+      ansible.builtin.apt:
+        name:
+          - build-essential
+          - dkms
+          - gcc
+          - make
+        state: present
 
-    - name: Try to install exact kernel headers
+    - name: Try to install exact kernel headers for running kernel
       ansible.builtin.apt:
         name: "linux-headers-{{ ansible_kernel }}"
         state: present
       register: kernel_headers_exact
       failed_when: false
 
-    - name: Try to install kernel headers without suffix
+    - name: Try to install kernel headers without suffix (fallback 1)
       ansible.builtin.apt:
         name: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
         state: present
@@ -59,12 +64,20 @@
       when: kernel_headers_exact is failed
       failed_when: false
 
-    - name: Try to install generic kernel headers
+    - name: Try to install cloud kernel headers (fallback 2)
+      ansible.builtin.apt:
+        name: "linux-headers-cloud-amd64"
+        state: present
+      register: kernel_headers_cloud
+      when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed
+      failed_when: false
+
+    - name: Try to install generic kernel headers (fallback 3)
       ansible.builtin.apt:
         name: "linux-headers-generic"
         state: present
       register: kernel_headers_generic
-      when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed
+      when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed and (kernel_headers_cloud is not defined or kernel_headers_cloud is failed)
       failed_when: false
 
     - name: Set fact for successfully installed kernel header package (exact match)
@@ -77,6 +90,11 @@
         successful_kernel_header: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
       when: kernel_headers_no_suffix is succeeded
 
+    - name: Set fact for successfully installed kernel header package (cloud)
+      ansible.builtin.set_fact:
+        successful_kernel_header: "linux-headers-cloud-amd64"
+      when: kernel_headers_cloud is defined and kernel_headers_cloud is succeeded
+
     - name: Set fact for successfully installed kernel header package (generic)
       ansible.builtin.set_fact:
         successful_kernel_header: "linux-headers-generic"
@@ -85,19 +103,32 @@
     - name: Set fact for kernel header installation failure
       ansible.builtin.set_fact:
         successful_kernel_header: "none"
-      when: kernel_headers_exact is failed and kernel_headers_no_suffix is failed and kernel_headers_generic is failed
+      when: >
+        kernel_headers_exact is failed and (kernel_headers_no_suffix is not defined or kernel_headers_no_suffix is failed) and (kernel_headers_cloud is not defined or kernel_headers_cloud is failed) and (kernel_headers_generic is not defined or kernel_headers_generic is failed)
 
     - name: Verify kernel headers installation
       ansible.builtin.debug:
         msg: "Successfully installed kernel headers: {{ successful_kernel_header }}"
       when: successful_kernel_header != 'none'
 
-    - name: Warn about kernel headers installation failure
-      ansible.builtin.debug:
+    - name: Fail if kernel headers could not be installed
+      ansible.builtin.fail:
         msg: |
-          WARNING: Could not install kernel headers for kernel {{ ansible_kernel }}.
-          This may cause NVIDIA driver compilation issues.
-          Consider installing kernel headers manually or using a different kernel.
+          ❌ CRITICAL: Could not install kernel headers for kernel {{ ansible_kernel }}
+
+          Tried the following package names:
+          1. linux-headers-{{ ansible_kernel }} - {{ 'SUCCESS' if kernel_headers_exact is succeeded else 'FAILED' }}
+          2. linux-headers-{{ ansible_kernel.split('+')[0] }} - {{ 'SUCCESS' if (kernel_headers_no_suffix is defined and kernel_headers_no_suffix is succeeded) else 'FAILED' if (kernel_headers_no_suffix is defined and kernel_headers_no_suffix is failed) else 'NOT ATTEMPTED' }}
+          3. linux-headers-cloud-amd64 - {{ 'SUCCESS' if (kernel_headers_cloud is defined and kernel_headers_cloud is succeeded) else 'FAILED' if (kernel_headers_cloud is defined and kernel_headers_cloud is failed) else 'NOT ATTEMPTED' }}
+          4. linux-headers-generic - {{ 'SUCCESS' if (kernel_headers_generic is defined and kernel_headers_generic is succeeded) else 'FAILED' if (kernel_headers_generic is defined and kernel_headers_generic is failed) else 'NOT ATTEMPTED' }}
+
+          Manual fix:
+            1. Update apt cache: sudo apt-get update
+            2. Check available headers: apt-cache search linux-headers | grep {{ ansible_kernel.split('+')[0] }}
+            3. Install manually: sudo apt-get install -y linux-headers-$(uname -r)
+            4. Verify: dpkg -l | grep linux-headers
+
+          Without kernel headers, NVIDIA kernel modules cannot be built.
       when: successful_kernel_header == 'none'
 
     - name: Install NVIDIA detection utility
@@ -122,6 +153,234 @@
           - nvidia-settings
           - nvidia-smi
         state: present
+
+    # Check NVIDIA kernel modules after installation
+    # NVIDIA drivers are installed via apt and modules should be built automatically
+    # If headers were missing during install, modules might not exist
+    - name: Check if NVIDIA kernel modules exist for current kernel
+      ansible.builtin.find:
+        paths: "/lib/modules/{{ ansible_kernel }}"
+        patterns: "nvidia.ko*"
+        recurse: true
+      register: nvidia_module_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check if NVIDIA modules are loaded
+      ansible.builtin.shell:
+        cmd: "lsmod | grep -E '^nvidia' || true"
+      register: nvidia_modules_loaded
+      changed_when: false
+      failed_when: false
+
+    - name: Get installed NVIDIA driver version
+      ansible.builtin.shell:
+        cmd: "dpkg -l | grep '^ii.*nvidia-driver' | awk '{print $2}' | head -1"
+      register: nvidia_driver_package
+      changed_when: false
+      failed_when: false
+
+    - name: Check NVIDIA DKMS status
+      ansible.builtin.shell:
+        cmd: "dkms status | grep nvidia || echo 'NVIDIA not in DKMS'"
+      register: nvidia_dkms_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display NVIDIA kernel module status
+      ansible.builtin.debug:
+        msg: |
+          NVIDIA Kernel Module Status:
+          - Running kernel: {{ ansible_kernel }}
+          - Kernel headers: {{ successful_kernel_header if successful_kernel_header != 'none' else 'NOT INSTALLED' }}
+          - Module files exist: {{ '✓' if (nvidia_module_check.matched | default(0)) > 0 else '✗' }}
+          - Modules loaded: {{ '✓' if (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) else '✗' }}
+          - Driver package: {{ nvidia_driver_package.stdout if nvidia_driver_package.rc == 0 else 'unknown' }}
+          - DKMS status: {{ nvidia_dkms_status.stdout if nvidia_dkms_status.rc == 0 else 'not in DKMS' }}
+
+    # Check if nvidia-smi works when modules are loaded
+    # If modules are loaded but nvidia-smi fails, we need to rebuild
+    - name: Check if nvidia-smi is available (for loaded module verification)
+      ansible.builtin.command:
+        cmd: which nvidia-smi
+      register: nvidia_smi_path_check
+      changed_when: false
+      failed_when: false
+      when: >
+        (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0
+
+    - name: Test nvidia-smi when modules are loaded
+      ansible.builtin.command:
+        cmd: nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits
+      register: nvidia_smi_loaded_test
+      changed_when: false
+      failed_when: false
+      when: >
+        (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and nvidia_smi_path_check.rc == 0
+
+    - name: Set fact to trigger rebuild if modules loaded but nvidia-smi fails
+      ansible.builtin.set_fact:
+        nvidia_rebuild_needed_loaded: true
+      when: >
+        (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and (nvidia_smi_loaded_test is not defined or nvidia_smi_loaded_test.rc != 0)
+
+    - name: Set fact to not rebuild if modules loaded and nvidia-smi works
+      ansible.builtin.set_fact:
+        nvidia_rebuild_needed_loaded: false
+      when: >
+        (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and (nvidia_smi_loaded_test is defined and nvidia_smi_loaded_test.rc == 0)
+
+    - name: Warn if modules loaded but nvidia-smi fails
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  WARNING: NVIDIA modules are loaded but nvidia-smi failed
+
+          This indicates the driver may be corrupted or incompatible with the current kernel.
+          A rebuild will be triggered to fix this issue.
+
+          Status:
+          - Modules loaded: ✓
+          - nvidia-smi test: ✗ FAILED
+          - Action: Triggering driver rebuild
+      when: >
+        nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool
+
+    # Note: NVIDIA drivers installed via apt typically use DKMS to build modules
+    # If modules don't exist, it usually means headers were missing during installation
+    # If modules are loaded but nvidia-smi fails, the driver may need to be rebuilt
+    # Now that headers are installed, we can try to rebuild modules
+    - name: Check if NVIDIA driver package triggers DKMS
+      ansible.builtin.command:
+        cmd: "dpkg -l"
+      register: dpkg_list
+      changed_when: false
+      failed_when: false
+      when: >
+        successful_kernel_header != 'none' and nvidia_driver_package.rc == 0 and (
+          (nvidia_module_check.matched | default(0)) == 0 or
+          (nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool)
+        )
+
+    - name: Try to rebuild NVIDIA modules via DKMS if available
+      ansible.builtin.shell:
+        cmd: "dkms status | grep '^nvidia,' || echo 'not-in-dkms'"
+      register: nvidia_dkms_status_check
+      changed_when: false
+      failed_when: false
+      when: >
+        successful_kernel_header != 'none' and nvidia_driver_package.rc == 0 and (
+          (nvidia_module_check.matched | default(0)) == 0 or
+          (nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool)
+        )
+
+    - name: Reinstall NVIDIA driver to trigger module rebuild
+      ansible.builtin.apt:
+        name: "{{ nvidia_driver_package.stdout }}"
+        state: present
+        force: true
+      register: nvidia_driver_reinstall
+      failed_when: false
+      when: >
+        successful_kernel_header != 'none' and nvidia_driver_package.rc == 0 and (nvidia_driver_package.stdout | length > 0) and (
+          (nvidia_module_check.matched | default(0)) == 0 or
+          (nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool)
+        )
+      tags:
+        - nvidia
+        - gpu
+        - drivers
+        - rebuild
+
+    - name: Check NVIDIA modules after rebuild attempt
+      ansible.builtin.find:
+        paths: "/lib/modules/{{ ansible_kernel }}"
+        patterns: "nvidia.ko*"
+        recurse: true
+      register: nvidia_module_post_rebuild
+      changed_when: false
+      failed_when: false
+      when: >
+        nvidia_driver_reinstall is defined and (nvidia_driver_reinstall is succeeded or nvidia_driver_reinstall is skipped)
+
+    - name: Display NVIDIA module rebuild status
+      ansible.builtin.debug:
+        msg: |
+          NVIDIA Module Rebuild Status:
+          - Rebuild reason: {{ 'Modules missing' if (nvidia_module_check.matched | default(0)) == 0 else 'nvidia-smi failed with loaded modules' }}
+          - Driver reinstalled: {{ '✓' if (nvidia_driver_reinstall is defined and nvidia_driver_reinstall is not failed) else '✗' }}
+          - Modules after rebuild: {{ '✓' if (nvidia_module_post_rebuild is defined and (nvidia_module_post_rebuild.matched | default(0)) > 0) else '✗' }}
+          - Next step: {{ 'Reboot required' if (nvidia_module_post_rebuild is defined and (nvidia_module_post_rebuild.matched | default(0)) == 0) else 'Verify with nvidia-smi' }}
+      when: nvidia_driver_reinstall is defined
+
+    # If modules were loaded before rebuild but nvidia-smi failed, try reloading modules and testing again
+    - name: Get list of loaded NVIDIA modules to unload
+      ansible.builtin.shell:
+        cmd: "lsmod | grep -E '^nvidia' | awk '{print $1}' | tr '\n' ' '"
+      register: nvidia_loaded_modules_list
+      changed_when: false
+      failed_when: false
+      when: >
+        (nvidia_driver_reinstall is defined and (nvidia_driver_reinstall is succeeded or nvidia_driver_reinstall is skipped)) and (nvidia_module_post_rebuild is defined and (nvidia_module_post_rebuild.matched | default(0)) > 0) and (nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool)
+
+    - name: Unload NVIDIA modules after rebuild (if they were loaded before)
+      ansible.builtin.shell:
+        cmd: "modprobe -r {{ item }} 2>&1 || true"
+      loop: "{{ nvidia_loaded_modules_list.stdout.split() | reverse | list }}"
+      register: nvidia_modules_unload
+      changed_when: false
+      failed_when: false
+      when: >
+        (nvidia_driver_reinstall is defined and (nvidia_driver_reinstall is succeeded or nvidia_driver_reinstall is skipped)) and (nvidia_module_post_rebuild is defined and (nvidia_module_post_rebuild.matched | default(0)) > 0) and (nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool) and (nvidia_loaded_modules_list.stdout | length > 0)
+
+    - name: Load NVIDIA modules after rebuild
+      ansible.builtin.shell:
+        cmd: "modprobe nvidia 2>&1 || true"
+      register: nvidia_modules_reload
+      changed_when: false
+      failed_when: false
+      when: >
+        (nvidia_driver_reinstall is defined and (nvidia_driver_reinstall is succeeded or nvidia_driver_reinstall is skipped)) and (nvidia_module_post_rebuild is defined and (nvidia_module_post_rebuild.matched | default(0)) > 0) and (nvidia_rebuild_needed_loaded is defined and nvidia_rebuild_needed_loaded | bool)
+
+    - name: Verify nvidia-smi works after module reload
+      ansible.builtin.command:
+        cmd: nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits
+      register: nvidia_smi_post_reload
+      changed_when: false
+      failed_when: false
+      when: >
+        nvidia_modules_reload is defined and nvidia_modules_reload.rc == 0
+
+    - name: Display nvidia-smi verification after rebuild and reload
+      ansible.builtin.debug:
+        msg: |
+          NVIDIA Driver Verification After Rebuild:
+          - Modules reloaded: {{ '✓' if (nvidia_modules_reload is defined and nvidia_modules_reload.rc == 0) else '✗' }}
+          - nvidia-smi test: {{ '✓ SUCCESS' if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc == 0) else '✗ FAILED' }}
+          - Driver version: {{ nvidia_smi_post_reload.stdout if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc == 0) else 'unknown' }}
+          - Status: {{ 'Driver fixed - no reboot needed' if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc == 0) else 'Reboot may still be required' }}
+      when: >
+        nvidia_modules_reload is defined or nvidia_smi_post_reload is defined
+
+    - name: Warn if NVIDIA modules still missing after rebuild attempt
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  WARNING: NVIDIA kernel modules still not found for kernel {{ ansible_kernel }}
+
+          Kernel headers are installed: {{ successful_kernel_header }}
+          Driver package: {{ nvidia_driver_package.stdout }}
+
+          Possible causes:
+          1. Module build failed (check dmesg and system logs)
+          2. System reboot required to load modules
+          3. Kernel version mismatch between headers and running kernel
+
+          Manual fix:
+          1. Check build logs: dmesg | grep -i nvidia | tail -50
+          2. Try manual rebuild: sudo apt-get install --reinstall nvidia-driver
+          3. Reboot system: sudo reboot
+          4. After reboot, verify: nvidia-smi
+      when: >
+        (nvidia_module_check.matched | default(0)) == 0 and successful_kernel_header != 'none' and nvidia_driver_package.rc == 0 and (nvidia_module_post_rebuild is not defined or (nvidia_module_post_rebuild.matched | default(0)) == 0)
 
     - name: Blacklist nouveau driver (conflicts with NVIDIA)
       ansible.builtin.copy:
@@ -162,3 +421,53 @@
       when: nvidia_packer_build | default(false) | bool
 
   # Always execute NVIDIA driver installation (no conditional check)
+
+# Verify nvidia-smi works after installation (runtime only)
+- name: Verify NVIDIA driver functionality
+  block:
+    - name: Check if nvidia-smi is available
+      ansible.builtin.command:
+        cmd: which nvidia-smi
+      register: nvidia_smi_path
+      changed_when: false
+      failed_when: false
+
+    - name: Test nvidia-smi execution
+      ansible.builtin.command:
+        cmd: nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits
+      register: nvidia_smi_test
+      changed_when: false
+      failed_when: false
+      when: nvidia_smi_path.rc == 0
+
+    - name: Verify nvidia-smi works (no reboot required check)
+      ansible.builtin.debug:
+        msg: |
+          NVIDIA Driver Verification:
+          - nvidia-smi path: {{ nvidia_smi_path.stdout if nvidia_smi_path.rc == 0 else 'not found' }}
+          - nvidia-smi test: {{ '✓ SUCCESS' if (nvidia_smi_test is defined and nvidia_smi_test.rc == 0) else '✗ FAILED or SKIPPED' }}
+          - Driver version: {{ nvidia_smi_test.stdout if (nvidia_smi_test is defined and nvidia_smi_test.rc == 0) else 'unknown' }}
+      when: nvidia_smi_path.rc == 0 or nvidia_smi_test is defined
+
+    - name: Display nvidia-smi output if successful
+      ansible.builtin.debug:
+        msg: "{{ nvidia_smi_test.stdout_lines }}"
+      when: >
+        nvidia_smi_test is defined and nvidia_smi_test.rc == 0
+
+    - name: Warn if nvidia-smi failed (likely requires reboot)
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  WARNING: nvidia-smi test failed
+
+          This is typically expected after initial driver installation and requires a system reboot.
+
+          After reboot, verify with:
+            nvidia-smi
+
+          If nvidia-smi still fails after reboot, check:
+            1. Kernel modules loaded: lsmod | grep nvidia
+            2. Driver version: dpkg -l | grep nvidia-driver
+            3. System logs: dmesg | grep -i nvidia
+      when: >
+        nvidia_smi_test is defined and nvidia_smi_test.rc != 0 and not (nvidia_packer_build | default(false) | bool)

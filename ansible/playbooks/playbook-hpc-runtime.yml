@@ -374,6 +374,18 @@
       tags:
         - job-scripts
 
+    - name: Verify and rebuild NVIDIA GPU drivers (if needed)
+      import_role:
+        name: nvidia-gpu-drivers
+      when: gpu_enabled | default(false)
+      vars:
+        packer_build: false
+        nvidia_packer_build: false
+      tags:
+        - nvidia
+        - gpu
+        - drivers
+
     - name: Configure DCGM monitoring
       import_role:
         name: monitoring-stack
