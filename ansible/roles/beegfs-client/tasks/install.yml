@@ -65,22 +65,137 @@
 
 # ========== KERNEL HEADERS AND DEPENDENCIES ==========
 # Install kernel headers FIRST - required for DKMS module build
+# Use robust installation strategy with fallbacks to handle kernel version mismatches
 
-- name: Install kernel headers and build dependencies
+- name: Update apt cache before kernel headers installation
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Install build tools and DKMS (always required for kernel module build)
   ansible.builtin.apt:
     name:
-      - "linux-headers-{{ ansible_kernel }}"
-      - dkms
       - build-essential
+      - dkms
+      - gcc
+      - make
     state: present
-    update_cache: true
-  when: needs_installation
   tags:
     - beegfs
     - beegfs-client
     - install
     - kernel-headers
     - dkms
+
+- name: Try to install exact kernel headers for running kernel
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_kernel }}"
+    state: present
+  register: kernel_headers_exact
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Try to install kernel headers without suffix (fallback 1)
+  ansible.builtin.apt:
+    name: "linux-headers-{{ ansible_kernel.split('+')[0] }}"
+    state: present
+  register: kernel_headers_no_suffix
+  when: kernel_headers_exact is failed
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Try to install cloud kernel headers (fallback 2)
+  ansible.builtin.apt:
+    name: "linux-headers-cloud-amd64"
+    state: present
+  register: kernel_headers_cloud
+  when: kernel_headers_exact is failed and (kernel_headers_no_suffix is not defined or kernel_headers_no_suffix is failed)
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Verify kernel headers were installed successfully
+  ansible.builtin.stat:
+    path: "/usr/src/linux-headers-{{ ansible_kernel.split('+')[0] }}"
+  register: kernel_headers_verify
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Verify kernel headers installation via package check
+  ansible.builtin.shell:
+    cmd: |
+      dpkg -q -l linux-headers-{{ ansible_kernel.split('+')[0] }} 2>/dev/null \
+      || dpkg -q -l linux-headers-cloud-amd64 2>/dev/null \
+      || echo "not-installed"
+  register: kernel_headers_package_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Display kernel headers installation status
+  ansible.builtin.debug:
+    msg: |
+      Kernel Headers Installation Status:
+      - Running kernel: {{ ansible_kernel }}
+      - Exact headers: {{ '✓' if kernel_headers_exact is succeeded else '✗' }}
+      - No suffix headers: {{ '✓' if (kernel_headers_no_suffix is defined and kernel_headers_no_suffix is succeeded) else '✗' }}
+      - Cloud headers: {{ '✓' if (kernel_headers_cloud is defined and kernel_headers_cloud is succeeded) else '✗' }}
+      - Headers directory exists: {{ '✓' if kernel_headers_verify.stat.exists else '✗' }}
+      - Package installed: {{ '✓' if (kernel_headers_package_check.rc == 0 and kernel_headers_package_check.stdout | length > 0) else '✗' }}
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
+
+- name: Fail if kernel headers could not be installed
+  ansible.builtin.fail:
+    msg: |
+      ❌ CRITICAL: Could not install kernel headers for kernel {{ ansible_kernel }}
+
+      Tried the following package names:
+      1. linux-headers-{{ ansible_kernel }} - {{ 'SUCCESS' if kernel_headers_exact is succeeded else 'FAILED' }}
+      2. linux-headers-{{ ansible_kernel.split('+')[0] }} - {{ 'SUCCESS' if (kernel_headers_no_suffix is defined and kernel_headers_no_suffix is succeeded) else 'FAILED' if (kernel_headers_no_suffix is defined and kernel_headers_no_suffix is failed) else 'NOT ATTEMPTED' }}
+      3. linux-headers-cloud-amd64 - {{ 'SUCCESS' if (kernel_headers_cloud is defined and kernel_headers_cloud is succeeded) else 'FAILED' if (kernel_headers_cloud is defined and kernel_headers_cloud is failed) else 'NOT ATTEMPTED' }}
+
+      Manual fix:
+        1. Update apt cache: sudo apt-get update
+        2. Check available headers: apt-cache search linux-headers | grep {{ ansible_kernel.split('+')[0] }}
+        3. Install manually: sudo apt-get install -y linux-headers-$(uname -r)
+        4. Verify: dpkg -l | grep linux-headers
+
+      Without kernel headers, BeeGFS kernel module cannot be built.
+  when: >
+    kernel_headers_exact is failed and (kernel_headers_no_suffix is not defined or kernel_headers_no_suffix is failed) and (kernel_headers_cloud is not defined or kernel_headers_cloud is failed)
+  tags:
+    - beegfs
+    - beegfs-client
+    - install
+    - kernel-headers
 
 # ========== PACKAGE MANAGEMENT ==========
 # Use common role for package installation logic
@@ -144,6 +259,7 @@
 # ========== DKMS MODULE BUILD VERIFICATION ==========
 # BeeGFS 8.1.0 is fully compatible with kernel 6.12+
 # DKMS autoinstall should build the module automatically during package installation
+# If autoinstall fails, we rebuild manually after ensuring headers are installed
 
 - name: Check DKMS module status and build if needed
   when: beegfs_version is defined
@@ -152,19 +268,79 @@
     - beegfs-client
     - dkms
   block:
-    - name: Check if DKMS module was built during installation
+    - name: Check if DKMS module source is registered
       ansible.builtin.command:
         cmd: "dkms status beegfs/{{ beegfs_version }}"
       register: dkms_status_check
       changed_when: false
       failed_when: false
 
-    - name: Build DKMS module manually if autoinstall failed
+    - name: Check if kernel module exists for current kernel
+      ansible.builtin.find:
+        paths: "/lib/modules/{{ ansible_kernel }}"
+        patterns: "beegfs.ko*"
+        recurse: true
+      register: beegfs_module_pre_build_check
+      changed_when: false
+
+    - name: Remove existing DKMS module if it exists but module file is missing
+      ansible.builtin.shell:
+        cmd: "dkms remove beegfs/{{ beegfs_version }} -k {{ ansible_kernel }} --all || true"
+      register: dkms_remove
+      changed_when: dkms_remove.rc == 0
+      failed_when: false
+      when: >
+        (dkms_status_check.rc == 0 and dkms_status_check.stdout is defined and 'installed' in dkms_status_check.stdout) and (beegfs_module_pre_build_check.matched | default(0)) == 0
+    - name: Build DKMS module for current kernel (with force if needed)
       ansible.builtin.command:
-        cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
+        cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }} --force"
       register: dkms_manual_build
       changed_when: dkms_manual_build.rc == 0
-      when: dkms_status_check.rc != 0 or 'installed' not in dkms_status_check.stdout
+      failed_when: false
+      when: >
+        (dkms_status_check.rc != 0 or (dkms_status_check.stdout is defined and 'installed' not in dkms_status_check.stdout) or
+         (beegfs_module_pre_build_check.matched | default(0)) == 0)
+      tags:
+        - beegfs
+        - beegfs-client
+        - dkms
+        - always
+
+    - name: Display DKMS build output on failure
+      ansible.builtin.debug:
+        msg: |
+          DKMS Build Output:
+          stdout: {{ dkms_manual_build.stdout_lines | default([]) }}
+          stderr: {{ dkms_manual_build.stderr_lines | default([]) }}
+      when: >
+        dkms_manual_build is defined and dkms_manual_build.rc is defined and dkms_manual_build.rc != 0 and dkms_manual_build.stdout is defined
+      tags:
+        - beegfs
+        - beegfs-client
+        - dkms
+
+    - name: Check DKMS build log on failure
+      ansible.builtin.shell:
+        cmd: "tail -50 /var/lib/dkms/beegfs/{{ beegfs_version }}/build/make.log || echo 'Build log not found'"
+      register: dkms_build_log
+      changed_when: false
+      failed_when: false
+      when: >
+        dkms_manual_build is defined and dkms_manual_build.rc is defined and dkms_manual_build.rc != 0
+      tags:
+        - beegfs
+        - beegfs-client
+        - dkms
+
+    - name: Display DKMS build log on failure
+      ansible.builtin.debug:
+        msg: "{{ dkms_build_log.stdout_lines | default([]) }}"
+      when: >
+        dkms_build_log is defined and dkms_build_log.stdout_lines is defined
+      tags:
+        - beegfs
+        - beegfs-client
+        - dkms
 
     - name: Verify DKMS module is installed for current kernel
       ansible.builtin.command:
@@ -178,6 +354,10 @@
         msg: |
           DKMS Status for kernel {{ ansible_kernel }}:
           {{ dkms_final_status.stdout if dkms_final_status.stdout else '(not installed)' }}
+      tags:
+        - beegfs
+        - beegfs-client
+        - dkms
 
 # ========== FINAL VERIFICATION ==========
 

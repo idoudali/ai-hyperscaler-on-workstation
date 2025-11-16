@@ -11,10 +11,23 @@
     - beegfs-client
     - mount
 
-- name: Build BeeGFS DKMS module if not built
+- name: Check if kernel module exists before DKMS build
+  ansible.builtin.find:
+    paths: "/lib/modules/{{ ansible_kernel }}"
+    patterns: "beegfs.ko*"
+    recurse: true
+  register: beegfs_module_pre_check
+  changed_when: false
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Build BeeGFS DKMS module if not built (with force to rebuild if needed)
   ansible.builtin.command:
-    cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }}"
-  when: dkms_status.stdout.find('installed') == -1
+    cmd: "dkms install beegfs/{{ beegfs_version }} -k {{ ansible_kernel }} --force"
+  when: >
+    (dkms_status.rc != 0 or (dkms_status.stdout is defined and 'installed' not in dkms_status.stdout)) or (beegfs_module_pre_check.matched | default(0)) == 0
   register: dkms_build
   failed_when: false
   changed_when: dkms_build.rc == 0
@@ -25,8 +38,34 @@
 
 - name: Display DKMS build output
   ansible.builtin.debug:
-    msg: "{{ (dkms_build.stdout_lines | default([])) + (dkms_build.stderr_lines | default([])) }}"
+    msg: |
+      DKMS Build Output:
+      stdout: {{ dkms_build.stdout_lines | default([]) }}
+      stderr: {{ dkms_build.stderr_lines | default([]) }}
   when: dkms_build is defined
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Display DKMS build log on failure
+  ansible.builtin.shell:
+    cmd: "tail -50 /var/lib/dkms/beegfs/{{ beegfs_version }}/build/make.log || echo 'Build log not found'"
+  register: dkms_build_log
+  changed_when: false
+  failed_when: false
+  when: >
+    dkms_build is defined and dkms_build.rc is defined and dkms_build.rc != 0
+  tags:
+    - beegfs
+    - beegfs-client
+    - mount
+
+- name: Show DKMS build log on failure
+  ansible.builtin.debug:
+    msg: "{{ dkms_build_log.stdout_lines | default([]) }}"
+  when: >
+    dkms_build_log is defined and dkms_build_log.stdout_lines is defined
   tags:
     - beegfs
     - beegfs-client
