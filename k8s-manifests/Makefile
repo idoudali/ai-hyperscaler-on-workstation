@@ -46,6 +46,7 @@ gitops-deploy-mlops-stack:
 	@echo "ArgoCD will now automatically deploy all child applications:"
 	@echo "  - MinIO (object storage)"
 	@echo "  - PostgreSQL (database)"
+	@echo "  - MLflow (tracking server)"
 	@echo ""
 	@echo "Monitor deployment progress:"
 	@echo "  make gitops-status"
@@ -76,9 +77,20 @@ gitops-deploy-postgresql:
 	@KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl apply -f argocd-apps/postgresql-app.yaml
 	@echo "✅ PostgreSQL Application created"
 
+# Deploy MLflow individually via GitOps
+.PHONY: gitops-deploy-mlflow
+gitops-deploy-mlflow:
+	@echo "Deploying MLflow via GitOps..."
+	@if [ ! -f "$(CLOUD_CLUSTER_KUBECONFIG)" ]; then \
+		echo "❌ Error: Kubeconfig not found: $(CLOUD_CLUSTER_KUBECONFIG)"; \
+		exit 1; \
+	fi
+	@KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl apply -f argocd-apps/mlflow-app.yaml
+	@echo "✅ MLflow Application created"
+
 # Deploy all applications individually (not using App of Apps)
 .PHONY: gitops-deploy-apps
-gitops-deploy-apps: gitops-deploy-minio gitops-deploy-postgresql
+gitops-deploy-apps: gitops-deploy-minio gitops-deploy-postgresql gitops-deploy-mlflow
 	@echo "✅ All applications deployed individually"
 
 # Validate Git repository URLs are configured
@@ -198,9 +210,29 @@ k8s-deploy-postgresql-manual:
 	@echo "Check status:"
 	@echo "  KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl get all -n mlops -l app.kubernetes.io/name=postgresql"
 
+# Deploy MLflow directly with kubectl (without ArgoCD)
+.PHONY: k8s-deploy-mlflow-manual
+k8s-deploy-mlflow-manual:
+	@echo "=========================================="
+	@echo "Deploying MLflow Directly (Manual)"
+	@echo "=========================================="
+	@echo "⚠️  Note: This bypasses GitOps. For production, use 'make gitops-deploy-mlops-stack'"
+	@echo ""
+	@if [ ! -f "$(CLOUD_CLUSTER_KUBECONFIG)" ]; then \
+		echo "❌ Error: Kubeconfig not found: $(CLOUD_CLUSTER_KUBECONFIG)"; \
+		exit 1; \
+	fi
+	@echo "Deploying MLflow from base/mlops/mlflow..."
+	@KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl apply -k base/mlops/mlflow
+	@echo ""
+	@echo "✅ MLflow deployed"
+	@echo ""
+	@echo "Check status:"
+	@echo "  KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl get all -n mlops -l app.kubernetes.io/name=mlflow"
+
 # Deploy all applications manually (bypasses GitOps)
 .PHONY: k8s-deploy-manual
-k8s-deploy-manual: k8s-deploy-minio-manual k8s-deploy-postgresql-manual
+k8s-deploy-manual: k8s-deploy-minio-manual k8s-deploy-postgresql-manual k8s-deploy-mlflow-manual
 	@echo ""
 	@echo "=========================================="
 	@echo "✅ All Applications Deployed Manually"
@@ -212,6 +244,7 @@ k8s-deploy-manual: k8s-deploy-minio-manual k8s-deploy-postgresql-manual
 	@echo "  1. Delete manual deployments:"
 	@echo "     KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl delete -k base/mlops/minio"
 	@echo "     KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl delete -k base/mlops/postgresql"
+	@echo "     KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl delete -k base/mlops/mlflow"
 	@echo ""
 	@echo "  2. Deploy via GitOps:"
 	@echo "     make gitops-deploy-mlops-stack"
@@ -229,11 +262,16 @@ k8s-validate-manifests:
 	@kubectl kustomize base/mlops/postgresql > /tmp/postgresql-manifests.yaml
 	@echo "✅ PostgreSQL manifests valid"
 	@echo ""
+	@echo "Building MLflow manifests with kustomize..."
+	@kubectl kustomize base/mlops/mlflow > /tmp/mlflow-manifests.yaml
+	@echo "✅ MLflow manifests valid"
+	@echo ""
 	@echo "✅ All manifests validated successfully"
 	@echo ""
 	@echo "Preview generated manifests:"
 	@echo "  cat /tmp/minio-manifests.yaml"
 	@echo "  cat /tmp/postgresql-manifests.yaml"
+	@echo "  cat /tmp/mlflow-manifests.yaml"
 
 #==============================================================================
 # Port Forwarding Helpers
@@ -475,6 +513,89 @@ port-forward-minio-console:
 	@echo ""
 	@KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl -n mlops port-forward svc/minio 9001:9001
 
+# Get MLflow tracking URI and connection info
+.PHONY: mlflow-credentials
+mlflow-credentials:
+	@echo "=========================================="
+	@echo "MLflow Connection Information"
+	@echo "=========================================="
+	@if [ ! -f "$(CLOUD_CLUSTER_KUBECONFIG)" ]; then \
+		echo "❌ Error: Kubeconfig not found: $(CLOUD_CLUSTER_KUBECONFIG)"; \
+		exit 1; \
+	fi
+	@echo "Retrieving MLflow connection information..."
+	@echo ""
+	@if ! KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl -n mlops get svc mlflow >/dev/null 2>&1; then \
+		echo "❌ Error: MLflow service not found."; \
+		echo "Please deploy MLflow first: make k8s-deploy-mlflow-manual or make gitops-deploy-mlflow"; \
+		exit 1; \
+	fi
+	@echo "✅ MLflow service found"
+	@echo ""
+	@echo "Tracking URI (Cluster-internal):"
+	@echo "  http://mlflow.mlops.svc.cluster.local:5000"
+	@echo ""
+	@echo "Tracking URI (via port-forward):"
+	@echo "  http://localhost:5000"
+	@echo ""
+	@echo "Backend Store (PostgreSQL):"
+	@if KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl -n mlops get secret mlflow-secret >/dev/null 2>&1; then \
+		KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl -n mlops get secret mlflow-secret -o jsonpath='{.data.backend-store-uri}' | base64 -d; \
+		echo ""; \
+	else \
+		echo "  postgresql://mlflow:mlflow_secure_password@postgresql-external.mlops.svc.cluster.local:5432/mlflow"; \
+	fi
+	@echo ""
+	@echo "Artifact Store (MinIO S3):"
+	@echo "  s3://mlflow-artifacts"
+	@echo "  Endpoint: http://minio.mlops.svc.cluster.local:9000"
+	@echo ""
+	@echo "✅ Connection information retrieved"
+	@echo ""
+	@echo "📝 Usage:"
+	@echo "  1. Access MLflow UI: http://localhost:5000"
+	@echo "  2. Use in Python code:"
+	@echo "     import mlflow"
+	@echo "     mlflow.set_tracking_uri('http://localhost:5000')"
+	@echo "  3. Or use cluster-internal URI:"
+	@echo "     mlflow.set_tracking_uri('http://mlflow.mlops.svc.cluster.local:5000')"
+	@echo ""
+	@echo "💡 Tip: Run 'make port-forward-mlflow' to access MLflow UI"
+
+# Port-forward to MLflow
+.PHONY: port-forward-mlflow
+port-forward-mlflow:
+	@echo "=========================================="
+	@echo "MLflow Port Forwarding"
+	@echo "=========================================="
+	@if [ ! -f "$(CLOUD_CLUSTER_KUBECONFIG)" ]; then \
+		echo "❌ Error: Kubeconfig not found: $(CLOUD_CLUSTER_KUBECONFIG)"; \
+		echo "Please run 'make cloud-cluster-deploy' first."; \
+		exit 1; \
+	fi
+	@echo "Checking MLflow service..."
+	@if ! KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl get svc mlflow -n mlops >/dev/null 2>&1; then \
+		echo "❌ Error: MLflow service not found."; \
+		echo "Please deploy MLflow first: make k8s-deploy-mlflow-manual or make gitops-deploy-mlflow"; \
+		exit 1; \
+	fi
+	@echo "✅ MLflow service found"
+	@echo ""
+	@echo "Starting port-forward to MLflow..."
+	@echo "  MLflow UI: http://localhost:5000"
+	@echo ""
+	@echo "📝 Access Instructions:"
+	@echo "  1. Open in browser: http://localhost:5000"
+	@echo "  2. Get connection info (in another terminal):"
+	@echo "     make mlflow-credentials"
+	@echo "  3. Use in Python code:"
+	@echo "     import mlflow"
+	@echo "     mlflow.set_tracking_uri('http://localhost:5000')"
+	@echo ""
+	@echo "⚠️  Note: Keep this terminal open. Press Ctrl+C to stop port-forwarding."
+	@echo ""
+	@KUBECONFIG=$(CLOUD_CLUSTER_KUBECONFIG) kubectl -n mlops port-forward svc/mlflow 5000:5000
+
 #==============================================================================
 # Help
 #==============================================================================
@@ -487,6 +608,7 @@ help:
 	@echo "  make gitops-deploy-mlops-stack - Deploy all MLOps apps via GitOps (App of Apps)."
 	@echo "  make gitops-deploy-minio       - Deploy MinIO individually via GitOps."
 	@echo "  make gitops-deploy-postgresql  - Deploy PostgreSQL individually via GitOps."
+	@echo "  make gitops-deploy-mlflow      - Deploy MLflow individually via GitOps."
 	@echo "  make gitops-deploy-apps        - Deploy all apps individually (not App of Apps)."
 	@echo "  make gitops-validate           - Validate GitOps configuration (repo URLs, etc)."
 	@echo "  make gitops-status             - Check ArgoCD application status."
@@ -496,6 +618,7 @@ help:
 	@echo "  make k8s-deploy-manual         - Deploy all apps directly with kubectl."
 	@echo "  make k8s-deploy-minio-manual   - Deploy MinIO directly (no ArgoCD)."
 	@echo "  make k8s-deploy-postgresql-manual - Deploy PostgreSQL directly (no ArgoCD)."
+	@echo "  make k8s-deploy-mlflow-manual  - Deploy MLflow directly (no ArgoCD)."
 	@echo "  make k8s-validate-manifests    - Validate manifests with kustomize build."
 	@echo ""
 	@echo "Port Forwarding (Access Web UIs):"
@@ -504,11 +627,13 @@ help:
 	@echo "  make port-forward-minio        - Port-forward to MinIO API and Console (http://localhost:9000,9001)."
 	@echo "  make port-forward-minio-api    - Port-forward to MinIO API only (http://localhost:9000)."
 	@echo "  make port-forward-minio-console - Port-forward to MinIO Console only (http://localhost:9001)."
+	@echo "  make port-forward-mlflow       - Port-forward to MLflow UI (http://localhost:5000)."
 	@echo ""
 	@echo "Authentication Helpers:"
 	@echo "  make dashboard-token           - Get Kubernetes Dashboard authentication token."
 	@echo "  make argocd-password           - Get ArgoCD admin password."
 	@echo "  make minio-credentials         - Get MinIO admin credentials (Access Key and Secret Key)."
+	@echo "  make mlflow-credentials        - Get MLflow connection information (Tracking URI, etc)."
 	@echo ""
 	@echo "Configuration Variables:"
 	@echo "  CLOUD_CLUSTER_KUBECONFIG  - Path to kubeconfig (default: $(CLOUD_CLUSTER_KUBECONFIG))"

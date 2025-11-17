@@ -19,15 +19,15 @@ your Git repository (source of truth) with your Kubernetes cluster (deployment t
 
 ### 1. Update Git Repository URL
 
-**IMPORTANT:** Before deploying, update the `repoURL` in all application manifests:
+**IMPORTANT:** The `repoURL` in all application manifests is configured to:
 
 ```yaml
 spec:
   source:
-    repoURL: https://github.com/your-org/ai-how  # Update this!
+    repoURL: https://github.com/idoudali/ai-hyperscaler-on-workstation
 ```
 
-Replace `https://github.com/your-org/ai-how` with your actual Git repository URL.
+If you forked this repository, update the `repoURL` in all ArgoCD application files to point to your fork.
 
 ### 2. Deploy Applications
 

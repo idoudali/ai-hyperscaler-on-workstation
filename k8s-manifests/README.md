@@ -9,7 +9,8 @@ k8s-manifests/
 ├── base/                       # Base configurations
 │   ├── mlops/
 │   │   ├── minio/             # MinIO object storage
-│   │   └── postgresql/        # PostgreSQL database
+│   │   ├── postgresql/        # PostgreSQL database
+│   │   └── mlflow/            # MLflow tracking server
 │   ├── gpu-operator/          # NVIDIA GPU Operator (TODO)
 │   └── monitoring/            # Prometheus/Grafana (TODO)
 ├── overlays/                   # Environment-specific
@@ -18,6 +19,7 @@ k8s-manifests/
 └── argocd-apps/               # ArgoCD Application definitions
     ├── minio-app.yaml
     ├── postgresql-app.yaml
+    ├── mlflow-app.yaml
     └── mlops-stack-app.yaml   # App of Apps
 ```
 
@@ -57,6 +59,78 @@ Database for MLflow metadata.
 - Secret: `postgresql-credentials`
 - ConfigMap: `postgresql-config`, `postgresql-init-scripts`
 
+### MLflow (`base/mlops/mlflow/`)
+
+MLflow tracking server for experiment tracking, model registry, and model versioning.
+
+**Resources:**
+
+- Deployment: `mlflow` (2 replicas)
+- Service: `mlflow` (ClusterIP, port 5000)
+- Ingress: `mlflow` (optional, for external access)
+- Secret: `mlflow-secret` (PostgreSQL connection, MinIO credentials)
+
+**Configuration:**
+
+- Backend Store: PostgreSQL (`postgresql-external.mlops.svc.cluster.local:5432`)
+- Artifact Store: MinIO S3 (`s3://mlflow-artifacts`)
+- Server Port: `5000`
+- Workers: `4`
+
+**Access Methods:**
+
+1. **Port Forwarding (Recommended for Development):**
+
+   ```bash
+   make port-forward-mlflow
+   # Then open: http://localhost:5000
+   ```
+
+2. **Cluster-Internal Access:**
+
+   ```bash
+   # From within cluster pods
+   http://mlflow.mlops.svc.cluster.local:5000
+   ```
+
+3. **Via Ingress (if enabled):**
+
+   ```bash
+   # Add to /etc/hosts or use DNS
+   mlflow.cloud-cluster.local
+   ```
+
+**Connection Information:**
+
+```bash
+# Get MLflow connection details
+make mlflow-credentials
+```
+
+**Python Usage:**
+
+```python
+import mlflow
+
+# Set tracking URI (via port-forward)
+mlflow.set_tracking_uri('http://localhost:5000')
+
+# Or use cluster-internal URI (from within cluster)
+mlflow.set_tracking_uri('http://mlflow.mlops.svc.cluster.local:5000')
+
+# Start an experiment
+with mlflow.start_run():
+    mlflow.log_param("learning_rate", 0.01)
+    mlflow.log_metric("accuracy", 0.95)
+    mlflow.log_artifact("model.pkl")
+```
+
+**Dependencies:**
+
+- Requires PostgreSQL to be running (backend store)
+- Requires MinIO to be running (artifact store)
+- Automatically installs `psycopg2-binary` and `boto3` on startup
+
 ## ArgoCD Applications
 
 ArgoCD Application definitions connect Git manifests to Kubernetes clusters.
@@ -68,6 +142,7 @@ ArgoCD Application definitions connect Git manifests to Kubernetes clusters.
 ```bash
 kubectl apply -f argocd-apps/minio-app.yaml
 kubectl apply -f argocd-apps/postgresql-app.yaml
+kubectl apply -f argocd-apps/mlflow-app.yaml
 ```
 
 **Option 2: App of Apps (Recommended)**
@@ -117,8 +192,12 @@ kubectl kustomize k8s-manifests/base/mlops/minio
 # Build PostgreSQL manifests
 kubectl kustomize k8s-manifests/base/mlops/postgresql
 
+# Build MLflow manifests
+kubectl kustomize k8s-manifests/base/mlops/mlflow
+
 # Apply directly
 kubectl apply -k k8s-manifests/base/mlops/minio
+kubectl apply -k k8s-manifests/base/mlops/mlflow
 ```
 
 ### Creating Overlays
@@ -392,10 +471,12 @@ make k8s-deploy-manual
 # Or deploy individually
 make k8s-deploy-minio-manual
 make k8s-deploy-postgresql-manual
+make k8s-deploy-mlflow-manual
 
 # Or use kubectl directly
 kubectl apply -k k8s-manifests/base/mlops/minio
 kubectl apply -k k8s-manifests/base/mlops/postgresql
+kubectl apply -k k8s-manifests/base/mlops/mlflow
 ```
 
 **See:** [Manual Deployment Guide](../docs/getting-started/manual-k8s-deployment.md) for complete instructions.
@@ -423,7 +504,7 @@ kubectl apply -k k8s-manifests/base/mlops/postgresql
 |-----------|--------|-------------------|------------|
 | MinIO | ✅ Complete | `base/mlops/minio` | `argocd-apps/minio-app.yaml` |
 | PostgreSQL | ✅ Complete | `base/mlops/postgresql` | `argocd-apps/postgresql-app.yaml` |
-| MLflow | ⏳ TODO | TBD | TBD |
+| MLflow | ✅ Complete | `base/mlops/mlflow` | `argocd-apps/mlflow-app.yaml` |
 | GPU Operator | ⏳ TODO | TBD | TBD |
 | KServe | ⏳ TODO | TBD | TBD |
 | Monitoring | ⏳ TODO | TBD | TBD |

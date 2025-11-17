@@ -1,10 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mlops-stack
+  name: mlflow
   namespace: argocd
   labels:
-    app.kubernetes.io/name: mlops-stack
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/part-of: mlops-stack
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,20 +13,28 @@ spec:
   source:
     repoURL: https://github.com/idoudali/ai-hyperscaler-on-workstation
     targetRevision: HEAD
-    path: k8s-manifests/argocd-apps
+    path: k8s-manifests/base/mlops/mlflow
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: mlops
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
       allowEmpty: false
     syncOptions:
-      - CreateNamespace=false  # argocd namespace already exists
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
   revisionHistoryLimit: 10
   info:
     - name: Description
-      value: App of Apps pattern - deploys all MLOps stack applications
-    - name: Pattern
-      value: App of Apps
+      value: MLflow Tracking Server for experiment tracking and model registry
+    - name: Component
+      value: Tracking Server
