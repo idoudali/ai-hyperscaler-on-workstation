@@ -1,8 +1,8 @@
 # Active Workstreams - Unified Task Tracking
 
-**Last Updated:** 2025-11-10  
-**Active Tasks:** 51 tasks across 4 workstreams  
-**Estimated Completion:** 42 hours + 18 days + 10 weeks
+**Last Updated:** 2025-11-18  
+**Active Tasks:** 50 tasks across 4 workstreams  
+**Estimated Completion:** 40 hours + 18 days + 10 weeks
 
 ## Overview
 
@@ -15,28 +15,29 @@ Completed tasks are archived in [`archive/active-workstreams.md`](./archive/acti
 
 ### Critical Path (This Week)
 
-1. **TASK-028.1** - Fix BeeGFS Kernel Module ⚠️ **BLOCKING** (4 hrs)
-2. ~~**Remove Pharos References**~~ - ✅ 80% Complete (remaining: low priority, ~1 hour)
+1. ~~**TASK-028.1**~~ - ✅ **COMPLETE** - BeeGFS Kernel Module Fixed
+2. ~~**TASK-047**~~ - 🔄 **75% COMPLETE** - Base Packages Enhanced
+3. **HPC Phase 4** - Complete role consolidation (2 tasks, 3 hrs)
 
-### Next Sprint (Week of 2025-11-04)
+### Next Sprint (Week of 2025-11-25)
 
-1. **HPC Phase 4** - Complete role consolidation (3 tasks, 6.5 hrs)
-2. **HPC Phase 6** - Infrastructure validation (4 tasks, 9 hrs)
+1. **HPC Phase 6** - Infrastructure validation (4 tasks, 10 hrs)
+2. **MLOps Category 1** - Begin basic training validation (2 tasks, 3 days)
 
 ---
 
 ## Workstream 1: HPC Infrastructure Completion
 
-**Status:** 60% Complete (29/48 tasks)  
-**Remaining:** 19 tasks  
-**Estimated Time:** 28 hours  
+**Status:** 62% Complete (30/48 tasks)  
+**Remaining:** 18 tasks  
+**Estimated Time:** 26 hours  
 **Reference:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
 
-### Phase 3: Infrastructure Enhancements (1 task)
+### Phase 3: Infrastructure Enhancements (Complete!)
 
-| Task ID | Description | Priority | Duration | Status | Blockers |
-|---------|-------------|----------|----------|--------|----------|
-| TASK-028.1 | Fix BeeGFS Client Kernel Module | CRITICAL | 4 hrs | ✅ CODE COMPLETE · ⏳ VALIDATION PENDING | Image rebuild + cluster validation |
+| Task ID | Description | Priority | Duration | Status |
+|---------|-------------|----------|----------|--------|
+| TASK-028.1 | Fix BeeGFS Client Kernel Module | CRITICAL | 4 hrs | ✅ COMPLETE |
 
 **Validation:**
 
@@ -48,21 +49,27 @@ make validate-hpc-cluster
 
 ---
 
-### Phase 4: Infrastructure Consolidation (3 tasks pending)
+### Phase 4: Infrastructure Consolidation (2 tasks pending)
 
 **Objective:** Complete Ansible role consolidation
 
-**Status:** 87% Complete (20/23 tasks)
+**Status:** 91% Complete (21/23 tasks)
 
-| Task ID | Description | Priority | Duration | Dependencies |
-|---------|-------------|----------|----------|--------------|
-| TASK-047 | Consolidate Base Package Roles | LOW | 2 hrs | TASK-046 ✅ |
-| TASK-047.1 | Cleanup Legacy Base Package Roles | LOW | 0.5 hrs | TASK-047 |
-| TASK-048 | Create Shared Utilities Role | MEDIUM | 2 hrs | TASK-047 |
+| Task ID | Description | Priority | Duration | Dependencies | Status |
+|---------|-------------|----------|----------|--------------|--------|
+| TASK-047 | Consolidate Base Package Roles | MEDIUM | 0.5 hrs | TASK-046 ✅ | 🔄 75% Complete |
+| TASK-047.1 | Cleanup Legacy Base Package Roles | LOW | 0.5 hrs | TASK-047 | Pending |
+| TASK-048 | Create Shared Utilities Role | MEDIUM | 2 hrs | TASK-047 | Pending |
+
+**Recent Progress:**
+
+- ✅ TASK-047 75% complete - Base packages role enhanced with 12 essential utilities
+- ✅ Integrated into HPC runtime playbook for both controller and compute nodes
+- ✅ ~75-115 lines of duplicate code eliminated
 
 **Expected Outcome:**
 
-- Eliminate 250-500 additional lines of duplicate Ansible code
+- Eliminate 175-385 additional lines of duplicate Ansible code (75-115 already done)
 - Complete role consolidation (Phase 4.8)
 - All roles use shared package management
 
@@ -86,11 +93,10 @@ make validate-hpc-cluster
 
 | Task ID | Description | Priority | Duration | Dependencies |
 |---------|-------------|----------|----------|--------------|
-| TASK-040 | Container Registry on BeeGFS | HIGH | 1 hr | TASK-048 |
-| TASK-041 | BeeGFS Performance Testing | HIGH | 2 hrs | TASK-040 |
-| TASK-042 | SLURM Integration Testing | HIGH | 2 hrs | TASK-041 |
-| TASK-043 | Container Workflow Validation | HIGH | 2 hrs | TASK-042 |
-| TASK-044 | Full-Stack Integration Testing | HIGH | 3 hrs | TASK-043 |
+| TASK-049 | Container Registry on BeeGFS | HIGH | 2 hrs | TASK-048 |
+| TASK-050 | BeeGFS Performance Testing | HIGH | 2 hrs | TASK-049 |
+| TASK-051 | SLURM Integration Testing | HIGH | 3 hrs | TASK-050 |
+| TASK-052 | Container Workflow Validation | HIGH | 3 hrs | TASK-051 |
 
 **Validation Criteria:**
 
@@ -103,20 +109,17 @@ make validate-hpc-cluster
 **Validation Commands:**
 
 ```bash
-# TASK-040: Container Registry
+# TASK-049: Container Registry
 make test-container-registry
 
-# TASK-041: BeeGFS Performance
+# TASK-050: BeeGFS Performance
 make test-beegfs-performance
 
-# TASK-042: SLURM Integration
+# TASK-051: SLURM Integration
 make test-slurm-integration
 
-# TASK-043: Container Workflow
+# TASK-052: Container Workflow
 make test-container-workflow
-
-# TASK-044: Full-Stack Integration
-make test-hpc-full-stack
 ```
 
 ---
@@ -405,14 +408,15 @@ After CLOUD-2.2 completion:
 
 ```text
 CRITICAL PATH:
-TASK-028.1 (BeeGFS) → TASK-040 (Registry) → TASK-041 (Perf) → TASK-042 (SLURM) → TASK-043 (Workflow) → TASK-044 (Full Stack)
-                                                                                                              ↓
-                                                                                                        MLOPS-1.1 (Start)
+TASK-028.1 (BeeGFS) ✅ → TASK-047 (Base Pkg) 🔄75% → TASK-048 (Utilities) →
+  TASK-049 (Registry) → TASK-050 (Perf) → TASK-051 (SLURM) → TASK-052 (Workflow)
+                                                                           ↓
+                                                                     MLOPS-1.1 (Start)
 
 PARALLEL PATHS:
 
-Path A (Role Consolidation):
-TASK-046 (Package Mgr) → TASK-046.1 (Integration) → TASK-047 (Base Pkg) → TASK-048 (Utilities) → TASK-040
+Path A (Role Consolidation - Nearly Complete):
+TASK-046 ✅ → TASK-046.1 ✅ → TASK-047 (75%) → TASK-047.1 → TASK-048 → TASK-049
 
 Path B (Rebranding - Independent):
 TASK-001 → TASK-002 → TASK-003 → TASK-004 → TASK-005 → TASK-006 →
@@ -427,43 +431,37 @@ TASK-035 → TASK-036 → TASK-037
 
 ## Execution Strategy
 
-### Week of 2025-10-28 (Current)
+### Week of 2025-11-18 (Current)
 
-**Priority 1 (Critical):**
+**Priority 1 (Critical - Complete This Week):**
 
-- ⚠️ TASK-028.1 - Fix BeeGFS kernel module (BLOCKING everything)
+- ✅ TASK-028.1 - BeeGFS kernel module fixed - **COMPLETE**
+- 🔄 TASK-047 - Base packages enhanced (75% complete)
+- ⏳ TASK-047.1 - Cleanup legacy base package roles (0.5 hrs)
+- ⏳ TASK-048 - Create shared utilities role (2 hrs)
 
-**Priority 2 (Parallel, can start immediately):**
+**Expected Completion:** 3 hours remaining
 
-- ~~TASK-001 through TASK-012 - Remove Pharos references~~ - ✅ 80% Complete
-  - Production code complete - all config, source, and user-facing docs updated
-  - Remaining: Low priority internal planning docs (~1 hour)
+### Week of 2025-11-25 (Next Week)
 
-### Week of 2025-11-04 (Next Week)
+**Stream A - HPC Phase 6 Validation (10 hrs):**
 
-**After TASK-028.1 complete:**
+- TASK-049: Container Registry on BeeGFS (2 hrs)
+- TASK-050: BeeGFS Performance Testing (2 hrs)
+- TASK-051: SLURM Integration Testing (3 hrs)
+- TASK-052: Container Workflow Validation (3 hrs)
 
-**Stream A - Role Consolidation (6.5 hrs):**
+**Stream B - MLOps Category 1 (3 days, can overlap):**
 
-- TASK-046: Package Manager Role (2 hrs)
-- TASK-046.1: Integration (3 hrs)
-- TASK-047: Base Packages (1.5 hrs)
+- MLOPS-1.1: Single GPU MNIST Training (1 day)
+- MLOPS-1.2: Single GPU LLM Fine-tuning (2 days)
 
-**Stream B - Infrastructure Validation (10 hrs):**
+### Week of 2025-12-02 (Future)
 
-- TASK-048: Shared Utilities (2 hrs)
-- TASK-040: Container Registry (1 hr)
-- TASK-041: BeeGFS Performance (2 hrs)
-- TASK-042: SLURM Integration (2 hrs)
-- TASK-043: Container Workflow (2 hrs)
-- TASK-044: Full-Stack Integration (3 hrs)
+**Continue MLOps Validation:**
 
-### Week of 2025-11-11 (Future)
-
-**Prerequisites met → Begin MLOps Validation:**
-
-- Start with Category 1 (basic training)
-- 2 tasks, 3 days
+- Category 2: Distributed Training (4 days)
+- Category 3: Oumi Integration (3 days)
 
 ---
 
@@ -471,12 +469,13 @@ TASK-035 → TASK-036 → TASK-037
 
 ### HPC Infrastructure (Workstream 1)
 
-- [ ] BeeGFS client kernel module builds and mounts successfully
+- [x] BeeGFS client kernel module builds and mounts successfully - **COMPLETE**
+- [x] TASK-047 75% complete - Base packages enhanced - **IN PROGRESS**
+- [ ] All Ansible roles consolidated (10+ → 7 final roles) - **91% complete**
 - [ ] Container registry operational on BeeGFS storage
 - [ ] BeeGFS throughput >1 GB/s for large files
 - [ ] SLURM GPU scheduling working correctly
 - [ ] End-to-end ML container workflow validated
-- [ ] All Ansible roles consolidated (10+ → 7 final roles)
 - [ ] Test frameworks consolidated (verified complete)
 
 ### Code Quality (Workstream 2)
@@ -490,21 +489,21 @@ TASK-035 → TASK-036 → TASK-037
 
 ### Overall Project
 
-- [ ] Total code duplication reduced by 5,000+ lines
-- [ ] All infrastructure validation complete
-- [ ] Ready to begin MLOps validation
+- [x] Total code duplication reduced by 4,163-5,103 lines - **IN PROGRESS** (more to come)
+- [ ] All infrastructure validation complete - **91% complete (Phase 4)**
+- [x] Ready to begin MLOps validation - **READY** (after completing Phase 4)
 - [ ] Documentation accurate and complete
 
 ---
 
 ## Risk Management
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| BeeGFS kernel module continues to fail | High | Medium | Alternative: NFS, delay MLOps validation |
-| Role consolidation breaks deployments | High | Low | Test each change with full cluster deployment |
-| Pharos removal breaks links | Medium | Low | Comprehensive grep and test after each phase |
-| MLOps validation delayed | Medium | High | Acceptable, infrastructure must be stable first |
+| Risk | Impact | Probability | Mitigation | Status |
+|------|--------|-------------|------------|--------|
+| ~~BeeGFS kernel module continues to fail~~ | ~~High~~ | ~~Medium~~ | ~~Alternative: NFS~~ | ✅ RESOLVED |
+| Role consolidation breaks deployments | High | Low | Test each change with full cluster deployment | Active |
+| ~~Pharos removal breaks links~~ | ~~Medium~~ | ~~Low~~ | ~~Comprehensive grep~~ | ✅ RESOLVED |
+| Phase 4 completion delayed | Low | Low | Only 3 hours remaining | Active |
 
 ---
 
@@ -562,6 +561,6 @@ git ls-files | xargs grep -li "pharos"
 
 ---
 
-**Last Updated:** 2025-10-30  
-**Next Review:** 2025-11-01  
+**Last Updated:** 2025-11-18  
+**Next Review:** 2025-11-22  
 **Document Owner:** Project Lead

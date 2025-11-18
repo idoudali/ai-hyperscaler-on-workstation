@@ -1,15 +1,15 @@
 # HPC SLURM Deployment - Master Task Index
 
-**Last Updated**: 2025-11-10
+**Last Updated**: 2025-11-18
 **Total Tasks**: 48 across 6 phases
-**Status**: Infrastructure Consolidation Phase - Role Consolidation In Progress
+**Status**: Infrastructure Consolidation Phase - Role Consolidation Nearly Complete
 
 ## Quick Status
 
 - **Completed**: 29 tasks (60%)
-- **In Progress**: 0 tasks
-- **Recently Completed**: TASK-046.1 (Package manager role integration)
-- **Pending**: 19 tasks (40%)
+- **In Progress**: 1 task (TASK-047 at 75%)
+- **Recently Completed**: TASK-047 (Base packages enhanced with essential utilities)
+- **Pending**: 18 tasks (38%)
 
 ## Phase Overview
 
@@ -56,7 +56,7 @@
 
 ### 📋 Phase 4: Infrastructure Consolidation (Tasks 029-048, 046.1)
 
-**Status**: 87% Complete (20/23 tasks)
+**Status**: 91% Complete (21/23 tasks)
 **Priority**: HIGH
 **File**: [`hpc-slurm/pending/phase-4-consolidation.md`](hpc-slurm/pending/phase-4-consolidation.md)
 
@@ -65,7 +65,8 @@
 - TASK-029-034.1: Ansible playbook consolidation ✅ (7 tasks complete)
 - TASK-035-037: Test framework consolidation (3 tasks pending)
 - TASK-038-043: Storage consolidation ✅ (6 tasks complete)
-- TASK-044-048, 046.1: Ansible role consolidation 🔄 (4/7 tasks complete, 3 pending: 047, 047.1, 048)
+- TASK-044-048, 046.1: Ansible role consolidation 🔄 (5/7 tasks complete, 2 pending: 047.1, 048)
+  - TASK-047: 🔄 IN PROGRESS (75% complete - base packages role enhanced)
 
 ### 🎯 Phase 6: Final Validation (Tasks 041-044)
 
@@ -88,9 +89,13 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 
 ## Current Focus
 
-**Recently Completed**: TASK-046.1 - Package Manager Role Integration (BeeGFS and SLURM roles integrated)
-**Active Tasks**: None - Ready to start TASK-047
-**Next Priority**: TASK-047 - Consolidate Base Package Roles (continue role consolidation)
+**Recently Completed**: TASK-047 (75%) - Base Packages Role Enhancement (12 essential utilities added)
+**Active Tasks**: TASK-047 (75% complete) - Consolidation and integration in progress
+**Next Priority**:
+
+- Complete TASK-047 (25% remaining)
+- TASK-047.1 - Cleanup Legacy Base Package Roles (0.5 hours)
+- TASK-048 - Create Shared Utilities Role (2 hours)
 
 ## Execution Principles
 
