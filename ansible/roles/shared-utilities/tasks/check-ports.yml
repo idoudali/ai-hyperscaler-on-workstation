@@ -1,0 +1,63 @@
+# Shared Utilities - Port Availability Checking
+# Check if ports are available and listening
+#
+# Required variables:
+#   - ports: List of ports to check (e.g., [6817, 6818, 9090])
+#     OR
+#   - port: Single port to check (e.g., 6817)
+#
+# Optional variables:
+#   - port_check_timeout: Timeout in seconds (default: 30)
+#   - port_check_delay: Delay between checks in seconds (default: 2)
+#   - port_protocol: Protocol to check (tcp or udp, default: tcp)
+
+- name: Set ports list from single port or ports list
+  ansible.builtin.set_fact:
+    ports_to_check: "{{ ports | default([port | default(0)]) | select('>', 0) | list }}"
+  tags:
+    - shared-utilities
+    - check-ports
+
+- name: Validate ports list
+  ansible.builtin.assert:
+    that:
+      - ports_to_check is defined
+      - ports_to_check | length > 0
+    fail_msg: "Either 'port' or 'ports' variable must be provided with valid port numbers"
+    success_msg: "Ports to check: {{ ports_to_check | join(', ') }}"
+  tags:
+    - shared-utilities
+    - check-ports
+
+- name: Check port {{ item }} availability
+  ansible.builtin.wait_for:
+    port: "{{ item }}"
+    host: "{{ port_check_host | default('localhost') }}"
+    protocol: "{{ port_protocol | default('tcp') }}"
+    timeout: "{{ port_check_timeout | default(30) }}"
+    delay: "{{ port_check_delay | default(2) }}"
+  register: port_check_results
+  loop: "{{ ports_to_check }}"
+  changed_when: false
+  tags:
+    - shared-utilities
+    - check-ports
+
+- name: Display port check summary
+  ansible.builtin.debug:
+    msg: |
+      Port Check Summary:
+      {% for result in port_check_results.results %}
+      - Port {{ result.item }}: {{ 'AVAILABLE' if result.rc == 0 else 'NOT AVAILABLE' }}
+      {% endfor %}
+  tags:
+    - shared-utilities
+    - check-ports
+
+- name: Fail if any port is not available
+  ansible.builtin.fail:
+    msg: "One or more required ports are not available"
+  when: port_check_results.results | selectattr('rc', '!=', 0) | list | length > 0
+  tags:
+    - shared-utilities
+    - check-ports

@@ -1,0 +1,57 @@
+# Shared Utilities - Network Connectivity Tests
+# Verify network connectivity to hosts and services
+#
+# Required variables:
+#   - connectivity_hosts: List of hosts to test (e.g., ["controller", "compute01"])
+#     OR
+#   - connectivity_host: Single host to test
+#
+# Optional variables:
+#   - connectivity_port: Port to test (default: 22 for SSH)
+#   - connectivity_protocol: Protocol to use (tcp or udp, default: tcp)
+#   - connectivity_test_timeout: Timeout in seconds (default: 10)
+#   - connectivity_required: Fail if connectivity fails (default: true)
+
+- name: Set connectivity hosts list
+  ansible.builtin.set_fact:
+    hosts_to_test: "{{ connectivity_hosts | default([connectivity_host | default('')]) | select('length', '>', 0) | list }}"
+  tags:
+    - shared-utilities
+    - verify-connectivity
+
+- name: Validate hosts list
+  ansible.builtin.assert:
+    that:
+      - hosts_to_test is defined
+      - hosts_to_test | length > 0
+    fail_msg: "Either 'connectivity_host' or 'connectivity_hosts' variable must be provided"
+    success_msg: "Hosts to test: {{ hosts_to_test | join(', ') }}"
+  tags:
+    - shared-utilities
+    - verify-connectivity
+
+- name: Test connectivity to {{ item }}
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: "{{ connectivity_port | default(22) }}"
+    protocol: "{{ connectivity_protocol | default('tcp') }}"
+    timeout: "{{ connectivity_test_timeout | default(10) }}"
+    delay: 1
+  register: connectivity_results
+  loop: "{{ hosts_to_test }}"
+  changed_when: false
+  failed_when: connectivity_required | default(true) | bool
+  tags:
+    - shared-utilities
+    - verify-connectivity
+
+- name: Display connectivity test summary
+  ansible.builtin.debug:
+    msg: |
+      Connectivity Test Summary:
+      {% for result in connectivity_results.results %}
+      - {{ result.item }}:{{ connectivity_port | default(22) }}: {{ 'REACHABLE' if result.rc == 0 else 'NOT REACHABLE' }}
+      {% endfor %}
+  tags:
+    - shared-utilities
+    - verify-connectivity

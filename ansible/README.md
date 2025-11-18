@@ -70,8 +70,8 @@ ansible/
 │   ├── container-*                   # Container runtime and registry roles
 │   ├── monitoring-stack/             # Monitoring infrastructure
 │   ├── ml-container-images/          # ML container management
-│   ├── hpc-base-packages/            # HPC-specific packages
-│   ├── cloud-base-packages/          # Cloud base packages
+│   ├── base-packages/                # Consolidated base packages (HPC/Cloud)
+│   ├── shared-utilities/             # Common validation and health checks
 │   ├── virtio-fs-mount/              # Virtio-FS shared storage
 │   ├── README.md                     # Roles index and overview
 │   └── [role-name]/README.md         # Role-specific documentation
@@ -207,7 +207,7 @@ See [inventories/README.md](./inventories/README.md) for complete inventory docu
 
 ### 📋 Placeholder/In-Development Components
 
-- **cloud-base-packages** role - Debug messages only
+- **base-packages** role - Consolidated base packages for HPC and cloud (replaces hpc-base-packages and cloud-base-packages)
 - **cluster setup** roles - Basic structure without functional tasks
 
 ## 🎮 Integration

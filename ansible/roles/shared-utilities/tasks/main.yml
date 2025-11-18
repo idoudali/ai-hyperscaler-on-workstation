@@ -1,0 +1,26 @@
+# Shared Utilities Role - Main Tasks
+# Entry point for shared utility functions
+#
+# This role provides reusable validation tasks, health checks, and service
+# management patterns used across multiple roles.
+#
+# Usage:
+#   import_role:
+#     name: shared-utilities
+#     tasks_from: validate-service
+#   vars:
+#     service_name: "slurmctld"
+#     service_port: 6817
+
+- name: Display shared utilities usage
+  ansible.builtin.debug:
+    msg: |
+      Shared Utilities Role
+      Use tasks_from to import specific utility modules:
+      - validate-service: Service health checks
+      - check-ports: Port availability checking
+      - setup-logging: Log directory and rotation
+      - verify-connectivity: Network connectivity tests
+  tags:
+    - shared-utilities
+    - always

@@ -1,0 +1,19 @@
+# Shared Utilities Role - Default Variables
+# Common validation tasks, health checks, and service management patterns
+
+# Service validation defaults
+service_validation_timeout: 30 # Seconds to wait for service checks
+service_validation_retries: 3 # Number of retries for service checks
+
+# Port checking defaults
+port_check_timeout: 30 # Seconds to wait for port availability
+port_check_delay: 2 # Seconds between port check attempts
+
+# Logging defaults
+log_rotation_enabled: true
+log_retention_days: 30
+log_max_size: "100M"
+
+# Connectivity test defaults
+connectivity_test_timeout: 10 # Seconds for connectivity tests
+connectivity_test_hosts: [] # List of hosts to test connectivity to

@@ -34,8 +34,12 @@ base_packages_common:
   - openssh-client # SSH client utilities
 
 # HPC-specific packages (installed when package_profile=hpc)
+# These packages are essential for HPC workloads but not needed for cloud deployments
 base_packages_hpc: []
 
 # Cloud-specific packages (installed when package_profile=cloud)
-# Reserved for future cloud deployment needs
-base_packages_cloud: []
+# Cloud deployment utilities and tools
+base_packages_cloud:
+  - cloud-init # Cloud instance initialization
+  - qemu-guest-agent # QEMU guest agent for VM management
+  # Additional cloud packages can be added here as needed
