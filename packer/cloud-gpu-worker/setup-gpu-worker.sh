@@ -27,13 +27,15 @@ apt-get install -y -qq --no-install-recommends \
 
 # Install GPU-specific prerequisites
 echo "Installing GPU-specific prerequisites..."
-KERNEL_VERSION=$(uname -r)
+# Install packages including kernel headers meta package
+# linux-headers-cloud-amd64 is a meta package that automatically pulls
+# the correct headers for the running cloud kernel
 apt-get install -y -qq --no-install-recommends \
     pciutils \
     kmod \
     build-essential \
     dkms \
-    "linux-headers-${KERNEL_VERSION}"
+    linux-headers-cloud-amd64
 
 # Configure basic networking
 echo "Configuring networking..."
