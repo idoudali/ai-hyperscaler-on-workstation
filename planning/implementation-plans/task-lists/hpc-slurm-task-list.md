@@ -1,15 +1,15 @@
 # HPC SLURM Deployment - Master Task Index
 
 **Last Updated**: 2025-11-18
-**Total Tasks**: 48 across 6 phases
-**Status**: Infrastructure Consolidation Phase - Role Consolidation Nearly Complete
+**Total Tasks**: 60 across 7 phases
+**Status**: Ready for Distributed Training Enablement
 
 ## Quick Status
 
-- **Completed**: 52 tasks (93%)
+- **Completed**: 52 tasks (87%)
 - **In Progress**: 0 tasks
 - **Recently Completed**: Phase 4 consolidation (Tasks 047, 047.1, 048)
-- **Pending**: 4 tasks (7%)
+- **Pending**: 12 tasks (13%) - 8 distributed training + 4 validation
 
 ## Phase Overview
 
@@ -70,17 +70,35 @@
   - TASK-047.1: ✅ COMPLETE - Legacy base package roles archived
   - TASK-048: ✅ COMPLETE - Shared utilities role created
 
-### 🎯 Phase 6: Final Validation (Tasks 049-052)
+### 🎯 Phase 5: Distributed Training Enablement (Tasks 053-060)
+
+**Status**: 🟢 Ready to Start (0/8 tasks)
+**Priority**: HIGH
+**File**: [`hpc-slurm/pending/phase-5-distributed-training.md`](hpc-slurm/pending/phase-5-distributed-training.md)
+**Prerequisites**: ✅ Phase 4 complete (all 23 tasks)
+
+**Objective**: Enable and validate distributed training capabilities using containerized workloads
+
+- TASK-053: Container Build and Deployment (PyTorch + CUDA + MPI via Apptainer)
+- TASK-054: NCCL Multi-GPU Validation (MNIST with containers)
+- TASK-055: Monitoring Infrastructure Setup (containerized services)
+- TASK-056: Oumi Framework Container Creation
+- TASK-057: Oumi Custom Cluster Configuration (Apptainer-based)
+- TASK-058: Small Model Training Validation (containerized PyTorch)
+- TASK-059: Small Model Fine-tuning Validation (containerized Oumi)
+- TASK-060: Container-based Distributed Training Documentation
+
+### 🎯 Phase 6: Final Validation (Tasks 061-064)
 
 **Status**: 🟢 Ready to Start (0/4 tasks)
 **Priority**: HIGH
 **File**: [`hpc-slurm/pending/phase-6-validation.md`](hpc-slurm/pending/phase-6-validation.md)
-**Prerequisites**: ✅ Phase 4 complete (all 23 tasks)
+**Prerequisites**: ✅ Phase 5 complete (all 8 tasks)
 
-- TASK-049: Container Registry on BeeGFS
-- TASK-050: BeeGFS Performance Testing
-- TASK-051: SLURM Integration Testing
-- TASK-052: Container Workflow Validation
+- TASK-061: Container Registry on BeeGFS (was TASK-049)
+- TASK-062: BeeGFS Performance Testing (was TASK-050)
+- TASK-063: SLURM Integration Testing (was TASK-051)
+- TASK-064: Container Workflow Validation (was TASK-052)
 
 ## Reference Documentation
 
@@ -98,12 +116,26 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 - TASK-047.1: Legacy base package roles archived to ansible/roles/archive/
 - TASK-048: Shared utilities role created with validation tasks
 
-**Next Priority**: Phase 6 Final Validation (Ready to Start)
+**Next Priority**: Phase 5 Distributed Training Enablement (Ready to Start)
 
-- TASK-049: Container Registry on BeeGFS (2 hours)
-- TASK-050: BeeGFS Performance Testing (2 hours)
-- TASK-051: SLURM Integration Testing (3 hours)
-- TASK-052: Container Workflow Validation (3 hours)
+**Week 1: Container Build & Validation** (TASK-053 to TASK-055)
+
+- TASK-053: Build PyTorch Container + Deploy to BeeGFS (4 hours)
+- TASK-054: NCCL Multi-GPU Validation with Containerized MNIST (4 hours)
+- TASK-055: Containerized Monitoring Infrastructure (4 hours)
+
+**Week 2: Oumi Container & Configuration** (TASK-056 to TASK-057)
+
+- TASK-056: Build Oumi Framework Container (2 hours)
+- TASK-057: Oumi Cluster Configuration with Apptainer (6 hours)
+
+**Week 3: Containerized Training Validation** (TASK-058 to TASK-060)
+
+- TASK-058: Containerized PyTorch Training Validation (1 day)
+- TASK-059: Containerized Oumi Fine-tuning Validation (2 days)
+- TASK-060: Container-based Training Documentation (4 hours)
+
+**Estimated Time**: ~3-4 weeks to complete all distributed training enablement tasks
 
 ## Execution Principles
 
@@ -150,13 +182,31 @@ hpc-slurm/reference/infrastructure-summary.md) - What's built
 
 ### Overall Implementation Success
 
+**Infrastructure (Phases 0-4):**
+
 - ✅ Functional SLURM cluster with job scheduling
 - ✅ Container integration for ML/AI workloads
 - ✅ GPU scheduling (GRES) with proper isolation
 - ✅ Monitoring and failure detection active
 - ✅ High-performance storage (BeeGFS)
 - ✅ Consolidated infrastructure (43% playbook reduction, 100% role consolidation complete)
-- 🎯 Final validation pending (Phase 6 - 4 tasks)
+
+**Distributed Training (Phase 5):**
+
+- 🎯 PyTorch distributed training working (multi-node, multi-GPU)
+- 🎯 NCCL communication validated across nodes
+- 🎯 Monitoring infrastructure operational (TensorBoard/Aim/MLflow)
+- 🎯 Oumi framework installed and configured
+- 🎯 Small model training validated (MNIST baseline)
+- 🎯 Small model fine-tuning validated (SmolLM-135M)
+- 🎯 Complete documentation for distributed workflows
+
+**Final Validation (Phase 6):**
+
+- 🎯 Container registry on BeeGFS operational
+- 🎯 BeeGFS performance benchmarked
+- 🎯 SLURM integration fully tested
+- 🎯 End-to-end container workflow validated
 
 ## Quick Links
 

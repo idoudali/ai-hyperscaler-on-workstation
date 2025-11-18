@@ -2,8 +2,8 @@
 
 **Last Updated:** 2025-11-18  
 **Total Task Lists:** 5 active lists  
-**Overall Progress:** 73.4% complete (91/124, excluding 2 deprecated). Includes completed streams.  
-**Active Work Progress:** 51% complete (35/68, excluding 2 deprecated). Excludes completed streams.
+**Overall Progress:** 69.6% complete (91/132, excluding 2 deprecated). Includes completed streams.  
+**Active Work Progress:** 46% complete (35/76, excluding 2 deprecated). Excludes completed streams.
 
 ## Overview
 
@@ -29,63 +29,80 @@ project, categorized by completion status and organized for efficient project ma
 
 ### 🚀 Start Here: Week 1 Priorities
 
-**Day 1-2: HPC Phase 6 Validation** (10 hours total)
+**Day 1-2: HPC Phase 5 Week 1 - Container Build & Validation** (12 hours total)
 
-1. **TASK-049** - Container Registry on BeeGFS (2 hrs)
-2. **TASK-050** - BeeGFS Performance Testing (2 hrs)
-3. **TASK-051** - SLURM Integration Testing (3 hrs)
-4. **TASK-052** - Container Workflow Validation (3 hrs)
+1. **TASK-053** - Container Build and Deployment (4 hrs)
+2. **TASK-054** - NCCL Multi-GPU Validation (MNIST) (4 hrs)
+3. **TASK-055** - Monitoring Infrastructure Setup (4 hrs)
 
-**Day 2-4: Start MLOps Validation**
+**Week 2: HPC Phase 5 Week 2 - Oumi Container & Configuration** (8 hours)
 
-1. **MLOPS-1.1** - Single GPU MNIST Training (1 day)
-2. **MLOPS-1.2** - Single GPU LLM Fine-tuning (2 days)
+1. **TASK-056** - Oumi Framework Container Creation (2 hrs)
+2. **TASK-057** - Oumi Custom Cluster Configuration (6 hrs)
+
+**Week 3-4: HPC Phase 5 Week 3 - Training Validation** (3.5 days)
+
+1. **TASK-058** - Small Model Training Validation (PyTorch) (1 day)
+2. **TASK-059** - Small Model Fine-tuning Validation (Oumi) (2 days)
+3. **TASK-060** - Container-based Training Documentation (4 hrs)
 
 **Why This Order:**
 
 - ✅ HPC infrastructure consolidation complete (Phase 4 done!)
-- Validate infrastructure with Phase 6 tests (10 hours)
-- Validate infrastructure with quick MLOps tests
-- Build confidence with fast-running models
-- Clear path to distributed training
+- Enable distributed training capabilities (Phase 5, ~3-4 weeks)
+- Validate with containerized PyTorch and Oumi workloads
+- Set up monitoring infrastructure for experiment tracking
+- Build foundation for MLOps validation workflows
 
 ### 📊 Priority Overview
 
 | Priority | Workstream | Tasks | Time | Status |
 |----------|-----------|-------|------|--------|
-| **P1** | HPC Phase 6 | 4 | 10 hrs | Ready Now |
-| **P2** | MLOps Cat 1 | 2 | 3 days | Ready Now |
-| **P3** | MLOps Cat 2 | 2 | 4 days | After Cat 1 |
-| **P4** | MLOps Cat 3 | 2 | 3 days | After Cat 2 |
-| **P5** | MLOps Cat 5 | 2 | 5 days | After Cat 3 |
-| **P6** | Cloud Phase 2+ | 17 | 10 weeks | Independent path |
+| **P1** | HPC Phase 5 | 8 | ~3-4 weeks | Ready Now |
+| **P2** | HPC Phase 6 | 4 | 10 hrs | After Phase 5 |
+| **P3** | MLOps Cat 1 | 2 | 3 days | After Phase 5 |
+| **P4** | MLOps Cat 2 | 2 | 4 days | After Cat 1 |
+| **P5** | MLOps Cat 3 | 2 | 3 days | After Cat 2 |
+| **P6** | MLOps Cat 5 | 2 | 5 days | After Cat 3 |
+| **P7** | Cloud Phase 2+ | 17 | 10 weeks | Independent path |
 
 ### Week-by-Week Execution Plan
 
-**Week 1: HPC Validation + MLOps Start**
+**Week 1: HPC Phase 5 - Container Build & Validation**
 
 - ✅ **COMPLETE:** HPC Phase 4 role consolidation (all 23 tasks done!)
-- Execute HPC Phase 6 validation (10 hours)
+- TASK-053: Container Build and Deployment (4 hrs)
+- TASK-054: NCCL Multi-GPU Validation (MNIST) (4 hrs)
+- TASK-055: Monitoring Infrastructure Setup (4 hrs)
+- **Outcome:** Containerized PyTorch environment ready, NCCL validated, monitoring operational
+
+**Week 2: HPC Phase 5 - Oumi Container & Configuration**
+
+- TASK-056: Oumi Framework Container Creation (2 hrs)
+- TASK-057: Oumi Custom Cluster Configuration (6 hrs)
+- **Outcome:** Oumi framework containerized and configured for HPC cluster
+
+**Week 3-4: HPC Phase 5 - Training Validation**
+
+- TASK-058: Small Model Training Validation (PyTorch) (1 day)
+- TASK-059: Small Model Fine-tuning Validation (Oumi) (2 days)
+- TASK-060: Container-based Training Documentation (4 hrs)
+- **Outcome:** Distributed training working with PyTorch and Oumi
+
+**Week 4-5: HPC Phase 6 + MLOps Start**
+
+- Execute HPC Phase 6: Final validation (TASK-061-064, 10 hours)
 - Start MLOps Category 1: Basic Training (3 days)
-- **Outcome:** HPC infrastructure validated, single GPU training working
+- **Outcome:** HPC infrastructure 100% complete, MLOps validation begins
 
-**Week 2: Distributed Training**
+**Week 5-6: MLOps Validation**
 
-- Complete HPC Phase 6: Final validation (10 hours)
-- MLOps Category 2: Multi-GPU training (4 days)
-- **Outcome:** HPC infrastructure 100% complete, Multi-GPU training validated, NCCL working
-
-**Week 3: Oumi Framework**
-
+- MLOps Category 2: Distributed Training (4 days)
 - MLOps Category 3: Oumi Integration (3 days)
-- **Outcome:** Oumi framework validated on HPC cluster
+- MLOps Category 5: E2E Pipeline (5 days)
+- **Outcome:** Complete MLOps validation done
 
-**Week 4: End-to-End Pipeline**
-
-- MLOps Category 5: E2E workflow (5 days)
-- **Outcome:** Complete MLOps pipeline working
-
-**Total:** ~3-4 weeks to complete all remaining HPC + MLOps work
+**Total:** ~5-6 weeks to complete all remaining HPC + MLOps work
 
 ### Success Metrics by Week
 
@@ -96,22 +113,31 @@ project, categorized by completion status and organized for efficient project ma
 - ✅ TASK-047.1 complete (legacy roles archived)
 - ✅ TASK-048 complete (shared utilities role created)
 - ✅ **HPC Phase 4 complete (all 23 tasks done!)**
-- [ ] HPC Phase 6 validation complete (4 tasks)
-- [ ] Single GPU training working (MLOPS-1.1)
-- [ ] Oumi framework validated (MLOPS-1.2)
+- [ ] TASK-053: PyTorch container deployed
+- [ ] TASK-054: NCCL multi-GPU validated
+- [ ] TASK-055: Monitoring infrastructure operational
 
 **Week 2:**
 
-- [ ] Multi-GPU training working (MLOPS-2.1, 2.2)
-- [ ] HPC Phase 6 validation complete
+- [ ] TASK-056: Oumi container created
+- [ ] TASK-057: Oumi cluster configured
 
-**Week 3:**
+**Week 3-4:**
 
-- [ ] Oumi custom cluster configured (MLOPS-3.1, 3.2)
-- [ ] HPC infrastructure 100% complete
+- [ ] TASK-058: PyTorch training validated
+- [ ] TASK-059: Oumi fine-tuning validated
+- [ ] TASK-060: Training documentation complete
+- [ ] **HPC Phase 5 complete (all 8 tasks done!)**
 
-**Week 4:**
+**Week 4-5:**
 
+- [ ] HPC Phase 6 validation complete (TASK-061-064)
+- [ ] **HPC infrastructure 100% complete**
+- [ ] MLOps Category 1 started
+
+**Week 5-6:**
+
+- [ ] MLOps Categories 2-3 complete
 - [ ] End-to-end MLOps pipeline (MLOPS-5.1, 5.2)
 - [ ] Ready for production ML workloads
 
@@ -121,15 +147,15 @@ project, categorized by completion status and organized for efficient project ma
 
 | Task List | Total Tasks | Completed | In Progress | Pending | Completion % | Status |
 |-----------|-------------|-----------|-------------|---------|--------------|--------|
-| **HPC SLURM Deployment** | 56 | 52 | 0 | 4 | 93% | 🟡 Active |
+| **HPC SLURM Deployment** | 64 | 52 | 0 | 12 | 81% | 🟡 Active |
 | **Documentation Structure** | 31 | 31 | 0 | 0 | 100% | ✅ Complete |
 | **Test Consolidation** | 15 | 15 | 0 | 0 | 100% | ✅ Complete |
 | **MLOps Validation** | 10 | 0 | 0 | 10 | 0% | 🔵 Not Started |
 | **Remove Pharos References** | 10 (2 deprecated) | 8 | 0 | 2 | 80% | 🟢 Low Priority |
 | **Active Workstreams** | 10 | 10 | 0 | 0 | 100% | ✅ Complete |
-| **TOTAL** | **132** (2 deprecated) | **116** | **0** | **16** | **88%** | 🟢 Near Complete |
+| **TOTAL** | **140** (2 deprecated) | **116** | **0** | **24** | **83%** | 🟢 Near Complete |
 
-**Adjusted Total (excluding completed streams):** 76 tasks (2 deprecated), 60 complete (79%)
+**Adjusted Total (excluding completed streams):** 84 tasks (2 deprecated), 60 complete (71%)
 
 ---
 
@@ -160,20 +186,28 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 ---
 
-#### HPC SLURM Deployment (4 tasks remaining)
+#### HPC SLURM Deployment (12 tasks remaining)
 
-**Current Focus:** Phase 6 Final Validation
+**Current Focus:** Phase 5 Distributed Training Enablement
 
 **Recent Status:** ✅ Phase 4 consolidation complete (all 23 tasks done!)
 
 | Task ID | Description | Priority | Duration | Dependencies | Status |
 |---------|-------------|----------|----------|--------------|--------|
-| TASK-049 | Container Registry on BeeGFS | HIGH | 2 hrs | Phase 4 ✅ | Pending |
-| TASK-050 | BeeGFS Performance Testing | HIGH | 2 hrs | TASK-049 | Pending |
-| TASK-051 | SLURM Integration Testing | HIGH | 3 hrs | TASK-050 | Pending |
-| TASK-052 | Container Workflow Validation | HIGH | 3 hrs | TASK-051 | Pending |
+| TASK-053 | Container Build and Deployment | HIGH | 4 hrs | Phase 4 ✅ | Pending |
+| TASK-054 | NCCL Multi-GPU Validation | HIGH | 4 hrs | TASK-053 | Pending |
+| TASK-055 | Monitoring Infrastructure | HIGH | 4 hrs | TASK-053 | Pending |
+| TASK-056 | Oumi Framework Container | HIGH | 2 hrs | TASK-053 | Pending |
+| TASK-057 | Oumi Cluster Configuration | HIGH | 6 hrs | TASK-056 | Pending |
+| TASK-058 | PyTorch Training Validation | HIGH | 1 day | TASK-054 | Pending |
+| TASK-059 | Oumi Fine-tuning Validation | HIGH | 2 days | TASK-057, 058 | Pending |
+| TASK-060 | Training Documentation | HIGH | 4 hrs | TASK-059 | Pending |
+| TASK-061 | Container Registry on BeeGFS | HIGH | 2 hrs | TASK-060 | Pending |
+| TASK-062 | BeeGFS Performance Testing | HIGH | 2 hrs | TASK-061 | Pending |
+| TASK-063 | SLURM Integration Testing | HIGH | 3 hrs | TASK-062 | Pending |
+| TASK-064 | Container Workflow Validation | HIGH | 3 hrs | TASK-063 | Pending |
 
-**Estimated Time to Complete:** 10 hours
+**Estimated Time to Complete:** ~3-4 weeks (Phase 5) + 10 hours (Phase 6)
 
 **Reference:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
 
@@ -186,7 +220,8 @@ This section tracks **only active (incomplete) tasks** across all task lists.
 
 **Next Actions:**
 
-1. Execute Phase 6 validation: TASK-049-052 (10 hours)
+1. Begin Phase 5 distributed training enablement: TASK-053-060 (~3-4 weeks)
+2. Execute Phase 6 validation after Phase 5: TASK-061-064 (10 hours)
 
 ---
 
@@ -335,10 +370,10 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 
 **HPC SLURM Deployment** - HPC cluster infrastructure  
 
-- **Status:** 93% complete (52/56 tasks) - ✅ Phase 4 complete!
+- **Status:** 81% complete (52/64 tasks) - ✅ Phase 4 complete!
 - **Location:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
-- **Phases:** 6 phases (0-6), currently in Phase 6
-- **Focus:** SLURM cluster, BeeGFS storage, GPU scheduling, container integration
+- **Phases:** 7 phases (0-6), currently in Phase 5
+- **Focus:** SLURM cluster, BeeGFS storage, GPU scheduling, container integration, distributed training
 
 **Key Phases:**
 
@@ -350,7 +385,13 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
   - TASK-047: ✅ Base packages consolidated with HPC and cloud profiles
   - TASK-047.1: ✅ Legacy roles archived
   - TASK-048: ✅ Shared utilities role created
-- 🟢 Phase 6: Final Validation (0/4 complete) - Ready to start
+- 🟢 Phase 5: Distributed Training Enablement (0/8 complete) - Ready to start
+  - Container build and deployment
+  - NCCL multi-GPU validation
+  - Monitoring infrastructure
+  - Oumi framework integration
+  - Model training and fine-tuning validation
+- 🟡 Phase 6: Final Validation (0/4 complete) - After Phase 5
 
 ---
 
@@ -438,6 +479,14 @@ Category 4 when cloud is ready). This fits within the overall ~3-4 week timeline
 - **Status:** ✅ 100% complete (15/15 tasks)
 - **Location:** [`archive/active-workstreams.md`](./archive/active-workstreams.md) (Stream B)
 - **Result:** Test code reduced by 2,338 lines, 7 unified frameworks created
+
+**BATS Porting Proposal** - Container Runtime test suite migration to BATS
+
+- **Status:** 🔵 Proposal (0% complete)
+- **Location:** [`bats-porting-proposal.md`](./bats-porting-proposal.md)
+- **Focus:** Migrate container-runtime tests to BATS framework for JUnit XML reports
+- **Estimated Effort:** 20-30 hours (2-3 weeks)
+- **Priority:** Medium (improves CI/CD integration)
 
 ---
 

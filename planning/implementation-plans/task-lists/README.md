@@ -10,10 +10,11 @@ This directory contains detailed task lists for implementing various components 
 
 ## Overview
 
-**Total Progress:** 88% complete (116/132 tasks, 2 deprecated)  
-**Active Tasks:** 16 tasks across 3 workstreams  
-**Estimated Remaining:** ~10 hours + 15 days
-**Major Update:** ✅ HPC Phase 4 (Consolidation) 100% complete! 🎉
+**Total Progress:** 83% complete (116/140 tasks, 2 deprecated)  
+**Active Tasks:** 24 tasks across 3 workstreams  
+**Estimated Remaining:** ~3-4 weeks + 10 weeks (cloud)
+**Major Update:** ✅ HPC Phase 4 (Consolidation) 100% complete! 🎉  
+**Next Focus:** 🎯 Phase 5 Distributed Training Enablement (8 tasks, ~3-4 weeks)
 
 ## Directory Structure
 
@@ -64,11 +65,11 @@ task-lists/
 
 ---
 
-### 🟡 In Progress Task Lists (56-93%)
+### 🟡 In Progress Task Lists (56-81%)
 
 | Task List | Progress | Active | Location |
 |-----------|----------|--------|----------|
-| **HPC SLURM Deployment** | 93% (52/56) | Phase 6 | `hpc-slurm-task-list.md` |
+| **HPC SLURM Deployment** | 81% (52/64) | Phase 5 | `hpc-slurm-task-list.md` |
 | **Documentation Structure** | 56% (27/48) | Tutorials, Ops | `documentation-task-list/` |
 
 **Focus Areas:**
@@ -77,7 +78,8 @@ task-lists/
 
 - ✅ Infrastructure enhancements (Phase 3) - COMPLETE
 - ✅ Role consolidation (Phase 4) - **COMPLETE!** 🎉
-- Final validation (Phase 6) - Ready to start
+- 🎯 Distributed training enablement (Phase 5) - Ready to start (8 tasks)
+- Final validation (Phase 6) - After Phase 5
 
 **Documentation:**
 
@@ -94,6 +96,7 @@ task-lists/
 |-----------|-------|---------------|----------|
 | **MLOps Validation** | 10 | HPC operational | `individual-tasks/mlops-validation/` |
 | **Remove Pharos References** | 10 (2 deprecated) | None | `remove-pharos-references-task-list.md` |
+| **BATS Porting Proposal** | Proposal | None | `bats-porting-proposal.md` |
 
 **MLOps Validation:**
 
@@ -179,6 +182,8 @@ defined in `docs/design-docs/project-plan.md`.
 - **HPC SLURM:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md) - Master HPC deployment index
 - **MLOps Validation:** [`individual-tasks/mlops-validation/README.md`](./individual-tasks/mlops-validation/README.md)
 - **Remove Pharos:** [`remove-pharos-references-task-list.md`](./remove-pharos-references-task-list.md)
+- **BATS Porting Proposal:** [`bats-porting-proposal.md`](./bats-porting-proposal.md) - Container
+  Runtime test suite migration to BATS framework
 
 ### Archived Task Lists
 
@@ -200,23 +205,25 @@ defined in `docs/design-docs/project-plan.md`.
 
 ### Overall Progress
 
-- **Total Tasks:** 132 across 5 task lists (2 deprecated)
-- **Completed:** 116 tasks (88%)
+- **Total Tasks:** 140 across 5 task lists (2 deprecated)
+- **Completed:** 116 tasks (83%)
 - **In Progress:** 0 tasks
-- **Pending:** 16 tasks (12%)
+- **Pending:** 24 tasks (17%)
 
 ### This Week's Focus
 
 1. ✅ ~~Documentation Category 1 (Quickstarts)~~ - **100% COMPLETE!** 🎉
 2. ✅ ~~HPC Phase 4 (Consolidation)~~ - **100% COMPLETE!** 🎉
-3. **HPC Phase 6** - Execute final validation (4 tasks, 10 hours)
-4. **MLOps Category 1** - Begin basic training validation (2 tasks, 3 days)
+3. **HPC Phase 5** - Distributed Training Enablement (8 tasks, ~3-4 weeks)
+   - Start with container build and PyTorch DDP validation
+   - Set up monitoring infrastructure
+   - Integrate Oumi framework
 
 ### Next Sprint (Week of 2025-11-25)
 
 1. ✅ ~~Complete HPC Phase 4 role consolidation~~ - **DONE!**
-2. Execute HPC Phase 6 validation (4 tasks, 10 hours)
-3. Complete MLOps Category 1 & 2 (Basic and Distributed Training)
+2. Begin HPC Phase 5: Container build & PyTorch DDP (Tasks 053-054)
+3. Set up monitoring infrastructure (Task 055)
 4. Continue Documentation Category 2 (Tutorials)
 
 ### Key Metrics
@@ -224,8 +231,9 @@ defined in `docs/design-docs/project-plan.md`.
 - ✅ Code duplication eliminated: ~5,600-7,000 lines (exceeded projection)
 - ✅ Test frameworks consolidated: 15 → 7 frameworks
 - ✅ Documentation quickstarts: 6/6 complete! 🎉
-- ✅ **HPC Phase 4 consolidation: 100% complete!** 🎉 **NEW**
-- 🎯 Target: HPC infrastructure 100% complete by 2025-11-30 (Phase 6 validation)
+- ✅ **HPC Phase 4 consolidation: 100% complete!** 🎉
+- 🎯 **NEW:** Phase 5 Distributed Training Enablement (8 tasks, ~3-4 weeks)
+- 🎯 Target: HPC infrastructure 100% complete by 2025-12-20 (Phase 5 + 6)
 - 🎯 Target: Documentation 75% complete by 2025-12-15
 
 ---
