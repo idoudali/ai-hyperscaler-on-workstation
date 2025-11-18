@@ -1,9 +1,10 @@
-# Base Packages Role - DEPRECATED
+# Base Packages Role
 
-⚠️ **DEPRECATION NOTICE**: This role has been reverted to separate `hpc-base-packages` and `cloud-base-packages` roles.
+**Status:** ✅ Complete (Phase 4.8 Consolidation)
+**Last Updated:** 2025-11-18
 
-This role was an experimental consolidation of base package installation. Development has been paused and the
-separate role-based approach has been restored for better maintainability.
+This role provides consolidated base package installation for both HPC and cloud workloads, replacing the
+separate `hpc-base-packages` and `cloud-base-packages` roles with a unified, profile-based approach.
 
 ## Purpose
 
@@ -55,6 +56,8 @@ roles:
 
 ### Common Packages (All Profiles)
 
+These packages are installed for all profiles (hpc, cloud, minimal):
+
 - `tmux` - Terminal multiplexer
 - `htop` - Interactive process viewer
 - `vim` - Text editor
@@ -65,14 +68,31 @@ roles:
 - `iputils-ping` - ping command
 - `dnsutils` - DNS utilities
 - `netcat-openbsd` - Network connectivity testing
+- `bc` - Calculator for performance tests
+- `coreutils` - Enhanced GNU core utilities
+- `util-linux` - Additional utilities (mount, lsblk, etc.)
+- `procps` - Process utilities (ps, top, etc.)
+- `gawk` - GNU awk for text processing
+- `sed` - Stream editor
+- `grep` - Pattern matching
+- `findutils` - find, locate, xargs
+- `less` - Pager for viewing files
+- `sudo` - Privilege escalation
+- `ca-certificates` - SSL certificate authorities
+- `openssh-client` - SSH client utilities
 
 ### HPC-Specific Packages
 
-Currently empty. Reserved for future HPC-specific package additions.
+Currently empty. Most HPC-specific packages (MPI, scientific libraries, compilers) are installed
+by other roles (slurm-controller, slurm-compute) or via the package-manager role. Additional
+HPC base utilities can be added here if needed.
 
 ### Cloud-Specific Packages
 
-Currently empty. Reserved for future cloud-specific package additions (e.g., `cloud-init`, `qemu-guest-agent`).
+- `cloud-init` - Cloud instance initialization
+- `qemu-guest-agent` - QEMU guest agent for VM management
+
+Additional cloud packages can be added here as needed for cloud deployments.
 
 ## Dependencies
 
@@ -110,15 +130,29 @@ roles:
 
 This role replaces:
 
-- `hpc-base-packages` (merged)
-- `cloud-base-packages` (placeholder, now consolidated)
+- ✅ `hpc-base-packages` (fully merged - packages consolidated)
+- ✅ `cloud-base-packages` (merged - cloud packages added)
 
-**Migration Steps:**
+**Migration Status:**
 
-1. Replace `hpc-base-packages` with `base-packages` in playbooks
-2. Remove `cloud-base-packages` references (if any)
-3. Keep default `package_profile: "hpc"` for HPC deployments
-4. Set `package_profile: "cloud"` for cloud deployments (when implemented)
+- ✅ All playbooks updated to use `base-packages`
+- ✅ Legacy roles consolidated and removed
+- ✅ Default profile is `hpc` for backward compatibility
+- ✅ Cloud profile available with `package_profile: "cloud"`
+
+**Usage:**
+
+```yaml
+# HPC deployments (default)
+roles:
+  - base-packages  # Uses hpc profile by default
+
+# Cloud deployments
+roles:
+  - base-packages
+    vars:
+      package_profile: "cloud"
+```
 
 ## Related Roles
 

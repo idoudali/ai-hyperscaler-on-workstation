@@ -80,7 +80,8 @@ The Kubernetes Dashboard is a web-based UI for Kubernetes clusters. This role:
 1. **Kubernetes cluster** must be deployed and healthy
 2. **Kubeconfig** must be available and configured
 3. **kubernetes.core collection** must be installed (in `ansible/collections/requirements.yml`)
-4. **Helm** must be available (can be installed via `cloud-base-packages` role)
+4. **Helm** must be available (can be installed via `base-packages` role
+   with `package_profile: cloud`)
 
 ## Installation Process
 
@@ -207,7 +208,8 @@ This role requires:
 
 ## Integration
 
-This role is integrated into `playbook-cloud-runtime.yml` and runs automatically after Kubernetes cluster deployment and kubeconfig retrieval.
+This role is integrated into `playbook-cloud-runtime.yml` and runs
+automatically after Kubernetes cluster deployment and kubeconfig retrieval.
 
 ## References
 
@@ -215,5 +217,3 @@ This role is integrated into `playbook-cloud-runtime.yml` and runs automatically
 - [Kubernetes Dashboard GitHub](https://github.com/kubernetes/dashboard)
 - [Kubernetes Dashboard Helm Chart](https://github.com/kubernetes/dashboard/tree/master/charts/kubernetes-dashboard)
 - [Ansible kubernetes.core.helm Module](https://docs.ansible.com/ansible/latest/collections/kubernetes/core/helm_module.html)
-
-

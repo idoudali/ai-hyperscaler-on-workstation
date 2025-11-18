@@ -1,0 +1,97 @@
+# Shared Utilities - Service Health Check
+# Generic service validation and health checking
+#
+# Required variables:
+#   - service_name: systemd service name (e.g., "slurmctld", "beegfs-mgmtd")
+#
+# Optional variables:
+#   - service_port: TCP/UDP port to check (e.g., 6817)
+#   - service_check_command: Command to run for health check (e.g., "slurmctld -V")
+#   - service_expected_state: Expected service state (default: "active")
+#   - service_validation_timeout: Timeout in seconds (default: 30)
+
+- name: Validate service name is provided
+  ansible.builtin.assert:
+    that:
+      - service_name is defined
+      - service_name | length > 0
+    fail_msg: "service_name variable is required for service validation"
+    success_msg: "Service name validated: {{ service_name }}"
+  tags:
+    - shared-utilities
+    - validate-service
+
+- name: Check if {{ service_name }} service exists
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+  register: service_exists
+  changed_when: false
+  failed_when: false
+  tags:
+    - shared-utilities
+    - validate-service
+
+- name: Fail if service does not exist
+  ansible.builtin.fail:
+    msg: "Service {{ service_name }} does not exist on this system"
+  when: not service_exists.status.ActiveState
+  tags:
+    - shared-utilities
+    - validate-service
+
+- name: Check if {{ service_name }} is running
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    state: started
+  register: service_status
+  failed_when: false
+  tags:
+    - shared-utilities
+    - validate-service
+
+- name: Verify {{ service_name }} is active
+  ansible.builtin.command: "systemctl is-active {{ service_name }}"
+  register: service_active
+  changed_when: false
+  failed_when: service_active.rc != 0
+  tags:
+    - shared-utilities
+    - validate-service
+
+- name: Check {{ service_name }} port availability
+  ansible.builtin.wait_for:
+    port: "{{ service_port }}"
+    timeout: "{{ service_validation_timeout | default(30) }}"
+    delay: "{{ port_check_delay | default(2) }}"
+  when:
+    - service_port is defined
+    - service_port | int > 0
+  register: port_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - shared-utilities
+    - validate-service
+    - check-ports
+
+- name: Run service health check command
+  ansible.builtin.command: "{{ service_check_command }}"
+  register: health_check
+  changed_when: false
+  failed_when: false
+  when: service_check_command is defined
+  tags:
+    - shared-utilities
+    - validate-service
+
+- name: Display service validation summary
+  ansible.builtin.debug:
+    msg: |
+      Service Validation Summary for {{ service_name }}:
+      - Service exists: {{ service_exists.status.ActiveState is defined }}
+      - Service state: {{ service_active.stdout }}
+      - Port check: {{ 'PASSED' if (port_check.rc | default(1) == 0) else 'SKIPPED' if service_port is not defined else 'FAILED' }}
+      - Health check: {{ 'PASSED' if (health_check.rc | default(1) == 0) else 'SKIPPED' if service_check_command is not defined else 'FAILED' }}
+  tags:
+    - shared-utilities
+    - validate-service

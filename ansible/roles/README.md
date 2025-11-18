@@ -1,13 +1,14 @@
 # Ansible Roles Index
 
 **Status:** Complete
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-11-18
 
 ## Overview
 
-This directory contains 14 Ansible roles for configuring HPC infrastructure components. Each
+This directory contains Ansible roles for configuring HPC infrastructure components. Each
 role is responsible for a specific aspect of the system configuration and can be used
-independently or as part of playbooks.
+independently or as part of playbooks. Roles have been consolidated in Phase 4.8 to reduce
+duplication and improve maintainability.
 
 ## Role Categories
 
@@ -21,11 +22,7 @@ These roles provide foundational system configuration for both HPC and cloud dep
 || **[cloud-base-packages](./cloud-base-packages/README.md)** | Installs cloud packages | ✅ Complete | Full |
 || **[container-runtime](./container-runtime/README.md)** | Container runtime | ✅ Complete | Full |
 
-**Deprecated Roles:**
-
-- `base-packages/` - Experimental consolidation, use role-specific roles instead
-- `package-manager/` - Utility role, no longer needed
-- `slurm-common/` - Common code extracted to individual roles
+**Note:** Legacy `hpc-base-packages` and `cloud-base-packages` roles have been consolidated into `base-packages` (Phase 4.8).
 
 ### 2. Storage Roles (BeeGFS)
 
@@ -123,10 +120,9 @@ All 14 roles have complete documentation with:
 
 These roles are no longer recommended:
 
-- `base-packages/` - Use `hpc-base-packages` or `cloud-base-packages` instead
-- `package-manager/` - Functionality integrated into other roles
-- `slurm-common/` - Code extracted to slurm-controller and slurm-compute
+**Consolidation Note (Phase 4.8):**
 
+Legacy `hpc-base-packages` and `cloud-base-packages` roles have been merged into the unified `base-packages` role.
 Migration guide in `base-packages/README.md`.
 
 ## Role Usage Patterns
@@ -148,7 +144,7 @@ Migration guide in `base-packages/README.md`.
 - hosts: hpc_controllers
   become: true
   roles:
-    - hpc-base-packages
+    - base-packages
     - slurm-controller
     - monitoring-stack
 ```
@@ -159,7 +155,7 @@ Migration guide in `base-packages/README.md`.
 - hosts: hpc_compute
   become: true
   roles:
-    - hpc-base-packages
+    - base-packages
     - nvidia-gpu-drivers
     - slurm-compute
     - beegfs-client
@@ -200,7 +196,7 @@ Each role includes comprehensive `README.md` with:
 
 For complete cluster deployments, deploy roles in this order:
 
-1. **Base Infrastructure**: `hpc-base-packages` or `cloud-base-packages`
+1. **Base Infrastructure**: `base-packages` (supports both HPC and cloud profiles)
 2. **Storage Setup**: `beegfs-mgmt`, `beegfs-meta`, `beegfs-storage`
 3. **Client Configuration**: `beegfs-client`, `virtio-fs-mount`
 4. **GPU Support**: `nvidia-gpu-drivers`

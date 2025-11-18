@@ -14,10 +14,10 @@ hpc-slurm/
 │   ├── phase-3-storage.md
 │   ├── phase-3-storage-fixes.md
 │   ├── phase-3-slurm-source-build.md
+│   ├── phase-4-consolidation.md
 │   ├── phase-4-validation-steps.md
 │   └── TASK-028.1-IMPLEMENTATION.md
 ├── pending/                 # Active and upcoming work
-│   ├── phase-4-consolidation.md
 │   └── phase-6-validation.md
 ├── reference/               # Cross-cutting documentation
 │   ├── dependencies.md
@@ -38,9 +38,9 @@ hpc-slurm/
 ### For Task Implementation
 
 ```bash
-# Example: Working on TASK-029 (Ansible Consolidation)
-1. Read: pending/phase-4-consolidation.md (TASK-029 section)
-2. Reference: completed/phase-1-core-infrastructure.md (what's built)
+# Example: Working on TASK-049 (Phase 6 Validation)
+1. Read: pending/phase-6-validation.md (TASK-049 section)
+2. Reference: completed/phase-4-consolidation.md (Phase 4 achievements)
 3. Reference: reference/testing-framework.md (test patterns)
 4. Implement following task specification
 ```
@@ -54,7 +54,7 @@ hpc-slurm/
 
 ## File Organization
 
-### Completed Phases (7 files)
+### Completed Phases (8 files)
 
 **Phase 0: Test Infrastructure** (Tasks 001-006)
 
@@ -93,6 +93,23 @@ hpc-slurm/
 - Status: ✅ Complete
 - Content: SLURM source build and package generation
 
+**Phase 4: Consolidation** (Tasks 029-048, 046.1)
+
+- File: `completed/phase-4-consolidation.md`
+- Status: ✅ **100% COMPLETE** (23/23 tasks complete)
+- Updated: 2025-11-18
+- Content: Ansible playbook and test framework consolidation
+- **Achievement**: 43% playbook reduction (14 → 8 playbooks)
+- **Completed**:
+  - Ansible consolidation (7 tasks)
+  - Test framework consolidation (3 tasks)
+  - Storage integration (6 tasks)
+  - Configuration template rendering (1 task)
+  - Role consolidation (7 tasks - 100% complete)
+  - Base packages role consolidated with HPC and cloud profiles (Task 047)
+  - Legacy base package roles archived (Task 047.1)
+  - Shared utilities role created with validation tasks (Task 048)
+
 **Phase 4: Validation Framework**
 
 - File: `completed/phase-4-validation-steps.md`
@@ -100,33 +117,15 @@ hpc-slurm/
 - Content: Comprehensive 10-step validation framework for Phase 4 consolidation
 - Implementation: All validation scripts operational in `tests/phase-4-validation/`
 
-### Pending Phases (2 files)
-
-**Phase 4: Consolidation** (Tasks 029-048, 046.1)
-
-- File: `pending/phase-4-consolidation.md`
-- Status: 🔄 **91% COMPLETE** (21/23 tasks complete)
-- Updated: 2025-11-18
-- Content: Ansible playbook and test framework consolidation
-- **Achievement**: 43% playbook reduction (14 → 8 playbooks)
-- **Completed**:
-  - Ansible consolidation
-  - Test framework consolidation
-  - Storage integration
-  - Role consolidation (71% complete - 5/7 tasks)
-  - Base packages role enhancement (Task 047 75% complete)
-- **In Progress**:
-  - Test suite refactoring (15+ suites refactored, 40+ scripts updated)
-  - Base packages consolidation (Task 047 - 75% complete)
-- **Remaining**: 2 tasks (047.1, 048) - Legacy base packages cleanup and shared utilities role
+### Pending Phases (1 file)
 
 **Phase 6: Validation** (Tasks 049-052)
 
 - File: `pending/phase-6-validation.md`
-- Status: ⏳ **BLOCKED** (0/4 tasks) - Waiting for Phase 4 completion
-- Updated: 2025-11-10
+- Status: 🟢 **READY TO START** (0/4 tasks) - All prerequisites complete
+- Updated: 2025-11-18
 - Content: Final integration testing and validation with consolidated infrastructure
-- **Blocked by**: Phase 4 tasks 047, 047.1, 048 must be completed first
+- **Prerequisites**: ✅ Phase 4 complete (all 23 tasks)
 
 ### Reference Documentation (3 files)
 
@@ -178,8 +177,8 @@ hpc-slurm/
 The original `hpc-slurm-task-list.md` (6,823 lines) has been split into:
 
 - **1 master index** - `../hpc-slurm-task-list.md`
-- **7 completed phase files** - Comprehensive documentation of completed work
-- **2 pending phase files** - Active and upcoming work
+- **8 completed phase files** - Comprehensive documentation of completed work
+- **1 pending phase file** - Active and upcoming work
 - **3 reference files** - Cross-cutting documentation
 - **Total: 13 focused, manageable files**
 
@@ -187,29 +186,33 @@ The original `hpc-slurm-task-list.md` (6,823 lines) has been split into:
 
 ## Overall Status Summary
 
-**Completed**: 50 tasks (89% of total tasks)
+**Completed**: 52 tasks (93% of total tasks)
 
 - ✅ Phase 0: Test Infrastructure (6 tasks)
 - ✅ Phase 1: Core Infrastructure (12 tasks)
 - ✅ Phase 2: Containers & Compute (8 tasks)
 - ✅ Phase 3: Storage (3 tasks - code complete, validation pending)
-- 🔄 Phase 4: Consolidation (21/23 tasks - 91% complete)
+- ✅ Phase 4: Consolidation (23/23 tasks - 100% complete)
 
-**Pending**: 6 tasks (11% of remaining work)
+**Pending**: 4 tasks (7% of remaining work)
 
-- ⏳ Phase 4: Consolidation (2 tasks remaining - Tasks 047.1, 048)
-- ⏳ Phase 6: Validation (4 tasks - ready to start after Phase 4)
+- 🟢 Phase 6: Validation (4 tasks - ready to start)
 
 **Recent Progress** (2025-11-18):
 
-- ✅ Base packages role enhanced with essential utilities (Task 047 - 75% complete)
-  - Added bc, coreutils, util-linux, procps, gawk, sed, grep, findutils, less, sudo, ca-certificates, openssh-client
+- ✅ **Phase 4 COMPLETE** - All role consolidation tasks finished!
+- ✅ Base packages role consolidated with HPC and cloud profiles (Task 047)
+  - Added 12 essential utilities: bc, coreutils, util-linux, procps, gawk, sed, grep, findutils, less, sudo,
+    ca-certificates, openssh-client
+  - Unified hpc-base-packages and cloud-base-packages into single role with profile support
   - Integrated into HPC runtime playbook for both controller and compute nodes
+- ✅ Legacy base package roles archived to ansible/roles/archive/ (Task 047.1)
+- ✅ Shared utilities role created (Task 048)
+  - Provides reusable validation tasks: validate-service, check-ports, setup-logging, verify-connectivity
+  - Eliminates duplicate validation code across multiple roles
 - ✅ 15+ test suites refactored with standardized utilities framework
 - ✅ 40+ test scripts updated with consistent patterns and improved error handling
-- ✅ ~500-1000 lines of duplicated code eliminated from test suites
-- ✅ SSH key path handling improved for cross-node test execution
-- ✅ BeeGFS integration properly documented in container registry tests
+- ✅ ~1,500-2,000 lines of duplicated code eliminated (exceeded projection)
 
 ## Quick Links
 

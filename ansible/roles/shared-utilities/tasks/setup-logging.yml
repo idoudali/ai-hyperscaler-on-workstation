@@ -1,0 +1,66 @@
+# Shared Utilities - Log Directory and Rotation Setup
+# Configure log directories and log rotation for services
+#
+# Required variables:
+#   - log_directory: Path to log directory (e.g., "/var/log/my-service")
+#
+# Optional variables:
+#   - log_owner: Log directory owner (default: root)
+#   - log_group: Log directory group (default: root)
+#   - log_mode: Log directory permissions (default: "0755")
+#   - log_rotation_enabled: Enable log rotation (default: true)
+#   - log_retention_days: Days to retain logs (default: 30)
+#   - log_max_size: Maximum log file size (default: "100M")
+#   - log_rotate_count: Number of rotated logs to keep (default: 7)
+
+- name: Validate log directory is provided
+  ansible.builtin.assert:
+    that:
+      - log_directory is defined
+      - log_directory | length > 0
+    fail_msg: "log_directory variable is required for logging setup"
+    success_msg: "Log directory validated: {{ log_directory }}"
+  tags:
+    - shared-utilities
+    - setup-logging
+
+- name: Create log directory
+  ansible.builtin.file:
+    path: "{{ log_directory }}"
+    state: directory
+    owner: "{{ log_owner | default('root') }}"
+    group: "{{ log_group | default('root') }}"
+    mode: "{{ log_mode | default('0755') }}"
+    recurse: false
+  tags:
+    - shared-utilities
+    - setup-logging
+
+- name: Create logrotate configuration
+  ansible.builtin.template:
+    src: logrotate.conf.j2
+    dest: "/etc/logrotate.d/{{ log_directory | basename }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: log_rotation_enabled | default(true) | bool
+  tags:
+    - shared-utilities
+    - setup-logging
+
+- name: Display logging setup summary
+  ansible.builtin.debug:
+    msg: |
+      Logging Setup Summary:
+      - Log directory: {{ log_directory }}
+      - Owner: {{ log_owner | default('root') }}
+      - Group: {{ log_group | default('root') }}
+      - Permissions: {{ log_mode | default('0755') }}
+      - Log rotation: {{ 'ENABLED' if (log_rotation_enabled | default(true)) else 'DISABLED' }}
+      {% if log_rotation_enabled | default(true) %}
+      - Retention: {{ log_retention_days | default(30) }} days
+      - Max size: {{ log_max_size | default('100M') }}
+      {% endif %}
+  tags:
+    - shared-utilities
+    - setup-logging
