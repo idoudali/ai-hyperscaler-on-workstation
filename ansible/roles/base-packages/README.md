@@ -111,9 +111,11 @@ Kernel packages are installed via meta-packages, so updates automatically track 
 
 ### HPC-Specific Packages
 
-Currently empty. Most HPC-specific packages (MPI, scientific libraries, compilers) are installed
-by other roles (slurm-controller, slurm-compute) or via the package-manager role. Additional
-HPC base utilities can be added here if needed.
+- `bats` - Bash Automated Testing System for TAP-compliant test suite execution
+
+Most HPC-specific packages (MPI, scientific libraries, compilers) are installed by other roles
+(slurm-controller, slurm-compute) or via the package-manager role. Additional HPC base utilities
+can be added here as needed.
 
 ### Cloud-Specific Packages
 
@@ -153,6 +155,15 @@ roles:
 - All packages are installed with `apt`
 - Package cache is updated before installation
 - Uses tags for selective execution: `base-packages`
+
+## BATS Installation (HPC Profile)
+
+The HPC profile includes BATS (Bash Automated Testing System) for distributed training test suites:
+
+- **Purpose**: TAP-compliant testing framework for Bash scripts
+- **Usage**: Phase 5 distributed training tests use BATS for standardized test execution
+- **Report Generation**: Native JUnit XML report generation for CI/CD integration
+- **Location**: `/usr/bin/bats` (system-wide after installation)
 
 ## Migration from Old Roles
 
