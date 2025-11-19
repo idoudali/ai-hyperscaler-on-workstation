@@ -45,7 +45,8 @@ base_packages_common:
 
 # HPC-specific packages (installed when package_profile=hpc)
 # These packages are essential for HPC workloads but not needed for cloud deployments
-base_packages_hpc: []
+base_packages_hpc:
+  - bats # Bash Automated Testing System for test suite execution
 
 # Cloud-specific packages (installed when package_profile=cloud)
 # Cloud deployment utilities and tools
