@@ -34,8 +34,9 @@ make shell-docker
 1. **NEVER** run builds on host - always use container
 2. **ALWAYS** use Ninja generator - never use Make
 3. **ALWAYS** use `build/` directory
-4. Use Makefile wrapper when possible
-5. Check Docker is running before commands
+4. **NEVER** remove the build folder
+5. Use Makefile wrapper when possible
+6. Check Docker is running before commands
 
 ## Build Commands
 
