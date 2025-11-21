@@ -592,11 +592,35 @@ upload_scripts_to_vm() {
         log_success "Created directories in /tmp fallback location"
     fi
 
-    # Upload all test scripts
+    # Upload all test scripts (.sh files)
     if ! scp "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$scripts_dir"/*.sh "$SSH_USER@$vm_ip:$remote_base_dir/"; then
         log_error "Failed to upload test scripts"
         return 1
     fi
+
+    # Upload BATS test files (.bats files) if any exist
+    # shellcheck disable=SC2086
+    if compgen -G "$scripts_dir/*.bats" >/dev/null 2>&1; then
+        if ! scp "${ssh_opts[@]}" -i "$SSH_KEY_PATH" "$scripts_dir"/*.bats "$SSH_USER@$vm_ip:$remote_base_dir/"; then
+            log_error "Failed to upload BATS test files"
+            return 1
+        fi
+        log "Uploaded BATS test files to $remote_base_dir"
+    fi
+
+    # Upload subdirectories (like helpers/) if any exist
+    local subdir
+    for subdir in "$scripts_dir"/*/; do
+        if [[ -d "$subdir" && "$(basename "$subdir")" != "logs" ]]; then
+            local subdir_name
+            subdir_name="$(basename "$subdir")"
+            log "Uploading subdirectory: $subdir_name"
+            if ! scp "${ssh_opts[@]}" -r -i "$SSH_KEY_PATH" "$subdir" "$SSH_USER@$vm_ip:$remote_base_dir/"; then
+                log_error "Failed to upload subdirectory: $subdir_name"
+                return 1
+            fi
+        fi
+    done
 
     # Upload common utilities if they exist in parent directory
     # Tests use ../common relative path, so common needs to be at parent level
