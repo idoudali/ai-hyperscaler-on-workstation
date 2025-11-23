@@ -190,7 +190,68 @@ build {
     ]
   }
 
-  # Copy pre-built BeeGFS packages to VM
+  # System preparation with networking and debugging tools
+  provisioner "file" {
+    source = "${var.source_directory}/setup-hpc-controller.sh"
+    destination = "/tmp/setup-hpc-controller.sh"
+  }
+
+  provisioner "shell" {
+    inline = [
+      "echo 'Running HPC controller setup script...'",
+      "chmod +x /tmp/setup-hpc-controller.sh",
+      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-hpc-controller.sh",
+      "rm -f /tmp/setup-hpc-controller.sh",
+      "echo 'HPC controller setup script completed'"
+    ]
+  }
+
+  # PHASE 1: Install base packages and latest kernel
+  provisioner "ansible" {
+    playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-packer-controller.yml"
+    ansible_env_vars = local.ansible_env_vars
+    extra_arguments = [
+      "-u", var.ssh_username,
+      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
+      "--extra-vars", "{\"packer_build\":true}",
+      "--extra-vars", "hpc_node_type=controller",
+      # Only install base packages and kernel in phase 1
+      "--tags", "base-packages,kernel-headers",
+      "--become",
+      "--become-user=root",
+      "-v"
+    ]
+    use_proxy = false
+  }
+
+  # Reboot to load the newly installed kernel
+  provisioner "shell" {
+    inline = [
+      "echo '=== PHASE 1 COMPLETE: Base packages and kernel installed ==='",
+      "echo 'Current kernel before reboot:'",
+      "uname -r",
+      "echo 'Installed kernels:'",
+      "dpkg -l | grep linux-image | grep '^ii'",
+      "echo 'Rebooting to load new kernel...'",
+      "sudo reboot"
+    ]
+    expect_disconnect = true
+  }
+
+  # Wait for VM to come back up after reboot
+  provisioner "shell" {
+    inline = [
+      "echo '=== PHASE 2 START: VM rebooted successfully ==='",
+      "echo 'Current kernel after reboot:'",
+      "uname -r",
+      "echo 'Verifying kernel headers are available:'",
+      "ls -ld /lib/modules/$(uname -r)/build",
+      "echo 'Kernel headers verified - ready to build drivers!'"
+    ]
+    pause_before = "30s"
+  }
+
+  # Copy pre-built BeeGFS packages to VM (AFTER reboot)
   provisioner "shell" {
     inline = [
       "echo 'Creating BeeGFS packages directory...'",
@@ -211,10 +272,7 @@ build {
     ]
   }
 
-  # Note: BeeGFS packages are now installed as part of the HPC controller playbook
-  # No separate BeeGFS provisioner needed - packages are copied above and installed below
-
-  # Copy pre-built SLURM packages to VM
+  # Copy pre-built SLURM packages to VM (AFTER reboot)
   provisioner "shell" {
     inline = [
       "echo 'Creating SLURM packages directory...'",
@@ -235,25 +293,10 @@ build {
     ]
   }
 
-  # System preparation with networking and debugging tools
-  provisioner "file" {
-    source = "${var.source_directory}/setup-hpc-controller.sh"
-    destination = "/tmp/setup-hpc-controller.sh"
-  }
+  # Note: BeeGFS and SLURM packages are now installed as part of the HPC controller playbook
+  # Packages were copied above and will be installed by Ansible below
 
-  provisioner "shell" {
-    inline = [
-      "echo 'Running HPC controller setup script...'",
-      "chmod +x /tmp/setup-hpc-controller.sh",
-      "DEBIAN_FRONTEND=noninteractive sudo /tmp/setup-hpc-controller.sh",
-      "rm -f /tmp/setup-hpc-controller.sh",
-      "echo 'HPC controller setup script completed'"
-    ]
-  }
-
-
-
-  # Install HPC controller packages using specialized Ansible playbook
+  # PHASE 2: Install remaining HPC controller packages (BeeGFS, SLURM, Database)
   provisioner "ansible" {
     playbook_file = "${var.repo_tot_dir}/ansible/playbooks/playbook-hpc-packer-controller.yml"
     ansible_env_vars = local.ansible_env_vars
@@ -270,6 +313,8 @@ build {
       "--extra-vars", "{\"install_slurm_controller\":true}",
       "--extra-vars", "{\"install_monitoring_stack\":true}",
       "--extra-vars", "{\"install_database\":true}",
+      # Skip base-packages since we already did that in phase 1
+      "--skip-tags", "base-packages,kernel-headers",
       "--become",
       "--become-user=root",
       "-v"

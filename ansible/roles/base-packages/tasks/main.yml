@@ -1,6 +1,13 @@
 # Base Packages Role - Main Tasks
 # Consolidated base package installation for HPC and cloud workloads
-# Supports package profiles for different deployment types
+# Installs latest kernel and headers for consistent driver builds
+
+# Detect Packer build mode early - must be first task
+- name: Detect Packer build mode
+  ansible.builtin.set_fact:
+    is_packer_build: "{{ packer_build | default(false) | bool }}"
+  tags:
+    - always
 
 - name: Update package cache
   ansible.builtin.apt:
@@ -10,7 +17,12 @@
 
 - name: Set package list based on profile
   ansible.builtin.set_fact:
-    packages_to_install: "{{ base_packages_common + (base_packages_hpc if package_profile == 'hpc' else []) + (base_packages_cloud if package_profile == 'cloud' else []) }}"
+    packages_to_install: >-
+      {{
+        base_packages_common +
+        (base_packages_hpc if package_profile == 'hpc' else []) +
+        (base_packages_cloud if package_profile == 'cloud' else [])
+      }}
   tags:
     - base-packages
 
@@ -22,28 +34,60 @@
   tags:
     - base-packages
 
-- name: Packer build detection
-  ansible.builtin.set_fact:
-    is_packer_build: "{{ packer_build | default(false) | bool }}"
+# Kernel and Headers Installation - generic kernel for all profiles
+- name: Install kernel and headers
   tags:
     - base-packages
+    - kernel-headers
+  block:
+    - name: Install latest kernel and headers meta-packages
+      ansible.builtin.apt:
+        name: "{{ [kernel_image_package, kernel_headers_package, 'pkg-config'] + (kernel_additional_packages | default([])) }}"
+        state: latest
+        update_cache: false
+      become: true
+      register: kernel_install
 
-- name: Display Packer build detection result
-  ansible.builtin.debug:
-    msg: "Packer build detected: {{ is_packer_build }} (from packer_build variable: {{ packer_build | default('not_set') }})"
-  tags:
-    - base-packages
+    - name: Ensure GRUB defaults to latest kernel
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_DEFAULT='
+        line: 'GRUB_DEFAULT=0'
+        state: present
+      become: true
+      register: grub_default_updated
 
-- name: Display Packer build status
-  ansible.builtin.debug:
-    msg: "Running in Packer build mode - network setup handled by setup-hpc-base.sh"
-  when: is_packer_build
-  tags:
-    - base-packages
+    - name: Update GRUB configuration
+      ansible.builtin.command: update-grub
+      become: true
+      when: kernel_install.changed or grub_default_updated.changed
+      register: grub_update
+      changed_when: grub_update.rc == 0
 
-- name: Display runtime build status
-  ansible.builtin.debug:
-    msg: "Running in normal mode - full network configuration will be applied"
-  when: not is_packer_build
-  tags:
-    - base-packages
+    - name: Get current kernel version
+      ansible.builtin.command: uname -r
+      register: kernel_version
+      changed_when: false
+
+    - name: Verify kernel headers exist for running kernel
+      ansible.builtin.stat:
+        path: "/lib/modules/{{ kernel_version.stdout }}/build"
+      register: kernel_headers_check
+
+    - name: Display kernel installation status
+      ansible.builtin.debug:
+        msg: >-
+          Kernel: {{ kernel_version.stdout }},
+          Headers: {{ 'Available' if kernel_headers_check.stat.exists else 'Missing' }},
+          Mode: {{ 'Packer Build' if is_packer_build else 'Runtime' }},
+          Profile: {{ package_profile }}
+      when: is_packer_build or kernel_headers_check.stat.exists
+
+    - name: Fail if kernel headers are missing (runtime mode only)
+      ansible.builtin.fail:
+        msg: >-
+          Kernel headers missing for {{ kernel_version.stdout }}.
+          Reboot required: sudo reboot
+      when:
+        - not kernel_headers_check.stat.exists
+        - not is_packer_build

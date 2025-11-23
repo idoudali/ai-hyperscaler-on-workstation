@@ -11,9 +11,13 @@
   vars:
     packer_build: true
     install_monitoring_stack: true
+    package_profile: cloud
 
   roles:
-    - role: monitoring-stack  # Node exporter for system metrics
+    - role: base-packages         # Base packages and latest kernel (PHASE 1)
+      tags: ['base-packages', 'kernel-headers']
+    - role: monitoring-stack      # Node exporter for system metrics (PHASE 2)
+      tags: ['monitoring']
 
   tasks:
     - name: Verify essential system packages

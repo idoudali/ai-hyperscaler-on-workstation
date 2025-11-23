@@ -14,10 +14,14 @@
     nvidia_install_drivers_only: true      # Only drivers, no toolkit/DCGM
     nvidia_install_cuda: false              # CUDA in containers
     nvidia_packer_build: true               # Suppress reboot warnings
+    package_profile: cloud
 
   roles:
-    - role: nvidia-gpu-drivers             # NVIDIA drivers only
+    - role: base-packages                  # Base packages and latest kernel (PHASE 1)
+      tags: ['base-packages', 'kernel-headers']
+    - role: nvidia-gpu-drivers             # NVIDIA drivers only (PHASE 2)
       when: gpu_enabled | default(true)
+      tags: ['nvidia-drivers', 'gpu']
 
   tasks:
     - name: Check if nvidia-smi is available

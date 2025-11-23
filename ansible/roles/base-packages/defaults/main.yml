@@ -8,6 +8,14 @@
 # - minimal: Only common packages
 package_profile: "hpc"
 
+# Kernel type (override if a different flavor is required)
+kernel_image_package: "linux-image-amd64"
+kernel_headers_package: "linux-headers-amd64"
+
+# Additional kernel-related meta-packages to install
+kernel_additional_packages:
+  - linux-headers-cloud-amd64
+
 # Common packages (installed for all profiles)
 base_packages_common:
   - tmux
@@ -32,6 +40,8 @@ base_packages_common:
   - sudo # Privilege escalation (if not already installed)
   - ca-certificates # SSL certificate authorities
   - openssh-client # SSH client utilities
+  - build-essential # GCC, g++, make, and other build tools for kernel modules
+  - dkms # Dynamic Kernel Module Support for automatic module rebuilds
 
 # HPC-specific packages (installed when package_profile=hpc)
 # These packages are essential for HPC workloads but not needed for cloud deployments
