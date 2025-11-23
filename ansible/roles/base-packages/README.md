@@ -80,6 +80,34 @@ These packages are installed for all profiles (hpc, cloud, minimal):
 - `sudo` - Privilege escalation
 - `ca-certificates` - SSL certificate authorities
 - `openssh-client` - SSH client utilities
+- `build-essential` - GCC, g++, make, and other build tools for kernel modules
+- `dkms` - Dynamic Kernel Module Support for automatic module rebuilds
+
+### Kernel and Headers
+
+- Default kernel: `linux-image-amd64`
+- Default headers: `linux-headers-amd64`
+- Additional headers: `linux-headers-cloud-amd64` (ensures cloud kernels gain headers after reboot)
+
+Why amd64 meta-packages?
+
+- Works consistently across cloud VMs, bare-metal controllers, and GPU/HPC nodes
+- Ensures compatibility with BeeGFS, NVIDIA, and other DKMS modules
+- Avoids divergent behavior between cloud and HPC profiles
+
+Override the kernel flavor if needed:
+
+```yaml
+roles:
+  - role: base-packages
+    vars:
+      kernel_image_package: linux-image-cloud-amd64
+      kernel_headers_package: linux-headers-cloud-amd64
+      kernel_additional_packages:
+        - linux-headers-rt-amd64
+```
+
+Kernel packages are installed via meta-packages, so updates automatically track the latest available kernel.
 
 ### HPC-Specific Packages
 

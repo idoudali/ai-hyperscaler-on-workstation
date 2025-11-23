@@ -195,7 +195,51 @@ build {
     ]
   }
 
-  # Install cloud base packages using specialized Ansible playbook
+  # PHASE 1: Install base packages and latest kernel
+  provisioner "ansible" {
+    playbook_file    = "${var.repo_tot_dir}/ansible/playbooks/playbook-cloud-packer-base.yml"
+    ansible_env_vars = local.ansible_env_vars
+    extra_arguments = [
+      "-u", var.ssh_username,
+      "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
+      "--extra-vars", "{\"packer_build\":true}",
+      # Only install base packages and kernel in phase 1
+      "--tags", "base-packages,kernel-headers",
+      "--become",
+      "--become-user=root",
+      "-v"
+    ]
+    use_proxy = false
+  }
+
+  # Reboot to load the newly installed kernel
+  provisioner "shell" {
+    inline = [
+      "echo '=== PHASE 1 COMPLETE: Base packages and kernel installed ==='",
+      "echo 'Current kernel before reboot:'",
+      "uname -r",
+      "echo 'Installed kernels:'",
+      "dpkg -l | grep linux-image | grep '^ii'",
+      "echo 'Rebooting to load new kernel...'",
+      "sudo reboot"
+    ]
+    expect_disconnect = true
+  }
+
+  # Wait for VM to come back up after reboot
+  provisioner "shell" {
+    inline = [
+      "echo '=== PHASE 2 START: VM rebooted successfully ==='",
+      "echo 'Current kernel after reboot:'",
+      "uname -r",
+      "echo 'Verifying kernel headers are available:'",
+      "ls -ld /lib/modules/$(uname -r)/build",
+      "echo 'Kernel headers verified - ready for system setup!'"
+    ]
+    pause_before = "30s"
+  }
+
+  # PHASE 2: Install container runtime and remaining packages
   provisioner "ansible" {
     playbook_file    = "${var.repo_tot_dir}/ansible/playbooks/playbook-cloud-packer-base.yml"
     ansible_env_vars = local.ansible_env_vars
@@ -206,6 +250,8 @@ build {
       "--extra-vars", "{\"install_container_runtime\":true}",
       "--extra-vars", "{\"install_monitoring_stack\":true}",
       "--extra-vars", "{\"container_runtime_enable_service\":false}",
+      # Skip base-packages since we already did that in phase 1
+      "--skip-tags", "base-packages,kernel-headers",
       "--become",
       "--become-user=root",
       "-v"
