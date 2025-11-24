@@ -82,6 +82,9 @@ deploy_distributed_training_resources() {
         "/mnt/beegfs/training/scripts"
         "/mnt/beegfs/training/templates"
         "/mnt/beegfs/scripts"
+        "/mnt/beegfs/jobs"
+        "/mnt/beegfs/logs"
+        "/mnt/beegfs/data"
     )
 
     for dir in "${remote_dirs[@]}"; do
@@ -99,6 +102,24 @@ deploy_distributed_training_resources() {
     if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         "$container_sif" "${SSH_USER}@${controller_ip}:/mnt/beegfs/containers/"; then
         log_error "Failed to upload container"
+        return 1
+    fi
+
+    # 4b. Upload MNIST DDP Job Files
+    log "Uploading MNIST DDP job files to BeeGFS..."
+    local mnist_source_dir="$PROJECT_ROOT/examples/slurm-jobs/mnist-ddp"
+
+    # Upload training script
+    if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "$mnist_source_dir/mnist_ddp.py" "${SSH_USER}@${controller_ip}:/mnt/beegfs/training/scripts/"; then
+        log_error "Failed to upload MNIST training script"
+        return 1
+    fi
+
+    # Upload job script (keep .sbatch extension for consistency)
+    if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "$mnist_source_dir/mnist-ddp.sbatch" "${SSH_USER}@${controller_ip}:/mnt/beegfs/jobs/mnist-ddp.sbatch"; then
+        log_error "Failed to upload MNIST job script"
         return 1
     fi
 

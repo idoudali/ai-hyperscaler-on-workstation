@@ -40,6 +40,7 @@ message(STATUS "SLURM job examples configured. Binaries will be generated in: ${
 add_subdirectory(hello-world)
 add_subdirectory(pi-calculation)
 add_subdirectory(matrix-multiply)
+add_subdirectory(mnist-ddp)
 
 # --- Build All Examples ---
 add_custom_target(
