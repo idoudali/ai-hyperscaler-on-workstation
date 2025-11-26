@@ -1,9 +1,44 @@
 # SLURM Compute Role - GRES Configuration Tasks
 # Task 023: GPU Resources (GRES) Configuration
 # This file handles the configuration of GPU resources for SLURM
+#
+# GRES configuration is deployed when:
+# - The node has GPUs (gpu_count > 0)
+# - gpu_enabled is explicitly set to true
+#
+# NOTE: Do NOT check gres_types here - it defaults to 'gpu' globally in role defaults,
+# so checking it would cause GRES config to deploy on ALL nodes regardless of GPU status.
+# Only node-level GPU configuration should trigger GRES deployment.
+#
+# GPU Detection Methods (SLURM 24.11+):
+# - AutoDetect=nvidia : Built-in detection, NO libraries required (used by default)
+# - AutoDetect=nvml   : Requires libnvidia-ml linked at compile time (MIG/NVLink)
+
+- name: Set node GPU status
+  set_fact:
+    # Node has GPUs if any of these conditions are true:
+    # 1. gpu_count > 0 (explicit GPU count from inventory)
+    # 2. gpu_enabled = true (explicit enablement from inventory)
+    node_has_gpus: >-
+      {{
+        (gpu_count | default(0) | int > 0) or
+        (gpu_enabled | default(false) | bool)
+      }}
+
+- name: Display GRES detection info
+  ansible.builtin.debug:
+    msg: |
+      GRES Detection Results:
+      - gpu_count: {{ gpu_count | default(0) }}
+      - gpu_enabled: {{ gpu_enabled | default(false) }}
+      - node_has_gpus (result): {{ node_has_gpus }}
+    verbosity: 1
+  tags:
+    - slurm-compute
+    - slurm-gres
 
 - name: GRES configuration block
-  when: slurm_gres_enabled | default(false) | bool
+  when: node_has_gpus | bool
   block:
     - name: Create GRES configuration directory
       ansible.builtin.file:
@@ -30,6 +65,8 @@
         - slurm-gres
         - gres-install
 
+    # NOTE: Skip during Packer builds - gres.conf will be deployed at runtime
+    # GPU auto-detection requires actual GPU hardware present
     - name: Deploy GRES configuration template
       ansible.builtin.template:
         src: gres.conf.j2
@@ -45,12 +82,39 @@
         - slurm-gres
         - gres-config
 
-    - name: Verify GRES configuration syntax
-      ansible.builtin.command:
-        cmd: slurmd -C
+    # Verify SLURM GPU autodetect capability
+    - name: Check SLURM GPU autodetect support
+      ansible.builtin.shell: |
+        # Check if slurmd can detect GPUs
+        output=$(slurmd -C 2>&1)
+        echo "$output"
+        # Check for GPU detection in output
+        if echo "$output" | grep -q "Gres=gpu"; then
+          echo "GPU_AUTODETECT=SUCCESS"
+          exit 0
+        elif echo "$output" | grep -qi "nvml.*not.*found\|unable to find.*lib"; then
+          echo "GPU_AUTODETECT=NVML_NOT_COMPILED"
+          echo "NOTE: Using AutoDetect=nvidia (built-in) instead of nvml"
+          exit 0
+        else
+          echo "GPU_AUTODETECT=NO_GPU_FOUND"
+          exit 0
+        fi
       changed_when: false
       failed_when: false
-      register: gres_config_check
+      register: gpu_autodetect_check
+      when: not (packer_build | default(false) | bool)
+      tags:
+        - slurm-compute
+        - slurm-gres
+        - gres-validate
+
+    # Check nvidia-smi availability
+    - name: Verify NVIDIA driver and nvidia-smi
+      ansible.builtin.command: nvidia-smi --query-gpu=name,uuid,memory.total --format=csv,noheader
+      changed_when: false
+      failed_when: false
+      register: nvidia_smi_check
       when: not (packer_build | default(false) | bool)
       tags:
         - slurm-compute
@@ -62,24 +126,51 @@
         msg: |
           GRES Configuration Status:
           {% if (packer_build | default(false)) | bool %}
-          - Build Mode: GRES templates prepared but not deployed
-          - GPU detection utilities installed
-          - Configuration will be applied at runtime
+          - Build Mode: Packer image build detected
+          - GRES configuration SKIPPED (will be deployed at runtime)
+          - gres.conf NOT deployed to image
+          - GPU auto-detection will occur at runtime when hardware is present
           {% else %}
           - Runtime Mode: GRES configuration deployed
           - Configuration file: /etc/slurm/gres.conf
-          - Auto-detection: {{ slurm_gres_autodetect | default(false) }}
-          - GPU type: {{ slurm_gres_gpu_type | default('gpu') }}
-          - Configuration check: {{ gres_config_check.rc | default('Not performed') }}
+          - Auto-detection method: nvidia (built-in, no library required)
+          - GPU count configured: {{ gpu_count | default('auto-detect') }}
+          {% if nvidia_smi_check is defined and nvidia_smi_check.rc == 0 %}
+          - NVIDIA Driver: WORKING
+          - GPU(s) detected: {{ nvidia_smi_check.stdout_lines | default([]) | length }}
+          {% for gpu in nvidia_smi_check.stdout_lines | default([]) %}
+            - {{ gpu }}
+          {% endfor %}
+          {% else %}
+          - NVIDIA Driver: NOT AVAILABLE or FAILED
           {% endif %}
+          {% if gpu_autodetect_check is defined %}
+          - SLURM GPU detection: {{ 'WORKING' if 'Gres=gpu' in gpu_autodetect_check.stdout else 'CHECK OUTPUT BELOW' }}
+          {% endif %}
+          {% endif %}
+      tags:
+        - slurm-compute
+        - slurm-gres
+
+    - name: Display SLURM node configuration output
+      ansible.builtin.debug:
+        msg: |
+          slurmd -C output:
+          {{ gpu_autodetect_check.stdout | default('Not available') }}
+      when:
+        - not (packer_build | default(false) | bool)
+        - gpu_autodetect_check is defined
       tags:
         - slurm-compute
         - slurm-gres
 
 - name: Display GRES disabled message
   ansible.builtin.debug:
-    msg: "GRES configuration skipped - slurm_gres_enabled is false or not set"
-  when: not (slurm_gres_enabled | default(false) | bool)
+    msg: |
+      GRES configuration skipped - node has no GPUs configured:
+      - gpu_count: {{ gpu_count | default(0) }}
+      - gpu_enabled: {{ gpu_enabled | default(false) }}
+  when: not (node_has_gpus | default(false) | bool)
   tags:
     - slurm-compute
     - slurm-gres

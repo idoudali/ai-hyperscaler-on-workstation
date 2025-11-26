@@ -11,7 +11,7 @@
   changed_when: false
   failed_when: false
   when: >
-    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 #magic___^_^___line
+    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0
 - name: Test nvidia-smi when modules are loaded
   ansible.builtin.command:
     cmd: nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits
@@ -19,17 +19,17 @@
   changed_when: false
   failed_when: false
   when: >
-    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and nvidia_smi_path_check.rc == 0 #magic___^_^___line
+    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and nvidia_smi_path_check.rc == 0
 - name: Set fact to trigger rebuild if modules loaded but nvidia-smi fails
   ansible.builtin.set_fact:
     nvidia_rebuild_needed_loaded: true
   when: >
-    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and (nvidia_smi_loaded_test is not defined or nvidia_smi_loaded_test.rc != 0) #magic___^_^___line
+    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and (nvidia_smi_loaded_test is not defined or nvidia_smi_loaded_test.rc != 0)
 - name: Set fact to not rebuild if modules loaded and nvidia-smi works
   ansible.builtin.set_fact:
     nvidia_rebuild_needed_loaded: false
   when: >
-    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and (nvidia_smi_loaded_test is defined and nvidia_smi_loaded_test.rc == 0) #magic___^_^___line
+    (nvidia_modules_loaded.rc == 0 and nvidia_modules_loaded.stdout | length > 0) and nvidia_driver_package.rc == 0 and (nvidia_smi_loaded_test is defined and nvidia_smi_loaded_test.rc == 0)
 - name: Warn if modules loaded but nvidia-smi fails
   ansible.builtin.debug:
     msg: |
@@ -155,9 +155,9 @@
     msg: |
       NVIDIA Driver Verification After Rebuild:
       - Modules reloaded: {{ '✓' if (nvidia_modules_reload is defined and nvidia_modules_reload.rc is defined and nvidia_modules_reload.rc == 0) else '✗' }}
-      - nvidia-smi test: {{ '✓ SUCCESS' if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc == 0) else '✗ FAILED' }}
-      - Driver version: {{ nvidia_smi_post_reload.stdout if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc == 0) else 'unknown' }}
-      - Status: {{ 'Driver fixed - no reboot needed' if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc == 0) else 'Reboot may still be required' }}
+      - nvidia-smi test: {{ '✓ SUCCESS' if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc is defined and nvidia_smi_post_reload.rc == 0) else '✗ FAILED' }}
+      - Driver version: {{ nvidia_smi_post_reload.stdout if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc is defined and nvidia_smi_post_reload.rc == 0) else 'unknown' }}
+      - Status: {{ 'Driver fixed - no reboot needed' if (nvidia_smi_post_reload is defined and nvidia_smi_post_reload.rc is defined and nvidia_smi_post_reload.rc == 0) else 'Reboot may still be required' }}
   when: >
     (nvidia_modules_reload is defined or nvidia_smi_post_reload is defined)
 

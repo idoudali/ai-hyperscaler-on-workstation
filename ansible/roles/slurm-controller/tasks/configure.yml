@@ -37,6 +37,54 @@
   notify:
     - restart slurm services
 
+# GRES configuration - deploy when GresTypes is configured
+# The gres.conf file is required on the controller when GresTypes is set in slurm.conf
+# We check multiple conditions to determine if GRES should be enabled:
+# 1. Explicit gres_types variable is set (e.g., 'gpu')
+# 2. Any compute node has gpu_count > 0
+# 3. Any compute node has gpu_enabled = true
+- name: Check if GPU nodes exist in cluster
+  set_fact:
+    gpu_nodes_in_cluster: >-
+      {{
+        (groups['hpc_compute_nodes'] | default([]) + groups['hpc_gpu_nodes'] | default([]))
+        | map('extract', hostvars)
+        | selectattr('gpu_count', 'defined')
+        | selectattr('gpu_count', 'gt', 0)
+        | list | length > 0
+        or
+        (groups['hpc_compute_nodes'] | default([]) + groups['hpc_gpu_nodes'] | default([]))
+        | map('extract', hostvars)
+        | selectattr('gpu_enabled', 'defined')
+        | selectattr('gpu_enabled', 'equalto', true)
+        | list | length > 0
+      }}
+
+- name: Check if GresTypes is configured
+  set_fact:
+    gres_types_configured: "{{ (gres_types | default('')) | length > 0 }}"
+
+# Deploy gres.conf when EITHER:
+# - GresTypes is explicitly configured (meaning slurm.conf will have GresTypes)
+# - GPU nodes are detected in the cluster
+# This ensures gres.conf exists whenever GresTypes is in slurm.conf
+# NOTE: Skip during Packer builds - gres.conf will be deployed at runtime
+- name: Deploy GRES configuration template
+  template:
+    src: gres.conf.j2
+    dest: /etc/slurm/gres.conf
+    mode: '0644'
+    owner: root
+    group: root
+    backup: true
+  become: true
+  register: gres_config_deployed
+  when:
+    - not (packer_build | default(false) | bool)
+    - gres_types_configured | default(false) or gpu_nodes_in_cluster | default(false)
+  notify:
+    - restart slurm services
+
 # Task 013: Container plugin configuration deployment
 - name: Check if tmpfs container plugin exists
   stat:

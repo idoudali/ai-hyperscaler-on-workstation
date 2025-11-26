@@ -39,10 +39,9 @@ slurm_cpu_cores: 4
 slurm_memory_gb: 8
 slurm_disk_gb: 50
 
-# GPU configuration
-slurm_gpu_enabled: false
-slurm_gpu_type: "nvidia"
-slurm_gpu_count: 0
+# GPU configuration - gpu_enabled is the single variable controlling all GPU/GRES config
+gpu_enabled: false
+gpu_count: 0
 
 # Cgroup configuration
 slurm_cgroup_enabled: true

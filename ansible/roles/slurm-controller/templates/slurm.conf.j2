@@ -37,7 +37,16 @@ SelectType={{ select_type | default('select/cons_tres') }}
 SelectTypeParameters={{ slurm_select_type_params | default('CR_Core_Memory') }}
 
 # GRES (Generic Resource) types
+# Set GresTypes when GPU nodes are configured in the cluster
+# GPU nodes are detected if:
+# - Any node has gpu_count > 0
+# - Any node has gpu_enabled = true
+{% set gpu_nodes_by_count = (groups['hpc_compute_nodes'] | default([]) + groups['hpc_gpu_nodes'] | default([])) | map('extract', hostvars) | selectattr('gpu_count', 'defined') | selectattr('gpu_count', 'gt', 0) | list | length > 0 %}
+{% set gpu_nodes_by_enabled = (groups['hpc_compute_nodes'] | default([]) + groups['hpc_gpu_nodes'] | default([])) | map('extract', hostvars) | selectattr('gpu_enabled', 'defined') | selectattr('gpu_enabled', 'equalto', true) | list | length > 0 %}
+{% set gpu_nodes_exist = gpu_nodes_by_count or gpu_nodes_by_enabled %}
+{% if gpu_nodes_exist %}
 GresTypes={{ gres_types | default('gpu') }}
+{% endif %}
 
 # Scheduler type
 SchedulerType={{ slurm_scheduler_type | default('sched/backfill') }}
@@ -150,8 +159,8 @@ PartitionName={{ slurm_default_partition | default('compute') }} \
     MaxTime={{ slurm_partition_max_time | default('INFINITE') }} \
     State={{ slurm_partition_state | default('UP') }}
 
-# GPU partition (if GPUs are available)
-{% if gres_types is defined and 'gpu' in gres_types %}
+# GPU partition (if GPU nodes are configured)
+{% if gpu_nodes_exist %}
 PartitionName={{ slurm_gpu_partition | default('gpu') }} \
     Nodes={% for host in (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) %}{{ hostvars[host]['slurm_node_name'] | default(host) }}{{ ',' if not loop.last else '' }}{% endfor %} \
     Default={{ slurm_gpu_partition_default | default('NO') }} \
@@ -165,12 +174,20 @@ PartitionName={{ slurm_gpu_partition | default('gpu') }} \
 #=============================================================================
 
 # Compute nodes - dynamically generated from inventory
+# NOTE: When using AutoDetect=nvidia in gres.conf, specify Gres=gpu (without type/count).
+# AutoDetect handles finding device files and GPU types, but base Gres declaration is required.
+# RealMemory should be slightly lower than actual to account for OS overhead (use 95% or explicit value).
 {% for host in (groups['hpc_compute_nodes'] | default([])) + (groups['hpc_gpu_nodes'] | default([])) %}
+{% set memory_mb = hostvars[host].slurm_memory_mb | default(((hostvars[host].slurm_memory_gb | default(8) | int * 1024) * 0.95) | int) %}
 NodeName={{ hostvars[host].slurm_node_name | default(host) }} \
     NodeAddr={{ hostvars[host].ansible_host | default(host) }} \
     Sockets={{ hostvars[host].slurm_node_sockets | default('1') }} \
     CoresPerSocket={{ hostvars[host].slurm_node_cores_per_socket | default('8') }} \
     ThreadsPerCore={{ hostvars[host].slurm_node_threads_per_core | default('1') }} \
+    RealMemory={{ memory_mb | int }} \
+{% if (hostvars[host].gpu_count | default(0) | int > 0) or (hostvars[host].gpu_enabled | default(false) | bool) %}
+    Gres=gpu \
+{% endif %}
     State={{ hostvars[host].slurm_node_state | default('UNKNOWN') }}
 {% endfor %}
 
