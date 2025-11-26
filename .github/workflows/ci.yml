@@ -43,10 +43,11 @@ jobs:
 
       - name: Cache Python dependencies
         uses: actions/cache@v4
+        continue-on-error: true
         with:
           path: |
             ~/.cache/uv
-          key: ${{ runner.os }}-python-deps-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          key: ${{ runner.os }}-python-deps-${{ hashFiles('python/ai_how/pyproject.toml', 'python/ai_how/uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-python-deps-
 
@@ -108,10 +109,11 @@ jobs:
 
       - name: Cache Python dependencies
         uses: actions/cache@v4
+        continue-on-error: true
         with:
           path: |
             ~/.cache/uv
-          key: ${{ runner.os }}-python-deps-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          key: ${{ runner.os }}-python-deps-${{ hashFiles('python/ai_how/pyproject.toml', 'python/ai_how/uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-python-deps-
 
