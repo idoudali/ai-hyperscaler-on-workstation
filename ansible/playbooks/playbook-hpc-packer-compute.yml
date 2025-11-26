@@ -94,7 +94,7 @@
           HPC Compute Packer Build Complete
           - SLURM Compute: Installed
           - Container Runtime: Installed
-          - GPU Drivers: {{ 'Installed' if nvidia_driver_version.rc == 0 else 'Skipped' }}
+          - GPU Drivers: {{ 'Installed' if (nvidia_driver_version.rc | default(-1)) == 0 else 'Skipped' }}
           - Node Exporter: Installed
           - BeeGFS: {{ 'Installed' if install_beegfs | default(true) else 'Skipped' }}
           - Services: Enabled but not started (Packer mode)
