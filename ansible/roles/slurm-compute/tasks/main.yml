@@ -38,9 +38,15 @@
     - slurm-compute-configure
     - configure
 
+# Include GRES configuration when node has GPUs:
+# - Node has explicit gpu_count > 0
+# - Node has gpu_enabled = true
+# NOTE: Do NOT check gres_types here - it defaults to 'gpu' globally and would
+# cause gres.yml to run on ALL nodes. Only node-level GPU config should trigger this.
 - name: Include SLURM GRES configuration
   include_tasks: gres.yml
-  when: slurm_gres_enabled | default(false) | bool
+  when: >-
+    (gpu_count | default(0) | int > 0) or (gpu_enabled | default(false) | bool)
   tags:
     - slurm-compute
     - slurm-gres

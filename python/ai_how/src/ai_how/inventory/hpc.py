@@ -145,8 +145,9 @@ class HPCInventoryGenerator(BaseInventoryGenerator):
             gpu_devices = self.detect_gpu_devices(node)
 
             if gpu_devices:
-                # This is a GPU node
+                # GPU node - gpu_enabled is the single variable controlling all GPU config
                 host_vars["has_gpu"] = True
+                host_vars["gpu_enabled"] = True
                 host_vars["node_role"] = "gpu_compute"
                 host_vars["gpu_count"] = len(gpu_devices)
 
@@ -156,7 +157,8 @@ class HPCInventoryGenerator(BaseInventoryGenerator):
 
                 inventory["groups"]["hpc_gpu_nodes"]["hosts"][hostname] = host_vars
             else:
-                # Regular compute node
+                # Regular compute node - no GPU
+                host_vars["gpu_enabled"] = False
                 inventory["groups"]["hpc_compute_nodes"]["hosts"][hostname] = host_vars
 
         # Store global GRES configuration

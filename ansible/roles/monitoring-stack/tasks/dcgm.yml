@@ -31,6 +31,13 @@
     - dcgm
     - gpu-monitoring
   block:
+    - name: Ensure gnupg is installed (required for apt_repository GPG key verification)
+      apt:
+        name: gnupg
+        state: present
+        update_cache: false
+      when: not (packer_build | default(false) | bool)
+
     - name: Download NVIDIA CUDA repository GPG key
       get_url:
         url: "{{ dcgm_cuda_repo_key_url }}"
