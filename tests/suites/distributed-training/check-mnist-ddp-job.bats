@@ -11,9 +11,9 @@ load helpers/training-helpers
 
 # Test configuration
 CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"
-TRAINING_SCRIPT="/mnt/beegfs/training/scripts/mnist_ddp.py"
+TRAINING_SCRIPT="$PROJECT_ROOT/examples/slurm-jobs/mnist-ddp/mnist_ddp.py"
 # Use .sbatch extension for consistency with source
-SBATCH_SCRIPT="/mnt/beegfs/jobs/mnist-ddp.sbatch"
+SBATCH_SCRIPT="$PROJECT_ROOT/examples/slurm-jobs/mnist-ddp/mnist-ddp.sbatch"
 
 # Setup: Run before each test
 setup() {
@@ -67,10 +67,16 @@ teardown() {
     skip_if_no_training_script "$TRAINING_SCRIPT"
 
     # Generate sanitized test name for log file
-    # Replace spaces with hyphens, remove special chars
     TEST_NAME_SANITIZED=$(echo "$BATS_TEST_DESCRIPTION" | tr ' ' '-' | tr -cd '[:alnum:]-')
+    # Generate UUID for this test run
+    UUID=$(uuidgen)
+    # Define test output structure
+    TEST_OUTPUT_DIR="/mnt/beegfs/tests/${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}-${UUID}"
 
-    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "mnist-ddp-${TEST_NAME_SANITIZED}")
+    # Add test number to log file name for easier identification
+    LOG_PREFIX="mnist-ddp-${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}"
+
+    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX" "$TEST_OUTPUT_DIR")
     [ -n "$JOB_ID" ]
     [ "$JOB_ID" -gt 0 ]
 
@@ -86,9 +92,12 @@ teardown() {
 
     # Generate sanitized test name for log file
     TEST_NAME_SANITIZED=$(echo "$BATS_TEST_DESCRIPTION" | tr ' ' '-' | tr -cd '[:alnum:]-')
-    LOG_PREFIX="mnist-ddp-${TEST_NAME_SANITIZED}"
+    UUID=$(uuidgen)
+    TEST_OUTPUT_DIR="/mnt/beegfs/tests/${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}-${UUID}"
 
-    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX")
+    LOG_PREFIX="mnist-ddp-${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}"
+
+    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX" "$TEST_OUTPUT_DIR")
     [ -n "$JOB_ID" ]
 
     # Wait for job completion (max 10 minutes)
@@ -96,8 +105,8 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Check log file
-    # Log file will be: /mnt/beegfs/logs/${LOG_PREFIX}-${JOB_ID}.out
-    LOG_FILE="/mnt/beegfs/logs/${LOG_PREFIX}-${JOB_ID}.out"
+    # Log file will be: $TEST_OUTPUT_DIR/slurm/${LOG_PREFIX}-${JOB_ID}.out
+    LOG_FILE="$TEST_OUTPUT_DIR/slurm/${LOG_PREFIX}-${JOB_ID}.out"
     run check_job_log "$LOG_FILE" "Training Complete"
     [ "$status" -eq 0 ]
 }
@@ -110,9 +119,12 @@ teardown() {
 
     # Generate sanitized test name for log file
     TEST_NAME_SANITIZED=$(echo "$BATS_TEST_DESCRIPTION" | tr ' ' '-' | tr -cd '[:alnum:]-')
-    LOG_PREFIX="mnist-ddp-${TEST_NAME_SANITIZED}"
+    UUID=$(uuidgen)
+    TEST_OUTPUT_DIR="/mnt/beegfs/tests/${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}-${UUID}"
 
-    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX")
+    LOG_PREFIX="mnist-ddp-${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}"
+
+    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX" "$TEST_OUTPUT_DIR")
     [ -n "$JOB_ID" ]
 
     # Wait for job completion
@@ -120,7 +132,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Extract accuracy
-    LOG_FILE="/mnt/beegfs/logs/${LOG_PREFIX}-${JOB_ID}.out"
+    LOG_FILE="$TEST_OUTPUT_DIR/slurm/${LOG_PREFIX}-${JOB_ID}.out"
     ACCURACY=$(extract_accuracy "$LOG_FILE")
 
     if [ -n "$ACCURACY" ]; then
@@ -146,9 +158,12 @@ teardown() {
 
     # Generate sanitized test name for log file
     TEST_NAME_SANITIZED=$(echo "$BATS_TEST_DESCRIPTION" | tr ' ' '-' | tr -cd '[:alnum:]-')
-    LOG_PREFIX="mnist-ddp-${TEST_NAME_SANITIZED}"
+    UUID=$(uuidgen)
+    TEST_OUTPUT_DIR="/mnt/beegfs/tests/${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}-${UUID}"
 
-    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX")
+    LOG_PREFIX="mnist-ddp-${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}"
+
+    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX" "$TEST_OUTPUT_DIR")
     [ -n "$JOB_ID" ]
 
     # Wait for job completion
@@ -156,7 +171,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Check for NCCL errors
-    LOG_FILE="/mnt/beegfs/logs/${LOG_PREFIX}-${JOB_ID}.out"
+    LOG_FILE="$TEST_OUTPUT_DIR/slurm/${LOG_PREFIX}-${JOB_ID}.out"
     run check_nccl_errors "$LOG_FILE"
     [ "$status" -eq 0 ]
 }
@@ -169,9 +184,12 @@ teardown() {
 
     # Generate sanitized test name for log file
     TEST_NAME_SANITIZED=$(echo "$BATS_TEST_DESCRIPTION" | tr ' ' '-' | tr -cd '[:alnum:]-')
-    LOG_PREFIX="mnist-ddp-${TEST_NAME_SANITIZED}"
+    UUID=$(uuidgen)
+    TEST_OUTPUT_DIR="/mnt/beegfs/tests/${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}-${UUID}"
 
-    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX")
+    LOG_PREFIX="mnist-ddp-${BATS_SUITE_TEST_NUMBER:-unknown}-${TEST_NAME_SANITIZED}"
+
+    JOB_ID=$(submit_mnist_job "$SBATCH_SCRIPT" "$LOG_PREFIX" "$TEST_OUTPUT_DIR")
     [ -n "$JOB_ID" ]
 
     # Wait for job completion
@@ -179,7 +197,7 @@ teardown() {
     [ "$status" -eq 0 ]
 
     # Verify multi-node execution
-    LOG_FILE="/mnt/beegfs/logs/${LOG_PREFIX}-${JOB_ID}.out"
+    LOG_FILE="$TEST_OUTPUT_DIR/slurm/${LOG_PREFIX}-${JOB_ID}.out"
     run verify_multi_node "$LOG_FILE" 2
     [ "$status" -eq 0 ]
 }

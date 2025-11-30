@@ -10,6 +10,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${LOG_DIR:-$(pwd)/logs/run-$(date '+%Y-%m-%d_%H-%M-%S')}"
 mkdir -p "$LOG_DIR"
 
+# Export variables needed by BATS tests
+export PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
+export TESTS_DIR="${TESTS_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# SSH variables might be needed if tests do SSH (usually helpers do)
+export SSH_KEY_PATH="${SSH_KEY_PATH:-}"
+export SSH_USER="${SSH_USER:-}"
+export CONTROLLER_IP="${CONTROLLER_IP:-}"
+
 # Check if BATS is installed
 if ! command -v bats >/dev/null 2>&1; then
     echo "ERROR: BATS is not installed"
@@ -22,7 +30,7 @@ fi
 BATS_FILES=(
     "$SCRIPT_DIR/check-pytorch-environment.bats"
     "$SCRIPT_DIR/check-mnist-ddp-job.bats"  # TASK-054: NCCL Multi-GPU Validation
-    # "$SCRIPT_DIR/check-monitoring-infrastructure.bats" # Will be added in Task 55
+    "$SCRIPT_DIR/check-monitoring-infrastructure.bats" # TASK-055: Monitoring Infrastructure
     # "$SCRIPT_DIR/check-oumi-installation.bats" # Will be added in Task 56
     # "$SCRIPT_DIR/check-smollm-finetuning.bats" # Will be added in Task 59
 )
@@ -51,6 +59,8 @@ echo ""
 # --formatter pretty requires tput/terminal which isn't available over SSH
 export TERM="${TERM:-dumb}"
 
+# Run tests and output to stdout AND file
+# We use 'tee' to capture output
 bats --formatter tap \
      --timing \
      --print-output-on-failure \

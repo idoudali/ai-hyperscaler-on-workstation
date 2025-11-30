@@ -18,6 +18,7 @@ kernel_additional_packages:
 
 # Common packages (installed for all profiles)
 base_packages_common:
+  - git
   - tmux
   - htop
   - vim
