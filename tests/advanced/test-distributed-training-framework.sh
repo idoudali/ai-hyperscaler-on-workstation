@@ -11,6 +11,17 @@ UTILS_DIR="$TESTS_DIR/test-infra/utils"
 
 export PROJECT_ROOT TESTS_DIR SSH_KEY_PATH="$PROJECT_ROOT/build/shared/ssh-keys/id_rsa" SSH_USER="admin"
 
+# SSH options for test environment
+# Note: We disable host key checking (-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+# because this is a test environment where VMs may be recreated with different SSH keys.
+# In production, these options should be removed and host keys should be properly managed.
+# SSH_OPTS is exported as a string for use by _build_ssh_opts() in vm-utils.sh
+# The -i "$SSH_KEY_PATH" is added separately by utility functions, so we don't include it here
+export SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+# Local array version for direct use in this script (includes -i for convenience)
+SSH_OPTS_ARRAY=(-i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+SCP_OPTS_ARRAY=(-i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+
 FRAMEWORK_NAME="Distributed Training Test Framework"
 FRAMEWORK_DESCRIPTION="Validates distributed training capabilities, PyTorch container, and SLURM integration"
 FRAMEWORK_TEST_CONFIG="$PROJECT_ROOT/config/example-multi-gpu-clusters.yaml"
@@ -62,6 +73,38 @@ deploy_distributed_training_resources() {
         return 1
     fi
 
+    # Sync Project to BeeGFS (Clone from Mount)
+    local project_basename
+    project_basename="$(basename "$PROJECT_ROOT")"
+    local remote_project_dir="/mnt/beegfs/${project_basename}"
+    # The repo is mounted on the controller at the same path as the host
+    local mount_source="$PROJECT_ROOT"
+
+    log "Cloning project from mount ($mount_source) to BeeGFS ($remote_project_dir)..."
+
+    # Ensure parent dir exists and clean up target
+    # shellcheck disable=SC2029  # Variable is intentionally expanded on client side
+    ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" "mkdir -p /mnt/beegfs && rm -rf \"$remote_project_dir\""
+
+    # Clone the repo
+    # shellcheck disable=SC2029  # Variables are intentionally expanded on client side
+    if ! ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" "git clone '$mount_source' '$remote_project_dir'"; then
+        log_error "Failed to clone project to controller"
+        return 1
+    fi
+
+    # Check for uncommitted changes
+    # Since we are cloning from the mount which reflects the current workspace,
+    # git clone will only pick up COMMITTED changes.
+    # If there are uncommitted changes, the test will run against stale code.
+    if [[ -n $(git status --porcelain) ]]; then
+        log_warning "Uncommitted changes detected in workspace."
+        log_warning "Please commit your changes before running distributed training tests."
+        log_warning "The tests run on a cloned repository on the controller, so uncommitted changes will NOT be visible."
+    fi
+
     # 2. Build Container (if not exists)
     local container_sif="$PROJECT_ROOT/build/containers/apptainer/pytorch-cuda12.1-mpi4.1.sif"
     if [[ ! -f "$container_sif" ]]; then
@@ -77,18 +120,15 @@ deploy_distributed_training_resources() {
 
     # 3. Create remote directories
     log "Creating remote directories on BeeGFS..."
+    # Only create directories that are NOT part of the repo structure or are for data/logs
     local remote_dirs=(
         "/mnt/beegfs/containers"
-        "/mnt/beegfs/training/scripts"
-        "/mnt/beegfs/training/templates"
-        "/mnt/beegfs/scripts"
-        "/mnt/beegfs/jobs"
-        "/mnt/beegfs/logs"
         "/mnt/beegfs/data"
     )
 
     for dir in "${remote_dirs[@]}"; do
-        if ! ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        # shellcheck disable=SC2029  # Variable is intentionally expanded on client side
+        if ! ssh "${SSH_OPTS_ARRAY[@]}" \
             "${SSH_USER}@${controller_ip}" "mkdir -p \"$dir\""; then
             log_error "Failed to create directory: $dir"
             return 1
@@ -99,83 +139,89 @@ deploy_distributed_training_resources() {
     log "Uploading container to BeeGFS (this may take a while)..."
     # Check if container already exists on remote to save time?
     # For now, just overwrite to ensure latest version
-    if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    if ! scp "${SCP_OPTS_ARRAY[@]}" \
         "$container_sif" "${SSH_USER}@${controller_ip}:/mnt/beegfs/containers/"; then
         log_error "Failed to upload container"
         return 1
     fi
 
-    # 4b. Upload MNIST DDP Job Files
-    log "Uploading MNIST DDP job files to BeeGFS..."
-    local mnist_source_dir="$PROJECT_ROOT/examples/slurm-jobs/mnist-ddp"
+    # 5. Verify Templates and Scripts exist in the synced repo
+    log "Verifying templates and scripts exist in synced repo..."
+    # Since we cloned the repo, we assume files are there if git clone succeeded.
+    # We can add a simple check if needed.
 
-    # Upload training script
-    if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "$mnist_source_dir/mnist_ddp.py" "${SSH_USER}@${controller_ip}:/mnt/beegfs/training/scripts/"; then
-        log_error "Failed to upload MNIST training script"
-        return 1
-    fi
+    # Helper Scripts - Already in repo, no need to upload
+    # Just ensure they are executable
+    # shellcheck disable=SC2029  # Variable is intentionally expanded on client side
+    ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" "chmod +x \"$remote_project_dir\"/tests/suites/distributed-training/*.sh"
 
-    # Upload job script (keep .sbatch extension for consistency)
-    if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "$mnist_source_dir/mnist-ddp.sbatch" "${SSH_USER}@${controller_ip}:/mnt/beegfs/jobs/mnist-ddp.sbatch"; then
-        log_error "Failed to upload MNIST job script"
-        return 1
-    fi
+    # 6. Deploy Monitoring Infrastructure
+    log "Deploying monitoring infrastructure..."
+    # Scripts are in the repo, just make sure they are executable
+    # shellcheck disable=SC2029  # Variable is intentionally expanded on client side
+    ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" \
+        "chmod +x \"$remote_project_dir\"/scripts/*.sh \"$remote_project_dir\"/examples/slurm-jobs/monitoring/scripts/*.sh"
 
-    # 5. Verify Templates and Scripts exist on remote (mounted via virtio)
-    log "Verifying templates and scripts exist on remote server (mounted via virtio)..."
+    # 7. Setup Python virtual environment for monitoring tools
+    log "Setting up Python virtual environment for monitoring tools..."
+    if ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" "test -f /mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"; then
 
-    if [[ -d "$PROJECT_ROOT/examples/slurm-jobs/templates" ]]; then
-        local missing_files=()
+        # Check if venv exists and is valid (has pip)
+        if ssh "${SSH_OPTS_ARRAY[@]}" \
+            "${SSH_USER}@${controller_ip}" "test -f /mnt/beegfs/pytorch-env/bin/pip"; then
+            log "Virtual environment already exists and appears valid"
+        else
+            log "Creating or recreating virtual environment..."
+            # Clean up potentially broken venv
+            ssh "${SSH_OPTS_ARRAY[@]}" \
+                "${SSH_USER}@${controller_ip}" "rm -rf /mnt/beegfs/pytorch-env"
 
-        # Check Python script templates
-        for py_file in "$PROJECT_ROOT/examples/slurm-jobs/templates"/*.py; do
-            [[ ! -f "$py_file" ]] && continue
-            local basename_py
-            basename_py=$(basename "$py_file")
-            if ! ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-                "${SSH_USER}@${controller_ip}" "test -f \"/mnt/beegfs/training/scripts/$basename_py\"" 2>/dev/null; then
-                missing_files+=("/mnt/beegfs/training/scripts/$basename_py")
+            if ! ssh "${SSH_OPTS_ARRAY[@]}" \
+                "${SSH_USER}@${controller_ip}" \
+                "export APPTAINER_BIND='/mnt/beegfs:/mnt/beegfs' && \
+                 apptainer exec /mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif \
+                 python3 -m venv /mnt/beegfs/pytorch-env --system-site-packages --without-pip && \
+                 apptainer exec /mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif \
+                 curl -sS https://bootstrap.pypa.io/get-pip.py | /mnt/beegfs/pytorch-env/bin/python3"; then
+                 # Fallback to standard creation if manual pip install fails (though standard often fails on ensurepip)
+                 log "Standard venv creation..."
+                 ssh "${SSH_OPTS_ARRAY[@]}" \
+                    "${SSH_USER}@${controller_ip}" \
+                    "export APPTAINER_BIND='/mnt/beegfs:/mnt/beegfs' && \
+                     apptainer exec /mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif \
+                     python3 -m venv /mnt/beegfs/pytorch-env --system-site-packages" || {
+                        log_error "Failed to create virtual environment"
+                        return 1
+                     }
             fi
-        done
-
-        # Check shell script templates
-        for sh_file in "$PROJECT_ROOT/examples/slurm-jobs/templates"/*.sh; do
-            [[ ! -f "$sh_file" ]] && continue
-            local basename_sh
-            basename_sh=$(basename "$sh_file")
-            if ! ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-                "${SSH_USER}@${controller_ip}" "test -f \"/mnt/beegfs/training/templates/$basename_sh\"" 2>/dev/null; then
-                missing_files+=("/mnt/beegfs/training/templates/$basename_sh")
-            fi
-        done
-
-        # Fail if any files are missing
-        if [[ ${#missing_files[@]} -gt 0 ]]; then
-            log_error "Required files missing on remote server (expected to be mounted via virtio):"
-            for file in "${missing_files[@]}"; do
-                log_error "  - $file"
-            done
-            return 1
         fi
 
-        log "All required template files found on remote server"
+        # Install monitoring tools in venv
+        log "Installing monitoring tools in virtual environment..."
+        if ! ssh "${SSH_OPTS_ARRAY[@]}" \
+            "${SSH_USER}@${controller_ip}" \
+            "export APPTAINER_BIND='/mnt/beegfs:/mnt/beegfs' && \
+             apptainer exec /mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif \
+             /mnt/beegfs/pytorch-env/bin/python3 -m pip install --quiet tensorboard aim mlflow"; then
+            log_warning "Failed to install some monitoring tools (may already be installed)"
+        else
+            log "Monitoring tools installed successfully"
+        fi
+    else
+        log_warning "Container not found, skipping venv setup"
     fi
 
-    # Helper Scripts
-    if [[ -f "$PROJECT_ROOT/tests/suites/distributed-training/check-container-env.sh" ]]; then
-        if ! scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "$PROJECT_ROOT/tests/suites/distributed-training/check-container-env.sh" \
-            "${SSH_USER}@${controller_ip}:/mnt/beegfs/scripts/"; then
-            log_error "Failed to upload validation script"
-            return 1
-        fi
-    fi
+    # 8. Initialize Aim repository (if container is available)
+    # Skipped: Aim repository is now initialized per-test in the test output directory
+    # log "Initializing Aim repository..."
+    # ... code removed ...
 
     # Make scripts executable
-    ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "${SSH_USER}@${controller_ip}" "chmod +x /mnt/beegfs/scripts/*.sh 2>/dev/null || true"
+    ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" "chmod +x /mnt/beegfs/scripts/*.sh \$remote_project_dir/examples/slurm-jobs/monitoring/*.sbatch 2>/dev/null || true"
 
     log_success "Distributed training resources deployed successfully"
     return 0
@@ -214,42 +260,36 @@ run_distributed_training_tests() {
         return 1
     fi
 
-    # Upload Test Suite
-    # Calculate intended remote directory (maintain project structure)
+    # Upload Test Suite (Full Repo Clone to BeeGFS)
     local project_basename
     project_basename="$(basename "$PROJECT_ROOT")"
+    local remote_project_dir="/mnt/beegfs/${project_basename}"
     local suite_relative
     suite_relative="${FRAMEWORK_TEST_SCRIPTS_DIR#"$PROJECT_ROOT"/}"
-    # shellcheck disable=SC2088
-    local intended_remote_dir="~/$project_basename/$suite_relative"
+    local intended_remote_dir="${remote_project_dir}/${suite_relative}"
 
-    log "Uploading Distributed Training test suite to controller..."
-    if ! upload_scripts_to_vm "$controller_ip" "$controller_name" "$FRAMEWORK_TEST_SCRIPTS_DIR" "$intended_remote_dir"; then
-        log_error "Failed to upload test scripts to controller"
-        return 1
-    fi
+    # Syncing is now handled in deploy_distributed_training_resources
+    log "Using project on controller (BeeGFS location: $remote_project_dir)..."
 
-    local actual_suite_dir="$ACTUAL_REMOTE_DIR"
-    log "Scripts uploaded to: $actual_suite_dir"
-
-    # Upload helpers explicitly if needed, but upload_scripts_to_vm should recursive copy
-    # (test-framework-utils.sh implementation of upload_scripts_to_vm usually uses scp -r)
+    local actual_suite_dir="$intended_remote_dir"
+    log "Test suite directory: $actual_suite_dir"
 
     # Prepare test arguments
     local test_args=""
     [[ "${FRAMEWORK_VERBOSE:-false}" == "true" ]] && test_args="--verbose"
 
     # Execute Master Test Runner
-    log "Executing validation tests on controller..."
+    log "Executing validation tests on controller (from BeeGFS)..."
     local master_script_basename
     master_script_basename=$(basename "$FRAMEWORK_MASTER_TEST_SCRIPT")
 
     # Also run the simple environment check script first as a sanity check
-    cmd="/mnt/beegfs/scripts/check-container-env.sh"
+    cmd="$remote_project_dir/tests/suites/distributed-training/check-container-env.sh"
     log "Running basic environment check: $cmd"
     local env_check_rc=0
-    output=$(ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        "${SSH_USER}@${controller_ip}" "bash $cmd" 2>&1) || env_check_rc=$?
+    # shellcheck disable=SC2029  # Variable is intentionally expanded on client side
+    output=$(ssh "${SSH_OPTS_ARRAY[@]}" \
+        "${SSH_USER}@${controller_ip}" "bash \"$cmd\"" 2>&1) || env_check_rc=$?
 
     # Always print output for visual debugging
     echo "=== Environment Check Output ==="
@@ -262,7 +302,23 @@ run_distributed_training_tests() {
         log_success "Basic environment check passed"
     fi
 
-    if ! execute_script_on_vm "$controller_ip" "$controller_name" "$master_script_basename" "$actual_suite_dir" "$test_args"; then
+    # Execute script on VM using the BeeGFS directory
+    # We construct the command manually instead of using execute_script_on_vm because we want to specify the CWD carefully
+    local ssh_cmd="cd '$actual_suite_dir' && \
+                   LOG_DIR='$actual_suite_dir/logs/test-run-$TIMESTAMP' \
+                   PROJECT_ROOT='$remote_project_dir' \
+                   TESTS_DIR='$remote_project_dir/tests' \
+                   SSH_KEY_PATH='/home/admin/.ssh/id_rsa' \
+                   SSH_USER='admin' \
+                   CONTROLLER_IP='$controller_ip' \
+                   bash './$master_script_basename' $test_args"
+
+    log "Executing: $ssh_cmd"
+
+    # Note: SSH agent forwarding (-A) is used here to allow the controller to access compute nodes.
+    # This is acceptable in a test environment but should be reviewed for production use.
+    if ! ssh -A "${SSH_OPTS_ARRAY[@]}" -o ConnectTimeout=10 \
+        "${SSH_USER}@${controller_ip}" "$ssh_cmd"; then
         log_error "Distributed training tests failed"
         return 1
     fi

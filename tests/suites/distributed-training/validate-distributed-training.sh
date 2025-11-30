@@ -76,7 +76,7 @@ echo "   Status: $(squeue -j "$JOB_ID" -h -o '%T' 2>/dev/null || echo 'COMPLETED
 echo ""
 echo "   To monitor manually:"
 # Use default path if JOB_ID is set
-LOG_FILE="/mnt/beegfs/logs/mnist-ddp-${JOB_ID}.out"
+LOG_FILE="mnist-ddp-${JOB_ID}.out"
 echo "     tail -f $LOG_FILE"
 echo "     squeue -j $JOB_ID"
 echo ""

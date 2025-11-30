@@ -33,6 +33,7 @@ submit_mnist_job() {
     # Default to .sbatch extension now
     local sbatch_file="${1:-/mnt/beegfs/jobs/mnist-ddp.sbatch}"
     local job_name_suffix="${2:-}"
+    local test_output_dir="${3:-}"
     local job_id
 
     if [ ! -f "$sbatch_file" ]; then
@@ -53,25 +54,31 @@ submit_mnist_job() {
         # Bash arithmetic only does integers
         local req_mem=$(( node_mem_mb * 90 / 100 ))
         extra_args+=(--mem="${req_mem}M")
-
-        # Only print debug info if flag is set
-        if [ -n "${TRAINING_HELPERS_DEBUG:-}" ]; then
-            echo "DEBUG: Detected node memory: ${node_mem_mb}M. Requesting: ${req_mem}M" >&2
-        fi
     else
         echo "WARN: Could not detect node memory. Falling back to script defaults." >&2
     fi
 
-    # Handle custom job name and logging
-    if [ -n "$job_name_suffix" ]; then
-        # Create a safe job name (max 8 chars usually visible, but slurm allows more)
-        # We use the full suffix for the output file
-        extra_args+=(--output="/mnt/beegfs/logs/${job_name_suffix}-%j.out")
-        extra_args+=(--error="/mnt/beegfs/logs/${job_name_suffix}-%j.err")
+    # Handle output directory structure
+    if [ -n "$test_output_dir" ]; then
+        # Create structure:
+        # /mnt/beegfs/tests/<test_id>/
+        #   ├── slurm/
+        #   ├── training-logs/
+        #   └── monitoring-logs/
+        mkdir -p "$test_output_dir/slurm"
+        mkdir -p "$test_output_dir/training-logs"
+        mkdir -p "$test_output_dir/monitoring-logs"
 
-        if [ -n "${TRAINING_HELPERS_DEBUG:-}" ]; then
-            echo "DEBUG: Using custom log file prefix: ${job_name_suffix}" >&2
-        fi
+        # Point SLURM output to slurm/ subdirectory
+        extra_args+=(--output="$test_output_dir/slurm/${job_name_suffix}-%j.out")
+        extra_args+=(--error="$test_output_dir/slurm/${job_name_suffix}-%j.err")
+
+        # Export env var for the sbatch script to pick up
+        export TEST_OUTPUT_DIR="$test_output_dir"
+    elif [ -n "$job_name_suffix" ]; then
+        # Legacy/Fallback behavior
+        extra_args+=(--output="${job_name_suffix}-%j.out")
+        extra_args+=(--error="${job_name_suffix}-%j.err")
     fi
 
     # Debug: Print sbatch file content before submission (only if debug flag is set)
@@ -147,12 +154,36 @@ check_job_log() {
 
     if [ ! -f "$log_file" ]; then
         echo "ERROR: Log file not found: $log_file" >&2
+        # Try to find alternative log files
+        local log_dir
+        log_dir=$(dirname "$log_file")
+        if [ -d "$log_dir" ]; then
+            echo "DEBUG: Available log files in $log_dir:" >&2
+            find "$log_dir" -maxdepth 1 \( -name "*.out" -o -name "*.err" \) -ls 2>/dev/null | head -10 >&2 || true
+        fi
         return 1
     fi
 
+    # Check for success pattern
     if grep -q "$success_pattern" "$log_file" 2>/dev/null; then
         return 0
     else
+        echo "ERROR: Pattern '$success_pattern' not found in log file: $log_file" >&2
+
+        # Check corresponding .err file if it exists
+        local err_file="${log_file%.out}.err"
+        if [ -f "$err_file" ] && [ -s "$err_file" ]; then
+            echo "DEBUG: Found error log file: $err_file" >&2
+            echo "DEBUG: Contents of error log:" >&2
+            cat "$err_file" >&2
+        fi
+
+        echo "DEBUG: Last 30 lines of output log file:" >&2
+        tail -30 "$log_file" >&2 || true
+        echo "DEBUG: Checking for error patterns in output log..." >&2
+        if grep -iE "(error|failed|exception|traceback|unrecognized)" "$log_file" 2>/dev/null | head -10; then
+            echo "DEBUG: Errors found in log file" >&2
+        fi
         return 1
     fi
 }
@@ -167,12 +198,27 @@ extract_accuracy() {
         return 1
     fi
 
-    # Try to extract accuracy value
+    # Try multiple patterns to extract accuracy
+    # Pattern 1: "Accuracy: XX.XX%" (from training output)
     accuracy=$(grep -oP 'Accuracy: \K[0-9.]+' "$log_file" 2>/dev/null | tail -1)
+
+    # Pattern 2: "Test Accuracy: XX.XX%" (from test output)
+    if [ -z "$accuracy" ]; then
+        accuracy=$(grep -oP 'Test Accuracy: \K[0-9.]+' "$log_file" 2>/dev/null | tail -1)
+    fi
+
+    # Pattern 3: "Epoch X: Test Loss: X.XXXX, Test Accuracy: XX.XX%"
+    if [ -z "$accuracy" ]; then
+        accuracy=$(grep -oP 'Test Accuracy: \K[0-9.]+' "$log_file" 2>/dev/null | tail -1)
+    fi
+
     if [ -n "$accuracy" ]; then
         echo "$accuracy"
         return 0
     else
+        echo "ERROR: Could not extract accuracy from log file: $log_file" >&2
+        echo "DEBUG: Searching for accuracy-related lines:" >&2
+        grep -i "accuracy" "$log_file" 2>/dev/null | tail -5 >&2 || echo "No accuracy lines found" >&2
         return 1
     fi
 }

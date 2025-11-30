@@ -6,15 +6,24 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=4G
 #SBATCH --time=01:00:00
-#SBATCH --output=/mnt/beegfs/logs/mnist-ddp-%j.out
-#SBATCH --error=/mnt/beegfs/logs/mnist-ddp-%j.err
+#SBATCH --output=mnist-ddp-%j.out
+#SBATCH --error=mnist-ddp-%j.err
 
 # MNIST DDP Training Job with Apptainer Container
 # Uses PyTorch container from TASK-053 for distributed training
 
-# Container path (deployed in TASK-053)
-CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"
-TRAINING_SCRIPT="/mnt/beegfs/training/scripts/mnist_ddp.py"
+# Configuration
+# If PROJECT_ROOT is set, use it. Otherwise assume standard deployment paths
+if [ -n "$PROJECT_ROOT" ]; then
+    CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"
+    TRAINING_SCRIPT="$PROJECT_ROOT/examples/slurm-jobs/mnist-ddp/mnist_ddp.py"
+else
+    CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"
+    TRAINING_SCRIPT="/mnt/beegfs/training/scripts/mnist_ddp.py"
+fi
+
+# Point to the python executable in the venv
+VENV_PYTHON="/mnt/beegfs/pytorch-env/bin/python3"
 
 # Print job info
 echo "=========================================="
@@ -26,6 +35,7 @@ echo "Number of Nodes: $SLURM_NNODES"
 echo "Tasks per Node: $SLURM_NTASKS_PER_NODE"
 echo "Total GPUs: $((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
 echo "Container: $CONTAINER"
+echo "Python: $VENV_PYTHON"
 echo "Training Script: $TRAINING_SCRIPT"
 echo "=========================================="
 
@@ -53,22 +63,65 @@ echo "World Size: $WORLD_SIZE"
 echo "NCCL_IB_DISABLE: $NCCL_IB_DISABLE"
 echo ""
 
-# Create log directory
-mkdir -p /mnt/beegfs/logs
+# Create data directory
 mkdir -p /mnt/beegfs/data/mnist
 
 # Apptainer bind mounts (BeeGFS shared storage)
 export APPTAINER_BIND="/mnt/beegfs:/mnt/beegfs"
 
+# Set up output directories and arguments based on TEST_OUTPUT_DIR
+# Use array to properly handle arguments with spaces
+PYTHON_ARGS=()
+if [ -n "$TEST_OUTPUT_DIR" ]; then
+    echo "Using Test Output Directory: $TEST_OUTPUT_DIR"
+    mkdir -p "$TEST_OUTPUT_DIR/training-logs"
+    mkdir -p "$TEST_OUTPUT_DIR/monitoring-logs/aim"
+    PYTHON_ARGS+=("--monitor")
+    PYTHON_ARGS+=("--log-dir" "$TEST_OUTPUT_DIR/training-logs")
+    PYTHON_ARGS+=("--aim-repo" "$TEST_OUTPUT_DIR/monitoring-logs/aim")
+fi
+
 # Start time
 START_TIME=$(date +%s)
 
 # Launch distributed training with Apptainer
-# Using srun to launch MPI jobs across nodes
-# Apptainer will use the host's MPI (PMI) for communication
-srun --mpi=pmi2 apptainer exec --nv \
-    $CONTAINER \
-    python3 $TRAINING_SCRIPT
+# Critical: We execute the PYTHON from the VENV *inside* the container
+# This gives us access to libraries in the VENV (aim, tensorboard)
+# AND libraries in the container (torch, cuda, mpi) because we used --system-site-packages
+if [ ${#PYTHON_ARGS[@]} -gt 0 ]; then
+    echo "Training with monitoring enabled"
+    echo "Arguments: ${PYTHON_ARGS[*]}"
+fi
+
+# Execute with proper error handling
+# The challenge: Arrays don't always serialize correctly through srun -> apptainer
+# Solution: Use a wrapper command that reconstructs the arguments inside the container
+set +e  # Temporarily disable exit on error to capture exit code
+
+# Create a command string that will be executed inside the container
+# We'll use bash -c with the arguments properly quoted
+# Build the command by quoting each argument separately
+PYTHON_CMD="$VENV_PYTHON"
+PYTHON_CMD="$PYTHON_CMD $(printf %q "$TRAINING_SCRIPT")"
+
+# Add each argument, properly quoted
+for arg in "${PYTHON_ARGS[@]}"; do
+    PYTHON_CMD="$PYTHON_CMD $(printf %q "$arg")"
+done
+
+# Execute using bash -c to ensure proper argument parsing
+# The bash -c will properly split the quoted arguments
+srun --mpi=pmi2 apptainer exec --nv "$CONTAINER" \
+    bash -c "$PYTHON_CMD"
+
+EXIT_CODE=$?
+set -e  # Re-enable exit on error
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "ERROR: Training script failed with exit code: $EXIT_CODE" >&2
+    echo "ERROR: Check stderr output for details" >&2
+    exit $EXIT_CODE
+fi
 
 # End time
 END_TIME=$(date +%s)
