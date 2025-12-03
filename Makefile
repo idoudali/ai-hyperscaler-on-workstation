@@ -37,6 +37,13 @@ FULL_IMAGE_NAME := $(IMAGE_NAME):$(IMAGE_TAG)
 # Helper script for running commands in development container
 DEV_CONTAINER_SCRIPT := ./scripts/run-in-dev-container.sh
 
+# Docker-in-Docker support
+# Disabled by default for security. Enable only if you need to build or run containers inside the dev container.
+# Set DEV_CONTAINER_ENABLE_DOCKER_SOCKET=1 to explicitly opt-in.
+# WARNING: Mounting Docker socket grants full control of host Docker daemon and can lead to privilege escalation.
+# DO NOT enable unless you understand the risks.
+DEV_CONTAINER_ENABLE_DOCKER_SOCKET ?= 0
+
 # Build system variables
 BUILD_DIR := build
 
@@ -74,14 +81,15 @@ build-docker:
 .PHONY: shell-docker
 shell-docker:
 	@echo "Starting interactive shell in Docker container..."
-	@$(DEV_CONTAINER_SCRIPT)
+	@DEV_CONTAINER_ENABLE_DOCKER_SOCKET=$(DEV_CONTAINER_ENABLE_DOCKER_SOCKET) $(DEV_CONTAINER_SCRIPT)
 
 # Run a command in the development container
 # Usage: make run-docker COMMAND="cmake --build build --target deploy"
+# Docker-in-Docker is disabled by default (=0). Set DEV_CONTAINER_ENABLE_DOCKER_SOCKET=1 to enable.
 .PHONY: run-docker
 run-docker:
 	@echo "Running command in Docker container: $(COMMAND)"
-	@$(DEV_CONTAINER_SCRIPT) $(COMMAND)
+	@DEV_CONTAINER_ENABLE_DOCKER_SOCKET=$(DEV_CONTAINER_ENABLE_DOCKER_SOCKET) $(DEV_CONTAINER_SCRIPT) $(COMMAND)
 
 # Push the Docker image to a registry (uncomment and configure)
 # REGISTRY_URL := your-registry-url
@@ -669,7 +677,9 @@ help:
 	@echo "Docker Environment Commands:"
 	@echo "  make build-docker   - Build the development Docker image."
 	@echo "  make shell-docker   - Start an interactive shell in the container."
+	@echo "                        (Docker-in-Docker enabled by default, set DEV_CONTAINER_ENABLE_DOCKER_SOCKET=0 to disable)"
 	@echo "  make run-docker     - Run a command in the container (use COMMAND=\"...\")."
+	@echo "                        (Docker-in-Docker enabled by default, set DEV_CONTAINER_ENABLE_DOCKER_SOCKET=0 to disable)"
 	@echo "  make containers-deploy-beegfs - Build all containers and deploy them to BeeGFS via hpc-container-manager."
 	@echo "      (Controller IP auto-detected via \"ai-how system status\" unless CONTAINER_DEPLOY_CONTROLLER is set.)"
 	@echo "  make clean-docker   - Remove the Docker image and old containers."
@@ -772,6 +782,7 @@ help:
 	@echo "  INVENTORY_OUTPUT            - Generic inventory path (default: \$${HPC_INVENTORY_OUTPUT})"
 	@echo "  SSH_KEYS_DIR                - SSH keys directory (default: build/shared/ssh-keys)"
 	@echo "  SSH_PRIVATE_KEY             - SSH private key path (default: \$${SSH_KEYS_DIR}/id_rsa)"
+	@echo "  DEV_CONTAINER_ENABLE_DOCKER_SOCKET - Enable Docker-in-Docker (default: 1, set to 0 to disable)"
 	@echo ""
 	@echo "Notes:"
 	@echo "  - Shared variables are defined in Makefile.vars (included by both main and k8s-manifests Makefiles)"
