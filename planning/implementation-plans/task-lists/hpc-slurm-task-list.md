@@ -1,15 +1,15 @@
 # HPC SLURM Deployment - Master Task Index
 
 **Last Updated**: 2025-12-04
-**Total Tasks**: 64 across 7 phases
+**Total Tasks**: 68 across 8 phases
 **Status**: Phase 5 Distributed Training 50% Complete
 
 ## Quick Status
 
-- **Completed**: 58 tasks (90.6%)
+- **Completed**: 58 tasks (85.3%)
 - **In Progress**: 0 tasks
 - **Recently Completed**: Phase 5 Week 1 & 2 - Container infrastructure & Oumi (Tasks 053-058)
-- **Pending**: 6 tasks (9.4%) - 2 distributed training + 4 validation
+- **Pending**: 10 tasks (14.7%) - 2 distributed training + 4 validation + 4 MIG support
 
 ## Phase Overview
 
@@ -99,6 +99,18 @@
 - TASK-062: BeeGFS Performance Testing (was TASK-050)
 - TASK-063: SLURM Integration Testing (was TASK-051)
 - TASK-064: Container Workflow Validation (was TASK-052)
+
+### 🎯 Phase 7: MIG Support (Tasks 065-068)
+
+**Status**: 🔵 Planned (0/4 tasks)
+**Priority**: HIGH
+**File**: [`hpc-slurm/pending/phase-7-mig-support.md`](hpc-slurm/pending/phase-7-mig-support.md)
+**Prerequisites**: ✅ Phase 6 complete
+
+- TASK-065: Host MIG Configuration Tools
+- TASK-066: Python Wrapper MIG Support
+- TASK-067: Update GPU Allocator
+- TASK-068: Simulator MIG Integration
 
 ## Reference Documentation
 
