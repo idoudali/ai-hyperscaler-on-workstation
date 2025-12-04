@@ -11,8 +11,8 @@ This directory contains detailed task lists for implementing various components 
 ## Overview
 
 **Total Progress:** 83% complete (116/140 tasks, 2 deprecated)  
-**Active Tasks:** 24 tasks across 3 workstreams  
-**Estimated Remaining:** ~3-4 weeks + 10 weeks (cloud)
+**Active Tasks:** 28 tasks across 3 workstreams  
+**Estimated Remaining:** ~5-6 weeks + 10 weeks (cloud)
 **Major Update:** ✅ HPC Phase 4 (Consolidation) 100% complete! 🎉  
 **Next Focus:** 🎯 Phase 5 Distributed Training Enablement (8 tasks, ~3-4 weeks)
 
@@ -80,6 +80,7 @@ task-lists/
 - ✅ Role consolidation (Phase 4) - **COMPLETE!** 🎉
 - 🎯 Distributed training enablement (Phase 5) - Ready to start (8 tasks)
 - Final validation (Phase 6) - After Phase 5
+- MIG Support (Phase 7) - After Phase 6 (4 tasks)
 
 **Documentation:**
 
@@ -233,7 +234,7 @@ defined in `docs/design-docs/project-plan.md`.
 - ✅ Documentation quickstarts: 6/6 complete! 🎉
 - ✅ **HPC Phase 4 consolidation: 100% complete!** 🎉
 - 🎯 **NEW:** Phase 5 Distributed Training Enablement (8 tasks, ~3-4 weeks)
-- 🎯 Target: HPC infrastructure 100% complete by 2025-12-20 (Phase 5 + 6)
+- 🎯 Target: HPC infrastructure 100% complete by 2025-12-30 (Phase 5 + 6 + 7)
 - 🎯 Target: Documentation 75% complete by 2025-12-15
 
 ---

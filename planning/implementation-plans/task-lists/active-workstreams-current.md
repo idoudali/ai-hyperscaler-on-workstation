@@ -1,8 +1,8 @@
 # Active Workstreams - Unified Task Tracking
 
 **Last Updated:** 2025-12-04  
-**Active Tasks:** 35 tasks across 4 workstreams  
-**Estimated Completion:** ~1-2 weeks + 18 days + 10 weeks
+**Active Tasks:** 42 tasks across 4 workstreams  
+**Estimated Completion:** ~2-3 weeks + 18 days + 10 weeks
 
 ## Overview
 
@@ -39,9 +39,9 @@ Completed tasks are archived in [`archive/active-workstreams.md`](./archive/acti
 
 ## Workstream 1: HPC Infrastructure Completion
 
-**Status:** 87.5% Complete (56/64 tasks)  
-**Remaining:** 8 tasks (4 Phase 5 + 4 Phase 6)  
-**Estimated Time:** ~1-2 weeks  
+**Status:** 82.4% Complete (56/68 tasks)  
+**Remaining:** 12 tasks (4 Phase 5 + 4 Phase 6 + 4 Phase 7)  
+**Estimated Time:** ~2-3 weeks  
 **Reference:** [`hpc-slurm-task-list.md`](./hpc-slurm-task-list.md)
 
 ### ✅ Phase 3: Infrastructure Enhancements (Complete!)
@@ -174,6 +174,29 @@ make test-slurm-integration
 # TASK-064: Container Workflow
 make test-container-workflow
 ```
+
+---
+
+### Phase 7: MIG Support (7 tasks)
+
+**Objective:** Enable Multi-Instance GPU (MIG) support for fractional GPU allocation
+
+| Task ID | Description | Priority | Duration | Dependencies |
+|---------|-------------|----------|----------|--------------|
+| TASK-065 | Host MIG Configuration Tools | HIGH | 3 days | Phase 6 |
+| TASK-066 | Python Wrapper MIG Support | HIGH | 3 days | TASK-065 |
+| TASK-067 | Update GPU Allocator | HIGH | 2 days | TASK-066 |
+| TASK-068 | Simulator MIG Integration | HIGH | 2 days | TASK-067 |
+| TASK-DOC-2.3 | Tutorial: GPU Partitioning | MEDIUM | 1 day | TASK-065 |
+| TASK-DOC-3.4 | Doc: GPU Architecture (MIG) | MEDIUM | 1 day | TASK-DOC-2.3 |
+| TASK-DOC-2.10 | Tutorial: SLURM Advanced (MIG) | MEDIUM | 1 day | TASK-068 |
+
+**Validation Criteria:**
+
+- ✅ MIG slices can be created/destroyed on host
+- ✅ Python wrapper accepts MIG configuration
+- ✅ GPU allocator correctly tracks MIG slices
+- ✅ Simulator can provision VMs with MIG slices
 
 ---
 
@@ -465,7 +488,8 @@ TASK-028.1 (BeeGFS) ✅ → TASK-047 (Base Pkg) ✅ → TASK-048 (Utilities) ✅
   TASK-053 (Container) → TASK-054 (NCCL) → TASK-055 (Monitor) →
   TASK-056 (Oumi) → TASK-057 (Config) → TASK-058 (PyTorch) →
   TASK-059 (Fine-tune) → TASK-060 (Docs) →
-  TASK-061 (Registry) → TASK-062 (Perf) → TASK-063 (SLURM) → TASK-064 (Workflow)
+  TASK-061 (Registry) → TASK-062 (Perf) → TASK-063 (SLURM) → TASK-064 (Workflow) →
+  TASK-065 (MIG Host) → TASK-066 (Python) → TASK-067 (Alloc) → TASK-068 (Sim)
                                                                            ↓
                                                                      MLOPS-1.1 (Start)
 
@@ -568,6 +592,14 @@ TASK-035 ✅ → TASK-036 ✅ → TASK-037 ✅
   - [ ] BeeGFS throughput >1 GB/s for large files
   - [ ] SLURM GPU scheduling working correctly
   - [ ] End-to-end ML container workflow validated
+- [ ] **Phase 7: MIG Support (7 tasks)**
+  - [ ] Host MIG configuration tools created
+  - [ ] Python wrapper supports MIG
+  - [ ] GPU allocator tracks MIG slices
+  - [ ] Simulator integration complete
+  - [ ] Tutorial: GPU Partitioning completed (TASK-DOC-2.3)
+  - [ ] Doc: GPU Architecture updated with MIG (TASK-DOC-3.4)
+  - [ ] Tutorial: SLURM Advanced updated with MIG (TASK-DOC-2.10)
 
 ### Code Quality (Workstream 2)
 
