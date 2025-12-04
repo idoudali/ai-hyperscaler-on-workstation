@@ -187,8 +187,8 @@ make test-container-workflow
 | TASK-066 | Python Wrapper MIG Support | HIGH | 3 days | TASK-065 |
 | TASK-067 | Update GPU Allocator | HIGH | 2 days | TASK-066 |
 | TASK-068 | Simulator MIG Integration | HIGH | 2 days | TASK-067 |
-| TASK-DOC-2.3 | Tutorial: GPU Partitioning | MEDIUM | 1 day | TASK-065 |
-| TASK-DOC-3.4 | Doc: GPU Architecture (MIG) | MEDIUM | 1 day | TASK-DOC-2.3 |
+| TASK-DOC-2.3 | Tutorial: GPU Partitioning | COMPLETED | 1 day | TASK-065 |
+| TASK-DOC-3.4 | Doc: GPU Architecture (MIG) | COMPLETED | 1 day | TASK-DOC-2.3 |
 | TASK-DOC-2.10 | Tutorial: SLURM Advanced (MIG) | MEDIUM | 1 day | TASK-068 |
 
 **Validation Criteria:**
