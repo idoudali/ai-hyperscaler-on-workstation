@@ -1,0 +1,62 @@
+# Oumi Training Configuration Template
+# Reference: https://oumi.ai/docs/en/latest/user_guides/train/training_config.html
+# Adapted for containerized execution on HPC cluster
+
+# Model configuration
+model:
+  model_name: "HuggingFaceTB/SmolLM-135M"  # Small model for testing
+  trust_remote_code: true
+  torch_dtype: "bfloat16"  # Use bf16 for better performance
+
+# Dataset configuration
+dataset:
+  dataset_name: "yahma/alpaca-cleaned"
+  max_samples: 1000  # Limit for quick testing
+  split: "train"
+
+# Training configuration
+training:
+  output_dir: "/mnt/beegfs/experiments/outputs"
+  num_train_epochs: 3
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 2e-5
+  warmup_steps: 100
+
+  # Logging
+  logging_steps: 10
+  logging_first_step: true
+  logging_strategy: "steps"
+
+  # Checkpointing
+  save_steps: 500
+  save_strategy: "steps"
+  save_total_limit: 3
+
+  # Evaluation
+  eval_steps: 100
+  evaluation_strategy: "steps"
+
+  # Monitoring
+  report_to: ["tensorboard"]  # Can add "aim", "mlflow"
+
+  # Optimization
+  fp16: false
+  bf16: true
+  gradient_checkpointing: true
+
+  # Distributed training
+  distributed_strategy: "ddp"  # or "fsdp" for larger models
+
+# LoRA configuration (optional - for efficient fine-tuning)
+peft:
+  use_peft: true
+  peft_type: "lora"
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: ["q_proj", "v_proj"]
+
+# Hardware configuration
+hardware:
+  mixed_precision: "bf16"

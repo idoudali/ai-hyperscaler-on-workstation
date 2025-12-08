@@ -42,8 +42,9 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     exit 0
 fi
 
-CONTAINER="${CONTAINER:-/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif}"
-AIM_BIN="${AIM_BIN:-/mnt/beegfs/pytorch-env/bin/aim}"
+CONTAINER="${CONTAINER:-/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1-oumi.sif}"
+# Use container's venv where Aim is installed
+AIM_BIN="${AIM_BIN:-/venv/bin/aim}"
 
 # Handle arguments
 if [ -n "$1" ]; then PORT="$1"; else PORT="${PORT:-43800}"; fi
