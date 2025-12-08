@@ -10,11 +10,6 @@
 #   - build-pi-calculation: Build pi-calculation MPI program
 #   - build-matrix-multiply: Build matrix-multiply MPI program
 
-cmake_minimum_required(VERSION 3.18)
-
-# Enable C language support for MPI programs
-enable_language(C)
-
 # Find MPI (required for all examples)
 find_package(MPI REQUIRED COMPONENTS C)
 

@@ -214,7 +214,33 @@ deploy_distributed_training_resources() {
         log_warning "Container not found, skipping venv setup"
     fi
 
-    # 8. Initialize Aim repository (if container is available)
+    # 8. Build and Deploy Oumi Container Variant
+    log "Building and deploying Oumi container variant..."
+    local oumi_container_sif="$PROJECT_ROOT/build/containers/apptainer/pytorch-cuda12.1-mpi4.1-oumi.sif"
+    if [[ ! -f "$oumi_container_sif" ]]; then
+        log "Oumi container variant not found locally. Building..."
+        # Use the project's Makefile wrapper to build in container
+        if ! (cd "$PROJECT_ROOT" && make run-docker COMMAND="cmake --build build --target build-container-pytorch-cuda12.1-mpi4.1-oumi"); then
+            log_warning "Failed to build Oumi container variant (may not be critical for all tests)"
+        else
+            log "Oumi container variant built successfully"
+        fi
+    else
+        log "Oumi container variant found locally: $oumi_container_sif"
+    fi
+
+    # Upload Oumi container if it exists
+    if [[ -f "$oumi_container_sif" ]]; then
+        log "Uploading Oumi container variant to BeeGFS..."
+        if ! scp "${SCP_OPTS_ARRAY[@]}" \
+            "$oumi_container_sif" "${SSH_USER}@${controller_ip}:/mnt/beegfs/containers/"; then
+            log_warning "Failed to upload Oumi container variant (may not be critical for all tests)"
+        else
+            log "Oumi container variant uploaded successfully"
+        fi
+    fi
+
+    # 9. Initialize Aim repository (if container is available)
     # Skipped: Aim repository is now initialized per-test in the test output directory
     # log "Initializing Aim repository..."
     # ... code removed ...

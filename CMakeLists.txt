@@ -32,7 +32,7 @@
 #   - Cleanup: cleanup, clean-beegfs, clean-all-containers
 
 cmake_minimum_required(VERSION 3.18)
-project(HyperscalerOnWorkstation LANGUAGES NONE)
+project(HyperscalerOnWorkstation LANGUAGES C)
 
 # --- Initial Check for Ninja ---
 # This check runs before the generator is fully configured.
