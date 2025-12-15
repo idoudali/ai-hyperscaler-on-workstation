@@ -78,10 +78,11 @@ build-docker:
 	@docker build -t $(FULL_IMAGE_NAME) ./docker
 
 # Run an interactive shell in the development container
+# Docker socket is mounted by default for shell-docker to enable Docker-in-Docker
 .PHONY: shell-docker
 shell-docker:
 	@echo "Starting interactive shell in Docker container..."
-	@DEV_CONTAINER_ENABLE_DOCKER_SOCKET=$(DEV_CONTAINER_ENABLE_DOCKER_SOCKET) $(DEV_CONTAINER_SCRIPT)
+	@DEV_CONTAINER_ENABLE_DOCKER_SOCKET=1 DEV_CONTAINER_DOCKER_SOCKET_CONFIRM=1 $(DEV_CONTAINER_SCRIPT)
 
 # Run a command in the development container
 # Usage: make run-docker COMMAND="cmake --build build --target deploy"

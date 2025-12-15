@@ -314,8 +314,49 @@ main() {
     # Use UID instead of username for gosu to avoid lookup issues with mounted passwd
     if [[ "$(id -u)" != "$user_id" ]]; then
         log_info "Switching to user $username (UID: $user_id)"
-        # gosu supports numeric UID, which is more reliable when passwd is mounted
-        exec gosu "$user_id" env CARGO_HOME="$CARGO_HOME" PATH="$PATH" USER="$username" HOME="$home_dir" "$@"
+
+        # Check if user is in docker group and docker socket exists
+        # If so, activate the docker group for the session
+        local docker_group=""
+        local use_docker_group=false
+        if [[ -n "${DOCKER_GID:-}" ]] && [[ -S /var/run/docker.sock ]]; then
+            # Find the docker group name by GID
+            docker_group=$(getent group "$DOCKER_GID" 2>/dev/null | cut -d: -f1 || echo "")
+            if [[ -z "$docker_group" ]]; then
+                # Try to find by name
+                docker_group=$(getent group "docker" 2>/dev/null | cut -d: -f1 || echo "")
+            fi
+
+            # Check if user is actually in the docker group
+            if [[ -n "$docker_group" ]] && id -nG "$username" 2>/dev/null | grep -qw "$docker_group"; then
+                use_docker_group=true
+                log_info "User $username is in $docker_group group, activating for Docker socket access"
+            fi
+        fi
+
+        # Use 'sg docker' to activate the docker group for the session
+        # This ensures docker commands work without permission errors
+        if [[ "$use_docker_group" == "true" ]]; then
+            log_info "Running with docker group active via sg"
+            # Build the full command with environment variables
+            # sg requires the command as a single string argument
+            local full_cmd="env CARGO_HOME=\"$CARGO_HOME\" PATH=\"$PATH\" USER=\"$username\" HOME=\"$home_dir\""
+            if [[ $# -eq 0 ]]; then
+                # No command provided, default to bash
+                full_cmd="$full_cmd /bin/bash"
+            else
+                # Add all arguments, properly quoted
+                for arg in "$@"; do
+                    full_cmd="$full_cmd $(printf '%q' "$arg")"
+                done
+            fi
+            # Use gosu to switch user, then sg to activate docker group
+            exec gosu "$user_id" sg "$docker_group" -c "$full_cmd"
+        else
+            # Fallback: use gosu normally if docker group activation wasn't used
+            # gosu supports numeric UID, which is more reliable when passwd is mounted
+            exec gosu "$user_id" env CARGO_HOME="$CARGO_HOME" PATH="$PATH" USER="$username" HOME="$home_dir" "$@"
+        fi
     else
         log_info "Already running as target user, executing command"
         exec "$@"
