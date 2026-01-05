@@ -2321,15 +2321,15 @@ bash /mnt/beegfs/scripts/test-oumi-dryrun.sh
 
 ### Success Criteria
 
-- [ ] Oumi virtual environment created on BeeGFS
-- [ ] Oumi package installed successfully
-- [ ] Oumi CLI accessible and functional
-- [ ] Oumi Python API imports successfully
-- [ ] Model and dataset lists accessible
-- [ ] CUDA support verified
-- [ ] Configuration template created
-- [ ] Dry-run test passes
-- [ ] Environment accessible from all compute nodes
+- [x] Oumi virtual environment created on BeeGFS
+- [x] Oumi package installed successfully
+- [x] Oumi CLI accessible and functional
+- [x] Oumi Python API imports successfully
+- [x] Model and dataset lists accessible
+- [x] CUDA support verified
+- [x] Configuration template created
+- [x] Dry-run test passes
+- [x] Environment accessible from all compute nodes
 
 ---
 
@@ -2919,14 +2919,14 @@ python /mnt/beegfs/scripts/oumi-slurm-launcher.py \
 
 ### Success Criteria
 
-- [ ] Cluster configuration file created
-- [ ] Custom Oumi launcher script functional
-- [ ] SLURM job template created
-- [ ] Example configurations created
-- [ ] Launcher can generate SLURM scripts
-- [ ] Jobs can be submitted successfully
-- [ ] Distributed training environment variables set correctly
-- [ ] Oumi recognizes SLURM environment
+- [x] Cluster configuration file created
+- [x] Custom Oumi launcher script functional
+- [x] SLURM job template created
+- [x] Example configurations created
+- [x] Launcher can generate SLURM scripts
+- [x] Jobs can be submitted successfully
+- [x] Distributed training environment variables set correctly
+- [x] Oumi recognizes SLURM environment
 
 ---
 

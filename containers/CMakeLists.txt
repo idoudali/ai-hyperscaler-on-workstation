@@ -102,9 +102,11 @@ foreach(CONTAINER_NAME ${CONTAINER_NAMES})
          ${CONTAINERS_SOURCE_DIR}/images/${CONTAINER_NAME}/Docker/*)
 
     # Build Docker image command (creates a stamp file to track builds)
+    # Uses --target to match the container name for multi-stage builds
     add_custom_command(
         OUTPUT ${DOCKER_BUILD_DIR}/${CONTAINER_NAME}.stamp
         COMMAND ${DOCKER_EXECUTABLE} build
+                --target ${CONTAINER_NAME}
                 -t ${CONTAINER_NAME}:latest
                 ${CONTAINERS_SOURCE_DIR}/images/${CONTAINER_NAME}/Docker/
         COMMAND ${CMAKE_COMMAND} -E touch ${DOCKER_BUILD_DIR}/${CONTAINER_NAME}.stamp
@@ -203,9 +205,88 @@ foreach(CONTAINER_NAME ${CONTAINER_NAMES})
     list(APPEND ALL_CONTAINER_WORKFLOW_TARGETS build-container-${CONTAINER_NAME})
 endforeach()
 
+# Note: build-all-containers target will be defined after Oumi variant is declared
+# This ensures the Oumi variant is included in the "all containers" target
+
+# --- Oumi Variant Build Target ---
+# Build Oumi variant of PyTorch container (uses multi-stage Dockerfile with --target pytorch-cuda12.1-mpi4.1-oumi)
+set(PYTORCH_DOCKER_DIR "${CONTAINERS_SOURCE_DIR}/images/pytorch-cuda12.1-mpi4.1/Docker")
+
+# Gather all input files for the Oumi variant (same Dockerfile, different target)
+file(GLOB_RECURSE OUMI_DOCKER_INPUT_FILES
+     ${PYTORCH_DOCKER_DIR}/*)
+
+# Build Oumi Docker image using --target pytorch-cuda12.1-mpi4.1-oumi (depends on base PyTorch image)
+add_custom_command(
+    OUTPUT ${DOCKER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.stamp
+    COMMAND ${DOCKER_EXECUTABLE} build
+            --target pytorch-cuda12.1-mpi4.1-oumi
+            -t pytorch-cuda12.1-mpi4.1-oumi:latest
+            ${PYTORCH_DOCKER_DIR}
+    COMMAND ${CMAKE_COMMAND} -E touch ${DOCKER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.stamp
+    DEPENDS ${DOCKER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1.stamp
+            ${OUMI_DOCKER_INPUT_FILES}
+    WORKING_DIRECTORY ${CONTAINERS_SOURCE_DIR}
+    COMMENT "Building Oumi variant (pytorch-cuda12.1-mpi4.1-oumi stage) of PyTorch container..."
+    USES_TERMINAL
+    VERBATIM
+)
+
+add_custom_target(build-docker-pytorch-cuda12.1-mpi4.1-oumi
+    DEPENDS ${DOCKER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.stamp
+    COMMENT "Building Oumi variant Docker image"
+)
+
+# Test Oumi Docker image target
+add_custom_target(test-docker-pytorch-cuda12.1-mpi4.1-oumi
+    COMMAND ${DOCKER_EXECUTABLE} run --rm pytorch-cuda12.1-mpi4.1-oumi:latest python3 -c "import oumi; print(oumi.__version__)"
+    DEPENDS build-docker-pytorch-cuda12.1-mpi4.1-oumi
+    WORKING_DIRECTORY ${CONTAINERS_SOURCE_DIR}
+    COMMENT "Testing Oumi variant Docker image"
+    VERBATIM
+)
+
+# Convert Oumi variant to Apptainer
+add_custom_command(
+    OUTPUT ${APPTAINER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.sif
+    COMMAND bash -c "source ${VENV_DIR}/bin/activate && \
+        PYTHONPATH=${CONTAINERS_SOURCE_DIR}/tools:${PYTHONPATH} \
+        ${VENV_DIR}/bin/hpc-container-manager convert to-apptainer --force \
+        pytorch-cuda12.1-mpi4.1-oumi:latest ${APPTAINER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.sif"
+    DEPENDS ${VENV_DIR}/bin/hpc-container-manager
+            build-docker-pytorch-cuda12.1-mpi4.1-oumi
+    WORKING_DIRECTORY ${CONTAINERS_SOURCE_DIR}
+    COMMENT "Converting Oumi variant to Apptainer format..."
+    USES_TERMINAL
+    VERBATIM
+)
+
+add_custom_target(convert-to-apptainer-pytorch-cuda12.1-mpi4.1-oumi
+    DEPENDS ${APPTAINER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.sif
+    COMMENT "Converting Oumi variant to Apptainer"
+)
+
+# Test Apptainer Oumi image target
+add_custom_target(test-apptainer-pytorch-cuda12.1-mpi4.1-oumi
+    COMMAND ${VENV_DIR}/bin/hpc-container-manager
+            test ${APPTAINER_BUILD_DIR}/pytorch-cuda12.1-mpi4.1-oumi.sif
+    DEPENDS convert-to-apptainer-pytorch-cuda12.1-mpi4.1-oumi setup-hpc-cli
+    WORKING_DIRECTORY ${CONTAINERS_SOURCE_DIR}
+    COMMENT "Testing Oumi variant Apptainer image"
+    VERBATIM
+)
+
+# Complete workflow for Oumi variant
+add_custom_target(build-container-pytorch-cuda12.1-mpi4.1-oumi
+    DEPENDS build-docker-pytorch-cuda12.1-mpi4.1-oumi convert-to-apptainer-pytorch-cuda12.1-mpi4.1-oumi
+    COMMENT "Complete container workflow for Oumi variant"
+)
+
+# --- Build All Containers Target ---
+# Includes both auto-discovered containers and explicitly defined variants (e.g., Oumi)
 add_custom_target(build-all-containers
-    DEPENDS ${ALL_CONTAINER_WORKFLOW_TARGETS}
-    COMMENT "Building all containers (Docker + Apptainer)..."
+    DEPENDS ${ALL_CONTAINER_WORKFLOW_TARGETS} build-container-pytorch-cuda12.1-mpi4.1-oumi
+    COMMENT "Building all containers (Docker + Apptainer), including Oumi variant..."
 )
 
 # --- Cleanup Targets ---

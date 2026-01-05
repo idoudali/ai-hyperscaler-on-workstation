@@ -205,7 +205,8 @@ teardown() {
 @test "Container can import required PyTorch modules" {
     skip_if_no_apptainer
 
-    run apptainer exec "$CONTAINER" python3 -c "
+    # Use container's venv where PyTorch is installed
+    run apptainer exec "$CONTAINER" /venv/bin/python3 -c "
 import torch
 import torch.nn as nn
 import torch.distributed as dist

@@ -3,19 +3,14 @@
 
 set -e
 
-# Display environment information
-echo "=== PyTorch HPC Container ==="
-echo "Python: $(python3 --version)"
-echo "PyTorch: $(python3 -c 'import torch; print(torch.__version__)')"
-echo "CUDA Available: $(python3 -c 'import torch; print(torch.cuda.is_available())')"
-
-if python3 -c 'import torch; exit(0 if torch.cuda.is_available() else 1)' 2>/dev/null; then
-    echo "CUDA Devices: $(python3 -c 'import torch; print(torch.cuda.device_count())')"
-    echo "CUDA Version: $(python3 -c 'import torch; print(torch.version.cuda)')"
+# Activate Python virtual environment
+# This ensures PyTorch and other packages installed in /venv are available
+if [ -f "/venv/bin/activate" ]; then
+    source /venv/bin/activate
 fi
 
-echo "MPI: $(mpirun --version | head -n 1)"
-echo "=============================="
+# Ensure PATH includes venv bin directory (in case activation didn't work)
+export PATH="/venv/bin:${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
 
 # Execute command or start bash
 if [ $# -eq 0 ]; then

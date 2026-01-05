@@ -22,8 +22,9 @@ else
     TRAINING_SCRIPT="/mnt/beegfs/training/scripts/mnist_ddp.py"
 fi
 
-# Point to the python executable in the venv
-VENV_PYTHON="/mnt/beegfs/pytorch-env/bin/python3"
+# Point to the python executable in the container's venv
+# The container has PyTorch installed in /venv (created by Dockerfile)
+VENV_PYTHON="/venv/bin/python3"
 
 # Print job info
 echo "=========================================="
@@ -111,8 +112,10 @@ done
 
 # Execute using bash -c to ensure proper argument parsing
 # The bash -c will properly split the quoted arguments
+# CRITICAL: Source the venv activation to ensure PyTorch and other packages are available
+# The entrypoint.sh is not automatically called with apptainer exec, so we must activate venv explicitly
 srun --mpi=pmi2 apptainer exec --nv "$CONTAINER" \
-    bash -c "$PYTHON_CMD"
+    bash -c "source /venv/bin/activate && $PYTHON_CMD"
 
 EXIT_CODE=$?
 set -e  # Re-enable exit on error

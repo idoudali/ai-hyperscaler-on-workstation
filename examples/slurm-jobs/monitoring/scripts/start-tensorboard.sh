@@ -4,9 +4,10 @@
 
 set -e
 
-CONTAINER="${CONTAINER:-/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif}"
-VENV_PYTHON="${VENV_PYTHON:-/mnt/beegfs/pytorch-env/bin/python3}"
-TENSORBOARD_BIN="${TENSORBOARD_BIN:-/mnt/beegfs/pytorch-env/bin/tensorboard}"
+CONTAINER="${CONTAINER:-/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1-oumi.sif}"
+# Use container's venv where PyTorch and TensorBoard are installed
+VENV_PYTHON="${VENV_PYTHON:-/venv/bin/python3}"
+TENSORBOARD_BIN="${TENSORBOARD_BIN:-/venv/bin/tensorboard}"
 PORT="${PORT:-6006}"
 LOG_DIR="${LOG_DIR:-/mnt/beegfs/experiments/logs}"
 

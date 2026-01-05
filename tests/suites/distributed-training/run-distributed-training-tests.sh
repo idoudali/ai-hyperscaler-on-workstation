@@ -31,7 +31,7 @@ BATS_FILES=(
     "$SCRIPT_DIR/check-pytorch-environment.bats"
     "$SCRIPT_DIR/check-mnist-ddp-job.bats"  # TASK-054: NCCL Multi-GPU Validation
     "$SCRIPT_DIR/check-monitoring-infrastructure.bats" # TASK-055: Monitoring Infrastructure
-    # "$SCRIPT_DIR/check-oumi-installation.bats" # Will be added in Task 56
+    "$SCRIPT_DIR/check-oumi-container.bats" # TASK-056: Oumi Container Validation
     # "$SCRIPT_DIR/check-smollm-finetuning.bats" # Will be added in Task 59
 )
 

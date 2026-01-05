@@ -1,21 +1,21 @@
 #!/bin/bash
-#SBATCH --job-name=pytorch-ddp
+#SBATCH --job-name=oumi-training
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=2
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
-#SBATCH --output=pytorch-ddp-%j.out
-#SBATCH --error=pytorch-ddp-%j.err
+#SBATCH --output=/mnt/beegfs/logs/oumi-%j.out
+#SBATCH --error=/mnt/beegfs/logs/oumi-%j.err
 
 # Container path
-CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"
-TRAINING_SCRIPT="/mnt/beegfs/training/scripts/your_script.py"
+CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1-oumi.sif"
+CONFIG_FILE="${1:-/mnt/beegfs/configs/oumi-template.yaml}"
 
 # Print job info
 echo "=========================================="
-echo "PyTorch DDP Training with Apptainer"
+echo "Oumi Framework Training with Apptainer"
 echo "=========================================="
 echo "SLURM Job ID: $SLURM_JOB_ID"
 echo "Node List: $SLURM_NODELIST"
@@ -23,7 +23,20 @@ echo "Number of Nodes: $SLURM_NNODES"
 echo "Tasks per Node: $SLURM_NTASKS_PER_NODE"
 echo "Total GPUs: $((SLURM_NNODES * SLURM_NTASKS_PER_NODE))"
 echo "Container: $CONTAINER"
+echo "Config: $CONFIG_FILE"
 echo "=========================================="
+
+# Verify container exists
+if [ ! -f "$CONTAINER" ]; then
+    echo "ERROR: Container not found: $CONTAINER"
+    exit 1
+fi
+
+# Verify config exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "ERROR: Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
 
 # Set distributed training environment variables
 MASTER_ADDR=$(scontrol show hostname "$SLURM_NODELIST" | head -n1)
@@ -41,19 +54,37 @@ echo ""
 # Apptainer bind mounts (BeeGFS shared storage)
 export APPTAINER_BIND="/mnt/beegfs:/mnt/beegfs"
 
-# Launch distributed training with Apptainer
+# Create output directory if it doesn't exist
+OUTPUT_DIR=$(grep -A 1 "^training:" "$CONFIG_FILE" | grep "output_dir:" | awk '{print $2}' | tr -d '"')
+if [ -n "$OUTPUT_DIR" ] && [ ! -d "$OUTPUT_DIR" ]; then
+    mkdir -p "$OUTPUT_DIR"
+    echo "Created output directory: $OUTPUT_DIR"
+fi
+
+# Create logs directory if it doesn't exist
+mkdir -p /mnt/beegfs/logs
+
+echo "Starting Oumi training..."
+echo ""
+
+# Launch Oumi training with Apptainer
 # Using srun to launch MPI jobs across nodes
 # Apptainer will use the host's MPI (PMI) for communication
-# CRITICAL: Source the venv activation to ensure PyTorch and other packages are available
+# CRITICAL: Source the venv activation to ensure Oumi and other packages are available
 # The entrypoint.sh is not automatically called with apptainer exec, so we must activate venv explicitly
 srun --mpi=pmi2 apptainer exec --nv \
     "$CONTAINER" \
-    bash -c "source /venv/bin/activate && python3 $TRAINING_SCRIPT \
-        --epochs 10 \
-        --batch-size 64 \
-        --learning-rate 0.001"
+    bash -c "source /venv/bin/activate && oumi train --config $(printf %q "$CONFIG_FILE")"
+
+TRAIN_EXIT_CODE=$?
 
 echo ""
 echo "=========================================="
-echo "Training completed"
+if [ $TRAIN_EXIT_CODE -eq 0 ]; then
+    echo "Training completed successfully"
+else
+    echo "Training failed with exit code: $TRAIN_EXIT_CODE"
+fi
 echo "=========================================="
+
+exit $TRAIN_EXIT_CODE

@@ -14,8 +14,9 @@ BEEGFS_MOUNT="/mnt/beegfs"
 MONITORING_ROOT="$BEEGFS_MOUNT/monitoring"
 SERVER_SCRIPTS_DIR="$PROJECT_ROOT/examples/slurm-jobs/monitoring"
 INTEGRATION_TEST_SCRIPT="$PROJECT_ROOT/tests/suites/distributed-training/monitoring-integration.py"
-CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1.sif"
-VENV_PYTHON="$BEEGFS_MOUNT/pytorch-env/bin/python3"
+CONTAINER="/mnt/beegfs/containers/pytorch-cuda12.1-mpi4.1-oumi.sif"
+# Use container's venv where PyTorch and monitoring tools are installed
+VENV_PYTHON="/venv/bin/python3"
 
 # Setup: Run before each test
 setup() {
@@ -41,8 +42,9 @@ teardown() {
         skip "Container not found at $CONTAINER"
     fi
 
-    if [ ! -f "$VENV_PYTHON" ]; then
-        skip "Virtual environment python not found at $VENV_PYTHON"
+    # Check if Python exists inside the container (venv is inside container)
+    if ! apptainer exec "$CONTAINER" test -f "$VENV_PYTHON"; then
+        skip "Virtual environment python not found at $VENV_PYTHON in container"
     fi
 
     # Run import check using the container + venv
@@ -75,7 +77,7 @@ teardown() {
     fi
 
     # We should run this using the container environment too
-    if [ -f "$CONTAINER" ] && [ -f "$VENV_PYTHON" ]; then
+    if [ -f "$CONTAINER" ] && apptainer exec "$CONTAINER" test -f "$VENV_PYTHON"; then
          run apptainer exec --nv "$CONTAINER" "$VENV_PYTHON" "$INTEGRATION_TEST_SCRIPT"
          [ "$status" -eq 0 ]
          [[ "$output" == *"All monitoring integration tests passed"* ]]
