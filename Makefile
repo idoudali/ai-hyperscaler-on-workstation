@@ -396,7 +396,29 @@ hpc-cluster-status: venv-create
 	@echo "Configuration: $(CLUSTER_CONFIG)"
 	@uv run ai-how hpc status $(CLUSTER_CONFIG)
 
-
+# SSH to HPC controller node
+.PHONY: hpc-ssh-controller
+hpc-ssh-controller: venv-create
+	@echo "Connecting to HPC controller node..."
+	@echo "Configuration: $(CLUSTER_CONFIG)"
+	@if [ ! -f "$(SSH_PRIVATE_KEY)" ]; then \
+		echo "❌ Error: SSH private key not found: $(SSH_PRIVATE_KEY)"; \
+		echo "Please build the base images first to generate SSH keys."; \
+		exit 1; \
+	fi
+	@CONTROLLER_IP=$$(uv run ai-how --log-level error system status $(CLUSTER_CONFIG) --format json 2>/dev/null | \
+		jq -r '.hpc_cluster.vms[] | select(.name | test("controller")) | .ip_address' 2>/dev/null || echo ""); \
+	if [ -z "$$CONTROLLER_IP" ]; then \
+		echo "❌ Error: Unable to determine controller IP from cluster configuration."; \
+		echo "   Ensure the cluster is running and the configuration is valid."; \
+		echo "   Try: make hpc-cluster-status"; \
+		exit 1; \
+	fi; \
+	echo "Controller IP: $$CONTROLLER_IP"; \
+	echo "SSH Key: $(SSH_PRIVATE_KEY)"; \
+	echo "Connecting as admin user..."; \
+	echo ""; \
+	ssh -i $(SSH_PRIVATE_KEY) -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null admin@$$CONTROLLER_IP
 
 
 #==============================================================================
@@ -728,6 +750,7 @@ help:
 	@echo "  make hpc-cluster-deploy    - Deploy SLURM to HPC cluster."
 	@echo "  make hpc-cluster-destroy   - Destroy HPC cluster VMs (ai-how hpc destroy)."
 	@echo "  make hpc-cluster-status    - Check HPC cluster status (ai-how hpc status)."
+	@echo "  make hpc-ssh-controller    - SSH to HPC controller node (auto-detects IP)."
 	@echo ""
 	@echo "Cloud Cluster Management:"
 	@echo "  make cloud-cluster-inventory - Generate Ansible inventory for Cloud cluster."
