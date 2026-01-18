@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slurm-config
+  namespace: slurm
+data:
+  slurm.conf: |
+    # SLURM Configuration Template
+    # This is a basic template - customize for your cluster
+    
+    # Cluster name
+    ClusterName=slurm-cluster
+    ControlMachine=slurm-controller
+    SlurmUser=slurm
+    SlurmctldPort=6817
+    SlurmdPort=6818
+    
+    # Authentication
+    AuthType=auth/munge
+    
+    # State directories
+    StateSaveLocation=/var/lib/slurm
+    SlurmdSpoolDir=/var/spool/slurmd
+    SlurmctldPidFile=/var/run/slurmctld.pid
+    SlurmdPidFile=/var/run/slurmd.pid
+    SlurmctldLogFile=/var/log/slurm/slurmctld.log
+    SlurmdLogFile=/var/log/slurm/slurmd.log
+    
+    # Accounting
+    AccountingStorageType=accounting_storage/slurmdbd
+    AccountingStorageHost=slurm-dbdaemon
+    AccountingStoragePort=6819
+    AccountingStorageUser=slurm
+    
+    # Node and partition configuration
+    # NOTE: Update NodeName and PartitionName based on your compute nodes
+    NodeName=slurm-compute-[0-2] CPUs=4 RealMemory=2048 State=UNKNOWN
+    PartitionName=compute Nodes=slurm-compute-[0-2] Default=YES MaxTime=INFINITE State=UP
+    
+    # Process tracking
+    ProctrackType=proctrack/cgroup
+    TaskPlugin=task/cgroup
+    
+    # Scheduler
+    SchedulerType=sched/backfill
+    
+    # MPI
+    MpiDefault=pmix
+    
+    # NOTE: This is a template. Customize:
+    # - NodeName: Match your compute node names
+    # - PartitionName: Define your partitions
+    # - Resources: CPU and memory per node
+    # - Additional plugins and settings
+

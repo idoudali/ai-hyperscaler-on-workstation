@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: slurm
+  labels:
+    name: slurm
+    component: hpc
+

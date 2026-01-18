@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: slurm-dbdaemon
+  namespace: slurm
+spec:
+  selector:
+    app: slurm-dbdaemon
+  ports:
+    - port: 6819
+      targetPort: 6819
+      name: slurmdbd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slurm-dbdaemon
+  namespace: slurm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slurm-dbdaemon
+  template:
+    metadata:
+      labels:
+        app: slurm-dbdaemon
+    spec:
+      containers:
+      - name: slurmdbd
+        image: slurm-base:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SLURM_ROLE
+          value: "database"
+        - name: SLURM_PACKAGE_DIR
+          value: "/tmp/slurm-packages"
+        volumeMounts:
+        - name: munge-key
+          mountPath: /etc/munge/munge.key
+          subPath: munge.key
+          readOnly: true
+        - name: slurm-packages
+          mountPath: /tmp/slurm-packages
+          readOnly: true
+        - name: slurm-config
+          mountPath: /etc/slurm
+        - name: slurm-state
+          mountPath: /var/lib/slurm
+        - name: slurm-logs
+          mountPath: /var/log/slurm
+        ports:
+        - containerPort: 6819
+          name: slurmdbd
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: munge-key
+        secret:
+          secretName: slurm-munge-key
+      - name: slurm-packages
+        hostPath:
+          path: /path/to/build/packages/slurm  # Update this path
+          type: Directory
+      - name: slurm-config
+        configMap:
+          name: slurm-config
+      - name: slurm-state
+        persistentVolumeClaim:
+          claimName: slurm-state-pvc
+      - name: slurm-logs
+        emptyDir: {}
+

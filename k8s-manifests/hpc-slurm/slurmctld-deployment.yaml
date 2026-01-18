@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: slurm-controller
+  namespace: slurm
+spec:
+  selector:
+    app: slurm-controller
+  ports:
+    - port: 6817
+      targetPort: 6817
+      name: slurmctld
+    - port: 6818
+      targetPort: 6818
+      name: slurmd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slurm-controller
+  namespace: slurm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slurm-controller
+  template:
+    metadata:
+      labels:
+        app: slurm-controller
+    spec:
+      containers:
+      - name: slurmctld
+        image: slurm-base:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: SLURM_ROLE
+          value: "controller"
+        - name: SLURM_PACKAGE_DIR
+          value: "/tmp/slurm-packages"
+        volumeMounts:
+        - name: munge-key
+          mountPath: /etc/munge/munge.key
+          subPath: munge.key
+          readOnly: true
+        - name: slurm-packages
+          mountPath: /tmp/slurm-packages
+          readOnly: true
+        - name: slurm-config
+          mountPath: /etc/slurm
+        - name: slurm-state
+          mountPath: /var/lib/slurm
+        - name: slurm-logs
+          mountPath: /var/log/slurm
+        - name: slurm-spool
+          mountPath: /var/spool/slurmctld
+        ports:
+        - containerPort: 6817
+          name: slurmctld
+        - containerPort: 6818
+          name: slurmd
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: munge-key
+        secret:
+          secretName: slurm-munge-key
+      - name: slurm-packages
+        hostPath:
+          path: /path/to/build/packages/slurm  # Update this path or use ConfigMap/InitContainer
+          type: Directory
+      - name: slurm-config
+        configMap:
+          name: slurm-config
+      - name: slurm-state
+        persistentVolumeClaim:
+          claimName: slurm-state-pvc
+      - name: slurm-logs
+        emptyDir: {}
+      - name: slurm-spool
+        emptyDir: {}
+
