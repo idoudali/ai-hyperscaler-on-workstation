@@ -77,17 +77,13 @@
     - name: Display kernel installation status
       ansible.builtin.debug:
         msg: >-
-          Kernel: {{ kernel_version.stdout }},
-          Headers: {{ 'Available' if kernel_headers_check.stat.exists else 'Missing' }},
-          Mode: {{ 'Packer Build' if is_packer_build else 'Runtime' }},
-          Profile: {{ package_profile }}
+          Kernel: {{ kernel_version.stdout }}, Headers: {{ 'Available' if kernel_headers_check.stat.exists else 'Missing' }}, Mode: {{ 'Packer Build' if is_packer_build else 'Runtime' }}, Profile: {{ package_profile }}
       when: is_packer_build or kernel_headers_check.stat.exists
 
     - name: Fail if kernel headers are missing (runtime mode only)
       ansible.builtin.fail:
         msg: >-
-          Kernel headers missing for {{ kernel_version.stdout }}.
-          Reboot required: sudo reboot
+          Kernel headers missing for {{ kernel_version.stdout }}. Reboot required: sudo reboot
       when:
         - not kernel_headers_check.stat.exists
         - not is_packer_build

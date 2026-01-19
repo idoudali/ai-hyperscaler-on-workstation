@@ -251,7 +251,8 @@ This category validates Oumi framework integration with custom infrastructure:
 - Experiment tracking and result organization
 - Reproducible training configurations
 
-**Next Steps:** Proceed to [Category 4: Inference Deployment](./category-4-inference.md) to validate model serving on cloud cluster.
+**Next Steps:** Proceed to [Category 4: Inference Deployment](./category-4-inference.md) to validate
+model serving on cloud cluster.
 
 ---
 

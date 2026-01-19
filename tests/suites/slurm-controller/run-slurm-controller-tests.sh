@@ -200,6 +200,7 @@ cleanup_test_environment() {
 # Main execution function
 main() {
     local start_time
+    # shellcheck disable=SC2034  # start_time kept for potential timing functionality
     start_time=$(date +%s)
 
     echo ""

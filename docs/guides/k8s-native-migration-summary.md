@@ -5,19 +5,20 @@ environments, replacing the previous VM-based approach.
 
 ## Overview
 
-The migration enables running HPC (Slurm) and Cloud (Kubernetes) environments directly on
-Kubernetes pods without requiring Virtual Machines. This provides:
+The migration enables running HPC (Slurm) and Cloud (Kubernetes) environments directly on Kubernetes
+pods without requiring Virtual Machines. This provides:
 
-- **No VM Overhead**: Uses container-native approach with Kind
+- **No VM Overhead**: Uses container-native approach (k3s recommended for GPU workloads)
 - **Local Development**: Run on workstation without hypervisors
 - **Container-First**: All components run as Kubernetes pods
 - **Better Resource Utilization**: More efficient than VM-based setup
+- **GPU Support**: Native GPU passthrough with k3s (unlike Kind which has limitations)
 
 ## What Was Implemented
 
-### 1. Documentation (`docs/guides/k8s-native-setup.md`)
+### 1. Documentation
 
-Comprehensive guide covering:
+**K8s Native Setup Guide** (`docs/guides/k8s-native-setup.md`):
 
 - **Local K8s Installation**: Step-by-step instructions for setting up Kind cluster
 - **Slurm Deployment Options**:
@@ -26,6 +27,20 @@ Comprehensive guide covering:
 - **vCluster Setup**: Instructions for multi-tenant cloud environment simulation
 - **Container Build**: Building and loading Slurm container images
 - **Verification**: Testing and validation procedures
+
+**K3s Local Setup Guide** (`docs/guides/k3s-local-setup.md`):
+
+- **K3s Installation**: Step-by-step instructions for k3s with GPU support
+- **GPU Configuration**: NVIDIA device plugin setup
+- **Multi-Cluster Kubeconfig Management**: Working with multiple clusters
+- **Storage Configuration**: Local-path-provisioner setup
+- **Troubleshooting**: Common issues and solutions
+
+**Local Storage Guide** (`docs/guides/local-storage-pvc.md`):
+
+- **PVC Creation**: How to create and use PersistentVolumeClaims
+- **Storage Examples**: Database, training data, Slurm state
+- **Best Practices**: Storage sizing, backup, monitoring
 
 ### 2. Container Images (`containers/images/slurm-base/`)
 
@@ -99,7 +114,20 @@ Complete instructions for setting up virtual clusters for multi-tenant cloud env
 
 ## Deployment Methods
 
-### Option 1: Slinky (Recommended)
+### Local Development: K3s (Recommended for GPU Workloads)
+
+K3s is recommended for local development with GPU support:
+
+- **Native GPU Support**: Direct GPU passthrough (no nested container limitations)
+- **Lightweight**: Single binary, fast startup
+- **Production-Ready API**: Full Kubernetes compatibility
+- **Multi-Cluster Support**: Integrated kubeconfig management
+
+See: `docs/guides/k3s-local-setup.md`
+
+**Note:** Kind does not support GPU passthrough effectively due to nested container limitations. Use k3s for GPU workloads.
+
+### Production: Slinky (Recommended)
 
 SchedMD's official Kubernetes operator for Slurm:
 
@@ -109,7 +137,7 @@ SchedMD's official Kubernetes operator for Slurm:
 
 See: `docs/guides/k8s-native-setup.md#slinky-deployment`
 
-### Option 2: Static Deployment
+### Development: Static Deployment
 
 Manual Kubernetes manifests:
 
@@ -214,10 +242,12 @@ See: `docs/guides/k8s-native-setup.md#static-slurm-deployment`
 
 ## Limitations
 
-1. **GPU Support**: Requires GPU operator for GPU passthrough (not yet implemented)
+1. **Kind GPU Support**: Kind does not support GPU passthrough effectively (use k3s instead)
 2. **Network Performance**: Container networking may have overhead vs VM networking
 3. **Storage**: Local storage limited compared to dedicated VM storage
 4. **Isolation**: Container isolation vs VM-level isolation (may matter for security)
+
+**Note:** For GPU workloads, k3s is recommended over Kind. K3s provides native GPU support without nested container limitations.
 
 ## Related Documentation
 
@@ -231,16 +261,20 @@ See: `docs/guides/k8s-native-setup.md#static-slurm-deployment`
 ✅ **Completed**:
 
 - Documentation with Kind setup instructions
+- **K3s setup guide with GPU support** (recommended for local GPU workloads)
 - Slinky deployment instructions
 - Static deployment manifests
 - Container images structure
-- Helper scripts
+- Helper scripts (k3s setup, teardown, verification)
 - vCluster setup documentation
+- **Local storage/PVC guide**
+- **Multi-cluster kubeconfig management**
+- **GPU device plugin manifests**
+- **Makefile targets for k3s management**
 
 ⏳ **Future Work**:
 
 - Complete Slurm ConfigMap generation
-- GPU support integration
 - Automated deployment scripts
 - CI/CD integration
 - Performance benchmarking
