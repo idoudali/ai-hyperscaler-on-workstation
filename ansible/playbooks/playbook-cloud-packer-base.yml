@@ -14,9 +14,9 @@
     package_profile: cloud
 
   roles:
-    - role: base-packages         # Base packages and latest kernel (PHASE 1)
+    - role: base-packages # Base packages and latest kernel (PHASE 1)
       tags: ['base-packages', 'kernel-headers']
-    - role: monitoring-stack      # Node exporter for system metrics (PHASE 2)
+    - role: monitoring-stack # Node exporter for system metrics (PHASE 2)
       tags: ['monitoring']
 
   tasks:
@@ -93,6 +93,4 @@
     - name: Display relevant installed packages
       ansible.builtin.debug:
         msg: >-
-          {{ ansible_facts.packages | dict2items |
-          selectattr('key', 'in', ['python3', 'cloud-init', 'curl', 'wget', 'vim', 'htop',
-          'prometheus-node-exporter']) | list }}
+          {{ ansible_facts.packages | dict2items | selectattr('key', 'in', ['python3', 'cloud-init', 'curl', 'wget', 'vim', 'htop', 'prometheus-node-exporter']) | list }}

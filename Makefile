@@ -600,6 +600,70 @@ system-destroy: venv-create
 	@uv run ai-how system destroy $(CLUSTER_CONFIG)
 
 #==============================================================================
+# K3s Local Cluster Management
+#==============================================================================
+
+.PHONY: k3s-setup
+k3s-setup: ## Setup k3s cluster with GPU support
+	@echo "Setting up k3s cluster with GPU support..."
+	@sudo ./scripts/k8s/setup-k3s-cluster.sh
+
+.PHONY: k3s-teardown
+k3s-teardown: ## Teardown k3s cluster
+	@echo "Tearing down k3s cluster..."
+	@sudo ./scripts/k8s/teardown-k3s-cluster.sh
+
+.PHONY: k3s-status
+k3s-status: ## Show k3s cluster status
+	@echo "K3s cluster status:"
+	@./scripts/k8s/verify-k3s-gpu.sh
+
+.PHONY: k3s-fix-cni
+k3s-fix-cni: ## Fix CNI plugin issues (install missing CNI plugins)
+	@echo "Fixing k3s CNI plugin issues..."
+	@sudo ./FIX_CNI.sh
+
+.PHONY: k3s-kubeconfig
+k3s-kubeconfig: ## Export k3s kubeconfig to output directory
+	@echo "Exporting k3s kubeconfig..."
+	@./scripts/k8s/get-k3s-kubeconfig.sh
+
+.PHONY: k3s-shell
+k3s-shell: ## Open shell with k3s kubeconfig set
+	@echo "Opening shell with k3s context..."
+	@KUBECONFIG=$(CLUSTER_STATE_DIR)/kubeconfigs/k3s-local.kubeconfig bash
+
+.PHONY: k3s-deploy-slurm
+k3s-deploy-slurm: ## Deploy Slurm to k3s cluster
+	@echo "Deploying Slurm to k3s..."
+	@KUBECONFIG=$(CLUSTER_STATE_DIR)/kubeconfigs/k3s-local.kubeconfig kubectl apply -f k8s-manifests/hpc-slurm/
+
+#==============================================================================
+# Kubeconfig Management (Multi-Cluster)
+#==============================================================================
+
+.PHONY: kubeconfig-list
+kubeconfig-list: ## List all available cluster kubeconfigs
+	@./scripts/manage-kubeconfig.sh list
+
+.PHONY: kubeconfig-use
+kubeconfig-use: ## Switch to a cluster (use CLUSTER=name)
+	@if [ -z "$(CLUSTER)" ]; then \
+		echo "Error: CLUSTER variable required"; \
+		echo "Usage: make kubeconfig-use CLUSTER=k3s-local"; \
+		exit 1; \
+	fi
+	@./scripts/manage-kubeconfig.sh use $(CLUSTER)
+
+.PHONY: kubeconfig-current
+kubeconfig-current: ## Show current kubectl context
+	@./scripts/manage-kubeconfig.sh current
+
+.PHONY: kubeconfig-merge
+kubeconfig-merge: ## Merge all kubeconfigs into one
+	@./scripts/manage-kubeconfig.sh merge
+
+#==============================================================================
 # Backward Compatibility Aliases
 #==============================================================================
 
@@ -759,6 +823,20 @@ help:
 	@echo "  make cloud-cluster-deploy    - Deploy Kubernetes to Cloud cluster."
 	@echo "  make cloud-cluster-destroy   - Destroy Cloud cluster VMs (ai-how cloud destroy)."
 	@echo "  make cloud-cluster-status    - Check Cloud cluster status (ai-how cloud status)."
+	@echo ""
+	@echo "K3s Local Cluster Management:"
+	@echo "  make k3s-setup          - Setup k3s cluster with GPU support."
+	@echo "  make k3s-teardown       - Teardown k3s cluster."
+	@echo "  make k3s-status         - Show k3s cluster status."
+	@echo "  make k3s-kubeconfig     - Export k3s kubeconfig to output directory."
+	@echo "  make k3s-shell          - Open shell with k3s kubeconfig set."
+	@echo "  make k3s-deploy-slurm   - Deploy Slurm to k3s cluster."
+	@echo ""
+	@echo "Kubeconfig Management (Multi-Cluster):"
+	@echo "  make kubeconfig-list    - List all available cluster kubeconfigs."
+	@echo "  make kubeconfig-use     - Switch to a cluster (use CLUSTER=name)."
+	@echo "  make kubeconfig-current - Show current kubectl context."
+	@echo "  make kubeconfig-merge   - Merge all kubeconfigs into one."
 	@echo ""
 	@echo "GitOps Application Deployment (implemented in k8s-manifests/Makefile):"
 	@echo "  make gitops-deploy-mlops-stack - Deploy all MLOps apps via GitOps (App of Apps)."

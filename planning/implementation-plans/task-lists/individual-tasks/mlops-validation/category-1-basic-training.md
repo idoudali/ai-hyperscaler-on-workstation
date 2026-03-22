@@ -184,7 +184,8 @@ This category validates the foundational single-GPU training infrastructure:
 - LLM fine-tuning workflows
 - Longer-running GPU workloads
 
-**Next Steps:** Proceed to [Category 2: Distributed Training](./category-2-distributed-training.md) to validate multi-GPU capabilities.
+**Next Steps:** Proceed to [Category 2: Distributed Training](./category-2-distributed-training.md) to
+validate multi-GPU capabilities.
 
 ---
 

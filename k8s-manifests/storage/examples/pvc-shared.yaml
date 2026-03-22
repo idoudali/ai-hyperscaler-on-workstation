@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-shared
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: local-storage
+  resources:
+    requests:
+      storage: 20Gi
+---
+# Note: ReadWriteMany requires a shared filesystem (NFS, CephFS, etc.)
+# local-path-provisioner only supports ReadWriteOnce
+# This example shows the format, but will need a different provisioner for ReadWriteMany
