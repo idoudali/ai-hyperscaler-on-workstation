@@ -178,7 +178,7 @@ make test-container-workflow
 
 ---
 
-### Phase 7: MIG Support (7 tasks)
+### Phase 7: MIG Support (4 implementation tasks + 3 documentation tasks)
 
 **Objective:** Enable Multi-Instance GPU (MIG) support for fractional GPU allocation
 
@@ -201,7 +201,7 @@ make test-container-workflow
 
 ---
 
-### Phase 4 & 6 Test Consolidation (3 tasks)
+### Status Check: Phase 4 & 6 Test Consolidation Tasks
 
 **Note:** These were listed in original active-workstreams.md but may already be complete. Verify status.
 
@@ -593,13 +593,13 @@ TASK-035 ✅ → TASK-036 ✅ → TASK-037 ✅
   - [ ] BeeGFS throughput >1 GB/s for large files
   - [ ] SLURM GPU scheduling working correctly
   - [ ] End-to-end ML container workflow validated
-- [ ] **Phase 7: MIG Support (7 tasks)**
+- [ ] **Phase 7: MIG Support (4 implementation tasks + 3 documentation tasks)**
   - [ ] Host MIG configuration tools created
   - [ ] Python wrapper supports MIG
   - [ ] GPU allocator tracks MIG slices
   - [ ] Simulator integration complete
-  - [ ] Tutorial: GPU Partitioning completed (TASK-DOC-2.3)
-  - [ ] Doc: GPU Architecture updated with MIG (TASK-DOC-3.4)
+  - [x] Tutorial: GPU Partitioning completed (TASK-DOC-2.3)
+  - [x] Doc: GPU Architecture updated with MIG (TASK-DOC-3.4)
   - [ ] Tutorial: SLURM Advanced updated with MIG (TASK-DOC-2.10)
 
 ### Code Quality (Workstream 2)

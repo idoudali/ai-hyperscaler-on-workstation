@@ -84,7 +84,9 @@ sudo nvidia-smi mig -i 0 -cgi 19 -C
 (Note: Profiles must fit within the physical resources)
 
 ```bash
-sudo nvidia-smi mig -i 0 -cgi 9,19,19 -C
+sudo nvidia-smi mig -i 0 -cgi 9 -C
+sudo nvidia-smi mig -i 0 -cgi 19 -C
+sudo nvidia-smi mig -i 0 -cgi 19 -C
 ```
 
 ### 3.4 Verify Configuration
@@ -149,7 +151,9 @@ SLURM does **not** automatically create or destroy MIG instances. The administra
 
 ```bash
 # Step 1: Create MIG instances manually (on compute node)
-sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19 -C
+for i in {1..7}; do
+  sudo nvidia-smi mig -i 0 -cgi 19 -C
+done
 
 # Step 2: Verify instances exist
 nvidia-smi -L
@@ -176,7 +180,9 @@ SLURM treats MIG instances as **static resources** that exist independently of j
     1.  Drain the compute node: `scontrol update NodeName=compute-01 State=DRAIN`
     2.  Wait for running jobs to complete.
     3.  Destroy existing instances: `sudo nvidia-smi mig -i 0 -dgi`
-    4.  Create new instances: `sudo nvidia-smi mig -i 0 -cgi 9,9 -C`
+    4.  Create new instances:
+        - `sudo nvidia-smi mig -i 0 -cgi 9 -C`
+        - `sudo nvidia-smi mig -i 0 -cgi 9 -C`
     5.  Update `gres.conf` and `slurm.conf` to reflect new resource counts.
     6.  Restart `slurmd`: `sudo systemctl restart slurmd`
     7.  Resume the node: `scontrol update NodeName=compute-01 State=RESUME`
@@ -264,7 +270,9 @@ Kubernetes can schedule pods to specific MIG instances using resource requests.
 # On each GPU worker node, enable MIG and create instances
 sudo nvidia-smi -i 0 -mig 1
 sudo nvidia-smi --gpu-reset -i 0
-sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19 -C
+for i in {1..7}; do
+  sudo nvidia-smi mig -i 0 -cgi 19 -C
+done
 ```
 
 **Step 2: Configure Device Plugin**
@@ -471,11 +479,14 @@ To enable vGPU functionality with MIG slices, follow these steps:
     -   Create mdev devices for each MIG instance:
 
         ```bash
-        # List available mdev types for MIG instances
-        ls /sys/class/mdev_bus/*/mdev_supported_types
-        
-        # Create mdev device (example for first MIG instance)
-        uuidgen > /sys/class/mdev_bus/0000:01:00.0/mdev_supported_types/nvidia-<type>/create
+        # List available mdev types for a GPU PCI address (replace as needed)
+        ls /sys/class/mdev_bus/0000:01:00.0/mdev_supported_types/
+
+        # Example output might include nvidia-563, nvidia-564, ...
+        # Choose the type that matches your desired MIG-backed vGPU profile.
+        UUID=$(uuidgen)
+        echo "$UUID" > /sys/class/mdev_bus/0000:01:00.0/mdev_supported_types/nvidia-<type>/create
+        echo "Created mdev device with UUID: $UUID"
         ```
 
     -   See: [MIG-Backed vGPU Guide](https://docs.nvidia.com/grid/latest/grid-vgpu-user-guide/index.html#mig-backed-vgpus)

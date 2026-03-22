@@ -236,7 +236,7 @@ defined in `docs/design-docs/project-plan.md`.
 - ✅ **HPC Phase 4 consolidation: 100% complete!** 🎉
 - 🎯 **NEW:** Phase 5 Distributed Training Enablement (6/8 complete, 75%)
 - 🎯 **NEW:** Phase 7 MIG Support added (4 tasks, after Phase 6)
-- 🎯 Target: HPC infrastructure 100% complete by 2025-12-30 (Phase 5 + 6 + 7)
+- 🎯 Target: HPC infrastructure 100% complete by 2026-01-20 (Phase 5 + 6 + 7)
 - 🎯 Target: Documentation 75% complete by 2025-12-15
 
 ---

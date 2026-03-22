@@ -67,17 +67,21 @@ nvidia-smi mig --list-gpu-instance-profiles
 | **Balanced** | 14 (2g.10gb) | 3 instances, 10GB memory each. Good for small training/fine-tuning. |
 | **High Performance** | 9 (3g.20gb) | 2 instances, 20GB memory each. |
 
+> **Note:** Profile IDs shown here are examples. They can vary by GPU model, driver version, and hardware
+> revision. Always verify IDs on your system with `nvidia-smi mig --list-gpu-instance-profiles`.
+
 ## Step 4: Create Partitions
 
 We will create 7 instances of `1g.5gb` (Profile ID 19).
 
 ```bash
-# -cgi 19: Create GPU Instance (Profile 19)
-# -C: Also create Compute Instance (required for execution)
-sudo nvidia-smi mig -i 0 -cgi 19,19,19,19,19,19,19 -C
+# Create 7 GPU Instances (Profile 19) and corresponding Compute Instances
+for i in {1..7}; do
+  sudo nvidia-smi mig -i 0 -cgi 19 -C
+done
 ```
 
-*Tip: You can use `sudo nvidia-smi mig -i 0 -cgi 19 -C` repeatedly or list IDs separated by commas.*
+*Tip: You can run `sudo nvidia-smi mig -i 0 -cgi 19 -C` repeatedly or use the loop above.*
 
 Verify the instances:
 
