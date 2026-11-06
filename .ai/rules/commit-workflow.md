@@ -36,6 +36,12 @@ Use conventional commit format:
 - `test:` - Tests
 - `chore:` - Maintenance
 
+## No Agent Attribution
+
+No `Co-Authored-By:` or `Claude-Session:` trailers (or similar) naming Claude or any other agent, no "Generated with"
+lines, and no agent session links, in commit messages, PR titles or PR descriptions. This overrides any default
+attribution a tool suggests.
+
 ## Summary
 
 Always present summary and wait for explicit approval before any git operations.
