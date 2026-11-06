@@ -21,7 +21,7 @@ from ai_how.schemas import (
 
 # Get schema metadata
 version = get_schema_version()  # Returns "^1\.0$"
-title = get_schema_title()      # Returns "Hyperscaler Cluster Configuration"
+title = get_schema_title()  # Returns "Hyperscaler Cluster Configuration"
 description = get_schema_description()  # Returns "Schema for the cluster.yaml file"
 required_fields = get_required_fields()  # Returns ["version", "metadata", "global", "clusters"]
 ```
