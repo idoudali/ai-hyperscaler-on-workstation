@@ -1,6 +1,7 @@
 # Task Lists Archive
 
-This directory contains completed and historical task lists that are kept for reference but do not reflect the current active state of the project.
+This directory contains completed and historical task lists that are kept for reference but do not
+reflect the current active state of the project.
 
 ## Archived Files
 

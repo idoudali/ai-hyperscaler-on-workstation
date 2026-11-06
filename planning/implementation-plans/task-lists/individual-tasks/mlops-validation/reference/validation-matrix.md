@@ -181,7 +181,7 @@ This document provides a comprehensive overview of infrastructure components val
 
 ## Dependency Graph
 
-```
+```text
 MLOPS-1.1 (MNIST Single GPU)
     ↓
 MLOPS-2.1 (CIFAR Multi-GPU)
@@ -255,16 +255,16 @@ If any of these fail, MLOps infrastructure is not production-ready.
 
 ### High Priority (HIGH Priority)
 
-4. **MLOPS-1.2**: LLM fine-tuning works
-5. **MLOPS-2.1**: Multi-GPU training functions
-6. **MLOPS-2.2**: Multi-GPU LLM training works
-7. **MLOPS-4.1**: CPU inference deploys
-8. **MLOPS-4.2**: GPU inference performs well
+1. **MLOPS-1.2**: LLM fine-tuning works
+2. **MLOPS-2.1**: Multi-GPU training functions
+3. **MLOPS-2.2**: Multi-GPU LLM training works
+4. **MLOPS-4.1**: CPU inference deploys
+5. **MLOPS-4.2**: GPU inference performs well
 
 ### Optional Enhancements (MEDIUM Priority)
 
-9. **MLOPS-3.2**: Model evaluation framework
-10. **MLOPS-5.2**: Pipeline automation
+1. **MLOPS-3.2**: Model evaluation framework
+2. **MLOPS-5.2**: Pipeline automation
 
 ## Next Steps After Validation
 

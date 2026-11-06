@@ -58,9 +58,11 @@ spec:
           requests:
             memory: "1Gi"
             cpu: "500m"
+            nvidia.com/gpu: 1
           limits:
             memory: "2Gi"
             cpu: "1000m"
+            nvidia.com/gpu: 1
       volumes:
       - name: munge-key
         secret:

@@ -1,0 +1,48 @@
+# Example: Mount host directory into a pod using HostPath
+# This allows direct access to host filesystem without PVC
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostpath-example
+spec:
+  containers:
+  - name: example
+    image: busybox
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: datasets
+      mountPath: /data/datasets
+    - name: logs
+      mountPath: /var/log
+  volumes:
+  - name: datasets
+    hostPath:
+      path: /data/datasets
+      type: Directory
+  - name: logs
+    hostPath:
+      path: /var/log
+      type: DirectoryOrCreate
+---
+# Example: Mount specific host directory for datasets
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dataset-accessor
+spec:
+  containers:
+  - name: data-processor
+    image: nvidia/cuda:12.0.0-base-ubuntu22.04
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: training-data
+      mountPath: /workspace/data
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+  volumes:
+  - name: training-data
+    hostPath:
+      path: /opt/datasets
+      type: Directory

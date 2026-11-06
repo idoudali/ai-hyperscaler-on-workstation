@@ -11,15 +11,15 @@
   vars:
     packer_build: true
     gpu_enabled: true
-    nvidia_install_drivers_only: true      # Only drivers, no toolkit/DCGM
-    nvidia_install_cuda: false              # CUDA in containers
-    nvidia_packer_build: true               # Suppress reboot warnings
+    nvidia_install_drivers_only: true # Only drivers, no toolkit/DCGM
+    nvidia_install_cuda: false # CUDA in containers
+    nvidia_packer_build: true # Suppress reboot warnings
     package_profile: cloud
 
   roles:
-    - role: base-packages                  # Base packages and latest kernel (PHASE 1)
+    - role: base-packages # Base packages and latest kernel (PHASE 1)
       tags: ['base-packages', 'kernel-headers']
-    - role: nvidia-gpu-drivers             # NVIDIA drivers only (PHASE 2)
+    - role: nvidia-gpu-drivers # NVIDIA drivers only (PHASE 2)
       when: gpu_enabled | default(true)
       tags: ['nvidia-drivers', 'gpu']
 
@@ -119,5 +119,4 @@
     - name: Display relevant installed packages
       ansible.builtin.debug:
         msg: >-
-          {{ ansible_facts.packages | dict2items |
-          selectattr('key', 'regex', 'nvidia-driver|nvidia-kernel|linux-headers') | list }}
+          {{ ansible_facts.packages | dict2items | selectattr('key', 'regex', 'nvidia-driver|nvidia-kernel|linux-headers') | list }}

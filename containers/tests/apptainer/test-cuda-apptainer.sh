@@ -433,7 +433,8 @@ test_all_images() {
 
 # Generate test report
 generate_report() {
-    local report_file="${LOG_DIR}/test-cuda-apptainer-report-$(date +%Y%m%d-%H%M%S).txt"
+    local report_file
+    report_file="${LOG_DIR}/test-cuda-apptainer-report-$(date +%Y%m%d-%H%M%S).txt"
 
     {
         echo "=========================================="
