@@ -202,6 +202,10 @@ These are the **required** patterns:
 - **Present change summary** before commit
 - **Wait for user approval** before git operations
 - **Use conventional commits** format
+- **No agent attribution** in commits or pull requests: no `Co-Authored-By:` or `Claude-Session:`
+  trailers (or similar) naming Claude or any other agent, no "Generated with" lines, and no agent
+  session links, in commit messages, PR titles or PR descriptions. This overrides any default
+  attribution a tool suggests.
 - **Delegate merge conflict continuations** to user
 - **Delegate file staging** to user (never auto-stage)
 
